@@ -157,19 +157,61 @@ class AdminLoginResponse(BaseModel):
     role: Literal["EDITOR", "ADMIN"]
 
 
+class RightsEvidence(BaseModel):
+    """§5.1 evidence record beyond the first-class rights_evidence_url/
+    rights_reviewed_at/reviewer columns on `AdminSourceOut`."""
+
+    terms_url: str | None = None
+    permitted_fields: list[str] = Field(default_factory=list)
+    restrictions: str | None = None
+    territory: str | None = None
+    expires_at: datetime | None = None
+    notes: str | None = None
+
+
 class AdminSourceOut(BaseModel):
     id: UUID
     name: str
+    base_url: str | None = None
     feed_url: str | None = None
+    source_type: str | None = None
+    country: str | None = None
+    language: str | None = None
     rights_status: RightsStatus
+    rights_evidence_url: str | None = None
+    rights_reviewed_at: datetime | None = None
+    reviewer: str | None = None
+    rights_evidence: RightsEvidence = Field(default_factory=RightsEvidence)
+    refresh_minutes: int | None = None
     active: bool
-    health: str | None = None
+    fail_count: int
+    last_success_at: datetime | None = None
+    last_error_at: datetime | None = None
+
+
+class AdminSourceCreate(BaseModel):
+    name: str
+    base_url: str | None = None
+    feed_url: str | None = None
+    source_type: str | None = None
+    country: str | None = None
+    language: str | None = None
+    refresh_minutes: int | None = None
 
 
 class AdminSourceUpdate(BaseModel):
     name: str | None = None
+    base_url: str | None = None
     feed_url: str | None = None
+    source_type: str | None = None
+    country: str | None = None
+    language: str | None = None
     rights_status: RightsStatus | None = None
+    rights_evidence_url: str | None = None
+    rights_reviewed_at: datetime | None = None
+    reviewer: str | None = None
+    rights_evidence: RightsEvidence | None = None
+    refresh_minutes: int | None = None
     active: bool | None = None
 
 
@@ -199,6 +241,14 @@ class AdminJobOut(BaseModel):
     run_after: datetime
     locked_at: datetime | None = None
     last_error: str | None = None
+
+
+class KillSwitchesOut(BaseModel):
+    """Read-only view of the §15 global kill switches (env-backed; no
+    publish logic exists to gate yet — see T12)."""
+
+    auto_publish_global: bool
+    auto_publish_category_immigration: bool
 
 
 class AdminAuditEventOut(BaseModel):

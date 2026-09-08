@@ -72,6 +72,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/admin/kill-switches": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Kill Switches */
+        get: operations["get_kill_switches_v1_admin_kill_switches_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/admin/review-queue": {
         parameters: {
             query?: never;
@@ -99,7 +116,8 @@ export interface paths {
         /** List Sources */
         get: operations["list_sources_v1_admin_sources_get"];
         put?: never;
-        post?: never;
+        /** Create Source */
+        post: operations["create_source_v1_admin_sources_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -497,37 +515,92 @@ export interface components {
              */
             token_type: "bearer";
         };
+        /** AdminSourceCreate */
+        AdminSourceCreate: {
+            /** Base Url */
+            base_url?: string | null;
+            /** Country */
+            country?: string | null;
+            /** Feed Url */
+            feed_url?: string | null;
+            /** Language */
+            language?: string | null;
+            /** Name */
+            name: string;
+            /** Refresh Minutes */
+            refresh_minutes?: number | null;
+            /** Source Type */
+            source_type?: string | null;
+        };
         /** AdminSourceOut */
         AdminSourceOut: {
             /** Active */
             active: boolean;
+            /** Base Url */
+            base_url?: string | null;
+            /** Country */
+            country?: string | null;
+            /** Fail Count */
+            fail_count: number;
             /** Feed Url */
             feed_url?: string | null;
-            /** Health */
-            health?: string | null;
             /**
              * Id
              * Format: uuid
              */
             id: string;
+            /** Language */
+            language?: string | null;
+            /** Last Error At */
+            last_error_at?: string | null;
+            /** Last Success At */
+            last_success_at?: string | null;
             /** Name */
             name: string;
+            /** Refresh Minutes */
+            refresh_minutes?: number | null;
+            /** Reviewer */
+            reviewer?: string | null;
+            rights_evidence?: components["schemas"]["RightsEvidence"];
+            /** Rights Evidence Url */
+            rights_evidence_url?: string | null;
+            /** Rights Reviewed At */
+            rights_reviewed_at?: string | null;
             /**
              * Rights Status
              * @enum {string}
              */
             rights_status: "DISABLED" | "LINK_ONLY" | "LICENSED_METADATA" | "LICENSED_REPURPOSE";
+            /** Source Type */
+            source_type?: string | null;
         };
         /** AdminSourceUpdate */
         AdminSourceUpdate: {
             /** Active */
             active?: boolean | null;
+            /** Base Url */
+            base_url?: string | null;
+            /** Country */
+            country?: string | null;
             /** Feed Url */
             feed_url?: string | null;
+            /** Language */
+            language?: string | null;
             /** Name */
             name?: string | null;
+            /** Refresh Minutes */
+            refresh_minutes?: number | null;
+            /** Reviewer */
+            reviewer?: string | null;
+            rights_evidence?: components["schemas"]["RightsEvidence"] | null;
+            /** Rights Evidence Url */
+            rights_evidence_url?: string | null;
+            /** Rights Reviewed At */
+            rights_reviewed_at?: string | null;
             /** Rights Status */
             rights_status?: ("DISABLED" | "LINK_ONLY" | "LICENSED_METADATA" | "LICENSED_REPURPOSE") | null;
+            /** Source Type */
+            source_type?: string | null;
         };
         /** ConfigResponse */
         ConfigResponse: {
@@ -556,6 +629,17 @@ export interface components {
             top_stories?: components["schemas"]["StoryOut"][];
             /** Topics */
             topics?: components["schemas"]["TopicOut"][];
+        };
+        /**
+         * KillSwitchesOut
+         * @description Read-only view of the §15 global kill switches (env-backed; no
+         *     publish logic exists to gate yet — see T12).
+         */
+        KillSwitchesOut: {
+            /** Auto Publish Category Immigration */
+            auto_publish_category_immigration: boolean;
+            /** Auto Publish Global */
+            auto_publish_global: boolean;
         };
         /** MeResponse */
         MeResponse: {
@@ -649,6 +733,25 @@ export interface components {
              * Format: uuid
              */
             story_id: string;
+        };
+        /**
+         * RightsEvidence
+         * @description §5.1 evidence record beyond the first-class rights_evidence_url/
+         *     rights_reviewed_at/reviewer columns on `AdminSourceOut`.
+         */
+        RightsEvidence: {
+            /** Expires At */
+            expires_at?: string | null;
+            /** Notes */
+            notes?: string | null;
+            /** Permitted Fields */
+            permitted_fields?: string[];
+            /** Restrictions */
+            restrictions?: string | null;
+            /** Terms Url */
+            terms_url?: string | null;
+            /** Territory */
+            territory?: string | null;
         };
         /** SavedStoryResponse */
         SavedStoryResponse: {
@@ -913,6 +1016,37 @@ export interface operations {
             };
         };
     };
+    get_kill_switches_v1_admin_kill_switches_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["KillSwitchesOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     get_review_queue_v1_admin_review_queue_get: {
         parameters: {
             query?: never;
@@ -962,6 +1096,41 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AdminSourceOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_source_v1_admin_sources_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminSourceCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminSourceOut"];
                 };
             };
             /** @description Validation Error */

@@ -61,6 +61,33 @@ Concretely, for every enabled source:
   the branded Share Card feature back — don't quietly start using a higher
   tier without recording that decision.
 
+## Addendum (2026-09-08, T06): approval role, second approver, evidence expiry
+
+T06 asked this ADR to record three operational decisions rather than open a
+new ADR for them:
+
+- **Who can move a source off `DISABLED`**: only the `ADMIN` role (not
+  `EDITOR`). Enabling a source is the actual rights-gate decision, not
+  routine content-registry upkeep — an `EDITOR` can create/edit every other
+  source field (name, URLs, refresh cadence, etc.) but the API rejects a
+  rights-status change off `DISABLED` from a non-`ADMIN` token
+  (`FORBIDDEN`). `LICENSED_METADATA`/`LICENSED_REPURPOSE` stay unreachable
+  for anyone in this build phase regardless of role.
+- **Second approver**: not required in this build phase. A single `ADMIN`
+  approval, with the required evidence fields (`rights_evidence_url`,
+  `rights_reviewed_at`, `reviewer`) populated and an `AuditEvent` recorded,
+  is sufficient given the low source count and `LINK_ONLY`-only scope. If
+  the source list grows past the handful planned for V1, or a future ADR
+  reopens `LICENSED_METADATA`/`LICENSED_REPURPOSE`, revisit this — dual
+  control is a reasonable next step then.
+- **Evidence expiration tracking**: the evidence record has an optional
+  `expires_at` field, but nothing yet reads it to auto-disable a source or
+  alert an admin — there is no scheduled/health-check job in the codebase
+  before T08. Until that exists, expiration is a manually-reviewed field
+  visible via the admin API, not an enforced control. Wiring an expiry
+  check into the health/job system (T08 or T18) is a known follow-up, not
+  a gap being silently accepted long-term.
+
 ## Alternatives considered
 
 - **Pursue `LICENSED_METADATA` deals before building anything**: rejected —

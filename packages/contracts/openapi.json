@@ -215,11 +215,29 @@
         "title": "AdminLoginResponse",
         "type": "object"
       },
-      "AdminSourceOut": {
+      "AdminSourceCreate": {
         "properties": {
-          "active": {
-            "title": "Active",
-            "type": "boolean"
+          "base_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Base Url"
+          },
+          "country": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Country"
           },
           "feed_url": {
             "anyOf": [
@@ -232,7 +250,7 @@
             ],
             "title": "Feed Url"
           },
-          "health": {
+          "language": {
             "anyOf": [
               {
                 "type": "string"
@@ -241,16 +259,175 @@
                 "type": "null"
               }
             ],
-            "title": "Health"
+            "title": "Language"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "refresh_minutes": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Refresh Minutes"
+          },
+          "source_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Type"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "AdminSourceCreate",
+        "type": "object"
+      },
+      "AdminSourceOut": {
+        "properties": {
+          "active": {
+            "title": "Active",
+            "type": "boolean"
+          },
+          "base_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Base Url"
+          },
+          "country": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Country"
+          },
+          "fail_count": {
+            "title": "Fail Count",
+            "type": "integer"
+          },
+          "feed_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Feed Url"
           },
           "id": {
             "format": "uuid",
             "title": "Id",
             "type": "string"
           },
+          "language": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Language"
+          },
+          "last_error_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Error At"
+          },
+          "last_success_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Success At"
+          },
           "name": {
             "title": "Name",
             "type": "string"
+          },
+          "refresh_minutes": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Refresh Minutes"
+          },
+          "reviewer": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reviewer"
+          },
+          "rights_evidence": {
+            "$ref": "#/components/schemas/RightsEvidence"
+          },
+          "rights_evidence_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rights Evidence Url"
+          },
+          "rights_reviewed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rights Reviewed At"
           },
           "rights_status": {
             "enum": [
@@ -261,13 +438,25 @@
             ],
             "title": "Rights Status",
             "type": "string"
+          },
+          "source_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Type"
           }
         },
         "required": [
           "id",
           "name",
           "rights_status",
-          "active"
+          "active",
+          "fail_count"
         ],
         "title": "AdminSourceOut",
         "type": "object"
@@ -285,6 +474,28 @@
             ],
             "title": "Active"
           },
+          "base_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Base Url"
+          },
+          "country": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Country"
+          },
           "feed_url": {
             "anyOf": [
               {
@@ -296,6 +507,17 @@
             ],
             "title": "Feed Url"
           },
+          "language": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Language"
+          },
           "name": {
             "anyOf": [
               {
@@ -306,6 +528,61 @@
               }
             ],
             "title": "Name"
+          },
+          "refresh_minutes": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Refresh Minutes"
+          },
+          "reviewer": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reviewer"
+          },
+          "rights_evidence": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RightsEvidence"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "rights_evidence_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rights Evidence Url"
+          },
+          "rights_reviewed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rights Reviewed At"
           },
           "rights_status": {
             "anyOf": [
@@ -323,6 +600,17 @@
               }
             ],
             "title": "Rights Status"
+          },
+          "source_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Type"
           }
         },
         "title": "AdminSourceUpdate",
@@ -403,6 +691,25 @@
           }
         },
         "title": "HomeResponse",
+        "type": "object"
+      },
+      "KillSwitchesOut": {
+        "description": "Read-only view of the \u00a715 global kill switches (env-backed; no\npublish logic exists to gate yet \u2014 see T12).",
+        "properties": {
+          "auto_publish_category_immigration": {
+            "title": "Auto Publish Category Immigration",
+            "type": "boolean"
+          },
+          "auto_publish_global": {
+            "title": "Auto Publish Global",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "auto_publish_global",
+          "auto_publish_category_immigration"
+        ],
+        "title": "KillSwitchesOut",
         "type": "object"
       },
       "MeResponse": {
@@ -696,6 +1003,76 @@
           "created_at"
         ],
         "title": "ReviewQueueItemOut",
+        "type": "object"
+      },
+      "RightsEvidence": {
+        "description": "\u00a75.1 evidence record beyond the first-class rights_evidence_url/\nrights_reviewed_at/reviewer columns on `AdminSourceOut`.",
+        "properties": {
+          "expires_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expires At"
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes"
+          },
+          "permitted_fields": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Permitted Fields",
+            "type": "array"
+          },
+          "restrictions": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Restrictions"
+          },
+          "terms_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Terms Url"
+          },
+          "territory": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Territory"
+          }
+        },
+        "title": "RightsEvidence",
         "type": "object"
       },
       "SavedStoryResponse": {
@@ -1247,6 +1624,55 @@
         ]
       }
     },
+    "/v1/admin/kill-switches": {
+      "get": {
+        "operationId": "get_kill_switches_v1_admin_kill_switches_get",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/KillSwitchesOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Kill Switches",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
     "/v1/admin/review-queue": {
       "get": {
         "operationId": "get_review_queue_v1_admin_review_queue_get",
@@ -1348,6 +1774,63 @@
           }
         },
         "summary": "List Sources",
+        "tags": [
+          "admin"
+        ]
+      },
+      "post": {
+        "operationId": "create_source_v1_admin_sources_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdminSourceCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminSourceOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Source",
         "tags": [
           "admin"
         ]

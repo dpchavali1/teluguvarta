@@ -8,9 +8,19 @@ tickets need them; don't mirror every migration column speculatively.
 import uuid
 from datetime import datetime
 
-from sqlalchemy import Boolean, DateTime, Text, func
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy import Boolean, DateTime, Integer, Text, func
+from sqlalchemy.dialects.postgresql import ENUM, JSONB, UUID
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+
+# Matches the native Postgres enum created in infra/migrations (T03) — using
+# the enum type here (not Text) so SQLAlchemy binds values the way psycopg
+# expects for a `USER-DEFINED` column type, instead of relying on implicit
+# unknown-type coercion.
+_source_rights_status_enum = ENUM(
+    "DISABLED", "LINK_ONLY", "LICENSED_METADATA", "LICENSED_REPURPOSE",
+    name="source_rights_status",
+    create_type=False,
+)
 
 
 class Base(DeclarativeBase):
@@ -27,6 +37,42 @@ class User(Base):
     mfa_secret: Mapped[str | None] = mapped_column(Text, nullable=True)
     last_login_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class Source(Base):
+    __tablename__ = "sources"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    name: Mapped[str] = mapped_column(Text, nullable=False)
+    base_url: Mapped[str | None] = mapped_column(Text, nullable=True)
+    feed_url: Mapped[str | None] = mapped_column(Text, nullable=True)
+    source_type: Mapped[str | None] = mapped_column(Text, nullable=True)
+    country: Mapped[str | None] = mapped_column(Text, nullable=True)
+    language: Mapped[str | None] = mapped_column(Text, nullable=True)
+    rights_status: Mapped[str] = mapped_column(_source_rights_status_enum, nullable=False, server_default="DISABLED")
+    rights_evidence_url: Mapped[str | None] = mapped_column(Text, nullable=True)
+    rights_reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    reviewer: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # Structured §5.1 evidence record beyond the first-class columns above:
+    # terms_url, permitted_fields, restrictions, territory, expires_at, notes.
+    rights_evidence: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
+    refresh_minutes: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    active: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="false")
+    fail_count: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
+    last_success_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    last_error_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class AuditEvent(Base):
+    __tablename__ = "audit_events"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    actor: Mapped[str | None] = mapped_column(Text, nullable=True)
+    action: Mapped[str] = mapped_column(Text, nullable=False)
+    entity_type: Mapped[str] = mapped_column(Text, nullable=False)
+    entity_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    metadata_: Mapped[dict] = mapped_column("metadata", JSONB, nullable=False, default=dict)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
 
 
 class AdminLoginAttempt(Base):
