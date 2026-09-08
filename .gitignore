@@ -1,0 +1,38 @@
+\
+# Dependencies
+node_modules/
+.pnpm-store/
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Build output
+.next/
+dist/
+build/
+*.egg-info/
+
+# Env / secrets
+.env
+.env.local
+.env.*.local
+
+# Expo / React Native
+.expo/
+.expo-shared/
+
+# Editors / OS
+.DS_Store
+.vscode/
+.idea/
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# Test / coverage
+coverage/
+.pytest_cache/
+.turbo/
