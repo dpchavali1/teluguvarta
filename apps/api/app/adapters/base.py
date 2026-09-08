@@ -59,12 +59,20 @@ class SourceAdapter:
         raise NotImplementedError
 
     def normalize(self, raw_item: RawItem) -> NormalizedItem:
+        title = (raw_item.title or "").strip() or None
         return NormalizedItem(
             external_id=raw_item.external_id.strip(),
             url=raw_item.url.strip(),
-            title=(raw_item.title or "").strip() or None,
+            title=title,
             published_at=raw_item.published_at,
-            raw_hash=hashlib.sha256(raw_item.raw_bytes).hexdigest(),
+            # Hash of the *normalized title text*, not the raw fetch bytes:
+            # two sources reporting the same underlying event never share
+            # raw bytes (different feed XML/formatting), but T09's dedup
+            # fingerprint needs a hash that can match across sources when
+            # they happen to report an identical headline. Near-duplicates
+            # with differently worded headlines are still caught by T09's
+            # lexical-similarity pass, not this exact hash.
+            raw_hash=hashlib.sha256((title or "").strip().lower().encode("utf-8")).hexdigest(),
         )
 
     def validate(self, item: NormalizedItem) -> ValidationResult:

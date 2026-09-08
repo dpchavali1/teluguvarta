@@ -19,7 +19,7 @@ prior conversation history.
 | T06 Source registry | **done** | `sources` expanded to full §6.2 field list via migration `69110b7cfd3d`; `/v1/admin/sources` CRUD enforces ADR-002 (only DISABLED/LINK_ONLY reachable, `RIGHTS_TIER_NOT_ENABLED` otherwise) and requires rights evidence (`rights_evidence_url`/`rights_reviewed_at`/`reviewer`) plus `ADMIN` role to enable a source (`RIGHTS_EVIDENCE_REQUIRED`/`FORBIDDEN`); every create/update writes an `AuditEvent`; read-only `GET /v1/admin/kill-switches` surfaces the §15 `AUTO_PUBLISH_*` env flags (no publish logic to gate yet — T12); ADR-002 addended with the approval-role/second-approver/evidence-expiry decisions |
 | T07 First source adapters | **done** | Generic RSS/Atom adapter (`apps/api/app/adapters/`) + 3 seeded LINK_ONLY sources with rights evidence |
 | T08 Ingestion worker | **done** | `app/jobs/` (queue claim/retry + `source_fetch` job) polling the T03 `jobs` table via `FOR UPDATE SKIP LOCKED`; ADR-003 accepted; rights gate enforced inside `adapters/base.py::emit()` (new `source_items.ingest_status`); circuit breaker + bounded job retry both real and admin-visible |
-| T09 Dedup + clustering | not started | |
+| T09 Dedup + clustering | **done** | `app/jobs/cluster.py`: deterministic fingerprint (normalized-title hash) + lexical similarity (difflib ratio, 72%/40% thresholds) group `NORMALIZED` `SourceItem`s into `Story`/`StorySource`, advancing `ingest_status` to `CLUSTERED`; AI escalation for ambiguous pairs stubbed for T10/T11 |
 | T10 AI provider gateway | not started | |
 | T11 Story generation | not started | |
 | T12 Editorial workflow | not started | |
@@ -66,6 +66,67 @@ Mirrors `docs/adr/README.md` — keep both in sync.
 
 (newest first — one line per ticket completion)
 
+- 2026-09-08: T09 done — §7.2's model-routing rule ("Dedup/clustering:
+  fingerprint + lexical similarity first; embedding/model only for ambiguous
+  pairs") implemented as pure deterministic code, no AI call, in new
+  `apps/api/app/jobs/cluster.py`. **Fingerprint**: `SourceItem.raw_hash`
+  changed from a hash of the raw fetch bytes (T07) to a hash of the
+  *normalized title text* (`app/adapters/base.py::normalize()`) — the T07
+  version could never match across sources reporting the same event, since
+  two different feeds' raw XML for the same story never shares bytes; no
+  test asserted the old value, so this was a safe in-place change, not a new
+  column. **Clustering**: `cluster_normalized_items()` processes every
+  `NORMALIZED` `SourceItem` in stable order (`published_at`, nulls last,
+  then `id`); for each, it looks for an already-`CLUSTERED` item within a
+  72-hour window whose normalized-title key matches exactly (fingerprint) or
+  whose `difflib.SequenceMatcher` ratio is >= 0.72 (lexical similarity) — if
+  found, attaches as `SUPPORTING` to that item's `Story`; otherwise creates a
+  new `Story` with this item as `PRIMARY`. A ratio <= 0.40 is a definite
+  non-match; the ambiguous band between the two thresholds is where §7.2
+  says to escalate to an embedding/model call — stubbed as
+  `_escalate_to_ai()` (always returns "not a match" for now, a TODO for
+  T10/T11 once the AI gateway exists) since T10 hasn't landed and
+  NON_NEGOTIABLES' "prefer deterministic code" default means this ticket
+  should not block on it. Processing items in one stable pass means a
+  same-run pair (e.g. two feeds reporting one event in the same batch)
+  clusters together naturally — the earlier one creates the `Story`, the
+  later one attaches to it — without a separate same-batch grouping step.
+  §6.4's `DEDUPED` state is never persisted on its own: fingerprinting and
+  clustering happen in one deterministic pass here, so a `SourceItem` goes
+  `NORMALIZED` -> `CLUSTERED` directly (migration
+  `2f6a0e7c9d41_source_items_clustered_status.py` adds `CLUSTERED` to the
+  existing `ck_source_items_ingest_status` check constraint). New ORM models
+  `Story`/`StorySource` in `app/models.py` (both tables already existed from
+  T03's migration; T09 is the first ticket to read/write them). Wired into
+  production via the existing worker loop, mirroring T08's pattern exactly:
+  `schedule_dedup_cluster()` enqueues a time-bucketed (2-minute window)
+  `dedup_cluster` job through the same `app/jobs/queue.py` mechanics as
+  `source_fetch` (bounded retry, observable via `/v1/admin/jobs`), and
+  `run_dedup_cluster` is now a second entry in `worker.py`'s
+  `JOB_HANDLERS`. New tests (`apps/api/tests/test_cluster.py`, 4 cases,
+  Postgres-backed via the `migrated_database` fixture, `SourceItem` rows
+  inserted directly rather than through an adapter since clustering doesn't
+  care which adapter produced a `NORMALIZED` row): two similarly-worded
+  titles cluster into one `Story` with correct `PRIMARY`/`SUPPORTING` roles
+  and both items advance to `CLUSTERED`; two unrelated titles never cluster;
+  re-running `cluster_normalized_items` a second time with no new
+  `NORMALIZED` items processes zero and creates no duplicate `Story`/
+  `StorySource` rows; an exact-after-normalization title (differing only in
+  case/punctuation) clusters via the fingerprint path. Verified: `pytest`
+  (53 passed, 4 new, real Postgres), `ruff check .` clean, `mypy app/jobs
+  app/adapters app/models.py` clean, `alembic upgrade head` / `downgrade -1`
+  / `upgrade head` round-trip clean. Not yet done/risks: the two similarity
+  thresholds (0.72 match / 0.40 no-match) and the 72-hour comparison window
+  are judgment calls with no spec-given numbers — reasonable starting points
+  from testing against realistic headline pairs, but worth tuning once real
+  ingested volume from T08's live sources gives a sense of false-positive/
+  negative rates; the ambiguous-band stub means any pair T09 can't decide
+  deterministically is currently *never* clustered (favors precision over
+  recall) until T10/T11 wire up the real escalation call; `_find_matching_story`
+  scans every currently-`CLUSTERED` `SourceItem` (filtered by the 72h window
+  only after loading) rather than an indexed/pre-filtered query — fine at
+  current seed-data volume, worth revisiting if the `CLUSTERED` set grows
+  large enough to make an O(n) per-item scan costly.
 - 2026-09-08: T08 done — the T03 `jobs` table now has real claim/retry code
   and a first job type. **ADR-003 (database job queue strategy)** accepted
   (`docs/adr/ADR-003-database-job-queue-strategy.md`): claiming uses

@@ -8,7 +8,7 @@ tickets need them; don't mirror every migration column speculatively.
 import uuid
 from datetime import datetime
 
-from sqlalchemy import Boolean, DateTime, Integer, Text, func
+from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, Text, func
 from sqlalchemy.dialects.postgresql import ENUM, JSONB, UUID
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
@@ -72,10 +72,37 @@ class SourceItem(Base):
     url: Mapped[str] = mapped_column(Text, nullable=False)
     title: Mapped[str | None] = mapped_column(Text, nullable=True)
     published_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    # Fingerprint for near-duplicate detection (T09): sha256 of the
+    # normalized title text, not the raw fetch bytes — see
+    # `app/adapters/base.py::normalize()`.
     raw_hash: Mapped[str] = mapped_column(Text, nullable=False)
-    # §6.4 ingestion state machine, T08 slice only (DISCOVERED -> RIGHTS_BLOCKED
-    # | NORMALIZED); later tickets add DEDUPED/CLUSTERED/... on top of this.
+    # §6.4 ingestion state machine: DISCOVERED -> RIGHTS_BLOCKED | NORMALIZED
+    # (T08) -> CLUSTERED (T09, fingerprint+cluster in one pass, so DEDUPED is
+    # never persisted separately); later tickets add ENRICHED/REVIEW/... .
     ingest_status: Mapped[str] = mapped_column(Text, nullable=False, server_default="DISCOVERED")
+
+
+class Story(Base):
+    __tablename__ = "stories"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    canonical_slug: Mapped[str] = mapped_column(Text, nullable=False)
+    # Native `story_status` enum (T03); defaults to DRAFT at the column level
+    # like `Source.rights_status` — every Story T09 creates starts there.
+    status: Mapped[str] = mapped_column(Text, nullable=False, server_default="DRAFT")
+
+
+class StorySource(Base):
+    __tablename__ = "story_sources"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    story_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("stories.id", ondelete="CASCADE"), nullable=False)
+    source_item_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("source_items.id", ondelete="RESTRICT"), nullable=False
+    )
+    # 'PRIMARY' | 'SUPPORTING' per the §12 `ck_story_sources_role` check.
+    role: Mapped[str] = mapped_column(Text, nullable=False)
+    evidence_rank: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
 
 class Job(Base):
