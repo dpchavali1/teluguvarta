@@ -11,7 +11,7 @@ prior conversation history.
 
 | Ticket | Status | Notes |
 |---|---|---|
-| T01 Initialize monorepo | not started | |
+| T01 Initialize monorepo | **done** | pnpm workspaces (web/admin/mobile/packages) + FastAPI api; CI on push/PR |
 | T02 Env + local setup | not started | |
 | T03 Database schema | not started | |
 | T04 OpenAPI contracts | not started | |
@@ -66,6 +66,20 @@ Mirrors `docs/adr/README.md` — keep both in sync.
 
 (newest first — one line per ticket completion)
 
+- 2026-09-08: T01 done — pnpm workspace root (`package.json`,
+  `pnpm-workspace.yaml`), shared `packages/config` (base tsconfig +
+  eslint), stub `packages/{contracts,domain,ai,ui}`. `apps/web` and
+  `apps/admin` are minimal Next.js 14 App Router apps (build + lint +
+  typecheck clean). `apps/mobile` is a minimal Expo/React Native app
+  (typecheck clean; not build-tested, no native toolchain in this
+  environment). `apps/api` is FastAPI with `/health` (verified 200 via
+  uvicorn) + one pytest test + ruff clean; requires Python 3.11+ (local env
+  only had 3.10, used the 3.13 install instead). CI
+  (`.github/workflows/ci.yml`) runs pnpm install/lint/typecheck and
+  pip install/ruff/pytest on push+PR. Fixed a stray leading `\` in
+  `.gitignore` that broke `ruff check .`. README local-setup section
+  filled in with real install/run/test commands (T02 will still add
+  Postgres/env/seed).
 - 2026-09-08: ADR-002 accepted — V1 restricted to `LINK_ONLY` sources only
   (AI-written original summary + why-matters + attribution + source link;
   no reproduced headlines/text/images). `LICENSED_METADATA`/

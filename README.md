@@ -6,9 +6,9 @@ lives and the Indian places they call home. Launch wedge: USA Telugu NRIs.
 
 ## Status
 
-Planning/scaffolding stage. No application code has been implemented yet —
-see `PROGRESS.md` for exactly what's done. Directory skeleton exists under
-`apps/` and `packages/` per the target monorepo layout.
+Monorepo skeleton stood up (T01) — placeholder apps that boot, shared
+tooling, and CI. No business logic yet. See `PROGRESS.md` for exactly
+what's done.
 
 ## For engineers / Claude Code
 
@@ -46,9 +46,29 @@ tests/
 
 ## Local setup
 
-Not yet implemented — this section will be filled in by ticket T02 with the
-actual clone → install → run instructions. Until then, see `docs/tickets/T01.md`
-and `T02.md` for what's being built.
+Full local dev (Postgres, env vars, seed data) lands in T02. For now:
+
+**Node workspaces** (web, admin, mobile, packages) — pnpm 10.x, Node 20+:
+
+```
+pnpm install
+pnpm run lint        # all workspaces
+pnpm run typecheck   # all workspaces
+pnpm --filter @teluguvarta/web dev     # http://localhost:3000
+pnpm --filter @teluguvarta/admin dev   # http://localhost:3001
+pnpm --filter @teluguvarta/mobile start
+```
+
+**API** (FastAPI, Python 3.11+):
+
+```
+cd apps/api
+python3 -m venv .venv && source .venv/bin/activate
+pip install -e ".[dev]"
+uvicorn app.main:app --reload   # GET /health -> {"status": "ok"}
+pytest
+ruff check .
+```
 
 ## Before writing product/legal-sensitive code
 

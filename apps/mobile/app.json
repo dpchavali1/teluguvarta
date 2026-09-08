@@ -1,0 +1,13 @@
+{
+  "expo": {
+    "name": "Telugu Global",
+    "slug": "telugu-global",
+    "version": "0.0.1",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {}
+  }
+}
