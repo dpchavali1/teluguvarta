@@ -8,7 +8,16 @@ tickets need them; don't mirror every migration column speculatively.
 import uuid
 from datetime import datetime
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, Numeric, Text, func
+from sqlalchemy import (
+    Boolean,
+    DateTime,
+    Float,
+    ForeignKey,
+    Integer,
+    Numeric,
+    Text,
+    func,
+)
 from sqlalchemy.dialects.postgresql import ENUM, JSONB, UUID
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
@@ -19,6 +28,17 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 _source_rights_status_enum = ENUM(
     "DISABLED", "LINK_ONLY", "LICENSED_METADATA", "LICENSED_REPURPOSE",
     name="source_rights_status",
+    create_type=False,
+)
+
+# Matches the native `story_status` enum (T03) — needed (not just Text) so a
+# query can compare `Story.status` against a plain string; Postgres has no
+# implicit `story_status = varchar` operator (T11 hit this the first time
+# anything filtered on `stories.status`).
+_story_status_enum = ENUM(
+    "DRAFT", "AI_READY", "REVIEW_REQUIRED", "APPROVED", "SCHEDULED",
+    "PUBLISHED", "UPDATED", "RETRACTED", "CORRECTION_PENDING",
+    name="story_status",
     create_type=False,
 )
 
@@ -89,7 +109,84 @@ class Story(Base):
     canonical_slug: Mapped[str] = mapped_column(Text, nullable=False)
     # Native `story_status` enum (T03); defaults to DRAFT at the column level
     # like `Source.rights_status` — every Story T09 creates starts there.
-    status: Mapped[str] = mapped_column(Text, nullable=False, server_default="DRAFT")
+    status: Mapped[str] = mapped_column(_story_status_enum, nullable=False, server_default="DRAFT")
+    # 'NONE' | 'IMMIGRATION' | 'LEGAL' | 'FINANCIAL' | 'BREAKING' |
+    # 'OBITUARY_ACCUSATION' per `ck_stories_sensitivity` (T11: §5.2's
+    # publication-rules gate reads this).
+    sensitivity: Mapped[str] = mapped_column(Text, nullable=False, server_default="NONE")
+    importance: Mapped[float] = mapped_column(Float, nullable=False, server_default="0")
+
+
+class StoryVariant(Base):
+    __tablename__ = "story_variants"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    story_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("stories.id", ondelete="CASCADE"), nullable=False)
+    # 'en' | 'te' per `ck_story_variants_language`.
+    language: Mapped[str] = mapped_column(Text, nullable=False)
+    headline: Mapped[str] = mapped_column(Text, nullable=False)
+    summary: Mapped[str] = mapped_column(Text, nullable=False)
+    why_matters: Mapped[str | None] = mapped_column(Text, nullable=True)
+    model_version: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # 'PENDING' | 'PASSED' | 'FAILED' per `ck_story_variants_qa_status`.
+    qa_status: Mapped[str] = mapped_column(Text, nullable=False, server_default="PENDING")
+
+
+class Entity(Base):
+    __tablename__ = "entities"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    # 'PERSON' | 'ORGANIZATION' | 'LOCATION' | 'EVENT' | 'OTHER' per
+    # `ck_entities_type`.
+    type: Mapped[str] = mapped_column(Text, nullable=False)
+    canonical_name: Mapped[str] = mapped_column(Text, nullable=False)
+
+
+class StoryEntity(Base):
+    __tablename__ = "story_entities"
+
+    story_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("stories.id", ondelete="CASCADE"), primary_key=True)
+    entity_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("entities.id", ondelete="CASCADE"), primary_key=True)
+
+
+class EntityAlias(Base):
+    __tablename__ = "entity_aliases"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    entity_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("entities.id", ondelete="CASCADE"), nullable=False)
+    alias: Mapped[str] = mapped_column(Text, nullable=False)
+    # 'en' | 'te' per `ck_entity_aliases_language`.
+    language: Mapped[str] = mapped_column(Text, nullable=False)
+
+
+class Topic(Base):
+    __tablename__ = "topics"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    slug: Mapped[str] = mapped_column(Text, nullable=False)
+    name: Mapped[str] = mapped_column(Text, nullable=False)
+    active: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="true")
+
+
+class StoryTopic(Base):
+    __tablename__ = "story_topics"
+
+    story_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("stories.id", ondelete="CASCADE"), primary_key=True)
+    topic_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("topics.id", ondelete="CASCADE"), primary_key=True)
+    weight: Mapped[float] = mapped_column(Numeric(), nullable=False, server_default="1")
+
+
+class ReviewTask(Base):
+    __tablename__ = "review_tasks"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    story_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("stories.id", ondelete="CASCADE"), nullable=False)
+    reviewer_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    reason: Mapped[str] = mapped_column(Text, nullable=False)
+    # 'PENDING' | 'IN_REVIEW' | 'APPROVED' | 'REJECTED' per `ck_review_tasks_status`.
+    status: Mapped[str] = mapped_column(Text, nullable=False, server_default="PENDING")
+    decision: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
 
 
 class StorySource(Base):

@@ -41,6 +41,7 @@ def _valid_payload(**overrides):
         "entities": [],
         "sensitivity": "LOW",
         "urgency": "NORMAL",
+        "headline_en": "Headline.",
         "summary_en": "Summary.",
         "why_matters_en": "Why this matters.",
         "claims": [{"text": "claim one", "source_refs": ["src-1"]}],

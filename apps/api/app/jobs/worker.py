@@ -15,6 +15,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.jobs.cluster import run_dedup_cluster, schedule_dedup_cluster
+from app.jobs.generate import run_ai_classify, schedule_ai_classify
 from app.jobs.queue import claim_job, complete_job, fail_job
 from app.jobs.source_fetch import run_source_fetch, schedule_due_source_fetches
 
@@ -22,7 +23,8 @@ logger = logging.getLogger(__name__)
 
 JOB_HANDLERS = {
     "source_fetch": run_source_fetch,
-    "dedup_cluster": run_dedup_cluster,
+    "story_cluster": run_dedup_cluster,
+    "ai_classify": run_ai_classify,
 }
 
 POLL_INTERVAL_SECONDS = 5.0
@@ -37,6 +39,7 @@ def process_one(db: Session) -> bool:
     """Runs one unit of work. Returns True if a job was processed."""
     schedule_due_source_fetches(db)
     schedule_dedup_cluster(db)
+    schedule_ai_classify(db)
     db.commit()
 
     job = claim_job(db, list(JOB_HANDLERS))

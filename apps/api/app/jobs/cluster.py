@@ -177,9 +177,17 @@ def _cluster_window(now: datetime) -> datetime:
 
 
 def schedule_dedup_cluster(db: Session) -> Job | None:
-    """Enqueues one `dedup_cluster` job per `DEDUP_CLUSTER_INTERVAL_MINUTES`
+    """Enqueues one `story_cluster` job per `DEDUP_CLUSTER_INTERVAL_MINUTES`
     window, so the worker keeps sweeping `NORMALIZED` items into `Story`
-    clusters on its own cadence without a caller having to track state."""
+    clusters on its own cadence without a caller having to track state.
+
+    Job type is `story_cluster` (T03's `ck_jobs_type` §14 job-type list), not
+    the `dedup_cluster` name this function's own docstring/dedupe-key used to
+    use — that name was never a member of the CHECK constraint, so every real
+    call would have raised `ck_jobs_type` at insert time. Caught while
+    building T11 (which needs `story_cluster` jobs to actually run so it has
+    `CLUSTERED` stories to enrich); no test exercised this path against real
+    Postgres, only `run_dedup_cluster` on directly-inserted rows."""
     now = datetime.now(UTC)
-    dedupe_key = f"dedup_cluster:{_cluster_window(now).isoformat()}"
-    return enqueue_job(db, "dedup_cluster", {}, dedupe_key=dedupe_key)
+    dedupe_key = f"story_cluster:{_cluster_window(now).isoformat()}"
+    return enqueue_job(db, "story_cluster", {}, dedupe_key=dedupe_key)

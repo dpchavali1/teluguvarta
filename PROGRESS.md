@@ -21,7 +21,7 @@ prior conversation history.
 | T08 Ingestion worker | **done** | `app/jobs/` (queue claim/retry + `source_fetch` job) polling the T03 `jobs` table via `FOR UPDATE SKIP LOCKED`; ADR-003 accepted; rights gate enforced inside `adapters/base.py::emit()` (new `source_items.ingest_status`); circuit breaker + bounded job retry both real and admin-visible |
 | T09 Dedup + clustering | **done** | `app/jobs/cluster.py`: deterministic fingerprint (normalized-title hash) + lexical similarity (difflib ratio, 72%/40% thresholds) group `NORMALIZED` `SourceItem`s into `Story`/`StorySource`, advancing `ingest_status` to `CLUSTERED`; AI escalation for ambiguous pairs stubbed for T10/T11 |
 | T10 AI provider gateway | **done** | `apps/api/app/ai/`: `AiGateway.run_task` implements §7.2 routing + §7.3 schema validation + every §7.5 failure mode (retry-then-hold, low-confidence review queue, unsupported-claim removal/hold, provider-unavailable, budget-breach classification-only degrade); cost telemetry in new `ai_call_log` table (migration `7a4c9e2b5d10`), queryable per task/day; ADR-001 accepted (OpenAI primary, Anthropic secondary, gateway lives in Python at `apps/api/app/ai` not the TS `packages/ai` — see ADR for why) |
-| T11 Story generation | not started | |
+| T11 Story generation | **done** | `apps/api/app/jobs/generate.py`: `ai_classify` job sweeps `CLUSTERED` stories through two AI-gateway calls (classify, then generate) and advances state; `9d3f6b1a2c47` adds `ENRICHED`/`REVIEW`/`SCHEDULED`/`ARCHIVED` to `source_items.ingest_status`; fixed a pre-existing T09 bug (`dedup_cluster` job type wasn't in `ck_jobs_type`, so it always errored — renamed to `story_cluster`) |
 | T12 Editorial workflow | not started | |
 | T13 Bilingual variants | not started | |
 | T14 Web MVP | not started | |
@@ -65,6 +65,113 @@ Mirrors `docs/adr/README.md` — keep both in sync.
 ## Changelog
 
 (newest first — one line per ticket completion)
+
+- 2026-09-08: T11 done — `apps/api/app/jobs/generate.py` turns a T09
+  `CLUSTERED` `Story` into a reviewable draft, one `ai_classify` job type
+  (already in T03's `ck_jobs_type` list) doing the whole pipeline slice in
+  one handler, mirroring T08/T09's precedent of combining adjacent stages
+  rather than splitting into more job types than have independent retry
+  value: `RELEVANCE_CATEGORIZATION` gateway call first (always runs — not
+  in `DEGRADABLE_ON_BUDGET_BREACH`, so classification keeps triaging under
+  a budget breach), then, only if the AI says the story is relevant, a
+  `SUMMARY` gateway call (skips the expensive generation call entirely for
+  irrelevant/P3 stories — §19 cost control). Every claim's `source_refs`
+  requirement and low-confidence review routing come for free from T10's
+  gateway itself (`_remove_unsupported_claims`/`CONFIDENCE_REVIEW_THRESHOLD`)
+  — T11 only adds the story-generation-specific layer on top: §5.2's
+  publication rules (`sensitivity != NONE` — immigration/legal/financial/
+  breaking/obituary-accusation — always forces `REVIEW_REQUIRED`, tested
+  explicitly as a non-negotiable, not just a default), §15's P1
+  "high-importance if configured" tier (`AI_REVIEW_P1_STORIES` env flag,
+  default on), and an ADR-002 similarity-to-source flag (the only "source
+  text" available to compare against is the source item's *title* —
+  `SourceItem` never stores full article body text — so this is a
+  title-similarity check, not a full paraphrase detector). Populates
+  `StoryVariant` (en), `Entity`/`EntityAlias`/`StoryEntity`, and
+  `Topic`/`StoryTopic` from the classification output — new ORM models for
+  all of these plus `ReviewTask` added to `app/models.py` (tables already
+  existed from T03; T11 is the first ticket to read/write them).
+  `Story.status`/`Source.rights_status`-style native-enum columns
+  (`story_status`) needed the same `ENUM(..., create_type=False)` treatment
+  in the ORM as `rights_status` already had — the first ticket to filter a
+  query on `stories.status` hit `operator does not exist: story_status =
+  character varying` without it. `Story.sensitivity`/`Story.importance`
+  ORM columns added (DB columns existed since T03, unused until now).
+
+  **Contract extension**: added `headline_en` (required) to T10's
+  `GenerationResult` (`app/ai/contracts.py`) — ADR-002 requires every
+  published story to carry an AI-drafted *original* headline, never the
+  source's own, and `story_variants.headline` is `NOT NULL`, but §7.3's
+  contract as T10 built it had no field for one; deterministically reusing
+  the source title would have violated ADR-002 directly. Updated
+  `test_ai_gateway.py`'s `_valid_payload()` fixture to match; all 7
+  pre-existing T10 gateway tests still pass.
+
+  **Fixed a real, pre-existing T09 bug found while building this**:
+  `schedule_dedup_cluster` enqueued job type `"dedup_cluster"`, which was
+  never a member of T03's `ck_jobs_type` CHECK constraint (only
+  `story_cluster` was) — every real call would raise at insert time; no
+  test caught it because clustering tests only exercised
+  `run_dedup_cluster` on directly-inserted rows, never the scheduler
+  against a real migrated DB. Renamed the job type (and its handler-map
+  key in `worker.py`) to `story_cluster`, the existing allowed name that
+  already fits. Confirmed by reproducing the failure directly against
+  local Postgres before fixing it.
+
+  **New migration** `9d3f6b1a2c47` adds `ENRICHED`/`REVIEW`/`SCHEDULED` to
+  `source_items.ingest_status` per §6.4's literal state names, plus
+  `ARCHIVED` (no spec equivalent — added because the ticket's own scope
+  explicitly requires a terminal outcome for "P3 archived, not published,"
+  and the AI-classify step, before the costlier generation call runs, is
+  exactly where that's decided) — same incremental-CHECK-constraint pattern
+  as `2f6a0e7c9d41` (T09's `CLUSTERED`). `Story.status`'s own enum/trigger
+  (T03) was deliberately left untouched: its legal-transition set only
+  allows `DRAFT -> AI_READY -> REVIEW_REQUIRED -> ...`, so P2 stories
+  (eligible for auto-publish) simply stop at `AI_READY` — no state exists
+  for "auto-approved," that's T12's `AI_READY -> REVIEW_REQUIRED ->
+  APPROVED` transition to own — and P3 stories never leave `DRAFT` at all
+  (distinguished from "still processing" via `ingest_status = ARCHIVED` on
+  their `SourceItem`s, not a `Story.status` value).
+
+  New tests (`apps/api/tests/test_generate.py`, 7 cases, `FakeProvider`
+  monkeypatched into the gateway like `test_ai_gateway.py`): a low-risk
+  story generates and reaches `AI_READY`/`SCHEDULED`; an `IMMIGRATION`
+  classification always reaches `REVIEW_REQUIRED` regardless of confidence
+  (the explicit non-negotiable acceptance criterion); low-confidence
+  classification routes to review; an irrelevant story is archived without
+  ever making the (more expensive) generation call; a story whose only
+  claim has no `source_refs` is held, not published; provider-unavailable
+  leaves the story untouched for a later sweep rather than inventing
+  content; a second `generate_stories` pass over an already-generated story
+  is a no-op (idempotency — proven by only queuing one round of fake
+  responses, so a second real call would raise `IndexError`).
+
+  Verified: `pytest` (78 passed, 7 new + all 71 prior, real Postgres),
+  `ruff check .` clean, `mypy app/jobs app/ai app/models.py` clean (its
+  pre-existing failures are all in `app/ai/providers/`, untouched by this
+  ticket — mypy isn't in CI yet). `alembic upgrade head` / `downgrade -1` /
+  `upgrade head` round-trip clean against local Postgres. Also ran the real
+  worker loop (`process_one`, no mocks) against the live T08/T09-seeded
+  data (231 `CLUSTERED` `SourceItem`s across 19 `Story` rows): the renamed
+  `story_cluster` job now actually runs (previously would have errored on
+  every attempt); `ai_classify` ran and correctly left everything untouched
+  since this sandbox has no AI provider key configured — zero `ai_call_log`
+  rows written, confirming the real `UNAVAILABLE` path (not a mock) never
+  invents content, matching T10's already-proven behavior.
+
+  Not yet done/risks: entity type is always `OTHER` (§7.3's `entities[]` is
+  a flat name list with no PERSON/ORG/LOCATION distinction — a future
+  ticket extending that contract would let `StoryEntity` be more useful for
+  ranking/browsing); `Topic` rows are created on-demand from whatever
+  category strings the model returns rather than matched against a curated
+  taxonomy (none is seeded yet anywhere in the build) — expect topic-slug
+  drift/duplication until a real taxonomy exists; the ADR-002
+  similarity-to-source check only has the source *title* to compare
+  against (no article body is ever stored), so it's a narrower signal than
+  true paraphrase detection; `importance` is set to the classification
+  call's raw `confidence` as a placeholder, not a real scoring formula —
+  T16 (personalization/ranking) territory.
+
 
 - 2026-09-08: T10 done — `apps/api/app/ai/` is the AI gateway: `tasks.py`
   holds the §7.2 routing table (task → default/escalation provider+model;

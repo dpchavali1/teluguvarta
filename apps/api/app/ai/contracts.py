@@ -22,6 +22,14 @@ class GenerationResult(BaseModel):
     entities: list[str] = Field(default_factory=list)
     sensitivity: str
     urgency: str
+    # Added by T11: ADR-002 requires every published story to carry an
+    # AI-drafted *original* headline — never the source's own headline text
+    # — and `story_variants.headline` is NOT NULL, but §7.3's contract as T10
+    # implemented it had no field for one. Required (no default) so a
+    # generation call that omits it fails schema validation and holds,
+    # exactly like a missing summary_en would, rather than silently landing
+    # an empty headline.
+    headline_en: str
     summary_en: str
     why_matters_en: str
     claims: list[Claim] = Field(default_factory=list)
