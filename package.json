@@ -9,7 +9,10 @@
     "lint": "pnpm -r --if-present run lint",
     "typecheck": "pnpm -r --if-present run typecheck",
     "test": "pnpm -r --if-present run test",
-    "build": "pnpm -r --if-present run build"
+    "build": "pnpm -r --if-present run build",
+    "migrate": "bash infra/scripts/migrate.sh",
+    "seed": "apps/api/.venv/bin/python infra/scripts/seed.py",
+    "contracts:generate": "bash infra/scripts/generate_contracts.sh"
   },
   "devDependencies": {
     "@typescript-eslint/eslint-plugin": "^8.15.0",

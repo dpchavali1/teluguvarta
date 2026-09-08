@@ -1,0 +1,20 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: teluguvarta
+      POSTGRES_PASSWORD: teluguvarta
+      POSTGRES_DB: teluguvarta
+    ports:
+      - "5432:5432"
+    volumes:
+      - teluguvarta_pgdata:/var/lib/postgresql/data
+      - ./infra/postgres/init:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U teluguvarta -d teluguvarta"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  teluguvarta_pgdata:

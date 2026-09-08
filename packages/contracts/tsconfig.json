@@ -1,0 +1,9 @@
+{
+  "extends": "@teluguvarta/config/base.tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "declaration": false
+  },
+  "include": ["*.ts"],
+  "exclude": ["node_modules"]
+}

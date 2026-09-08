@@ -25,6 +25,22 @@ jobs:
     defaults:
       run:
         working-directory: apps/api
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: teluguvarta
+          POSTGRES_PASSWORD: teluguvarta
+          POSTGRES_DB: teluguvarta
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U teluguvarta -d teluguvarta"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql+psycopg://teluguvarta:teluguvarta@localhost:5432/teluguvarta
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -33,3 +49,29 @@ jobs:
       - run: pip install -e ".[dev]"
       - run: ruff check .
       - run: pytest
+
+  contracts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.4.1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pnpm install --frozen-lockfile
+      - run: python3 -m venv apps/api/.venv
+      - run: apps/api/.venv/bin/pip install -e "./apps/api[dev]"
+      - run: bash infra/scripts/generate_contracts.sh
+      - name: Fail if generated contracts are stale
+        run: |
+          git diff --exit-code -- packages/contracts/openapi.json packages/contracts/types.gen.ts || {
+            echo "packages/contracts is stale — run 'pnpm run contracts:generate' and commit the result." >&2
+            exit 1
+          }
+      - run: pnpm --filter @teluguvarta/contracts run typecheck

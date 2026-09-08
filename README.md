@@ -6,9 +6,13 @@ lives and the Indian places they call home. Launch wedge: USA Telugu NRIs.
 
 ## Status
 
-Monorepo skeleton stood up (T01) — placeholder apps that boot, shared
-tooling, and CI. No business logic yet. See `PROGRESS.md` for exactly
-what's done.
+Monorepo skeleton (T01), local env/Postgres/migration-runner scaffolding
+(T02), the full V1 core database schema (T03), and the typed API contract
+(T04) are done — every `docs/SPEC.md` §13 endpoint exists in FastAPI (stub
+data, final shapes) with a standard error envelope, and `packages/contracts`
+has generated TypeScript types other apps can import. No real business
+logic yet (source ingestion, story generation, auth, editorial workflow —
+T05+). See `PROGRESS.md` for exactly what's done.
 
 ## For engineers / Claude Code
 
@@ -46,12 +50,23 @@ tests/
 
 ## Local setup
 
-Full local dev (Postgres, env vars, seed data) lands in T02. For now:
+```
+cp .env.example .env          # fill in real values; never commit .env
+docker compose up -d          # local Postgres 16 with pg_trgm enabled
+
+cd apps/api
+python3 -m venv .venv && source .venv/bin/activate
+pip install -e ".[dev]"
+cd ../..
+
+pnpm install
+pnpm run migrate               # alembic upgrade head (infra/migrations/) — applies the full V1 schema
+pnpm run seed                  # placeholder until T06 lands source/topic/user seed data
+```
 
 **Node workspaces** (web, admin, mobile, packages) — pnpm 10.x, Node 20+:
 
 ```
-pnpm install
 pnpm run lint        # all workspaces
 pnpm run typecheck   # all workspaces
 pnpm --filter @teluguvarta/web dev     # http://localhost:3000
@@ -63,12 +78,30 @@ pnpm --filter @teluguvarta/mobile start
 
 ```
 cd apps/api
-python3 -m venv .venv && source .venv/bin/activate
-pip install -e ".[dev]"
+source .venv/bin/activate
 uvicorn app.main:app --reload   # GET /health -> {"status": "ok"}
 pytest
 ruff check .
 ```
+
+Migrations live in `infra/migrations/` (Alembic, wired via
+`apps/api/alembic.ini`) and read `DATABASE_URL` from the repo-root `.env` —
+run them with `pnpm run migrate` (or `infra/scripts/migrate.sh <alembic-args>`
+for anything beyond `upgrade head`, e.g. `revision --autogenerate`). Seed
+scripts live in `infra/scripts/`.
+
+**API contract** (`packages/contracts`): request/response shapes are
+Pydantic models in `apps/api/app/schemas.py`; TypeScript types are generated
+from the live OpenAPI schema, never hand-written. After changing a model,
+regenerate and commit:
+
+```
+pnpm run contracts:generate    # writes packages/contracts/{openapi.json,types.gen.ts}
+```
+
+CI fails the build if the committed files are stale relative to the API
+code. `apps/web`, `apps/mobile`, `apps/admin` should import API types only
+from `@teluguvarta/contracts` — never redeclare them.
 
 ## Before writing product/legal-sensitive code
 
