@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 import { apiUrl, clearSession, getRole, getToken } from "@/lib/auth";
@@ -43,7 +44,10 @@ export default function Home() {
   return (
     <main>
       <h1>Telugu Global Admin</h1>
-      <p>Signed in as {role}. Editorial tooling lands in T12.</p>
+      <p>Signed in as {role}.</p>
+      <p>
+        <Link href="/review">Review queue</Link>
+      </p>
       <button
         type="button"
         onClick={() => {

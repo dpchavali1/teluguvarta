@@ -16,6 +16,7 @@ from sqlalchemy.orm import Session, sessionmaker
 
 from app.jobs.cluster import run_dedup_cluster, schedule_dedup_cluster
 from app.jobs.generate import run_ai_classify, schedule_ai_classify
+from app.jobs.publish import run_publish_scheduler, schedule_publish_scheduler
 from app.jobs.queue import claim_job, complete_job, fail_job
 from app.jobs.source_fetch import run_source_fetch, schedule_due_source_fetches
 
@@ -25,6 +26,7 @@ JOB_HANDLERS = {
     "source_fetch": run_source_fetch,
     "story_cluster": run_dedup_cluster,
     "ai_classify": run_ai_classify,
+    "publish_scheduler": run_publish_scheduler,
 }
 
 POLL_INTERVAL_SECONDS = 5.0
@@ -40,6 +42,7 @@ def process_one(db: Session) -> bool:
     schedule_due_source_fetches(db)
     schedule_dedup_cluster(db)
     schedule_ai_classify(db)
+    schedule_publish_scheduler(db)
     db.commit()
 
     job = claim_job(db, list(JOB_HANDLERS))

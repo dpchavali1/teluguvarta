@@ -18,7 +18,7 @@ Language = Literal["en", "te"]
 RightsStatus = Literal["DISABLED", "LINK_ONLY", "LICENSED_METADATA", "LICENSED_REPURPOSE"]
 StoryStatus = Literal[
     "DRAFT", "AI_READY", "REVIEW_REQUIRED", "APPROVED", "SCHEDULED",
-    "PUBLISHED", "UPDATED", "RETRACTED", "CORRECTION_PENDING",
+    "PUBLISHED", "UPDATED", "RETRACTED", "CORRECTION_PENDING", "ARCHIVED",
 ]
 Sensitivity = Literal["NONE", "IMMIGRATION", "LEGAL", "FINANCIAL", "BREAKING", "OBITUARY_ACCUSATION"]
 
@@ -228,9 +228,58 @@ class AdminActionRequest(BaseModel):
     reason: str | None = None
 
 
+class AdminRejectRequest(BaseModel):
+    reason: str | None = None
+    # False (default) sends the story back to DRAFT for reprocessing; True
+    # archives it (editor decision that it should never publish) — the
+    # ticket's literal "reject -> back to draft or archived".
+    archive: bool = False
+
+
+class AdminCorrectionRequest(BaseModel):
+    reason: str
+    headline: str | None = None
+    summary: str | None = None
+    why_matters: str | None = None
+
+
 class AdminActionResponse(BaseModel):
     story_id: UUID
     status: StoryStatus
+
+
+class AdminStorySourceOut(BaseModel):
+    role: Literal["PRIMARY", "SUPPORTING"]
+    url: str
+    title: str | None = None
+    published_at: datetime | None = None
+    source_name: str
+    source_rights_status: RightsStatus
+
+
+class AdminCorrectionOut(BaseModel):
+    id: UUID
+    reason: str
+    old_text_hash: str
+    new_text_hash: str
+    created_at: datetime
+
+
+class AdminStoryDetailOut(BaseModel):
+    """The §9.3/§15 review-screen payload: source + rights state, original
+    metadata, the AI draft, sensitivity, and correction/audit history side
+    by side."""
+
+    id: UUID
+    canonical_slug: str
+    status: StoryStatus
+    sensitivity: Sensitivity
+    importance: float
+    published_at: datetime | None = None
+    variants: dict[Language, StoryVariantOut] = Field(default_factory=dict)
+    sources: list[AdminStorySourceOut] = Field(default_factory=list)
+    review_task: ReviewQueueItemOut | None = None
+    corrections: list[AdminCorrectionOut] = Field(default_factory=list)
 
 
 class AdminJobOut(BaseModel):

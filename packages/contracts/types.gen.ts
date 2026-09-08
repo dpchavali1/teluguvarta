@@ -141,6 +141,23 @@ export interface paths {
         patch: operations["update_source_v1_admin_sources__source_id__patch"];
         trace?: never;
     };
+    "/v1/admin/stories/{story_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Story Detail */
+        get: operations["get_story_detail_v1_admin_stories__story_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/admin/stories/{story_id}/approve": {
         parameters: {
             query?: never;
@@ -429,7 +446,7 @@ export interface components {
              * Status
              * @enum {string}
              */
-            status: "DRAFT" | "AI_READY" | "REVIEW_REQUIRED" | "APPROVED" | "SCHEDULED" | "PUBLISHED" | "UPDATED" | "RETRACTED" | "CORRECTION_PENDING";
+            status: "DRAFT" | "AI_READY" | "REVIEW_REQUIRED" | "APPROVED" | "SCHEDULED" | "PUBLISHED" | "UPDATED" | "RETRACTED" | "CORRECTION_PENDING" | "ARCHIVED";
             /**
              * Story Id
              * Format: uuid
@@ -463,6 +480,36 @@ export interface components {
             metadata?: {
                 [key: string]: unknown;
             };
+        };
+        /** AdminCorrectionOut */
+        AdminCorrectionOut: {
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** New Text Hash */
+            new_text_hash: string;
+            /** Old Text Hash */
+            old_text_hash: string;
+            /** Reason */
+            reason: string;
+        };
+        /** AdminCorrectionRequest */
+        AdminCorrectionRequest: {
+            /** Headline */
+            headline?: string | null;
+            /** Reason */
+            reason: string;
+            /** Summary */
+            summary?: string | null;
+            /** Why Matters */
+            why_matters?: string | null;
         };
         /** AdminJobOut */
         AdminJobOut: {
@@ -514,6 +561,16 @@ export interface components {
              * @constant
              */
             token_type: "bearer";
+        };
+        /** AdminRejectRequest */
+        AdminRejectRequest: {
+            /**
+             * Archive
+             * @default false
+             */
+            archive: boolean;
+            /** Reason */
+            reason?: string | null;
         };
         /** AdminSourceCreate */
         AdminSourceCreate: {
@@ -601,6 +658,65 @@ export interface components {
             rights_status?: ("DISABLED" | "LINK_ONLY" | "LICENSED_METADATA" | "LICENSED_REPURPOSE") | null;
             /** Source Type */
             source_type?: string | null;
+        };
+        /**
+         * AdminStoryDetailOut
+         * @description The §9.3/§15 review-screen payload: source + rights state, original
+         *     metadata, the AI draft, sensitivity, and correction/audit history side
+         *     by side.
+         */
+        AdminStoryDetailOut: {
+            /** Canonical Slug */
+            canonical_slug: string;
+            /** Corrections */
+            corrections?: components["schemas"]["AdminCorrectionOut"][];
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Importance */
+            importance: number;
+            /** Published At */
+            published_at?: string | null;
+            review_task?: components["schemas"]["ReviewQueueItemOut"] | null;
+            /**
+             * Sensitivity
+             * @enum {string}
+             */
+            sensitivity: "NONE" | "IMMIGRATION" | "LEGAL" | "FINANCIAL" | "BREAKING" | "OBITUARY_ACCUSATION";
+            /** Sources */
+            sources?: components["schemas"]["AdminStorySourceOut"][];
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "DRAFT" | "AI_READY" | "REVIEW_REQUIRED" | "APPROVED" | "SCHEDULED" | "PUBLISHED" | "UPDATED" | "RETRACTED" | "CORRECTION_PENDING" | "ARCHIVED";
+            /** Variants */
+            variants?: {
+                [key: string]: components["schemas"]["StoryVariantOut"];
+            };
+        };
+        /** AdminStorySourceOut */
+        AdminStorySourceOut: {
+            /** Published At */
+            published_at?: string | null;
+            /**
+             * Role
+             * @enum {string}
+             */
+            role: "PRIMARY" | "SUPPORTING";
+            /** Source Name */
+            source_name: string;
+            /**
+             * Source Rights Status
+             * @enum {string}
+             */
+            source_rights_status: "DISABLED" | "LINK_ONLY" | "LICENSED_METADATA" | "LICENSED_REPURPOSE";
+            /** Title */
+            title?: string | null;
+            /** Url */
+            url: string;
         };
         /** ConfigResponse */
         ConfigResponse: {
@@ -817,7 +933,7 @@ export interface components {
              * Status
              * @enum {string}
              */
-            status: "DRAFT" | "AI_READY" | "REVIEW_REQUIRED" | "APPROVED" | "SCHEDULED" | "PUBLISHED" | "UPDATED" | "RETRACTED" | "CORRECTION_PENDING";
+            status: "DRAFT" | "AI_READY" | "REVIEW_REQUIRED" | "APPROVED" | "SCHEDULED" | "PUBLISHED" | "UPDATED" | "RETRACTED" | "CORRECTION_PENDING" | "ARCHIVED";
             /** Topics */
             topics?: string[];
             /**
@@ -1181,6 +1297,39 @@ export interface operations {
             };
         };
     };
+    get_story_detail_v1_admin_stories__story_id__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                story_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminStoryDetailOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     approve_story_v1_admin_stories__story_id__approve_post: {
         parameters: {
             query?: never;
@@ -1231,7 +1380,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["AdminActionRequest"];
+                "application/json": components["schemas"]["AdminCorrectionRequest"];
             };
         };
         responses: {
@@ -1268,7 +1417,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["AdminActionRequest"];
+                "application/json": components["schemas"]["AdminRejectRequest"];
             };
         };
         responses: {

@@ -1,8 +1,12 @@
-"""Admin endpoints. Auth is stubbed pending T05 — see app/auth.py.
+"""Admin endpoints. Auth is real as of T05 — see app/auth.py.
 
-Approve/reject/retract/correct only change `stories.status` (T03's
-DB-enforced state machine already rejects illegal transitions); the actual
-editorial workflow (review UI, notifications, etc.) is T12.
+Editorial workflow (T12): approve/reject/retract/correct enforce T03's
+DB-backed `stories.status` state machine (extended by the
+`73a24fe47a9f` migration with the reject-only ARCHIVED transitions) and
+write an `AuditEvent` for every mutation, no exceptions. The actual
+auto-publish sweep that these kill switches gate lives in
+`app/jobs/publish.py` (the `publish_scheduler` job) — this router only
+exposes the read-only kill-switch view and the human-editor actions.
 
 Source registry (docs/tickets/T06.md): only `DISABLED` and `LINK_ONLY` are
 reachable rights tiers in this build phase (ADR-002); moving a source off
@@ -11,6 +15,7 @@ to the `ADMIN` role (see the ADR-002 addendum) — an `EDITOR` can create/edit
 everything else about a source but cannot flip the rights gate itself.
 """
 
+import hashlib
 import os
 from typing import Any
 from uuid import UUID
@@ -22,18 +27,34 @@ from sqlalchemy.orm import Session
 from app.auth import AdminPrincipal, current_admin
 from app.db import get_db
 from app.errors import APIError
-from app.models import AuditEvent, Job, Source
+from app.models import (
+    AuditEvent,
+    Correction,
+    Job,
+    ReviewTask,
+    Source,
+    SourceItem,
+    Story,
+    StorySource,
+    StoryVariant,
+)
 from app.schemas import (
     AdminActionRequest,
     AdminActionResponse,
     AdminAuditEventOut,
+    AdminCorrectionOut,
+    AdminCorrectionRequest,
     AdminJobOut,
+    AdminRejectRequest,
     AdminSourceCreate,
     AdminSourceOut,
     AdminSourceUpdate,
+    AdminStoryDetailOut,
+    AdminStorySourceOut,
     KillSwitchesOut,
     ReviewQueueItemOut,
     RightsEvidence,
+    StoryVariantOut,
 )
 
 router = APIRouter(prefix="/v1/admin", tags=["admin"], dependencies=[Depends(current_admin)])
@@ -156,29 +177,225 @@ def get_kill_switches() -> KillSwitchesOut:
     )
 
 
+def _review_task_out(task: ReviewTask) -> ReviewQueueItemOut:
+    return ReviewQueueItemOut(
+        id=task.id, story_id=task.story_id, reason=task.reason, status=task.status,
+        decision=task.decision, created_at=task.created_at,
+    )
+
+
+def _get_story_or_404(db: Session, story_id: UUID) -> Story:
+    story = db.get(Story, story_id)
+    if story is None:
+        raise APIError(404, "STORY_NOT_FOUND", f"No story with id '{story_id}'")
+    return story
+
+
+def _require_status(story: Story, *allowed: str) -> None:
+    if story.status not in allowed:
+        raise APIError(
+            409,
+            "ILLEGAL_TRANSITION",
+            f"Cannot act on a story in status '{story.status}' — requires one of {', '.join(allowed)}",
+        )
+
+
+def _resolve_review_task(db: Session, story_id: UUID, decision: str) -> None:
+    task = db.scalars(
+        select(ReviewTask).where(ReviewTask.story_id == story_id, ReviewTask.status == "PENDING")
+    ).first()
+    if task is not None:
+        task.status = decision
+        task.decision = decision
+
+
+def _story_text_hash(variant: StoryVariant | None) -> str:
+    payload = "" if variant is None else f"{variant.headline}\n{variant.summary}\n{variant.why_matters or ''}"
+    return hashlib.sha256(payload.encode()).hexdigest()
+
+
 @router.get("/review-queue")
-def get_review_queue() -> list[ReviewQueueItemOut]:
-    return []
+def get_review_queue(db: Session = Depends(get_db)) -> list[ReviewQueueItemOut]:
+    tasks = db.scalars(
+        select(ReviewTask).where(ReviewTask.status == "PENDING").order_by(ReviewTask.created_at)
+    ).all()
+    return [_review_task_out(task) for task in tasks]
+
+
+@router.get("/stories/{story_id}")
+def get_story_detail(story_id: UUID, db: Session = Depends(get_db)) -> AdminStoryDetailOut:
+    story = _get_story_or_404(db, story_id)
+
+    variants = db.scalars(select(StoryVariant).where(StoryVariant.story_id == story.id)).all()
+    links = db.scalars(
+        select(StorySource).where(StorySource.story_id == story.id).order_by(StorySource.evidence_rank)
+    ).all()
+    sources_out: list[AdminStorySourceOut] = []
+    for link in links:
+        item = db.get(SourceItem, link.source_item_id)
+        if item is None:
+            continue
+        source = db.get(Source, item.source_id)
+        sources_out.append(
+            AdminStorySourceOut(
+                role=link.role,
+                url=item.url,
+                title=item.title,
+                published_at=item.published_at,
+                source_name=source.name if source else "unknown",
+                source_rights_status=source.rights_status if source else "DISABLED",
+            )
+        )
+
+    review_task = db.scalars(
+        select(ReviewTask).where(ReviewTask.story_id == story.id).order_by(ReviewTask.created_at.desc())
+    ).first()
+    corrections = db.scalars(
+        select(Correction).where(Correction.story_id == story.id).order_by(Correction.created_at.desc())
+    ).all()
+
+    return AdminStoryDetailOut(
+        id=story.id,
+        canonical_slug=story.canonical_slug,
+        status=story.status,
+        sensitivity=story.sensitivity,
+        importance=story.importance,
+        published_at=story.published_at,
+        variants={
+            v.language: StoryVariantOut(
+                language=v.language, headline=v.headline, summary=v.summary,
+                why_matters=v.why_matters, qa_status=v.qa_status,
+            )
+            for v in variants
+        },
+        sources=sources_out,
+        review_task=_review_task_out(review_task) if review_task else None,
+        corrections=[
+            AdminCorrectionOut(
+                id=c.id, reason=c.reason, old_text_hash=c.old_text_hash,
+                new_text_hash=c.new_text_hash, created_at=c.created_at,
+            )
+            for c in corrections
+        ],
+    )
 
 
 @router.post("/stories/{story_id}/approve")
-def approve_story(story_id: UUID, body: AdminActionRequest) -> AdminActionResponse:
-    raise APIError(404, "STORY_NOT_FOUND", f"No story with id '{story_id}'")
+def approve_story(
+    story_id: UUID, body: AdminActionRequest, admin: AdminPrincipal = Depends(current_admin), db: Session = Depends(get_db)
+) -> AdminActionResponse:
+    story = _get_story_or_404(db, story_id)
+    _require_status(story, "REVIEW_REQUIRED")
+
+    story.status = "APPROVED"
+    db.flush()
+    story.status = "SCHEDULED"
+    db.flush()
+
+    _resolve_review_task(db, story.id, "APPROVED")
+    _write_audit_event(db, admin.email, "STORY_APPROVED", "story", story.id, {"reason": body.reason})
+    db.commit()
+    db.refresh(story)
+    return AdminActionResponse(story_id=story.id, status=story.status)
 
 
 @router.post("/stories/{story_id}/reject")
-def reject_story(story_id: UUID, body: AdminActionRequest) -> AdminActionResponse:
-    raise APIError(404, "STORY_NOT_FOUND", f"No story with id '{story_id}'")
+def reject_story(
+    story_id: UUID, body: AdminRejectRequest, admin: AdminPrincipal = Depends(current_admin), db: Session = Depends(get_db)
+) -> AdminActionResponse:
+    story = _get_story_or_404(db, story_id)
+    _require_status(story, "REVIEW_REQUIRED")
+
+    story.status = "ARCHIVED" if body.archive else "DRAFT"
+    db.flush()
+
+    _resolve_review_task(db, story.id, "REJECTED")
+    _write_audit_event(
+        db, admin.email, "STORY_REJECTED", "story", story.id, {"reason": body.reason, "outcome": story.status}
+    )
+    db.commit()
+    db.refresh(story)
+    return AdminActionResponse(story_id=story.id, status=story.status)
 
 
 @router.post("/stories/{story_id}/retract")
-def retract_story(story_id: UUID, body: AdminActionRequest) -> AdminActionResponse:
-    raise APIError(404, "STORY_NOT_FOUND", f"No story with id '{story_id}'")
+def retract_story(
+    story_id: UUID, body: AdminActionRequest, admin: AdminPrincipal = Depends(current_admin), db: Session = Depends(get_db)
+) -> AdminActionResponse:
+    story = _get_story_or_404(db, story_id)
+    _require_status(story, "PUBLISHED")
+
+    story.status = "RETRACTED"
+    db.flush()
+
+    _write_audit_event(db, admin.email, "STORY_RETRACTED", "story", story.id, {"reason": body.reason})
+    db.commit()
+    db.refresh(story)
+    return AdminActionResponse(story_id=story.id, status=story.status)
 
 
 @router.post("/stories/{story_id}/correct")
-def correct_story(story_id: UUID, body: AdminActionRequest) -> AdminActionResponse:
-    raise APIError(404, "STORY_NOT_FOUND", f"No story with id '{story_id}'")
+def correct_story(
+    story_id: UUID, body: AdminCorrectionRequest, admin: AdminPrincipal = Depends(current_admin), db: Session = Depends(get_db)
+) -> AdminActionResponse:
+    story = _get_story_or_404(db, story_id)
+    _require_status(story, "PUBLISHED", "UPDATED")
+
+    if body.headline is None and body.summary is None and body.why_matters is None:
+        raise APIError(422, "NO_CHANGES", "At least one of headline/summary/why_matters must be provided")
+
+    variant = db.scalars(
+        select(StoryVariant).where(StoryVariant.story_id == story.id, StoryVariant.language == "en")
+    ).first()
+    if variant is None:
+        raise APIError(404, "VARIANT_NOT_FOUND", "No English story variant to correct")
+
+    old_hash = _story_text_hash(variant)
+    if body.headline is not None:
+        variant.headline = body.headline
+    if body.summary is not None:
+        variant.summary = body.summary
+    if body.why_matters is not None:
+        variant.why_matters = body.why_matters
+    variant.qa_status = "PENDING"
+    db.flush()
+    new_hash = _story_text_hash(variant)
+
+    if story.status == "PUBLISHED":
+        story.status = "UPDATED"
+        db.flush()
+    else:  # UPDATED -> CORRECTION_PENDING -> UPDATED, per the ticket's literal transition text
+        story.status = "CORRECTION_PENDING"
+        db.flush()
+        story.status = "UPDATED"
+        db.flush()
+
+    # Telugu-variant invalidation hook (T13 owns regeneration): an approved
+    # English correction invalidates the existing derived variant per
+    # NON_NEGOTIABLES #7 — deleting it forces regeneration rather than
+    # leaving stale Telugu text live against a corrected English original.
+    te_variant = db.scalars(
+        select(StoryVariant).where(StoryVariant.story_id == story.id, StoryVariant.language == "te")
+    ).first()
+    if te_variant is not None:
+        db.delete(te_variant)
+
+    db.add(
+        Correction(
+            story_id=story.id,
+            reason=body.reason,
+            old_text_hash=old_hash,
+            new_text_hash=new_hash,
+            created_by=UUID(admin.user_id),
+        )
+    )
+    _write_audit_event(
+        db, admin.email, "STORY_CORRECTED", "story", story.id,
+        {"reason": body.reason, "old_text_hash": old_hash, "new_text_hash": new_hash},
+    )
+    db.commit()
+    db.refresh(story)
+    return AdminActionResponse(story_id=story.id, status=story.status)
 
 
 @router.get("/jobs")
@@ -199,5 +416,12 @@ def list_jobs(db: Session = Depends(get_db)) -> list[AdminJobOut]:
 
 
 @router.get("/audit")
-def list_audit_events() -> list[AdminAuditEventOut]:
-    return []
+def list_audit_events(db: Session = Depends(get_db)) -> list[AdminAuditEventOut]:
+    events = db.scalars(select(AuditEvent).order_by(AuditEvent.created_at.desc()).limit(200)).all()
+    return [
+        AdminAuditEventOut(
+            id=event.id, actor=event.actor, action=event.action, entity_type=event.entity_type,
+            entity_id=event.entity_id, metadata=event.metadata_, created_at=event.created_at,
+        )
+        for event in events
+    ]

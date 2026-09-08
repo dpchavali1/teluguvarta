@@ -22,7 +22,7 @@ prior conversation history.
 | T09 Dedup + clustering | **done** | `app/jobs/cluster.py`: deterministic fingerprint (normalized-title hash) + lexical similarity (difflib ratio, 72%/40% thresholds) group `NORMALIZED` `SourceItem`s into `Story`/`StorySource`, advancing `ingest_status` to `CLUSTERED`; AI escalation for ambiguous pairs stubbed for T10/T11 |
 | T10 AI provider gateway | **done** | `apps/api/app/ai/`: `AiGateway.run_task` implements §7.2 routing + §7.3 schema validation + every §7.5 failure mode (retry-then-hold, low-confidence review queue, unsupported-claim removal/hold, provider-unavailable, budget-breach classification-only degrade); cost telemetry in new `ai_call_log` table (migration `7a4c9e2b5d10`), queryable per task/day; ADR-001 accepted (OpenAI primary, Anthropic secondary, gateway lives in Python at `apps/api/app/ai` not the TS `packages/ai` — see ADR for why) |
 | T11 Story generation | **done** | `apps/api/app/jobs/generate.py`: `ai_classify` job sweeps `CLUSTERED` stories through two AI-gateway calls (classify, then generate) and advances state; `9d3f6b1a2c47` adds `ENRICHED`/`REVIEW`/`SCHEDULED`/`ARCHIVED` to `source_items.ingest_status`; fixed a pre-existing T09 bug (`dedup_cluster` job type wasn't in `ck_jobs_type`, so it always errored — renamed to `story_cluster`) |
-| T12 Editorial workflow | not started | |
+| T12 Editorial workflow | **done** | Real approve/reject/retract/correct on `/v1/admin/stories/{id}/*` + `GET .../stories/{id}` detail + real `/v1/admin/review-queue`; every mutation writes an `AuditEvent`; new `publish_scheduler` job (`app/jobs/publish.py`) implements the kill-switch-gated auto-publish sweep from T11's `AI_READY` output; migration `73a24fe47a9f` adds `ARCHIVED` to `story_status` + the reject transitions; `apps/admin` gets a review-queue list + story detail/action page |
 | T13 Bilingual variants | not started | |
 | T14 Web MVP | not started | |
 | T15 Mobile MVP | not started | |
@@ -65,6 +65,129 @@ Mirrors `docs/adr/README.md` — keep both in sync.
 ## Changelog
 
 (newest first — one line per ticket completion)
+
+- 2026-09-08: T12 done — editorial workflow, replacing every T04 stub in
+  `apps/api/app/routers/admin.py`. **Approve** (`REVIEW_REQUIRED -> APPROVED
+  -> SCHEDULED`, resolving the pending `ReviewTask` and writing an
+  `AuditEvent`), **reject** (`REVIEW_REQUIRED -> DRAFT` by default, or
+  `-> ARCHIVED` if the request sets `archive: true` — the ticket's literal
+  "back to draft or archived"), **retract** (`PUBLISHED -> RETRACTED`), and
+  **correct** (updates the `en` `StoryVariant`, records a `Correction` row
+  with `old_text_hash`/`new_text_hash` over headline+summary+why_matters,
+  transitions `PUBLISHED -> UPDATED` or `UPDATED -> CORRECTION_PENDING ->
+  UPDATED` depending on starting state, and deletes any existing `te`
+  variant — NON_NEGOTIABLES #7's Telugu-invalidation hook; T13 owns
+  regeneration) all reject an illegal starting status with a 409
+  `ILLEGAL_TRANSITION`, and all write an `AuditEvent` with the acting
+  admin's email as actor — no exceptions, per the ticket's own acceptance
+  criterion. New `GET /v1/admin/stories/{id}` (§9.3/§15 review-screen
+  payload: AI draft, sensitivity, every source with its rights status side
+  by side, the pending review reason, and correction history) and real
+  `GET /v1/admin/review-queue` / `GET /v1/admin/audit` (previously `[]`
+  stubs).
+
+  **New migration** `73a24fe47a9f`: T03's `story_status` trigger had no path
+  for "reject" at all (only the approve/retract/correct chain was legal),
+  so this adds `ARCHIVED` to the native enum plus `REVIEW_REQUIRED ->
+  DRAFT`/`REVIEW_REQUIRED -> ARCHIVED` to the trigger function. Every other
+  T12 transition was already legal from T03. Downgrade rebuilds the enum
+  type from scratch (Postgres has no `DROP VALUE`), which requires
+  dropping/recreating the guard trigger around the column type change —
+  verified by a real `upgrade head` / `downgrade -1` / `upgrade head`
+  round-trip against local Postgres, including hitting and fixing two real
+  errors along the way (default-cast failure, then the trigger-dependency
+  error) rather than just trusting the SQL.
+
+  **New job**: `app/jobs/publish.py` implements the `publish_scheduler` job
+  type (reserved in T03's `ck_jobs_type` since the initial schema,
+  unimplemented until now) — this is what actually makes the §15 kill
+  switches gate something real instead of existing as unused config, per
+  the ticket's explicit requirement. `auto_publish_stories` sweeps
+  `Story.status == AI_READY` (T11's home for every non-sensitive P2 story):
+  with `AUTO_PUBLISH_GLOBAL` off, each is pushed to `REVIEW_REQUIRED` with a
+  new `ReviewTask` so an editor actually sees it in the queue instead of it
+  rotting silently at `AI_READY` forever; with the flag on, each is
+  auto-approved (`-> APPROVED -> SCHEDULED`) and a `system:auto_publish`
+  `AuditEvent` is written. Defense in depth (matching T08's rights-gate
+  double-check precedent): a story whose `sensitivity != NONE` is *never*
+  auto-approved regardless of the flag, even though this should already be
+  structurally unreachable via T11's own routing — NON_NEGOTIABLES #5 gets
+  no auto-publish override, full stop. `AUTO_PUBLISH_CATEGORY_IMMIGRATION`
+  is deliberately never read anywhere in this ticket: T11 never lets an
+  IMMIGRATION story reach `AI_READY` to begin with (always routed straight
+  to `REVIEW_REQUIRED`), so the flag is structurally a no-op — exactly the
+  acceptance criterion, satisfied by construction rather than an explicit
+  check. `publish_due_stories` promotes every `Story.status == SCHEDULED`
+  (reached via *either* the auto-publish sweep above or a human editor's
+  `approve`) to `PUBLISHED` and stamps `published_at`; deliberately **not**
+  gated by any kill switch, since the approve decision (human or automatic)
+  already happened by the time a story is `SCHEDULED` — gating this step
+  too would silently strand every human-approved story if the global switch
+  were off. Both run as one `publish_scheduler` job handler (same
+  "combine adjacent stages with no independent retry value" precedent as
+  T08/T09/T11), scheduled on the same 2-minute time-bucketed-dedupe_key
+  pattern as `schedule_ai_classify`, wired into `worker.py`'s
+  `JOB_HANDLERS`.
+
+  New ORM: `Correction` model (table already existed since T03, unused
+  until now); `Story.published_at` (DB column existed since T03, unused
+  until now).
+
+  New tests (`apps/api/tests/test_editorial_workflow.py`, 13 cases, real
+  Postgres): every action's happy path and its illegal-transition rejection
+  (including the ticket's own named example — approving an already-
+  `RETRACTED` story); reject's draft-vs-archive branch; correct's variant
+  update + Telugu-invalidation + `Correction` row; the review queue lists a
+  pending task; auto-publish's three branches (disabled -> review queue,
+  enabled -> `SCHEDULED` then `PUBLISHED` via `publish_due_stories`,
+  sensitive-category defense-in-depth even with the flag on); the
+  immigration-flag no-op. Verified: `pytest` (91 passed, 13 new + all 78
+  prior, real Postgres), `ruff check .` clean repo-wide,
+  `mypy app/routers/admin.py app/jobs/publish.py app/jobs/worker.py
+  app/models.py app/schemas.py` shows only the same pre-existing
+  `str`-vs-`Literal` noise already present at every other ORM-to-schema
+  boundary in this codebase (e.g. `_source_out`'s `rights_status` from T06)
+  — not a regression, and mypy isn't in CI yet. `alembic upgrade head` /
+  `downgrade -1` / `upgrade head` round-trip clean against local Postgres.
+  `pnpm run lint`/`typecheck` clean repo-wide including the new
+  `apps/admin` pages; `pnpm --filter @teluguvarta/admin build` succeeds.
+  `packages/contracts` regenerated and committed (new admin schemas +
+  `GET /v1/admin/stories/{id}`). Also ran the real worker loop
+  (`process_one`, no mocks) against the live DB: the new `publish_scheduler`
+  job claims and completes cleanly (`DONE`, no error) even with zero
+  eligible stories in this sandbox (no AI provider key configured, so
+  nothing has reached `AI_READY` yet — same limitation T11 hit) — confirms
+  the wiring, not the auto-publish branch logic itself, which is covered by
+  the unit tests above instead.
+
+  **Design decisions made without a separate ADR** (documented here per
+  NON_NEGOTIABLES #11's "write it down" bar, but not treated as
+  requiring a formal ADR since these are implementation completions of
+  T03's already-accepted state machine, not new legal/architecture
+  positions): (1) "reject -> back to draft or archived" needed a real
+  terminal `Story.status` outcome the schema didn't have — added
+  `ARCHIVED` rather than repurposing the `source_items.ingest_status`
+  concept, since `stories.status` is the field editors and the public API
+  actually read. (2) Manual approve and the auto-publish sweep both stop at
+  `SCHEDULED` (matching the ticket's literal "approve -> APPROVED/
+  SCHEDULED"), with a single always-on `publish_due_stories` step doing the
+  final `SCHEDULED -> PUBLISHED` hop for both — this is what makes retract
+  (`PUBLISHED -> RETRACTED`) actually reachable without inventing a
+  publish-time-scheduling feature no ticket has asked for yet.
+
+  Not yet done/risks: real end-to-end auto-publish behavior against actual
+  AI-generated `AI_READY` stories is unverified in this sandbox (no AI
+  provider key/network access) — the unit tests directly construct
+  `AI_READY` stories rather than running the full T11 pipeline first, same
+  limitation noted in T10/T11's own changelog entries; the admin UI's
+  review/story-detail pages are plain unstyled HTML (no design system
+  exists yet in this repo) and untested against a running browser session
+  (no browser tooling available in this environment) — `tsc`/`next build`
+  passing confirms the code compiles and prerenders, not that the UI is
+  usable; `AdminStoryDetailOut` exposes `source_rights_status` per source
+  but the admin UI doesn't yet visually flag a `LICENSED_METADATA`/
+  `LICENSED_REPURPOSE` source specially since ADR-002 means none should
+  ever exist in this build phase anyway.
 
 - 2026-09-08: T11 done — `apps/api/app/jobs/generate.py` turns a T09
   `CLUSTERED` `Story` into a reviewable draft, one `ai_classify` job type

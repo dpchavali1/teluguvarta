@@ -30,7 +30,8 @@
               "PUBLISHED",
               "UPDATED",
               "RETRACTED",
-              "CORRECTION_PENDING"
+              "CORRECTION_PENDING",
+              "ARCHIVED"
             ],
             "title": "Status",
             "type": "string"
@@ -98,6 +99,87 @@
           "created_at"
         ],
         "title": "AdminAuditEventOut",
+        "type": "object"
+      },
+      "AdminCorrectionOut": {
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "new_text_hash": {
+            "title": "New Text Hash",
+            "type": "string"
+          },
+          "old_text_hash": {
+            "title": "Old Text Hash",
+            "type": "string"
+          },
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "reason",
+          "old_text_hash",
+          "new_text_hash",
+          "created_at"
+        ],
+        "title": "AdminCorrectionOut",
+        "type": "object"
+      },
+      "AdminCorrectionRequest": {
+        "properties": {
+          "headline": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Headline"
+          },
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          },
+          "summary": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Summary"
+          },
+          "why_matters": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Why Matters"
+          }
+        },
+        "required": [
+          "reason"
+        ],
+        "title": "AdminCorrectionRequest",
         "type": "object"
       },
       "AdminJobOut": {
@@ -213,6 +295,28 @@
           "role"
         ],
         "title": "AdminLoginResponse",
+        "type": "object"
+      },
+      "AdminRejectRequest": {
+        "properties": {
+          "archive": {
+            "default": false,
+            "title": "Archive",
+            "type": "boolean"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          }
+        },
+        "title": "AdminRejectRequest",
         "type": "object"
       },
       "AdminSourceCreate": {
@@ -614,6 +718,171 @@
           }
         },
         "title": "AdminSourceUpdate",
+        "type": "object"
+      },
+      "AdminStoryDetailOut": {
+        "description": "The \u00a79.3/\u00a715 review-screen payload: source + rights state, original\nmetadata, the AI draft, sensitivity, and correction/audit history side\nby side.",
+        "properties": {
+          "canonical_slug": {
+            "title": "Canonical Slug",
+            "type": "string"
+          },
+          "corrections": {
+            "items": {
+              "$ref": "#/components/schemas/AdminCorrectionOut"
+            },
+            "title": "Corrections",
+            "type": "array"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "importance": {
+            "title": "Importance",
+            "type": "number"
+          },
+          "published_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Published At"
+          },
+          "review_task": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ReviewQueueItemOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "sensitivity": {
+            "enum": [
+              "NONE",
+              "IMMIGRATION",
+              "LEGAL",
+              "FINANCIAL",
+              "BREAKING",
+              "OBITUARY_ACCUSATION"
+            ],
+            "title": "Sensitivity",
+            "type": "string"
+          },
+          "sources": {
+            "items": {
+              "$ref": "#/components/schemas/AdminStorySourceOut"
+            },
+            "title": "Sources",
+            "type": "array"
+          },
+          "status": {
+            "enum": [
+              "DRAFT",
+              "AI_READY",
+              "REVIEW_REQUIRED",
+              "APPROVED",
+              "SCHEDULED",
+              "PUBLISHED",
+              "UPDATED",
+              "RETRACTED",
+              "CORRECTION_PENDING",
+              "ARCHIVED"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "variants": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/StoryVariantOut"
+            },
+            "propertyNames": {
+              "enum": [
+                "en",
+                "te"
+              ]
+            },
+            "title": "Variants",
+            "type": "object"
+          }
+        },
+        "required": [
+          "id",
+          "canonical_slug",
+          "status",
+          "sensitivity",
+          "importance"
+        ],
+        "title": "AdminStoryDetailOut",
+        "type": "object"
+      },
+      "AdminStorySourceOut": {
+        "properties": {
+          "published_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Published At"
+          },
+          "role": {
+            "enum": [
+              "PRIMARY",
+              "SUPPORTING"
+            ],
+            "title": "Role",
+            "type": "string"
+          },
+          "source_name": {
+            "title": "Source Name",
+            "type": "string"
+          },
+          "source_rights_status": {
+            "enum": [
+              "DISABLED",
+              "LINK_ONLY",
+              "LICENSED_METADATA",
+              "LICENSED_REPURPOSE"
+            ],
+            "title": "Source Rights Status",
+            "type": "string"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "url": {
+            "title": "Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "role",
+          "url",
+          "source_name",
+          "source_rights_status"
+        ],
+        "title": "AdminStorySourceOut",
         "type": "object"
       },
       "ConfigResponse": {
@@ -1239,7 +1508,8 @@
               "PUBLISHED",
               "UPDATED",
               "RETRACTED",
-              "CORRECTION_PENDING"
+              "CORRECTION_PENDING",
+              "ARCHIVED"
             ],
             "title": "Status",
             "type": "string"
@@ -1905,6 +2175,65 @@
         ]
       }
     },
+    "/v1/admin/stories/{story_id}": {
+      "get": {
+        "operationId": "get_story_detail_v1_admin_stories__story_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "story_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Story Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminStoryDetailOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Story Detail",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
     "/v1/admin/stories/{story_id}/approve": {
       "post": {
         "operationId": "approve_story_v1_admin_stories__story_id__approve_post",
@@ -2009,7 +2338,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/AdminActionRequest"
+                "$ref": "#/components/schemas/AdminCorrectionRequest"
               }
             }
           },
@@ -2078,7 +2407,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/AdminActionRequest"
+                "$ref": "#/components/schemas/AdminRejectRequest"
               }
             }
           },

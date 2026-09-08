@@ -37,7 +37,7 @@ _source_rights_status_enum = ENUM(
 # anything filtered on `stories.status`).
 _story_status_enum = ENUM(
     "DRAFT", "AI_READY", "REVIEW_REQUIRED", "APPROVED", "SCHEDULED",
-    "PUBLISHED", "UPDATED", "RETRACTED", "CORRECTION_PENDING",
+    "PUBLISHED", "UPDATED", "RETRACTED", "CORRECTION_PENDING", "ARCHIVED",
     name="story_status",
     create_type=False,
 )
@@ -115,6 +115,7 @@ class Story(Base):
     # publication-rules gate reads this).
     sensitivity: Mapped[str] = mapped_column(Text, nullable=False, server_default="NONE")
     importance: Mapped[float] = mapped_column(Float, nullable=False, server_default="0")
+    published_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
 class StoryVariant(Base):
@@ -186,6 +187,24 @@ class ReviewTask(Base):
     # 'PENDING' | 'IN_REVIEW' | 'APPROVED' | 'REJECTED' per `ck_review_tasks_status`.
     status: Mapped[str] = mapped_column(Text, nullable=False, server_default="PENDING")
     decision: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+
+
+class Correction(Base):
+    """T12: one row per applied correction (`old_text_hash`/`new_text_hash`
+    over the English variant's headline+summary+why_matters, not a full
+    diff — the ticket's stated acceptance criterion). Also the wired hook
+    for Telugu-variant invalidation: T13 owns regenerating the `te` variant
+    this creates a gap for."""
+
+    __tablename__ = "corrections"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    story_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("stories.id", ondelete="CASCADE"), nullable=False)
+    reason: Mapped[str] = mapped_column(Text, nullable=False)
+    old_text_hash: Mapped[str] = mapped_column(Text, nullable=False)
+    new_text_hash: Mapped[str] = mapped_column(Text, nullable=False)
+    created_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
 
 
