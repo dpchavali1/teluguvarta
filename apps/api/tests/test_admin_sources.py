@@ -170,3 +170,21 @@ def test_kill_switches_reflect_env(client, db_session, monkeypatch):
     body = response.json()
     assert body["auto_publish_global"] is True
     assert body["auto_publish_category_immigration"] is False
+
+
+def test_jobs_endpoint_lists_real_job_health(client, db_session):
+    """T08: source health/job visibility must be real once jobs exist, not
+    the T04-era stub that always returned []."""
+    from app.models import Job
+
+    token = _token(client, db_session)
+    db_session.add(Job(type="source_fetch", payload={}, status="FAILED", attempts=5, last_error="boom"))
+    db_session.commit()
+
+    response = client.get("/v1/admin/jobs", headers=_auth(token))
+    assert response.status_code == 200
+    body = response.json()
+    assert len(body) == 1
+    assert body[0]["status"] == "FAILED"
+    assert body[0]["attempts"] == 5
+    assert body[0]["last_error"] == "boom"

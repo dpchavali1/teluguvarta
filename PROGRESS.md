@@ -18,7 +18,7 @@ prior conversation history.
 | T05 Admin authentication | **done** | JWT login (`POST /v1/admin/auth/login`), `role` column on `users` (EDITOR/ADMIN) with RBAC, rate-limited via `admin_login_attempts`; ADR-006 written (proposed) |
 | T06 Source registry | **done** | `sources` expanded to full §6.2 field list via migration `69110b7cfd3d`; `/v1/admin/sources` CRUD enforces ADR-002 (only DISABLED/LINK_ONLY reachable, `RIGHTS_TIER_NOT_ENABLED` otherwise) and requires rights evidence (`rights_evidence_url`/`rights_reviewed_at`/`reviewer`) plus `ADMIN` role to enable a source (`RIGHTS_EVIDENCE_REQUIRED`/`FORBIDDEN`); every create/update writes an `AuditEvent`; read-only `GET /v1/admin/kill-switches` surfaces the §15 `AUTO_PUBLISH_*` env flags (no publish logic to gate yet — T12); ADR-002 addended with the approval-role/second-approver/evidence-expiry decisions |
 | T07 First source adapters | **done** | Generic RSS/Atom adapter (`apps/api/app/adapters/`) + 3 seeded LINK_ONLY sources with rights evidence |
-| T08 Ingestion worker | not started | |
+| T08 Ingestion worker | **done** | `app/jobs/` (queue claim/retry + `source_fetch` job) polling the T03 `jobs` table via `FOR UPDATE SKIP LOCKED`; ADR-003 accepted; rights gate enforced inside `adapters/base.py::emit()` (new `source_items.ingest_status`); circuit breaker + bounded job retry both real and admin-visible |
 | T09 Dedup + clustering | not started | |
 | T10 AI provider gateway | not started | |
 | T11 Story generation | not started | |
@@ -56,7 +56,7 @@ Mirrors `docs/adr/README.md` — keep both in sync.
 |---|---|
 | ADR-001 AI provider selection | not started |
 | ADR-002 Source-rights approval policy | **accepted** |
-| ADR-003 Database job queue strategy | not started |
+| ADR-003 Database job queue strategy | **accepted** |
 | ADR-004 Bilingual content lifecycle | not started |
 | ADR-005 Personalization model | not started |
 | ADR-006 Account/privacy architecture | **proposed** |
@@ -66,6 +66,69 @@ Mirrors `docs/adr/README.md` — keep both in sync.
 
 (newest first — one line per ticket completion)
 
+- 2026-09-08: T08 done — the T03 `jobs` table now has real claim/retry code
+  and a first job type. **ADR-003 (database job queue strategy)** accepted
+  (`docs/adr/ADR-003-database-job-queue-strategy.md`): claiming uses
+  `SELECT ... FOR UPDATE SKIP LOCKED` (also reclaims a `RUNNING` job whose
+  5-minute `lock_expiry` passed, e.g. a crashed worker) with the update to
+  `RUNNING` committed immediately so the row lock doesn't sit open for the
+  job's full runtime; deployment shape is **one lightweight always-on
+  worker process** (`python -m app.jobs.worker`) rather than a managed cron
+  trigger per job type, justified against §14's 14 job types accumulating
+  handlers over the remaining tickets; retry is bounded
+  (`MAX_JOB_ATTEMPTS = 5`, exponential backoff `60s * 2^(attempts-1)` capped
+  at `3600s`, terminal `FAILED` after that — NON_NEGOTIABLES #10, no
+  infinite retry loop). New `apps/api/app/jobs/`: `queue.py` (generic
+  claim/complete/fail/enqueue, reusable by every future job type) and
+  `source_fetch.py` (the actual job: scheduling due sources via a
+  time-bucketed `dedupe_key` so re-polling the scheduler within one
+  `refresh_minutes` window is a no-op, then running T07's
+  fetch→normalize→validate→emit pipeline). **The rights gate is enforced
+  inside `adapters/base.py::emit()` itself, not by the job or scheduler**:
+  a new `source_items.ingest_status` column (migration `1b4ff735cc70`,
+  values `DISCOVERED`/`RIGHTS_BLOCKED`/`NORMALIZED` per §6.4) is set to
+  `NORMALIZED` only when `source.rights_status == LINK_ONLY`, `RIGHTS_BLOCKED`
+  otherwise (including `DISABLED`) — this is defense-in-depth against a
+  source's rights status changing between when a job is enqueued and when
+  it actually runs, per NON_NEGOTIABLES #4 ("never bypass the rights gate").
+  §6.5's circuit breaker acts on `sources.fail_count` (already exposed via
+  T06's `/v1/admin/sources`): the scheduler stops enqueueing new
+  `source_fetch` jobs once `fail_count >= 5`, deliberately manual-reset, not
+  auto-clearing on a timer. `GET /v1/admin/jobs` (previously a T04 stub
+  returning `[]`) now queries real `Job` rows so job health is actually
+  visible. New tests (`apps/api/tests/test_jobs.py`, 10 cases; 2 more added
+  to `test_adapters.py` for the emit()-level rights gate; 1 more added to
+  `test_admin_sources.py` for the jobs endpoint): concurrent `claim_job`
+  calls (5 real threads against real Postgres) never claim the same job
+  twice; bounded retry reschedules-then-terminates at `MAX_JOB_ATTEMPTS`;
+  scheduler skips `DISABLED` and circuit-broken sources and is idempotent
+  within a cadence window; `run_source_fetch` resets/increments source
+  health on success/failure and doesn't duplicate `SourceItem` rows on
+  rerun (fixture-backed, `httpx.MockTransport`, same style as T07).
+  Verified: `pytest` (49 passed), `ruff check .` clean, `mypy app/jobs
+  app/adapters` clean; `alembic upgrade head` / `downgrade -1` / `upgrade
+  head` round-trip clean against local Postgres. Also ran the worker for
+  real (`process_one` in a loop, no mocks) against the 3 live T07-seeded
+  sources: NPR and State Dept both succeeded (228 real `SourceItem` rows,
+  all `NORMALIZED`), FEMA's feed returned a live `403 Forbidden` to our
+  `httpx` client (no `User-Agent` header) — correctly recorded as a bounded,
+  backed-off retry (`fail_count=1`, job `PENDING` with backoff, not stuck or
+  infinite) rather than crashing the worker. Not yet done/risks: the FEMA
+  403 is a real finding, not a test artifact — worth a `User-Agent` header
+  on the shared `httpx.Client` or reconsidering FEMA as a source (T07's
+  changelog already flagged FEMA as a weak source on content-relevance
+  grounds; this adds a reachability concern) — follow-up for T09 source
+  curation or a small adapter fix, not blocking this ticket's acceptance
+  criteria since bounded-retry behavior is exactly what's supposed to
+  happen. Adapter dispatch is hardcoded to `RssFeedAdapter` (still the only
+  adapter that exists, per T07) — a real per-`source_type` registry is
+  deferred until a second adapter actually exists. Job attempts/backoff are
+  tracked per job row, not per source — a source with a genuinely flaky
+  feed will get a fresh job (and fresh attempts budget) every
+  `refresh_minutes` window even while its own `fail_count` climbs toward
+  the circuit breaker; this matches the ticket's stated split between
+  job-level retry and source-level circuit breaker (ADR-003) but is worth
+  knowing if failure patterns look surprising later.
 - 2026-09-08: T07 done — §6.3 adapter contract (`fetch -> normalize ->
   validate -> emit`) implemented as `app/adapters/base.py` (shared
   normalize/validate/emit — identical across every LINK_ONLY feed source)

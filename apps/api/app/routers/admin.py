@@ -22,7 +22,7 @@ from sqlalchemy.orm import Session
 from app.auth import AdminPrincipal, current_admin
 from app.db import get_db
 from app.errors import APIError
-from app.models import AuditEvent, Source
+from app.models import AuditEvent, Job, Source
 from app.schemas import (
     AdminActionRequest,
     AdminActionResponse,
@@ -182,8 +182,20 @@ def correct_story(story_id: UUID, body: AdminActionRequest) -> AdminActionRespon
 
 
 @router.get("/jobs")
-def list_jobs() -> list[AdminJobOut]:
-    return []
+def list_jobs(db: Session = Depends(get_db)) -> list[AdminJobOut]:
+    jobs = db.scalars(select(Job).order_by(Job.run_after.desc()).limit(100)).all()
+    return [
+        AdminJobOut(
+            id=job.id,
+            type=job.type,
+            status=job.status,
+            attempts=job.attempts,
+            run_after=job.run_after,
+            locked_at=job.locked_at,
+            last_error=job.last_error,
+        )
+        for job in jobs
+    ]
 
 
 @router.get("/audit")

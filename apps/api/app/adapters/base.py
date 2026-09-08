@@ -81,7 +81,17 @@ class SourceAdapter:
         """Idempotent on (source_id, external_id) so re-running fetch on an
         already-seen item updates it in place instead of duplicating it,
         per §6's "never duplicate a story when the same source item
-        reappears"."""
+        reappears".
+
+        The rights gate is enforced here, not by callers: only a source
+        currently `LINK_ONLY` (the sole enabled tier per ADR-002) reaches
+        `NORMALIZED`; anything else — including `DISABLED` — is recorded as
+        `RIGHTS_BLOCKED`, per NON_NEGOTIABLES #4 ("never bypass the rights
+        gate"). `ingest_status` is set only on first insert: a later
+        re-fetch must not regress an item a downstream ticket has already
+        advanced past NORMALIZED (dedup/cluster/...).
+        """
+        ingest_status = "NORMALIZED" if self.source.rights_status == "LINK_ONLY" else "RIGHTS_BLOCKED"
         stmt = (
             pg_insert(SourceItem)
             .values(
@@ -91,6 +101,7 @@ class SourceAdapter:
                 title=item.title,
                 published_at=item.published_at,
                 raw_hash=item.raw_hash,
+                ingest_status=ingest_status,
             )
             .on_conflict_do_update(
                 index_elements=[SourceItem.source_id, SourceItem.external_id],

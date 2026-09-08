@@ -109,6 +109,41 @@ def test_emit_creates_source_item(migrated_database):
 
 
 @requires_postgres
+def test_emit_normalizes_items_for_link_only_source(migrated_database):
+    engine = create_engine(migrated_database)
+    with Session(engine) as db:
+        source = _make_source(feed_url="https://feeds.npr.org/1001/rss.xml", rights_status="LINK_ONLY")
+        db.add(source)
+        db.commit()
+
+        adapter = RssFeedAdapter(source)
+        raw_items = adapter.fetch(_client_for_fixture("npr_news.xml"))
+        stored = [adapter.emit(db, adapter.normalize(raw)) for raw in raw_items.items]
+        db.commit()
+
+        assert all(item.ingest_status == "NORMALIZED" for item in stored)
+
+
+@requires_postgres
+def test_emit_blocks_rights_for_non_link_only_source(migrated_database):
+    """§6.4 / NON_NEGOTIABLES #4: a DISABLED source's items must never reach
+    NORMALIZED — the rights gate is enforced inside emit() itself, not left
+    to callers to remember."""
+    engine = create_engine(migrated_database)
+    with Session(engine) as db:
+        source = _make_source(feed_url="https://feeds.npr.org/1001/rss.xml", rights_status="DISABLED")
+        db.add(source)
+        db.commit()
+
+        adapter = RssFeedAdapter(source)
+        raw_items = adapter.fetch(_client_for_fixture("npr_news.xml"))
+        stored = [adapter.emit(db, adapter.normalize(raw)) for raw in raw_items.items]
+        db.commit()
+
+        assert all(item.ingest_status == "RIGHTS_BLOCKED" for item in stored)
+
+
+@requires_postgres
 def test_emit_is_idempotent_on_rerun(migrated_database):
     """Re-running fetch -> normalize -> validate -> emit on the same items
     must not duplicate SourceItem rows (§6 "never duplicate ... when the
