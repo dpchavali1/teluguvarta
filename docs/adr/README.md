@@ -7,7 +7,7 @@ in `docs/NON_NEGOTIABLES.md` or make a decision the spec leaves open.
 
 | ADR | Topic | Trigger ticket | Status |
 |---|---|---|---|
-| ADR-001 | AI provider selection | T10 | not started |
+| ADR-001 | AI provider selection | T10 | **accepted** — see [ADR-001](ADR-001-ai-provider-selection.md) |
 | ADR-002 | Source-rights approval policy | T06 | **accepted** — see [ADR-002](ADR-002-source-rights-approval-policy.md) |
 | ADR-003 | Database job queue strategy | T08 | **accepted** — see [ADR-003](ADR-003-database-job-queue-strategy.md) |
 | ADR-004 | Bilingual content lifecycle | T13 | not started |

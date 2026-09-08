@@ -48,6 +48,13 @@ jobs:
           python-version: "3.11"
       - run: pip install -e ".[dev]"
       - run: ruff check .
+      - name: No provider SDK outside app/ai/providers (ADR-001)
+        run: |
+          if grep -rEn "^\s*(import|from)\s+(openai|anthropic)\b" app --include="*.py" \
+              | grep -v "app/ai/providers/openai_provider.py\|app/ai/providers/anthropic_provider.py"; then
+            echo "A provider SDK is imported outside app/ai/providers — see ADR-001." >&2
+            exit 1
+          fi
       - run: pytest
 
   contracts:

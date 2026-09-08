@@ -3,11 +3,11 @@
 Turns NORMALIZED `SourceItem`s into `Story` clusters without an AI call for
 the common case, per §7.2's model-routing table: "Dedup/clustering:
 fingerprint + lexical similarity first; embedding/model only for ambiguous
-pairs." The AI gateway itself doesn't exist until T10, so `_escalate_to_ai`
-is a stub other tickets fill in — a pair whose similarity falls between the
-two thresholds is conservatively treated as *not* matching until then
-(two separate stories is a safer default than wrongly merging unrelated
-ones).
+pairs." `_escalate_to_ai` (T10) routes only the ambiguous band through the
+AI gateway; if the gateway can't produce a confident answer (no provider
+configured, hold, low confidence), a pair is conservatively treated as
+*not* matching — two separate stories is a safer default than wrongly
+merging unrelated ones.
 
 Fingerprinting and clustering happen in one deterministic pass here, so the
 §6.4 `DEDUPED` state is never persisted on its own — a `SourceItem` goes
@@ -24,6 +24,7 @@ from datetime import UTC, datetime, timedelta
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.ai import AiGateway, GatewayStatus, Task
 from app.jobs.queue import enqueue_job
 from app.models import Job, SourceItem, Story, StorySource
 
@@ -58,14 +59,25 @@ def normalized_title_key(title: str) -> str:
     return key
 
 
-def _escalate_to_ai(item_a: SourceItem, item_b: SourceItem) -> bool:
-    """TODO(T10/T11): route ambiguous pairs (similarity between the two
-    thresholds) through the AI gateway's embedding/model comparison once it
-    exists. Until then, ambiguous pairs are treated as not matching."""
-    return False
+def _escalate_to_ai(db: Session, item_a: SourceItem, item_b: SourceItem) -> bool:
+    """Routes an ambiguous-band pair through the AI gateway's dedup-cluster
+    escalation task. Anything other than a confident OK match (provider
+    unavailable, hold, low confidence, or a malformed response) falls back
+    to "not matching" — see module docstring."""
+    gateway = AiGateway(db)
+    prompt = (
+        "Do these two news items describe the same underlying event? "
+        f'Item A: "{item_a.title or ""}". Item B: "{item_b.title or ""}". '
+        "Respond with the required JSON schema; set relevant=true and "
+        "publish_recommendation='MATCH' only if they describe the same event."
+    )
+    outcome = gateway.run_task(Task.DEDUP_CLUSTER_ESCALATION, prompt)
+    if outcome.status != GatewayStatus.OK or outcome.result is None:
+        return False
+    return outcome.result.relevant and outcome.result.publish_recommendation == "MATCH"
 
 
-def _same_story(a: SourceItem, b: SourceItem) -> bool:
+def _same_story(db: Session, a: SourceItem, b: SourceItem) -> bool:
     key_a, key_b = normalized_title_key(a.title or ""), normalized_title_key(b.title or "")
     if key_a and key_a == key_b:
         return True
@@ -74,7 +86,7 @@ def _same_story(a: SourceItem, b: SourceItem) -> bool:
         return True
     if similarity <= SIMILARITY_NO_MATCH_THRESHOLD:
         return False
-    return _escalate_to_ai(a, b)
+    return _escalate_to_ai(db, a, b)
 
 
 def _within_window(a: SourceItem, b: SourceItem) -> bool:
@@ -101,7 +113,7 @@ def _find_matching_story(db: Session, item: SourceItem) -> uuid.UUID | None:
     for candidate in clustered:
         if not _within_window(item, candidate):
             continue
-        if _same_story(item, candidate):
+        if _same_story(db, item, candidate):
             story_source = db.scalars(
                 select(StorySource).where(StorySource.source_item_id == candidate.id)
             ).first()

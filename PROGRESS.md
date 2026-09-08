@@ -20,7 +20,7 @@ prior conversation history.
 | T07 First source adapters | **done** | Generic RSS/Atom adapter (`apps/api/app/adapters/`) + 3 seeded LINK_ONLY sources with rights evidence |
 | T08 Ingestion worker | **done** | `app/jobs/` (queue claim/retry + `source_fetch` job) polling the T03 `jobs` table via `FOR UPDATE SKIP LOCKED`; ADR-003 accepted; rights gate enforced inside `adapters/base.py::emit()` (new `source_items.ingest_status`); circuit breaker + bounded job retry both real and admin-visible |
 | T09 Dedup + clustering | **done** | `app/jobs/cluster.py`: deterministic fingerprint (normalized-title hash) + lexical similarity (difflib ratio, 72%/40% thresholds) group `NORMALIZED` `SourceItem`s into `Story`/`StorySource`, advancing `ingest_status` to `CLUSTERED`; AI escalation for ambiguous pairs stubbed for T10/T11 |
-| T10 AI provider gateway | not started | |
+| T10 AI provider gateway | **done** | `apps/api/app/ai/`: `AiGateway.run_task` implements §7.2 routing + §7.3 schema validation + every §7.5 failure mode (retry-then-hold, low-confidence review queue, unsupported-claim removal/hold, provider-unavailable, budget-breach classification-only degrade); cost telemetry in new `ai_call_log` table (migration `7a4c9e2b5d10`), queryable per task/day; ADR-001 accepted (OpenAI primary, Anthropic secondary, gateway lives in Python at `apps/api/app/ai` not the TS `packages/ai` — see ADR for why) |
 | T11 Story generation | not started | |
 | T12 Editorial workflow | not started | |
 | T13 Bilingual variants | not started | |
@@ -54,7 +54,7 @@ Mirrors `docs/adr/README.md` — keep both in sync.
 
 | ADR | Status |
 |---|---|
-| ADR-001 AI provider selection | not started |
+| ADR-001 AI provider selection | **accepted** |
 | ADR-002 Source-rights approval policy | **accepted** |
 | ADR-003 Database job queue strategy | **accepted** |
 | ADR-004 Bilingual content lifecycle | not started |
@@ -65,6 +65,70 @@ Mirrors `docs/adr/README.md` — keep both in sync.
 ## Changelog
 
 (newest first — one line per ticket completion)
+
+- 2026-09-08: T10 done — `apps/api/app/ai/` is the AI gateway: `tasks.py`
+  holds the §7.2 routing table (task → default/escalation provider+model;
+  language detection is deterministic Unicode-range script detection, no
+  model call); `contracts.py` is the §7.3 `GenerationResult` Pydantic
+  schema; `providers/{openai,anthropic}_provider.py` are the only two files
+  that import a provider SDK, `null_provider.py` is the fallback when no
+  key is configured; `gateway.py::AiGateway.run_task` implements every
+  §7.5 failure mode — schema-validation failure retries once with a
+  constrained prompt then holds, low confidence goes to review queue,
+  sensitive validation always forces review queue regardless of
+  confidence, an unsupported claim (no `source_refs`) is stripped and the
+  story holds if that empties the claim list entirely, a provider
+  exception surfaces as `UNAVAILABLE` with no content invented, and a
+  breached `MONTHLY_AI_BUDGET_USD` degrades `SUMMARY`/`WHY_MATTERS`/
+  `TRANSLATION_EN_TE` to `CLASSIFICATION_ONLY` (relevance/categorization
+  keeps running) without ever calling the provider. `budget.py` records
+  one `AiCallLog` row per attempt (new `ai_call_log` table, migration
+  `7a4c9e2b5d10`) — tokens/cost queryable per task/day via
+  `cost_by_task_and_day`. T09's `_escalate_to_ai` stub in
+  `app/jobs/cluster.py` now calls the real gateway (`DEDUP_CLUSTER_ESCALATION`
+  task); with no provider key configured in this environment it correctly
+  falls back to "not matching" through the real `UNAVAILABLE` path, not a
+  mock — verified with a title pair placed deliberately in the ambiguous
+  0.4–0.72 similarity band.
+
+  **ADR-001 accepted**, covering two decisions: (1) providers — OpenAI
+  primary, Anthropic secondary (translation's required "second provider"
+  escalation leg, and sensitive-validation's reasoning model, so one
+  vendor's outage/policy change can't take out both the main pipeline and
+  sensitive handling); (2) **the gateway lives in Python at
+  `apps/api/app/ai/`, not the TypeScript `packages/ai`** that §11's
+  monorepo diagram names — every actual AI-consuming caller (T09's
+  clustering, T11's future story generation) is Python code in `apps/api`,
+  and building the real gateway in TS would mean either a second
+  always-on service + network hop per AI call or duplicating the routing/
+  validation/budget logic in two languages, both of which are
+  infrastructure the spec doesn't call for. `packages/ai` is kept only as
+  a hand-maintained TS type mirror of the §7.3 contract for `apps/admin` to
+  type AI-generated fields it reads back over the API — it has no SDK
+  access at all. A CI step in the `api` job greps for `import openai`/
+  `import anthropic` outside `apps/api/app/ai/providers/` and fails the
+  build if found — this is the actual acceptance-criteria enforcement
+  boundary, adjusted from the ticket's literal "`packages/ai`" wording to
+  match where the code actually lives; see ADR-001 for the full reasoning.
+  `.env.example`'s single ambiguous `AI_PROVIDER_API_KEY` is replaced with
+  `AI_OPENAI_API_KEY` / `AI_ANTHROPIC_API_KEY`.
+
+  Real provider calls are **not** end-to-end verified — no API keys are
+  configured in this sandbox (no network access either), so
+  `OpenAiProvider`/`AnthropicProvider` are exercised only for their
+  key-presence check, not a live request; every failure-mode and
+  routing/telemetry test instead uses a `FakeProvider` test double or the
+  real `NullProvider` fallback path (itself real code, not mocked) to
+  reach `UNAVAILABLE`. Model pricing in `tasks.py::MODEL_PRICING` is
+  best-effort, not billed rates. `apps/api/pyproject.toml` gained
+  `pydantic` (already a transitive FastAPI dependency, now imported
+  directly), `openai`, and `anthropic`. Verified: `ruff check .` clean,
+  `pytest` 71 passed (18 new AI-gateway tests, all requiring Postgres for
+  telemetry writes except the routing-table/language-detection unit
+  tests), `pnpm run lint`/`typecheck` clean repo-wide, migration
+  `7a4c9e2b5d10` upgrade+downgrade round-trips cleanly, CI provider-SDK
+  grep check confirmed to pass (no leaks) and to correctly fail if a
+  provider import is added outside the two provider files.
 
 - 2026-09-08: T09 done — §7.2's model-routing rule ("Dedup/clustering:
   fingerprint + lexical similarity first; embedding/model only for ambiguous
