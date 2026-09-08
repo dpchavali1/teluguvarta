@@ -23,6 +23,7 @@ EXPECTED_ENDPOINTS = [
     ("DELETE", "/v1/me/saved/{story_id}"),
     ("POST", "/v1/me/push-tokens"),
     ("DELETE", "/v1/me/account"),
+    ("POST", "/v1/admin/auth/login"),
     ("GET", "/v1/admin/sources"),
     ("PATCH", "/v1/admin/sources/{id}"),
     ("GET", "/v1/admin/review-queue"),

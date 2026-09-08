@@ -1,0 +1,73 @@
+"""Password hashing, admin JWTs, and login rate limiting (docs/tickets/T05.md).
+
+Rate limiting is a plain Postgres query over `admin_login_attempts` rather
+than Redis/in-memory counters, per NON_NEGOTIABLES (no new infra without a
+measured need) — admin login volume is far too low to need anything faster.
+"""
+
+import os
+from datetime import UTC, datetime, timedelta
+from uuid import UUID
+
+import bcrypt
+import jwt
+from sqlalchemy import func, select
+from sqlalchemy.orm import Session
+
+from app.models import AdminLoginAttempt
+
+ADMIN_JWT_ALGORITHM = "HS256"
+ADMIN_JWT_EXPIRE_MINUTES = int(os.environ.get("ADMIN_JWT_EXPIRE_MINUTES", "30"))
+
+# Rate limit: at most this many login attempts (success or failure) per email
+# within the window, before further attempts are rejected outright.
+LOGIN_RATE_LIMIT_MAX_ATTEMPTS = 5
+LOGIN_RATE_LIMIT_WINDOW = timedelta(minutes=15)
+
+
+def _jwt_secret() -> str:
+    secret = os.environ.get("ADMIN_JWT_SECRET")
+    if not secret:
+        raise RuntimeError("ADMIN_JWT_SECRET is not set")
+    return secret
+
+
+def hash_password(password: str) -> str:
+    return bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
+
+
+def verify_password(password: str, password_hash: str) -> bool:
+    return bcrypt.checkpw(password.encode("utf-8"), password_hash.encode("utf-8"))
+
+
+def create_admin_access_token(user_id: UUID, email: str, role: str) -> tuple[str, int]:
+    expires_in = ADMIN_JWT_EXPIRE_MINUTES * 60
+    now = datetime.now(UTC)
+    payload = {
+        "sub": str(user_id),
+        "email": email,
+        "role": role,
+        "iat": now,
+        "exp": now + timedelta(seconds=expires_in),
+    }
+    token = jwt.encode(payload, _jwt_secret(), algorithm=ADMIN_JWT_ALGORITHM)
+    return token, expires_in
+
+
+def decode_admin_access_token(token: str) -> dict:
+    return jwt.decode(token, _jwt_secret(), algorithms=[ADMIN_JWT_ALGORITHM])
+
+
+def is_login_rate_limited(db: Session, email: str) -> bool:
+    window_start = datetime.now(UTC) - LOGIN_RATE_LIMIT_WINDOW
+    count = db.scalar(
+        select(func.count())
+        .select_from(AdminLoginAttempt)
+        .where(AdminLoginAttempt.email == email, AdminLoginAttempt.created_at >= window_start)
+    )
+    return count >= LOGIN_RATE_LIMIT_MAX_ATTEMPTS
+
+
+def record_login_attempt(db: Session, email: str, ip: str | None, success: bool) -> None:
+    db.add(AdminLoginAttempt(email=email, ip=ip, success=success))
+    db.commit()

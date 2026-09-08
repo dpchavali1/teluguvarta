@@ -12,7 +12,7 @@ in `docs/NON_NEGOTIABLES.md` or make a decision the spec leaves open.
 | ADR-003 | Database job queue strategy | T08 | not started |
 | ADR-004 | Bilingual content lifecycle | T13 | not started |
 | ADR-005 | Personalization model | T16 | not started |
-| ADR-006 | Account/privacy architecture | T05 | not started |
+| ADR-006 | Account/privacy architecture | T05 | **proposed** — see [ADR-006](ADR-006-account-privacy-architecture.md) |
 | ADR-007 | Production hosting/cost limits | T19 | not started |
 
 Update the Status column when an ADR file is created, and again when it's

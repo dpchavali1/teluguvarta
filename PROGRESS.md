@@ -15,7 +15,7 @@ prior conversation history.
 | T02 Env + local setup | **done** | `.env.example`, docker-compose Postgres 16 + pg_trgm, Alembic wired into `infra/migrations/`, seed placeholder, README local-setup rewritten |
 | T03 Database schema | **done** | Single migration `0c23c235e618` creates all 17 §12 entities + `alembic_version`; `sources.rights_status` and `stories.status` are native Postgres enums; story transitions enforced by a `BEFORE UPDATE` trigger; `pnpm run migrate` + pytest against real Postgres (Homebrew, local only) both pass |
 | T04 OpenAPI contracts | **done** | All 21 §13 endpoints live in FastAPI (stub data), standard error envelope via shared exception handlers, `packages/contracts` types generated from the OpenAPI schema with a CI drift check |
-| T05 Admin authentication | not started | |
+| T05 Admin authentication | **done** | JWT login (`POST /v1/admin/auth/login`), `role` column on `users` (EDITOR/ADMIN) with RBAC, rate-limited via `admin_login_attempts`; ADR-006 written (proposed) |
 | T06 Source registry | not started | |
 | T07 First source adapters | not started | |
 | T08 Ingestion worker | not started | |
@@ -59,13 +59,63 @@ Mirrors `docs/adr/README.md` — keep both in sync.
 | ADR-003 Database job queue strategy | not started |
 | ADR-004 Bilingual content lifecycle | not started |
 | ADR-005 Personalization model | not started |
-| ADR-006 Account/privacy architecture | not started |
+| ADR-006 Account/privacy architecture | **proposed** |
 | ADR-007 Production hosting/cost limits | not started |
 
 ## Changelog
 
 (newest first — one line per ticket completion)
 
+- 2026-09-08: T05 done — admin auth is real, replacing T04's stub. New
+  migration `infra/migrations/versions/8f1a2c9d4b3e_admin_auth.py` adds
+  `role`/`password_hash`/`mfa_secret`/`last_login_at` to `users` (staff use
+  the same table as everyone else, since `review_tasks.reviewer_id` /
+  `corrections.created_by` already reference `users.id` — a `NULL` role
+  means an ordinary end user) plus `admin_login_attempts` for rate
+  limiting. `POST /v1/admin/auth/login` (`apps/api/app/routers/
+  admin_auth.py`, no `current_admin` dependency — that's how you get the
+  token that dependency checks) verifies a bcrypt password hash and issues
+  a short-lived (`ADMIN_JWT_EXPIRE_MINUTES`, default 30 min) HS256 JWT
+  carrying a `role` claim; `current_admin` (`apps/api/app/auth.py`) now
+  decodes and verifies that JWT and requires `role` in `{EDITOR, ADMIN}`
+  instead of just checking a bearer token is present. Rate limiting is a
+  plain indexed Postgres query over `admin_login_attempts` (5 attempts /
+  15 min per email) — deliberately not Redis, per NON_NEGOTIABLES. Added
+  `app/db.py` (lazy per-request `DATABASE_URL` → engine, cached by URL —
+  this is the first ticket needing a live DB connection from the API
+  process itself) and `app/models.py` (SQLAlchemy ORM for `User`,
+  `AdminLoginAttempt` — only the columns app code touches, not a mirror of
+  every migration column). `infra/scripts/seed.py` now seeds one admin
+  user from `ADMIN_SEED_EMAIL`/`ADMIN_SEED_PASSWORD` (idempotent — updates
+  the password hash if the row exists). New deps: `pyjwt`, `bcrypt`.
+  **ADR-006 (account/privacy architecture)** written as `proposed`
+  (`docs/adr/ADR-006-account-privacy-architecture.md`): V1 end users get
+  device-scoped anonymous identity only (no login/OAuth), so
+  `DELETE /v1/me/account` is a single cascading row delete and "account
+  deletion before account creation" is satisfied trivially — no login flow
+  exists to gate. `current_user`/`/v1/me/*` remain the T04 stub;
+  implementing that anonymous-token issuance is for T14/T15, not this
+  ticket, which is admin-only per its own scope note. New tests
+  (`apps/api/tests/test_admin_auth.py`, 7 cases): login success + the
+  issued token unlocking `/v1/admin/*`, wrong password, unknown email, a
+  token forged with a non-admin role rejected 403, an expired token
+  rejected 401, and rate-limiting (both that the 6th attempt in the window
+  is rejected 429, and that it doesn't leak across different emails) —
+  seeded via direct DB inserts rather than real wall-clock waits or firing
+  5 real requests. Also added `POST /v1/admin/auth/login` to
+  `test_api_contract.py`'s expected-endpoints list. Verified: `pytest` (22
+  passed, real Postgres via the existing `migrated_database` fixture,
+  including a manual `alembic upgrade head` / `downgrade -1` / `upgrade
+  head` round-trip against local Postgres), `ruff check .` clean, `pnpm run
+  lint`/`typecheck` clean repo-wide, `packages/contracts` regenerated
+  (`openapi.json`/`types.gen.ts`) and committed. Not yet done/risks: MFA
+  itself is deferred (ticket explicitly allows "MFA-ready" over MFA this
+  round) — `mfa_secret` column exists but nothing reads/writes it yet, so a
+  later ticket must add the actual second factor before this fully
+  satisfies §16's "MFA for admin sessions" baseline; no admin login UI in
+  `apps/admin` yet (out of scope — the ticket's acceptance criterion is
+  "a seeded admin user can log in and reach `apps/admin`" via the API, and
+  `apps/admin` has no pages built yet at all, pre-dating this ticket).
 - 2026-09-08: T04 done — all 21 §13 endpoints implemented in FastAPI with
   final request/response shapes (`apps/api/app/schemas.py`) but stub data,
   since T06+ (source registry, ingestion, story generation) haven't landed:
