@@ -8,7 +8,7 @@ in `docs/NON_NEGOTIABLES.md` or make a decision the spec leaves open.
 | ADR | Topic | Trigger ticket | Status |
 |---|---|---|---|
 | ADR-001 | AI provider selection | T10 | not started |
-| ADR-002 | Source-rights approval policy | T06 | not started |
+| ADR-002 | Source-rights approval policy | T06 | **accepted** — see [ADR-002](ADR-002-source-rights-approval-policy.md) |
 | ADR-003 | Database job queue strategy | T08 | not started |
 | ADR-004 | Bilingual content lifecycle | T13 | not started |
 | ADR-005 | Personalization model | T16 | not started |
@@ -20,4 +20,5 @@ accepted. Add ad-hoc ADRs below this table as they're written.
 
 ## Ad-hoc ADRs
 
-(none yet)
+(none yet — ADR-002 above was written ahead of T06 per an explicit product
+decision to launch on `LINK_ONLY` sources only; see the ADR for context)

@@ -55,7 +55,7 @@ Mirrors `docs/adr/README.md` — keep both in sync.
 | ADR | Status |
 |---|---|
 | ADR-001 AI provider selection | not started |
-| ADR-002 Source-rights approval policy | not started |
+| ADR-002 Source-rights approval policy | **accepted** |
 | ADR-003 Database job queue strategy | not started |
 | ADR-004 Bilingual content lifecycle | not started |
 | ADR-005 Personalization model | not started |
@@ -66,6 +66,12 @@ Mirrors `docs/adr/README.md` — keep both in sync.
 
 (newest first — one line per ticket completion)
 
+- 2026-09-08: ADR-002 accepted — V1 restricted to `LINK_ONLY` sources only
+  (AI-written original summary + why-matters + attribution + source link;
+  no reproduced headlines/text/images). `LICENSED_METADATA`/
+  `LICENSED_REPURPOSE` and the Share Card image feature are deferred.
+  Threaded into `NON_NEGOTIABLES.md`, `SPEC.md`, and tickets T06/T07/T11/
+  T14/T15.
 - 2026-09-08: Repo scaffolded — planning docs, ticket breakdown, monorepo
   directory skeleton, ADR template created. No implementation tickets
   started yet.

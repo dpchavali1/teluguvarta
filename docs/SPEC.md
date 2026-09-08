@@ -126,6 +126,10 @@ app-store submissions before commercial launch.)*
   editor/admin must record rights evidence (source URL, terms/policy URL,
   reviewed date, reviewer, permitted fields, restrictions, territory,
   expiration if any, evidence notes) before a source can be enabled.
+  **Per ADR-002 (accepted): this build phase only enables `LINK_ONLY`
+  sources — `LICENSED_METADATA`/`LICENSED_REPURPOSE` are deferred until a
+  future ADR supersedes it.** See
+  `docs/adr/ADR-002-source-rights-approval-policy.md`.
 - **V1 publication rules**:
   | Story type | Auto-publish in V1? | Required control |
   |---|---|---|

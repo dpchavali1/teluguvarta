@@ -35,6 +35,13 @@ plus the one relevant `docs/tickets/Txx.md` should be enough.
     never a parallel backend.
 14. X polling must be incremental (`since_id`), rate-limit aware,
     cost-budgeted, and auditable. Never fall back to scraping the X website.
+15. **(ADR-002, added 2026-09-08)** Only `LINK_ONLY` sources may be enabled
+    in this build phase, alongside `DISABLED`. Do not enable
+    `LICENSED_METADATA` or `LICENSED_REPURPOSE` for any source without a new
+    ADR superseding ADR-002. Every published story is an original AI-drafted
+    summary + "why this matters" + attribution + a link to the original —
+    never reproduced headline text, article text, or images. The branded
+    "Share Card" image feature is deferred until a future ADR revisits this.
 
 ## Stop conditions (halt and write an ADR instead of guessing)
 
@@ -64,9 +71,10 @@ plus the one relevant `docs/tickets/Txx.md` should be enough.
 
 These decisions must exist as ADRs in `docs/adr/` before or during the
 ticket that first depends on them (see each ADR file for its trigger
-ticket): AI provider selection, source-rights approval policy, database job
-queue strategy, bilingual content lifecycle, personalization model,
-account/privacy architecture, production hosting/cost limits. Use
+ticket): AI provider selection, **source-rights approval policy (ADR-002 —
+already accepted, see `docs/adr/ADR-002-source-rights-approval-policy.md`)**,
+database job queue strategy, bilingual content lifecycle, personalization
+model, account/privacy architecture, production hosting/cost limits. Use
 `docs/adr/TEMPLATE.md`.
 
 ## Per-ticket workflow
