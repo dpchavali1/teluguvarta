@@ -17,7 +17,7 @@ prior conversation history.
 | T04 OpenAPI contracts | **done** | All 21 §13 endpoints live in FastAPI (stub data), standard error envelope via shared exception handlers, `packages/contracts` types generated from the OpenAPI schema with a CI drift check |
 | T05 Admin authentication | **done** | JWT login (`POST /v1/admin/auth/login`), `role` column on `users` (EDITOR/ADMIN) with RBAC, rate-limited via `admin_login_attempts`; ADR-006 written (proposed) |
 | T06 Source registry | **done** | `sources` expanded to full §6.2 field list via migration `69110b7cfd3d`; `/v1/admin/sources` CRUD enforces ADR-002 (only DISABLED/LINK_ONLY reachable, `RIGHTS_TIER_NOT_ENABLED` otherwise) and requires rights evidence (`rights_evidence_url`/`rights_reviewed_at`/`reviewer`) plus `ADMIN` role to enable a source (`RIGHTS_EVIDENCE_REQUIRED`/`FORBIDDEN`); every create/update writes an `AuditEvent`; read-only `GET /v1/admin/kill-switches` surfaces the §15 `AUTO_PUBLISH_*` env flags (no publish logic to gate yet — T12); ADR-002 addended with the approval-role/second-approver/evidence-expiry decisions |
-| T07 First source adapters | not started | |
+| T07 First source adapters | **done** | Generic RSS/Atom adapter (`apps/api/app/adapters/`) + 3 seeded LINK_ONLY sources with rights evidence |
 | T08 Ingestion worker | not started | |
 | T09 Dedup + clustering | not started | |
 | T10 AI provider gateway | not started | |
@@ -66,6 +66,45 @@ Mirrors `docs/adr/README.md` — keep both in sync.
 
 (newest first — one line per ticket completion)
 
+- 2026-09-08: T07 done — §6.3 adapter contract (`fetch -> normalize ->
+  validate -> emit`) implemented as `app/adapters/base.py` (shared
+  normalize/validate/emit — identical across every LINK_ONLY feed source)
+  plus `app/adapters/rss.py`, a generic RSS 2.0/Atom parser (stdlib
+  `xml.etree`, no new parsing dependency) covering all 3 seeded sources.
+  `emit()` upserts into `source_items` on the existing
+  `(source_id, external_id)` unique constraint via Postgres
+  `INSERT ... ON CONFLICT DO UPDATE`, so a re-run never duplicates a row —
+  the §6 "never duplicate ... when the same source item reappears" rule.
+  Added the `SourceItem` ORM model (`app/models.py`) that T03's migration
+  never needed until now. `infra/scripts/seed.py` now also seeds 3 LINK_ONLY
+  sources with rights evidence already on file (ADR-002 requires this before
+  a source can move off `DISABLED`): NPR News, U.S. Dept of State Travel
+  Advisories, FEMA Disaster Declarations — all real, publicly-readable feeds
+  whose reachability/shape were checked directly (WebFetch) on 2026-09-08;
+  admin seeding is now independent of source seeding (previously an early
+  return skipped everything if `ADMIN_SEED_EMAIL` wasn't set). Verified
+  idempotent by running the script twice against local Postgres — 3 rows,
+  no duplicates. `httpx` moved from dev-only to a main dependency since the
+  adapter needs a real HTTP client at runtime, not just in tests. New tests
+  (`apps/api/tests/test_adapters.py`, 5 cases) run `fetch()` for real against
+  `apps/api/tests/fixtures/*.xml` via `httpx.MockTransport` (so parsing code
+  is genuinely exercised, only the socket is faked) — normalize/validate for
+  two clean sources, a FEMA fixture with one item missing a title to prove
+  `validate()` rejects bad data instead of `emit()` silently accepting it,
+  and two Postgres-backed tests (`migrated_database` fixture) proving
+  `emit()` creates real `SourceItem` rows and that re-running the full
+  pipeline twice on the same fixture does not duplicate them. Not wired to a
+  scheduler — that's T08. Verified: `pytest` (36 passed, 5 new), `ruff check
+  .` clean, `mypy app/adapters` clean (pre-existing mypy errors elsewhere in
+  the codebase are untouched — mypy isn't in CI yet, only ruff/pytest/pnpm
+  lint+typecheck are). Not yet done/risks: `rights_evidence_url` values for
+  the 3 seeded sources point at each publisher's own terms/reuse page but
+  weren't independently re-verified beyond the feed URLs themselves — an
+  editor should confirm before T08 starts live polling against them; FEMA's
+  feed titles are often bare numbers (e.g. disaster number only), so it's a
+  weak source for a Telugu-diaspora-relevant news product even though it's a
+  real, working, low-risk government feed — worth reconsidering in T08/T09
+  source curation, not something T07's adapter-proof scope should decide.
 - 2026-09-08: T05 done — admin auth is real, replacing T04's stub. New
   migration `infra/migrations/versions/8f1a2c9d4b3e_admin_auth.py` adds
   `role`/`password_hash`/`mfa_secret`/`last_login_at` to `users` (staff use

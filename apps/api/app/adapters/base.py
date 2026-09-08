@@ -1,0 +1,110 @@
+"""Shared adapter contract types and the normalize/validate/emit steps that
+are identical across every LINK_ONLY feed source — only `fetch()`'s wire
+format parsing differs per source/adapter subclass (§6.3).
+"""
+
+from __future__ import annotations
+
+import hashlib
+from dataclasses import dataclass, field
+from datetime import datetime
+
+import httpx
+from sqlalchemy.dialects.postgresql import insert as pg_insert
+from sqlalchemy.orm import Session
+
+from app.models import Source, SourceItem
+
+
+@dataclass
+class RawItem:
+    external_id: str
+    url: str
+    title: str | None
+    published_at: datetime | None
+    raw_bytes: bytes
+
+
+@dataclass
+class RawItems:
+    items: list[RawItem] = field(default_factory=list)
+
+
+@dataclass
+class NormalizedItem:
+    external_id: str
+    url: str
+    title: str | None
+    published_at: datetime | None
+    raw_hash: str
+
+
+@dataclass
+class ValidationResult:
+    valid: bool
+    errors: list[str] = field(default_factory=list)
+
+
+class SourceAdapter:
+    """Base adapter. Subclasses implement `fetch()` for one wire format;
+    `normalize`/`validate`/`emit` are shared here since every LINK_ONLY
+    source needs the same identity/shape checks and the same idempotent
+    write to `source_items`.
+    """
+
+    def __init__(self, source: Source):
+        self.source = source
+
+    def fetch(self, client: httpx.Client) -> RawItems:
+        raise NotImplementedError
+
+    def normalize(self, raw_item: RawItem) -> NormalizedItem:
+        return NormalizedItem(
+            external_id=raw_item.external_id.strip(),
+            url=raw_item.url.strip(),
+            title=(raw_item.title or "").strip() or None,
+            published_at=raw_item.published_at,
+            raw_hash=hashlib.sha256(raw_item.raw_bytes).hexdigest(),
+        )
+
+    def validate(self, item: NormalizedItem) -> ValidationResult:
+        errors: list[str] = []
+        if not item.external_id:
+            errors.append("missing external_id")
+        if not item.url or not item.url.startswith(("http://", "https://")):
+            errors.append("missing or invalid url")
+        if not item.title:
+            errors.append("missing title")
+        return ValidationResult(valid=not errors, errors=errors)
+
+    def emit(self, db: Session, item: NormalizedItem) -> SourceItem:
+        """Idempotent on (source_id, external_id) so re-running fetch on an
+        already-seen item updates it in place instead of duplicating it,
+        per §6's "never duplicate a story when the same source item
+        reappears"."""
+        stmt = (
+            pg_insert(SourceItem)
+            .values(
+                source_id=self.source.id,
+                external_id=item.external_id,
+                url=item.url,
+                title=item.title,
+                published_at=item.published_at,
+                raw_hash=item.raw_hash,
+            )
+            .on_conflict_do_update(
+                index_elements=[SourceItem.source_id, SourceItem.external_id],
+                set_={
+                    "url": item.url,
+                    "title": item.title,
+                    "published_at": item.published_at,
+                    "raw_hash": item.raw_hash,
+                },
+            )
+            .returning(SourceItem.id)
+        )
+        source_item_id = db.execute(stmt).scalar_one()
+        db.flush()
+        source_item = db.get(SourceItem, source_item_id)
+        assert source_item is not None  # just inserted/updated above
+        return source_item

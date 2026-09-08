@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>NPR News</title>
+    <link>https://www.npr.org/sections/news/</link>
+    <description>NPR News</description>
+    <item>
+      <title>New report shows the economic toll of ICE raids</title>
+      <link>https://www.npr.org/2026/09/08/nx-s1-5955787/new-report-shows-the-economic-toll-of-ice-raids</link>
+      <guid isPermaLink="true">https://www.npr.org/2026/09/08/nx-s1-5955787/new-report-shows-the-economic-toll-of-ice-raids</guid>
+      <pubDate>Tue, 08 Sep 2026 16:17:22 -0400</pubDate>
+      <description>A new report estimates the economic impact of recent immigration enforcement actions.</description>
+    </item>
+    <item>
+      <title>Federal Reserve holds interest rates steady</title>
+      <link>https://www.npr.org/2026/09/08/nx-s1-5955812/federal-reserve-holds-interest-rates-steady</link>
+      <guid isPermaLink="true">https://www.npr.org/2026/09/08/nx-s1-5955812/federal-reserve-holds-interest-rates-steady</guid>
+      <pubDate>Tue, 08 Sep 2026 14:02:05 -0400</pubDate>
+      <description>The central bank cited mixed signals on inflation and employment.</description>
+    </item>
+  </channel>
+</rss>

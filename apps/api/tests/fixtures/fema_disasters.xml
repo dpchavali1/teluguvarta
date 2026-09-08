@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>FEMA Disaster Declarations</title>
+    <link>https://www.fema.gov/disaster/declarations</link>
+    <description>Federal disaster declarations</description>
+    <item>
+      <title>Major Disaster Declaration - Texas Severe Storms and Flooding (DR-4831)</title>
+      <link>https://www.fema.gov/disaster/4831</link>
+      <guid isPermaLink="true">https://www.fema.gov/disaster/4831</guid>
+      <pubDate>Mon, 07 Sep 2026 12:00:00 -0400</pubDate>
+      <description>Federal disaster assistance approved for Texas.</description>
+    </item>
+    <item>
+      <!-- Recorded as-is: FEMA's feed sometimes ships a bare item with no
+           title, which validate() must reject rather than emit. -->
+      <link>https://www.fema.gov/disaster/4832</link>
+      <guid isPermaLink="true">https://www.fema.gov/disaster/4832</guid>
+      <pubDate>Mon, 07 Sep 2026 13:00:00 -0400</pubDate>
+      <description></description>
+    </item>
+  </channel>
+</rss>

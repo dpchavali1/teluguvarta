@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:dc="http://purl.org/dc/elements/1.1/">
+  <channel>
+    <title>Travel.State.Gov Travel Advisories</title>
+    <link>https://travel.state.gov/content/travel/en/traveladvisories/traveladvisories.html</link>
+    <description>Country-specific travel advisories from the U.S. Department of State</description>
+    <item>
+      <title>India Travel Advisory - Level 2: Exercise Increased Caution</title>
+      <link>https://travel.state.gov/content/travel/en/traveladvisories/traveladvisories/india-travel-advisory.html</link>
+      <guid isPermaLink="false">travel-advisory-india-2026-09-08</guid>
+      <pubDate>Tue, 08 Sep 2026 09:00:00 -0400</pubDate>
+      <category>Travel Advisory</category>
+      <description>Exercise increased caution in India due to crime and terrorism.</description>
+    </item>
+    <item>
+      <title>Ukraine Travel Advisory - Level 4: Do Not Travel</title>
+      <link>https://travel.state.gov/content/travel/en/traveladvisories/traveladvisories/ukraine-travel-advisory.html</link>
+      <guid isPermaLink="false">travel-advisory-ukraine-2026-09-08</guid>
+      <pubDate>Tue, 08 Sep 2026 09:00:00 -0400</pubDate>
+      <category>Travel Advisory</category>
+      <description>Do not travel to Ukraine due to active armed conflict.</description>
+    </item>
+  </channel>
+</rss>
