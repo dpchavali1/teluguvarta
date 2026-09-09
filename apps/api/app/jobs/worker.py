@@ -21,6 +21,7 @@ from app.jobs.publish import run_publish_scheduler, schedule_publish_scheduler
 from app.jobs.queue import claim_job, complete_job, fail_job
 from app.jobs.source_fetch import run_source_fetch, schedule_due_source_fetches
 from app.jobs.translate import run_ai_translate, schedule_ai_translate
+from app.jobs.x_fetch import run_x_official_account_fetch, schedule_due_x_fetches
 from app.observability.error_tracking import capture_exception
 from app.observability.logging import configure_logging, get_logger, job_context
 
@@ -34,6 +35,7 @@ ALERT_CHECK_EVERY_N_LOOPS = 60
 
 JOB_HANDLERS = {
     "source_fetch": run_source_fetch,
+    "x_official_account_fetch": run_x_official_account_fetch,
     "story_cluster": run_dedup_cluster,
     "ai_classify": run_ai_classify,
     "ai_translate": run_ai_translate,
@@ -52,6 +54,7 @@ def _session() -> Session:
 def process_one(db: Session) -> bool:
     """Runs one unit of work. Returns True if a job was processed."""
     schedule_due_source_fetches(db)
+    schedule_due_x_fetches(db)
     schedule_dedup_cluster(db)
     schedule_ai_classify(db)
     schedule_ai_translate(db)

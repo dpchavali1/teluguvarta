@@ -41,7 +41,7 @@ part is a product/ops action this repo can support but not perform.
 | Ticket | Status | Notes |
 |---|---|---|
 | X1 X source registry fields | **done** | New `x_accounts` table (migration `a1b2c3d4e5f6`), one-to-one with `sources` (`source_id` FK, unique): `x_user_id` (unique stable id), `handle`, `priority`, `polling_cadence`, `since_id`, `budget_class`. Deliberately doesn't duplicate `rights_status`/`active`/`last_success_at`/`last_error_at` — those are read from the linked `Source` row, so enabling an X account goes through T06's exact same rights-evidence gate (`PATCH /v1/admin/sources/{id}`), no parallel approval flow. New `GET /v1/admin/x-accounts` (list, joined with Source) + `POST`/`PATCH /v1/admin/sources/{id}/x-account` (link/update; rejects a second account per source and a reused `x_user_id`), every mutation writes an `AuditEvent`. No X API credentials touch the schema (X2 will read them from the T02 secret manager). |
-| X2 Incremental X fetch | not started | |
+| X2 Incremental X fetch | **done** | New `x_official_account_fetch` job (`app/jobs/x_fetch.py`) reusing T07's exact adapter contract (`app/adapters/x.py::XAdapter`) and T08's job-queue retry/backoff (`app/jobs/queue.py`) — a 429 or any other fetch failure just raises and lets the existing bounded exponential backoff handle it, no bespoke retry loop. `app/x/client.py::XApiClient` calls only the official `GET /2/users/{id}/tweets` (bounded to 10 pages/run); a 429 raises `XRateLimitedError` rather than retrying itself; no code path ever touches x.com's public site. Incremental via each `x_accounts.since_id`, advanced to the max post id seen per run — never a full timeline re-fetch. Scheduling (`schedule_due_x_fetches`) mirrors `schedule_due_source_fetches`: only `active`+`LINK_ONLY`-source, cadence-configured, non-circuit-broken accounts are enqueued, and skips *every* account for the cycle when `MONTHLY_X_API_BUDGET_USD` is exhausted (optional; blank = no guardrail, same pattern as T10's AI budget). Cost telemetry lands in a new `x_api_call_log` table (migration `b2c3d4e5f6a7`, mirrors T10's `ai_call_log`) via `app/x/budget.py` (`record_call`/`month_to_date_cost_usd`/`is_over_monthly_budget`/`budget_remaining_usd`) — `posts_read`/`cost_usd`/`status` ('OK'/'RATE_LIMITED'/'ERROR') per run; `X_API_COST_PER_POST_USD` env optionally prices `cost_usd`. No dedicated admin view yet (X4's job, ticket explicitly defers it) — the data just needs to exist, which it does. New env vars in `.env.example`: `X_API_BEARER_TOKEN` (required to fetch at all — unset fails closed via the normal circuit-breaker path, never a scraping fallback), `X_API_COST_PER_POST_USD`, `MONTHLY_X_API_BUDGET_USD`. Verified: `alembic upgrade head`/`downgrade -1`/`upgrade head` round-trip clean; `ruff check .` clean; new `tests/test_x_adapter.py` + `tests/test_x_fetch_job.py` (13 tests: pagination/since_id/429/rights-gate/idempotency/scheduling/budget-gate/telemetry) plus full `pytest` (233 passed) all green against a real local Postgres. |
 | X3 X post to story pipeline | not started | |
 | X4 X monitoring/budget guard | not started | |
 
@@ -70,6 +70,19 @@ Mirrors `docs/adr/README.md` — keep both in sync.
 
 (newest first — one line per ticket completion)
 
+- 2026-09-09: X2 done — incremental X official-account fetch. New
+  `x_official_account_fetch` job (`app/jobs/x_fetch.py`) reuses T07's
+  adapter contract (`app/adapters/x.py::XAdapter`) and T08's job-queue
+  retry/backoff verbatim — a 429 (`app/x/client.py::XRateLimitedError`) or
+  any other failure just raises and the existing bounded exponential
+  backoff takes over, no bespoke retry loop. Fetches only
+  `GET /2/users/{id}/tweets`, never x.com's public site; incremental via
+  `x_accounts.since_id`, advanced to the max post id seen — never a full
+  timeline re-fetch. New `x_api_call_log` table (migration `b2c3d4e5f6a7`)
+  + `app/x/budget.py` mirror T10's AI cost telemetry/budget pattern
+  (`posts_read`/`cost_usd`/status, optional `MONTHLY_X_API_BUDGET_USD`
+  guardrail that skips scheduling entirely when exhausted). See the X
+  adapter section below for the full writeup.
 - 2026-09-09: S2 done — student topic taxonomy + independent student
   alerts, on top of S1's life-stage profile. Per the ticket's explicit
   design ("reuse T03's Topic/UserTopic tables... no separate topic model,"

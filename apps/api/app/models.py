@@ -116,6 +116,25 @@ class XAccount(Base):
     budget_class: Mapped[str | None] = mapped_column(Text, nullable=True)
 
 
+class XApiCallLog(Base):
+    """X2 cost telemetry — one row per X official-account fetch attempt
+    (§19: x_api_posts_read/x_api_cost_estimate/x_api_budget_remaining/
+    rate-limit error counts). Mirrors `AiCallLog`'s per-call-attempt shape;
+    see `app/x/budget.py`."""
+
+    __tablename__ = "x_api_call_log"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    x_account_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("x_accounts.id", ondelete="CASCADE"), nullable=False
+    )
+    posts_read: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
+    cost_usd: Mapped[float] = mapped_column(Numeric(12, 6), nullable=False, server_default="0")
+    # 'OK' | 'RATE_LIMITED' | 'ERROR' per `ck_x_api_call_log_status`.
+    status: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+
+
 class SourceItem(Base):
     __tablename__ = "source_items"
 
