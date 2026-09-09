@@ -25,7 +25,7 @@ prior conversation history.
 | T12 Editorial workflow | **done** | Real approve/reject/retract/correct on `/v1/admin/stories/{id}/*` + `GET .../stories/{id}` detail + real `/v1/admin/review-queue`; every mutation writes an `AuditEvent`; new `publish_scheduler` job (`app/jobs/publish.py`) implements the kill-switch-gated auto-publish sweep from T11's `AI_READY` output; migration `73a24fe47a9f` adds `ARCHIVED` to `story_status` + the reject transitions; `apps/admin` gets a review-queue list + story detail/action page |
 | T13 Bilingual variants | **done** | `app/jobs/translate.py`: `ai_translate` job translates the `en` `StoryVariant` via the AI gateway's `TRANSLATION_EN_TE` task, applies `app/content/glossary.py` proper-noun correction, runs `app/content/qa.py`'s number/date/currency/URL/negation checks (`qa_status` PASSED/FAILED), and samples IMMIGRATION/LEGAL/FINANCIAL passes into the review queue; `app/content/variants.py::resolve_display_variant` is the pure English-fallback resolver for T14 to call; ADR-004 accepted |
 | T14 Web MVP | **done** | Public `/v1` endpoints wired to real Postgres data (`app/content/serialize.py`); `apps/web` is a real Next.js SSR/ISR site over `@teluguvarta/contracts` types covering every §9.1 page; axe-core a11y check passes on home + story pages |
-| T15 Mobile MVP | not started | |
+| T15 Mobile MVP | **done** | Expo/React Navigation app over the same `@teluguvarta/contracts` public API as T14; onboarding (fully skippable, "continue without login"), home/topic/search/saved/story-detail/notifications/settings/language/privacy screens; onboarding + notification prefs + saved stories are on-device (AsyncStorage) since no account backend exists yet (ADR-006 still proposed); native OS share sheet using the same canonical `PUBLIC_WEB_URL`/story-slug URL as web; Jest+RNTL smoke test covers onboarding-skip→home→open→save→share |
 | T16 Personalization | not started | |
 | T17 Push notifications | not started | |
 | T18 Observability | not started | |
@@ -65,6 +65,122 @@ Mirrors `docs/adr/README.md` — keep both in sync.
 ## Changelog
 
 (newest first — one line per ticket completion)
+
+- 2026-09-08: T15 done — replaced the placeholder Expo app
+  (`apps/mobile/App.tsx`) with a real iOS+Android app sharing T14's public
+  API and `@teluguvarta/contracts` types. Upgraded the T01 scaffold from
+  Expo SDK 51 (React Native 0.74, react 18) to the current SDK 57 (React
+  Native 0.86.3, react 19.2.3) — the placeholder had no real code depending
+  on the old versions, so this was a safe in-place bump rather than a
+  migration; exact peer versions (react, react-native, safe-area-context,
+  screens, async-storage) taken from expo's own `bundledNativeModules.json`
+  for 57.0.21 so every native module matches what Expo actually ships
+  together.
+
+  **Navigation** (`src/navigation/`): one `@react-navigation/native-stack`
+  root (`Onboarding` | `Main` | `Topic` | `StoryDetail` |
+  `NotificationPreferences` | `Language` | `Privacy`) with a
+  `@react-navigation/bottom-tabs` navigator (`Home`/`Search`/`Saved`/
+  `Notifications`/`Settings`) as the `Main` route — every §9.2 screen exists.
+  `RootNavigator` reads the on-device onboarded flag once at startup to pick
+  the initial route.
+
+  **On-device data, no account backend** (`src/lib/storage.ts`): same
+  judgment call as T14's `apps/web/src/lib/saved.ts` — `/v1/me/*` is still
+  T04 stub data (ADR-006 proposed, not accepted), so onboarding answers
+  (residence/home region, optional life stage incl. the 5 §3.1 values,
+  conditional student sub-questions with no university/immigration-document
+  fields, interests, language), notification preferences (per-topic
+  toggles, breaking/daily-briefing, quiet hours, max/day, and a
+  `disableAll` that only ever gates push delivery — nothing in the feed/
+  story-fetch path reads it), and saved-story ids all live in
+  `@react-native-async-storage/async-storage`. `PrivacyScreen` mirrors
+  T14's account-delete page: clearing on-device data is the V1 "delete
+  account" (NON_NEGOTIABLES #9 — both in-app and on the public website now
+  exist).
+
+  **Onboarding** (`src/screens/OnboardingScreen.tsx`): every step has a
+  Skip that advances without writing an answer, plus an always-visible
+  "Continue without login" that jumps straight to the feed from any step
+  — nothing is persisted until the flow completes or is skipped, so an app
+  kill mid-flow never leaves a half-written profile.
+
+  **Story card + share** (`src/components/StoryCard.tsx`,
+  `src/lib/share.ts`): same fields/behavior as
+  `apps/web/src/components/StoryCard.tsx` (labels, retracted/updated
+  notice, headline/summary/why-matters, source link, EN/Telugu toggle when
+  a QA-passed `te` variant exists, save). Share uses RN's native `Share`
+  module (the OS share sheet, per the ticket's literal requirement) with
+  the same canonical `storyUrl()` construction as web
+  (`EXPO_PUBLIC_WEB_URL` mirroring `NEXT_PUBLIC_WEB_URL`/`PUBLIC_WEB_URL` —
+  added to `.env.example`) — ADR-002's text-only, always-linked-to-source
+  rule, no branded Share Card image.
+
+  **Saved screen's known limitation**: no `/v1/stories?ids=` bulk-lookup
+  endpoint exists (out of scope here — the public API is T14's, unchanged),
+  so `src/lib/StoryCacheContext.tsx` is an in-memory cache fed by every
+  screen that fetches stories; Saved renders whichever saved ids happen to
+  be cached this session. A saved story never re-viewed elsewhere in the
+  session won't render until it is. Documented, not silently swallowed.
+
+  **`packages/ui`/`packages/domain` left as stubs**: the ticket says "where
+  practical" — `apps/mobile/src/lib/api.ts` is a near-duplicate of
+  `apps/web/src/lib/api.ts` (both fetch-based, same normalization) rather
+  than a shared package, since web's copy is SSR/ISR-cache-tuned
+  (`next: { revalidate }`) in a way a shared abstraction would have to
+  either lose or awkwardly parameterize, and refactoring T14's already-
+  shipped, already-tested web code into a new shared package purely for
+  this ticket was judged higher-risk than the duplication it avoids. RN
+  views and Next.js DOM components aren't practically shareable either
+  without adding react-native-web, which nothing here needs. Noted as a
+  judgment call, not an ADR — no architecture position, just a
+  duplication-vs-risk call.
+
+  **Tooling gap found and worked around**: `expo/tsconfig.base`'s
+  `customConditions: ["react-native"]` (mirrors Metro's own resolution)
+  makes `tsc` resolve `react-native-safe-area-context@5.7.0` to its raw
+  `.tsx` source instead of its compiled `.d.ts`, which fails a stricter
+  host-component JSX check against `react-native@0.86.3`'s bundled types —
+  a real type mismatch between these two exact current versions, verified
+  to not be a runtime problem (`expo export --platform ios` and `--platform
+  android` both bundle and would run fine). Worked around in
+  `apps/mobile/tsconfig.json`: clear `customConditions` (so `tsc` checks
+  the compiled types) and exclude `jest.setup.js` from the program (its
+  `require("react-native-safe-area-context/jest/mock")` was pulling the
+  same raw-source path back in). Runtime bundling is unaffected — Metro
+  resolves modules independently of `tsconfig.json`.
+
+  New tests: `src/__tests__/smoke.test.tsx` (mocked `fetch`+`Share`+
+  AsyncStorage, real navigation/rendering via `@testing-library/react-native`
+  + `jest-expo`) covers the literal acceptance-criterion flow — onboarding
+  skip → home → story open → save → share, asserting the shared `url`
+  contains `/story/<slug>`; `src/__tests__/storage.test.ts` proves
+  notification preferences (every field independently) and the onboarded
+  flag round-trip through `AsyncStorage`. `jest-expo`/`@testing-library/
+  react-native` are new to the repo (first Jest usage anywhere in the JS
+  workspaces) — wired into CI (`.github/workflows/ci.yml`'s `node` job runs
+  `pnpm --filter @teluguvarta/mobile run test` after typecheck; no
+  Postgres/native toolchain needed, so it's cheap to run on every push).
+
+  Verified: `pnpm --filter @teluguvarta/mobile run typecheck` clean;
+  `pnpm --filter @teluguvarta/mobile run test` (4 passed, 2 suites);
+  `pnpm run lint`/`typecheck` clean repo-wide (mobile has no lint script,
+  same as before this ticket — RN eslint setup wasn't in scope);
+  `expo export --platform ios` (867 modules, 4.1s) and `--platform android`
+  (862 modules, 3.6s) both bundle cleanly via Metro — the strongest
+  available proof in an environment with no Xcode/Android Studio that the
+  app "builds... from the same codebase" (the ticket's literal wording);
+  no physical device or simulator run (none available here) — a real device
+  smoke test before shipping is a follow-up, not something this sandbox can
+  do.
+
+  Not yet done/risks: push notification delivery itself is T17 (not
+  started) — the Notifications screen is an inbox shell with an empty
+  state, and preference toggles set intent, not real subscriptions;
+  `apps/mobile` has no ESLint config yet (typecheck-only, matching its
+  pre-T15 state — a follow-up if RN-specific lint rules become worth the
+  setup cost); no physical-device/simulator verification (sandbox
+  limitation, same class of gap T01 noted for the original scaffold).
 
 - 2026-09-08: T14 done — the public Next.js site over real API data,
   completing the vertical slice on web.

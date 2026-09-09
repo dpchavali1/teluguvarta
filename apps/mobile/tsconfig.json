@@ -1,6 +1,32 @@
 {
   "extends": "expo/tsconfig.base",
   "compilerOptions": {
-    "strict": true
-  }
+    "strict": true,
+    // expo/tsconfig.base sets `customConditions: ["react-native"]` to mirror
+    // Metro's own module resolution exactly. For most packages that's a
+    // improvement (tsc checks the same file Metro bundles) but
+    // react-native-safe-area-context@5.7.0's "react-native" field points at
+    // its raw .tsx source, which fails a stricter host-component JSX check
+    // against react-native@0.86.3's bundled types (a real upstream type
+    // mismatch between those two exact versions — `expo export --platform
+    // ios/android` bundles and runs this fine; it's a tsc-only artifact).
+    // Clearing it here makes `tsc --noEmit` check the package's compiled
+    // `.d.ts` output instead, which doesn't hit this. Runtime bundling is
+    // unaffected — Metro resolves modules on its own, not via tsconfig.
+    "customConditions": []
+  },
+  // `extends` replaces (doesn't merge) `exclude`, so this repeats expo's
+  // base list and adds jest.setup.js: with `allowJs`, tsc still resolves
+  // its `require("react-native-safe-area-context/jest/mock")` and pulls in
+  // that package's raw source, hitting the same HostComponent/JSX mismatch
+  // `customConditions` above works around for our own app code.
+  "exclude": [
+    "node_modules",
+    "babel.config.js",
+    "metro.config.js",
+    "jest.config.js",
+    "jest.setup.js",
+    "android",
+    "ios"
+  ]
 }

@@ -19,6 +19,7 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm run lint
       - run: pnpm run typecheck
+      - run: pnpm --filter @teluguvarta/mobile run test
 
   api:
     runs-on: ubuntu-latest
