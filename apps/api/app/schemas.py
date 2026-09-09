@@ -302,6 +302,39 @@ class AdminSourceUpdate(BaseModel):
     active: bool | None = None
 
 
+class AdminXAccountOut(BaseModel):
+    id: UUID
+    source_id: UUID
+    x_user_id: str
+    handle: str
+    priority: int
+    polling_cadence: int | None = None
+    since_id: str | None = None
+    budget_class: str | None = None
+    # Denormalized from the linked Source — same rights gate as any other
+    # source (ADR-002), no parallel approval flow for X accounts.
+    rights_status: RightsStatus
+    active: bool
+    last_success_at: datetime | None = None
+    last_error_at: datetime | None = None
+
+
+class AdminXAccountCreate(BaseModel):
+    x_user_id: str
+    handle: str
+    priority: int = 0
+    polling_cadence: int | None = None
+    budget_class: str | None = None
+
+
+class AdminXAccountUpdate(BaseModel):
+    handle: str | None = None
+    priority: int | None = None
+    polling_cadence: int | None = None
+    since_id: str | None = None
+    budget_class: str | None = None
+
+
 class ReviewQueueItemOut(BaseModel):
     id: UUID
     story_id: UUID

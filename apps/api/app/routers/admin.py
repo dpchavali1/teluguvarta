@@ -46,6 +46,7 @@ from app.models import (
     Story,
     StorySource,
     StoryVariant,
+    XAccount,
 )
 from app.rate_limit import rate_limit_admin
 from app.schemas import (
@@ -63,6 +64,9 @@ from app.schemas import (
     AdminSourceUpdate,
     AdminStoryDetailOut,
     AdminStorySourceOut,
+    AdminXAccountCreate,
+    AdminXAccountOut,
+    AdminXAccountUpdate,
     AiCostRowOut,
     AiCostSummaryOut,
     JobQueueHealthOut,
@@ -185,6 +189,87 @@ def update_source(
     db.commit()
     db.refresh(source)
     return _source_out(source)
+
+
+def _x_account_out(account: XAccount, source: Source) -> AdminXAccountOut:
+    return AdminXAccountOut(
+        id=account.id,
+        source_id=account.source_id,
+        x_user_id=account.x_user_id,
+        handle=account.handle,
+        priority=account.priority,
+        polling_cadence=account.polling_cadence,
+        since_id=account.since_id,
+        budget_class=account.budget_class,
+        rights_status=source.rights_status,
+        active=source.active,
+        last_success_at=source.last_success_at,
+        last_error_at=source.last_error_at,
+    )
+
+
+@router.get("/x-accounts")
+def list_x_accounts(db: Session = Depends(get_db)) -> list[AdminXAccountOut]:
+    rows = db.execute(select(XAccount, Source).join(Source, XAccount.source_id == Source.id)).all()
+    return [_x_account_out(account, source) for account, source in rows]
+
+
+@router.post("/sources/{source_id}/x-account", status_code=201)
+def create_x_account(
+    source_id: UUID,
+    body: AdminXAccountCreate,
+    admin: AdminPrincipal = Depends(current_admin),
+    db: Session = Depends(get_db),
+) -> AdminXAccountOut:
+    source = db.get(Source, source_id)
+    if source is None:
+        raise APIError(404, "SOURCE_NOT_FOUND", f"No source with id '{source_id}'")
+    if db.scalar(select(XAccount).where(XAccount.source_id == source_id)) is not None:
+        raise APIError(409, "X_ACCOUNT_ALREADY_LINKED", f"Source '{source_id}' already has an X account linked")
+    if db.scalar(select(XAccount).where(XAccount.x_user_id == body.x_user_id)) is not None:
+        raise APIError(409, "X_USER_ID_ALREADY_LINKED", f"X user id '{body.x_user_id}' is already linked to a source")
+
+    account = XAccount(
+        source_id=source_id,
+        x_user_id=body.x_user_id,
+        handle=body.handle,
+        priority=body.priority,
+        polling_cadence=body.polling_cadence,
+        budget_class=body.budget_class,
+    )
+    db.add(account)
+    db.flush()
+    _write_audit_event(
+        db, admin.email, "X_ACCOUNT_CREATED", "x_account", account.id,
+        {"source_id": str(source_id), "x_user_id": account.x_user_id, "handle": account.handle},
+    )
+    db.commit()
+    db.refresh(account)
+    return _x_account_out(account, source)
+
+
+@router.patch("/sources/{source_id}/x-account")
+def update_x_account(
+    source_id: UUID,
+    body: AdminXAccountUpdate,
+    admin: AdminPrincipal = Depends(current_admin),
+    db: Session = Depends(get_db),
+) -> AdminXAccountOut:
+    source = db.get(Source, source_id)
+    if source is None:
+        raise APIError(404, "SOURCE_NOT_FOUND", f"No source with id '{source_id}'")
+    account = db.scalar(select(XAccount).where(XAccount.source_id == source_id))
+    if account is None:
+        raise APIError(404, "X_ACCOUNT_NOT_FOUND", f"Source '{source_id}' has no linked X account")
+
+    updates = body.model_dump(exclude_unset=True)
+    for field, value in updates.items():
+        setattr(account, field, value)
+
+    _write_audit_event(db, admin.email, "X_ACCOUNT_UPDATED", "x_account", account.id, updates)
+    db.commit()
+    db.refresh(account)
+    return _x_account_out(account, source)
 
 
 @router.get("/kill-switches")

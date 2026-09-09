@@ -40,7 +40,7 @@ part is a product/ops action this repo can support but not perform.
 
 | Ticket | Status | Notes |
 |---|---|---|
-| X1 X source registry fields | not started | |
+| X1 X source registry fields | **done** | New `x_accounts` table (migration `a1b2c3d4e5f6`), one-to-one with `sources` (`source_id` FK, unique): `x_user_id` (unique stable id), `handle`, `priority`, `polling_cadence`, `since_id`, `budget_class`. Deliberately doesn't duplicate `rights_status`/`active`/`last_success_at`/`last_error_at` — those are read from the linked `Source` row, so enabling an X account goes through T06's exact same rights-evidence gate (`PATCH /v1/admin/sources/{id}`), no parallel approval flow. New `GET /v1/admin/x-accounts` (list, joined with Source) + `POST`/`PATCH /v1/admin/sources/{id}/x-account` (link/update; rejects a second account per source and a reused `x_user_id`), every mutation writes an `AuditEvent`. No X API credentials touch the schema (X2 will read them from the T02 secret manager). |
 | X2 Incremental X fetch | not started | |
 | X3 X post to story pipeline | not started | |
 | X4 X monitoring/budget guard | not started | |

@@ -90,6 +90,32 @@ class Source(Base):
     quality_score: Mapped[float] = mapped_column(Float, nullable=False, server_default="0.5")
 
 
+class XAccount(Base):
+    """X1: the X official-account adapter's fields, linked one-to-one to a
+    `Source` row (`source_type='X_ACCOUNT'`). Deliberately doesn't duplicate
+    `rights_status`/`active`/`last_success_at`/`last_error_at` — those live
+    on the linked `Source` and are read through it, so an X account goes
+    through the exact same rights gate as any other source (ADR-002) instead
+    of a parallel approval flow.
+    """
+
+    __tablename__ = "x_accounts"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    source_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("sources.id", ondelete="CASCADE"), nullable=False, unique=True
+    )
+    # Stable X user ID (§6.3.1) — admin records this on approval, not the
+    # mutable @handle.
+    x_user_id: Mapped[str] = mapped_column(Text, nullable=False, unique=True)
+    handle: Mapped[str] = mapped_column(Text, nullable=False)
+    priority: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
+    polling_cadence: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    # Incremental-fetch cursor for X2's `since_id`-only polling.
+    since_id: Mapped[str | None] = mapped_column(Text, nullable=True)
+    budget_class: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+
 class SourceItem(Base):
     __tablename__ = "source_items"
 
