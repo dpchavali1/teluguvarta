@@ -128,6 +128,7 @@ class StoryVariant(Base):
     headline: Mapped[str] = mapped_column(Text, nullable=False)
     summary: Mapped[str] = mapped_column(Text, nullable=False)
     why_matters: Mapped[str | None] = mapped_column(Text, nullable=True)
+    generated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
     model_version: Mapped[str | None] = mapped_column(Text, nullable=True)
     # 'PENDING' | 'PASSED' | 'FAILED' per `ck_story_variants_qa_status`.
     qa_status: Mapped[str] = mapped_column(Text, nullable=False, server_default="PENDING")

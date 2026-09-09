@@ -6,7 +6,7 @@ from __future__ import annotations
 
 from pydantic import BaseModel, Field, ValidationError
 
-__all__ = ["Claim", "GenerationResult", "ValidationError"]
+__all__ = ["Claim", "GenerationResult", "TranslationResult", "ValidationError"]
 
 
 class Claim(BaseModel):
@@ -35,3 +35,13 @@ class GenerationResult(BaseModel):
     claims: list[Claim] = Field(default_factory=list)
     source_refs: list[str] = Field(default_factory=list)
     publish_recommendation: str
+
+
+class TranslationResult(BaseModel):
+    """§7.3 contract for `Task.TRANSLATION_EN_TE` — deliberately not
+    `GenerationResult`: a translation has no relevance/confidence/claims of
+    its own, it's a rendering of an already-approved English variant."""
+
+    headline_te: str
+    summary_te: str
+    why_matters_te: str | None = None

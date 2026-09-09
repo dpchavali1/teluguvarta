@@ -5,7 +5,6 @@ trigger, same fixtures as test_admin_sources.py.
 """
 
 import uuid
-from datetime import UTC, datetime
 
 import pytest
 from fastapi.testclient import TestClient

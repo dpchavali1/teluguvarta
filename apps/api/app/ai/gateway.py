@@ -11,7 +11,7 @@ import uuid
 from dataclasses import dataclass, field
 from enum import Enum
 
-from pydantic import ValidationError
+from pydantic import BaseModel, ValidationError
 from sqlalchemy.orm import Session
 
 from app.ai.budget import is_over_monthly_budget, record_call
@@ -21,7 +21,9 @@ from app.ai.providers.null_provider import NullProvider
 from app.ai.tasks import DEGRADABLE_ON_BUDGET_BREACH, ROUTING, Task
 
 # §7.5: "low confidence -> review queue." Below this, a syntactically valid
-# result still isn't trusted enough to auto-publish.
+# result still isn't trusted enough to auto-publish. Only applies to
+# `GenerationResult`-shaped tasks — a translation carries no confidence of
+# its own (see `run_task`'s `result_model` param).
 CONFIDENCE_REVIEW_THRESHOLD = 0.5
 
 
@@ -36,7 +38,7 @@ class GatewayStatus(str, Enum):
 @dataclass
 class GatewayOutcome:
     status: GatewayStatus
-    result: GenerationResult | None = None
+    result: BaseModel | None = None
     removed_claims: list[str] = field(default_factory=list)
 
 
@@ -76,6 +78,7 @@ class AiGateway:
         prompt: str,
         *,
         story_id: uuid.UUID | None = None,
+        result_model: type[BaseModel] = GenerationResult,
     ) -> GatewayOutcome:
         route = ROUTING[task]
 
@@ -94,7 +97,7 @@ class AiGateway:
             return GatewayOutcome(status=GatewayStatus.UNAVAILABLE)
 
         try:
-            result = GenerationResult.model_validate(response.output)
+            result = result_model.model_validate(response.output)
             record_call(
                 self._db, task=task, provider=provider.name, model=model, status="SUCCESS",
                 tokens_in=response.tokens_in, tokens_out=response.tokens_out, story_id=story_id,
@@ -110,7 +113,7 @@ class AiGateway:
             except ProviderUnavailableError:
                 return GatewayOutcome(status=GatewayStatus.UNAVAILABLE)
             try:
-                result = GenerationResult.model_validate(retry_response.output)
+                result = result_model.model_validate(retry_response.output)
                 record_call(
                     self._db, task=task, provider=provider.name, model=model, status="RETRY_SUCCESS",
                     tokens_in=retry_response.tokens_in, tokens_out=retry_response.tokens_out, story_id=story_id,
@@ -127,12 +130,21 @@ class AiGateway:
         if route.always_human_review:
             return GatewayOutcome(status=GatewayStatus.REVIEW_QUEUE, result=result)
 
-        if result.confidence < CONFIDENCE_REVIEW_THRESHOLD:
-            return GatewayOutcome(status=GatewayStatus.REVIEW_QUEUE, result=result)
+        # Confidence-threshold review and unsupported-claim stripping are
+        # `GenerationResult`-specific (it's the only contract carrying a
+        # `confidence`/`claims` shape) — a `TranslationResult` (or any future
+        # non-generation contract) has nothing to check here and returns OK
+        # once it parses, same as sensitive-validation's own result shape
+        # already skips this via `always_human_review` above.
+        if isinstance(result, GenerationResult):
+            if result.confidence < CONFIDENCE_REVIEW_THRESHOLD:
+                return GatewayOutcome(status=GatewayStatus.REVIEW_QUEUE, result=result)
 
-        result, removed = _remove_unsupported_claims(result)
-        if removed and not result.claims:
-            # Every claim was unsupported — nothing left to publish on.
-            return GatewayOutcome(status=GatewayStatus.HOLD, removed_claims=removed)
+            result, removed = _remove_unsupported_claims(result)
+            if removed and not result.claims:
+                # Every claim was unsupported — nothing left to publish on.
+                return GatewayOutcome(status=GatewayStatus.HOLD, removed_claims=removed)
 
-        return GatewayOutcome(status=GatewayStatus.OK, result=result, removed_claims=removed)
+            return GatewayOutcome(status=GatewayStatus.OK, result=result, removed_claims=removed)
+
+        return GatewayOutcome(status=GatewayStatus.OK, result=result)

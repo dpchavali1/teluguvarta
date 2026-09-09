@@ -19,6 +19,7 @@ from app.jobs.generate import run_ai_classify, schedule_ai_classify
 from app.jobs.publish import run_publish_scheduler, schedule_publish_scheduler
 from app.jobs.queue import claim_job, complete_job, fail_job
 from app.jobs.source_fetch import run_source_fetch, schedule_due_source_fetches
+from app.jobs.translate import run_ai_translate, schedule_ai_translate
 
 logger = logging.getLogger(__name__)
 
@@ -26,6 +27,7 @@ JOB_HANDLERS = {
     "source_fetch": run_source_fetch,
     "story_cluster": run_dedup_cluster,
     "ai_classify": run_ai_classify,
+    "ai_translate": run_ai_translate,
     "publish_scheduler": run_publish_scheduler,
 }
 
@@ -42,6 +44,7 @@ def process_one(db: Session) -> bool:
     schedule_due_source_fetches(db)
     schedule_dedup_cluster(db)
     schedule_ai_classify(db)
+    schedule_ai_translate(db)
     schedule_publish_scheduler(db)
     db.commit()
 

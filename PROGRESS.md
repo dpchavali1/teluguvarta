@@ -23,7 +23,7 @@ prior conversation history.
 | T10 AI provider gateway | **done** | `apps/api/app/ai/`: `AiGateway.run_task` implements §7.2 routing + §7.3 schema validation + every §7.5 failure mode (retry-then-hold, low-confidence review queue, unsupported-claim removal/hold, provider-unavailable, budget-breach classification-only degrade); cost telemetry in new `ai_call_log` table (migration `7a4c9e2b5d10`), queryable per task/day; ADR-001 accepted (OpenAI primary, Anthropic secondary, gateway lives in Python at `apps/api/app/ai` not the TS `packages/ai` — see ADR for why) |
 | T11 Story generation | **done** | `apps/api/app/jobs/generate.py`: `ai_classify` job sweeps `CLUSTERED` stories through two AI-gateway calls (classify, then generate) and advances state; `9d3f6b1a2c47` adds `ENRICHED`/`REVIEW`/`SCHEDULED`/`ARCHIVED` to `source_items.ingest_status`; fixed a pre-existing T09 bug (`dedup_cluster` job type wasn't in `ck_jobs_type`, so it always errored — renamed to `story_cluster`) |
 | T12 Editorial workflow | **done** | Real approve/reject/retract/correct on `/v1/admin/stories/{id}/*` + `GET .../stories/{id}` detail + real `/v1/admin/review-queue`; every mutation writes an `AuditEvent`; new `publish_scheduler` job (`app/jobs/publish.py`) implements the kill-switch-gated auto-publish sweep from T11's `AI_READY` output; migration `73a24fe47a9f` adds `ARCHIVED` to `story_status` + the reject transitions; `apps/admin` gets a review-queue list + story detail/action page |
-| T13 Bilingual variants | not started | |
+| T13 Bilingual variants | **done** | `app/jobs/translate.py`: `ai_translate` job translates the `en` `StoryVariant` via the AI gateway's `TRANSLATION_EN_TE` task, applies `app/content/glossary.py` proper-noun correction, runs `app/content/qa.py`'s number/date/currency/URL/negation checks (`qa_status` PASSED/FAILED), and samples IMMIGRATION/LEGAL/FINANCIAL passes into the review queue; `app/content/variants.py::resolve_display_variant` is the pure English-fallback resolver for T14 to call; ADR-004 accepted |
 | T14 Web MVP | not started | |
 | T15 Mobile MVP | not started | |
 | T16 Personalization | not started | |
@@ -57,7 +57,7 @@ Mirrors `docs/adr/README.md` — keep both in sync.
 | ADR-001 AI provider selection | **accepted** |
 | ADR-002 Source-rights approval policy | **accepted** |
 | ADR-003 Database job queue strategy | **accepted** |
-| ADR-004 Bilingual content lifecycle | not started |
+| ADR-004 Bilingual content lifecycle | **accepted** |
 | ADR-005 Personalization model | not started |
 | ADR-006 Account/privacy architecture | **proposed** |
 | ADR-007 Production hosting/cost limits | not started |
@@ -65,6 +65,106 @@ Mirrors `docs/adr/README.md` — keep both in sync.
 ## Changelog
 
 (newest first — one line per ticket completion)
+
+- 2026-09-08: T13 done — the English-canonical/Telugu-derived lifecycle
+  (NON_NEGOTIABLES #7). New `app/jobs/translate.py`: one `ai_translate` job
+  type (already reserved in T03's `ck_jobs_type`) sweeps every `Story` that
+  has an `en` `StoryVariant` and no `te` one yet — created fresh by T11's
+  generation step, or re-created after T12's `correct_story` deletes a
+  stale `te` variant, since deletion alone puts a story back in this same
+  set on the next sweep (no separate "regenerate" flag/state needed, same
+  "don't invent a state a query can already express" precedent as T09's
+  `DEDUPED`). One `TRANSLATION_EN_TE` gateway call per story (already
+  routed in T10's `tasks.py`, unused until now) using a new
+  `TranslationResult` §7.3 contract (`headline_te`/`summary_te`/
+  `why_matters_te`) — deliberately not `GenerationResult`, since a
+  translation has no relevance/confidence/claims of its own.
+
+  **Gateway extension**: `AiGateway.run_task` gained a `result_model`
+  parameter (default `GenerationResult`, so every existing T10/T11 caller is
+  unaffected) so a second contract shape can validate through the same
+  schema-retry/telemetry path; the confidence-threshold-review and
+  unsupported-claims-stripping steps are now gated on
+  `isinstance(result, GenerationResult)` so a `TranslationResult` (which has
+  neither field) just returns `OK` once it parses.
+
+  **Glossary enforcement** (`app/content/glossary.py::apply_glossary`, §4.3):
+  a small hand-maintained `GLOSSARY_EN_TE` table (proper nouns this
+  product's coverage touches — USCIS, White House, Telangana, Andhra
+  Pradesh, United States) forces the canonical Telugu spelling over
+  whatever a raw translation call produces (a naive transliteration, or the
+  English term left untranslated) — deterministic post-processing per
+  NON_NEGOTIABLES, not a prompt instruction trusted to "just work."
+
+  **Automated Telugu QA** (`app/content/qa.py::find_qa_issues`, §4.3):
+  compares the Telugu output against the English source it was derived
+  from and flags a dropped number, date (month name — checked against a
+  small EN→TE month table since a real translation transliterates the
+  month, not the number, so a bare substring check on the English word
+  would false-positive), currency amount, URL, or negation. Any issue sets
+  `qa_status = 'FAILED'` on the new `StoryVariant` row.
+
+  **English-fallback resolver** (`app/content/variants.py::
+  resolve_display_variant`): pure function, no DB access — a request for
+  `te` serves the `te` variant only if it exists and `qa_status ==
+  'PASSED'`, otherwise serves `en` and reports `fallback=True`. The public
+  `/v1/stories/{slug}` endpoint is still T04 stub data (wiring it to real
+  rows is T14's "Web MVP" job per `docs/BUILD_ORDER.md`, not this ticket's
+  scope) — this is the resolver T14 must call once it does, proven correct
+  here via direct unit tests against constructed `StoryVariantOut` values
+  rather than through a live endpoint that doesn't exist yet.
+
+  **Pilot review sampling** (§4.3): `TELUGU_REVIEW_SAMPLE_RATE` env flag
+  (default `0.2`) routes a random subset of QA-passed IMMIGRATION/LEGAL/
+  FINANCIAL translations into the existing `review_tasks` queue (reusing
+  T11/T12's `ReviewTask` model, not a new table).
+
+  **ADR-004 accepted** (`docs/adr/ADR-004-bilingual-content-lifecycle.md`):
+  one `StoryVariant` row per `(story_id, language)` (existing unique
+  constraint), not append-only history — "versioned" is satisfied by the
+  now-mapped `generated_at`/`model_version` columns (both existed in the DB
+  since T03, unused by the ORM until this ticket) rather than a separate
+  history table nothing reads yet. Covers the fallback rule, the QA gate,
+  glossary enforcement, and why deletion (not a status flag) is the
+  correction-invalidation mechanism.
+
+  New tests (`apps/api/tests/test_translate.py`, 10 cases, real Postgres +
+  `FakeProvider` for the DB-backed ones, pure unit tests for glossary/QA/
+  resolver): a translation with a naive rendering gets glossary-corrected
+  and passes QA; a translation missing its number/date/URL fails QA; the
+  sweep is idempotent (second call makes no gateway call) and re-processes
+  a story after simulating T12's invalidation delete; a sampled IMMIGRATION
+  translation lands a `ReviewTask`; glossary/QA/resolver unit tests
+  standalone. Also fixed a pre-existing `ruff` F401 (unused
+  `datetime`/`UTC` import) in `test_editorial_workflow.py`, unrelated to
+  this ticket's own code but caught while running `ruff check .`
+  repo-wide. Verified: `pytest` (101 passed, 10 new + all 91 prior, real
+  Postgres), `ruff check .` clean repo-wide, `mypy app/content
+  app/jobs/translate.py app/ai/gateway.py app/ai/contracts.py app/models.py`
+  shows only the same pre-existing failures already present before this
+  ticket (`app/ai/providers/anthropic_provider.py`'s SDK union-attr noise,
+  `app/ai/gateway.py`'s `model: str | None` argument variance, and
+  `app/schemas.py`'s `Language` default-factory variance — none introduced
+  by this change, confirmed by running `mypy` against the pre-ticket commit
+  for comparison). No new migration — `story_variants.generated_at` already
+  existed in the DB since T03's initial migration, only newly mapped in the
+  ORM. No `packages/contracts` regeneration needed — no public schema/route
+  changed.
+
+  Not yet done/risks: the public `/v1/stories/{slug}` endpoint itself is
+  not wired to real DB rows or the fallback resolver — that's explicitly
+  T14's scope, not this ticket's (see `docs/BUILD_ORDER.md`); real
+  provider-driven translation quality is unverified in this sandbox (no AI
+  provider key/network access, same limitation as every AI-gateway-calling
+  ticket since T10) — the gateway wiring and the glossary/QA logic around
+  it are proven with a `FakeProvider`, not a live model call; the QA checks
+  catch *omission* (a number/date/URL/negation marker missing entirely),
+  not *mistranslation* of something that's still syntactically present —
+  a fluent but factually wrong Telugu sentence that keeps every number
+  intact would still pass, exactly as ADR-004 states; the glossary is a
+  small hand-seeded list, expected to grow ad hoc as real translation
+  output surfaces new terms worth pinning, not a managed admin CRUD
+  surface yet.
 
 - 2026-09-08: T12 done — editorial workflow, replacing every T04 stub in
   `apps/api/app/routers/admin.py`. **Approve** (`REVIEW_REQUIRED -> APPROVED
