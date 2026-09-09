@@ -1018,6 +1018,42 @@
         "title": "MeResponse",
         "type": "object"
       },
+      "PersonalizationOut": {
+        "description": "\u00a78.4 explainability: present only when the request supplied\npreferences to rank against, and only ever built from signals that\nactually matched (T16/ADR-005).",
+        "properties": {
+          "explanation": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Explanation"
+          },
+          "score": {
+            "title": "Score",
+            "type": "number"
+          },
+          "why_matters": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Why Matters"
+          }
+        },
+        "required": [
+          "score"
+        ],
+        "title": "PersonalizationOut",
+        "type": "object"
+      },
       "PreferencesUpdate": {
         "properties": {
           "home_city": {
@@ -1466,6 +1502,16 @@
           "importance": {
             "title": "Importance",
             "type": "number"
+          },
+          "personalization": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PersonalizationOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "published_at": {
             "anyOf": [
@@ -2534,6 +2580,106 @@
     "/v1/home": {
       "get": {
         "operationId": "get_home_v1_home_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "residence_country",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Residence Country"
+            }
+          },
+          {
+            "in": "query",
+            "name": "residence_region",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Residence Region"
+            }
+          },
+          {
+            "in": "query",
+            "name": "home_state",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Home State"
+            }
+          },
+          {
+            "in": "query",
+            "name": "home_city",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Home City"
+            }
+          },
+          {
+            "in": "query",
+            "name": "topics",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Topics"
+            }
+          },
+          {
+            "in": "query",
+            "name": "segment",
+            "required": false,
+            "schema": {
+              "default": "general",
+              "enum": [
+                "general",
+                "international_student",
+                "graduate_opt",
+                "professional",
+                "family_parent",
+                "other"
+              ],
+              "title": "Segment",
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "content": {
@@ -2544,6 +2690,16 @@
               }
             },
             "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
           }
         },
         "summary": "Get Home",

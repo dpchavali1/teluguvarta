@@ -11,7 +11,7 @@ in `docs/NON_NEGOTIABLES.md` or make a decision the spec leaves open.
 | ADR-002 | Source-rights approval policy | T06 | **accepted** — see [ADR-002](ADR-002-source-rights-approval-policy.md) |
 | ADR-003 | Database job queue strategy | T08 | **accepted** — see [ADR-003](ADR-003-database-job-queue-strategy.md) |
 | ADR-004 | Bilingual content lifecycle | T13 | **accepted** — see [ADR-004](ADR-004-bilingual-content-lifecycle.md) |
-| ADR-005 | Personalization model | T16 | not started |
+| ADR-005 | Personalization model | T16 | **accepted** — see [ADR-005](ADR-005-personalization-model.md) |
 | ADR-006 | Account/privacy architecture | T05 | **proposed** — see [ADR-006](ADR-006-account-privacy-architecture.md) |
 | ADR-007 | Production hosting/cost limits | T19 | not started |
 

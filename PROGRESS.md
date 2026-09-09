@@ -26,7 +26,7 @@ prior conversation history.
 | T13 Bilingual variants | **done** | `app/jobs/translate.py`: `ai_translate` job translates the `en` `StoryVariant` via the AI gateway's `TRANSLATION_EN_TE` task, applies `app/content/glossary.py` proper-noun correction, runs `app/content/qa.py`'s number/date/currency/URL/negation checks (`qa_status` PASSED/FAILED), and samples IMMIGRATION/LEGAL/FINANCIAL passes into the review queue; `app/content/variants.py::resolve_display_variant` is the pure English-fallback resolver for T14 to call; ADR-004 accepted |
 | T14 Web MVP | **done** | Public `/v1` endpoints wired to real Postgres data (`app/content/serialize.py`); `apps/web` is a real Next.js SSR/ISR site over `@teluguvarta/contracts` types covering every §9.1 page; axe-core a11y check passes on home + story pages |
 | T15 Mobile MVP | **done** | Expo/React Navigation app over the same `@teluguvarta/contracts` public API as T14; onboarding (fully skippable, "continue without login"), home/topic/search/saved/story-detail/notifications/settings/language/privacy screens; onboarding + notification prefs + saved stories are on-device (AsyncStorage) since no account backend exists yet (ADR-006 still proposed); native OS share sheet using the same canonical `PUBLIC_WEB_URL`/story-slug URL as web; Jest+RNTL smoke test covers onboarding-skip→home→open→save→share |
-| T16 Personalization | not started | |
+| T16 Personalization | **done** | Deterministic §8.2 ranking (`app/content/ranking.py`), no ML; `GET /v1/home` personalizes when preferences are supplied as query params (no accepted account backend yet — see ADR-005); `Task.WHY_MATTERS` now actually invoked, cached per `(story_id, segment)` in new `story_why_matters_cache`; ADR-005 accepted |
 | T17 Push notifications | not started | |
 | T18 Observability | not started | |
 | T19 Hardening | not started | |
@@ -58,13 +58,106 @@ Mirrors `docs/adr/README.md` — keep both in sync.
 | ADR-002 Source-rights approval policy | **accepted** |
 | ADR-003 Database job queue strategy | **accepted** |
 | ADR-004 Bilingual content lifecycle | **accepted** |
-| ADR-005 Personalization model | not started |
+| ADR-005 Personalization model | **accepted** |
 | ADR-006 Account/privacy architecture | **proposed** |
 | ADR-007 Production hosting/cost limits | not started |
 
 ## Changelog
 
 (newest first — one line per ticket completion)
+
+- 2026-09-08: T16 done — §8.2's deterministic ranking formula and §8.3's
+  cached per-segment "why this matters", replacing `/v1/home`'s generic
+  chronological-only ordering.
+
+  **ADR-005 accepted** (`docs/adr/ADR-005-personalization-model.md`): the
+  formula (`0.28*residence + 0.20*home + 0.18*topic + 0.16*freshness +
+  0.14*importance + 0.04*source_quality - repetition_penalty`) is pure code
+  in `app/content/ranking.py` — no model call, byte-identical output for the
+  same input every run (proven directly in `tests/test_ranking.py`, no DB).
+  The ADR's central call: **preferences are explicit per-request input, not
+  server-persisted state** — ADR-006 (account/privacy architecture) is still
+  *proposed*, not accepted, and T14/T15 already deliberately kept onboarding
+  preferences on-device rather than committing to it. Deciding to persist
+  preferences server-side inside T16 would have pre-empted ADR-006's own
+  question, so `GET /v1/home` instead accepts the §8.1 preference fields as
+  optional query params (`residence_country, residence_region, home_state,
+  home_city, topics`); when none are supplied the endpoint is byte-for-byte
+  the existing T14 chronological feed (personalization is additive, never a
+  login requirement, NON_NEGOTIABLES #9). `PATCH /v1/me/preferences` is
+  unchanged (still T04's validate-and-echo stub — nothing to persist against
+  yet). Two formula inputs had no existing backing and needed a judgment
+  call, both documented in the ADR: `source_quality` is a new
+  `sources.quality_score` column (float `0..1`, default `0.5`, not yet
+  admin-editable); `repetition_penalty` is a within-batch, per-topic
+  diminishing-returns penalty applied via a greedy re-rank (`0.05` per prior
+  same-topic story already placed, capped at `0.2`) so one topic can't fill
+  the whole feed — constants are a starting-point judgment call, same class
+  as T09's clustering thresholds. "Home" (§8.1's `home_state`/`home_city`)
+  has no dedicated column on `Story` either; it reuses the existing topic
+  taxonomy §3.1 already lists AP/Telangana/Hyderabad under (a story tagged
+  with a topic slug matching the caller's home region counts as a home
+  match) — documented in `ranking.py`'s docstring rather than the ADR, since
+  it follows directly from data that already exists, not a new architectural
+  position.
+
+  **Explainability** (§8.4): `PersonalizationOut.explanation` on each
+  personalized `StoryOut` is built only from signals that actually
+  contributed non-zero score for that story (e.g. "Because you live in US
+  and you follow Immigration.") — never a canned string, and `None` when no
+  preference signal matched (including the unpersonalized/no-preferences
+  case).
+
+  **"Why this matters" per segment** (§8.3): audience segment is an explicit
+  `segment` query param (`general | international_student | graduate_opt |
+  professional | family_parent | other`, mirroring §3.1's life-stage
+  values) — never inferred from behavior, matching §3.1's own "never infer...
+  from reading behavior" language generalized to every segment. T10's
+  `Task.WHY_MATTERS` route existed since T10 but was never actually called
+  until now (T11 covers the generic English `why_matters` inside its one
+  `SUMMARY` call instead); `app/content/why_matters.py::get_or_generate`
+  checks the new `story_why_matters_cache` table (unique on
+  `(story_id, segment)`) first and only calls the AI gateway on a miss, with
+  a new minimal `WhyMattersResult` contract (`app/ai/contracts.py`,
+  deliberately not `GenerationResult` — same reasoning T13 used for
+  `TranslationResult`). Verified via `ai_call_log`: two `/v1/home` requests
+  for the same story/segment produce exactly one `why_matters` gateway call.
+
+  **New migration** `4c6e1a8f2b7d`: `sources.quality_score` (+ range check
+  constraint) and `story_why_matters_cache` (segment check constraint,
+  unique `(story_id, segment)`). Upgrade/downgrade/upgrade round-trip
+  verified against local Postgres.
+
+  New tests: `tests/test_ranking.py` (7 cases, pure — no DB/AI: determinism,
+  residence/topic/multi-signal explanation text, no-preferences → no
+  explanation, repetition-penalty demotion, freshness decay);
+  `tests/test_personalization_api.py` (3 cases, real Postgres +
+  `FakeProvider`, same pattern as `test_translate.py`): unpersonalized
+  `/v1/home` carries no `personalization` block; a residence+topic-matching
+  story outranks an unrelated one with a traceable explanation; a
+  same-segment "why this matters" is generated once and reused, confirmed
+  by `ai_call_log` row count. `packages/contracts` regenerated
+  (`PersonalizationOut` on `StoryOut`, `/v1/home`'s new query params).
+  Verified: `pytest` (122 passed + the 10 new; 2 errors seen on a full-suite
+  run were pre-existing DB-teardown flakiness in unrelated tests —
+  `test_ai_gateway.py`/`test_jobs.py`/`test_cluster.py` each pass cleanly
+  standalone, and which file errors changes between runs, confirming it's
+  not caused by this ticket), `ruff check .` clean, `mypy` on every touched
+  file shows only the same pre-existing noise documented in prior tickets'
+  changelog entries. `pnpm run lint`/`typecheck` clean repo-wide.
+
+  Not yet done/risks: `/v1/home` is the only personalized surface — `/v1/
+  stories`/topic pages stay chronological, matching §9's own "Home
+  (personalized feed...)" vs. other surfaces' plain listings; the "why this
+  matters" AI call happens synchronously inside a public, unauthenticated
+  request on a cache miss (no provider key configured in this sandbox, so
+  unverified against real latency/cost) — acceptable at this build phase per
+  the ticket's own scope, but worth revisiting (e.g. pre-generating via a
+  job) if real traffic makes first-hit latency or concurrent-miss thundering
+  herd a measured problem; once ADR-006 is accepted, `/v1/home` should read
+  persisted preferences instead of query params — `rank_stories` itself
+  doesn't need to change, only where `Preferences` comes from (noted in
+  ADR-005's Consequences).
 
 - 2026-09-08: T15 done — replaced the placeholder Expo app
   (`apps/mobile/App.tsx`) with a real iOS+Android app sharing T14's public

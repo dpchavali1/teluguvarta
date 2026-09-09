@@ -21,6 +21,11 @@ StoryStatus = Literal[
     "PUBLISHED", "UPDATED", "RETRACTED", "CORRECTION_PENDING", "ARCHIVED",
 ]
 Sensitivity = Literal["NONE", "IMMIGRATION", "LEGAL", "FINANCIAL", "BREAKING", "OBITUARY_ACCUSATION"]
+# §3.1 life-stage values, explicit-only per NON_NEGOTIABLES (never inferred) — §8.3's
+# "why this matters" audience segment (T16).
+Segment = Literal[
+    "general", "international_student", "graduate_opt", "professional", "family_parent", "other",
+]
 
 
 # --- Shared ---
@@ -45,6 +50,16 @@ class StorySourceOut(BaseModel):
     published_at: datetime | None = None
 
 
+class PersonalizationOut(BaseModel):
+    """§8.4 explainability: present only when the request supplied
+    preferences to rank against, and only ever built from signals that
+    actually matched (T16/ADR-005)."""
+
+    score: float
+    explanation: str | None = None
+    why_matters: str | None = None
+
+
 class StoryOut(BaseModel):
     """Appendix A's sample content object, shaped for API consumption."""
 
@@ -59,6 +74,7 @@ class StoryOut(BaseModel):
     countries: list[str] = Field(default_factory=list)
     variants: dict[Language, StoryVariantOut] = Field(default_factory=dict)
     sources: list[StorySourceOut] = Field(default_factory=list)
+    personalization: PersonalizationOut | None = None
 
 
 class StoriesListResponse(BaseModel):

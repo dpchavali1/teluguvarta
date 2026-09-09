@@ -16,6 +16,7 @@ from __future__ import annotations
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.content.ranking import RankableStory
 from app.content.variants import resolve_display_variant
 from app.models import (
     Source,
@@ -95,3 +96,40 @@ def story_to_out(db: Session, story: Story) -> StoryOut:
 
 def topic_out(topic: Topic) -> TopicOut:
     return TopicOut(slug=topic.slug, name=topic.name, active=topic.active)
+
+
+def story_to_rankable(db: Session, story: Story) -> RankableStory:
+    """T16: the same topics/countries derivation as `story_to_out`, plus the
+    §8.2 `source_quality` input (average `quality_score` of every linked
+    source) — kept separate from `StoryOut` since ranking inputs aren't part
+    of the public response shape."""
+
+    topic_rows = db.execute(
+        select(Topic.slug).join(StoryTopic, StoryTopic.topic_id == Topic.id).where(StoryTopic.story_id == story.id)
+    ).all()
+    topics = tuple(row[0] for row in topic_rows)
+
+    links = db.scalars(select(StorySource).where(StorySource.story_id == story.id)).all()
+    countries: list[str] = []
+    quality_scores: list[float] = []
+    for link in links:
+        item = db.get(SourceItem, link.source_item_id)
+        if item is None:
+            continue
+        source = db.get(Source, item.source_id)
+        if source is None:
+            continue
+        if source.country and source.country not in countries:
+            countries.append(source.country)
+        quality_scores.append(source.quality_score)
+
+    source_quality = sum(quality_scores) / len(quality_scores) if quality_scores else 0.5
+
+    return RankableStory(
+        id=str(story.id),
+        countries=tuple(countries),
+        topics=topics,
+        importance=story.importance,
+        published_at=story.published_at,
+        source_quality=source_quality,
+    )

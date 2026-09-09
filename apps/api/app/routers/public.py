@@ -12,8 +12,15 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.content.serialize import PUBLIC_STATUSES, story_to_out, topic_out
+from app.content.ranking import Preferences, rank_stories
+from app.content.serialize import (
+    PUBLIC_STATUSES,
+    story_to_out,
+    story_to_rankable,
+    topic_out,
+)
 from app.content.variants import resolve_display_variant
+from app.content.why_matters import get_or_generate as get_or_generate_why_matters
 from app.db import get_db
 from app.errors import APIError
 from app.models import (
@@ -28,7 +35,9 @@ from app.models import (
 from app.schemas import (
     ConfigResponse,
     HomeResponse,
+    PersonalizationOut,
     SearchResponse,
+    Segment,
     ShareMetaResponse,
     StoriesListResponse,
     StoryOut,
@@ -38,6 +47,11 @@ from app.schemas import (
 router = APIRouter(prefix="/v1", tags=["public"])
 
 DEFAULT_PAGE_SIZE = 20
+HOME_PAGE_SIZE = 10
+# T16/ADR-005: how many recent published stories are candidates for
+# personalized ranking — bounded so a single `/v1/home` request never scores
+# the entire published-story history.
+HOME_CANDIDATE_POOL = 50
 
 
 def _public_web_url() -> str:
@@ -102,10 +116,47 @@ def _get_published_story(db: Session, slug: str) -> Story:
 
 
 @router.get("/home")
-def get_home(db: Session = Depends(get_db)) -> HomeResponse:
-    ids = _published_story_ids(db)[:10]
-    stories = [db.get(Story, sid) for sid in ids]
-    top_stories = [story_to_out(db, s) for s in stories if s is not None]
+def get_home(
+    residence_country: str | None = Query(default=None),
+    residence_region: str | None = Query(default=None),
+    home_state: str | None = Query(default=None),
+    home_city: str | None = Query(default=None),
+    topics_pref: str | None = Query(default=None, alias="topics"),
+    segment: Segment = Query(default="general"),
+    db: Session = Depends(get_db),
+) -> HomeResponse:
+    prefs = Preferences(
+        residence_country=residence_country,
+        residence_region=residence_region,
+        home_state=home_state,
+        home_city=home_city,
+        topics=tuple(t.strip() for t in topics_pref.split(",") if t.strip()) if topics_pref else (),
+    )
+
+    if prefs.is_empty():
+        # T16/ADR-005: personalization is additive — no preferences supplied
+        # (the common case for an anonymous, no-account-yet visitor per
+        # NON_NEGOTIABLES #9) means the existing T14 chronological feed.
+        ids = _published_story_ids(db)[:HOME_PAGE_SIZE]
+        stories = [db.get(Story, sid) for sid in ids]
+        top_stories = [story_to_out(db, s) for s in stories if s is not None]
+    else:
+        candidate_ids = _published_story_ids(db)[:HOME_CANDIDATE_POOL]
+        candidate_rows = [db.get(Story, sid) for sid in candidate_ids]
+        candidates: list[Story] = [s for s in candidate_rows if s is not None]
+        rankable = [story_to_rankable(db, s) for s in candidates]
+        ranked = rank_stories(rankable, prefs)[:HOME_PAGE_SIZE]
+        stories_by_id = {str(s.id): s for s in candidates}
+        top_stories = []
+        for scored in ranked:
+            story = stories_by_id[scored.story_id]
+            out = story_to_out(db, story)
+            why_matters = get_or_generate_why_matters(db, story, segment)
+            out.personalization = PersonalizationOut(
+                score=scored.score, explanation=scored.explanation, why_matters=why_matters,
+            )
+            top_stories.append(out)
+
     topics = db.scalars(select(Topic).where(Topic.active.is_(True)).order_by(Topic.name)).all()
     return HomeResponse(top_stories=top_stories, topics=[topic_out(t) for t in topics])
 

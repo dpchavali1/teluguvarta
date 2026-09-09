@@ -6,7 +6,7 @@ from __future__ import annotations
 
 from pydantic import BaseModel, Field, ValidationError
 
-__all__ = ["Claim", "GenerationResult", "TranslationResult", "ValidationError"]
+__all__ = ["Claim", "GenerationResult", "TranslationResult", "ValidationError", "WhyMattersResult"]
 
 
 class Claim(BaseModel):
@@ -45,3 +45,12 @@ class TranslationResult(BaseModel):
     headline_te: str
     summary_te: str
     why_matters_te: str | None = None
+
+
+class WhyMattersResult(BaseModel):
+    """§7.3 contract for `Task.WHY_MATTERS` (T16): a single audience-segment
+    "why this matters" line — deliberately not `GenerationResult`, same
+    reasoning as `TranslationResult`: no relevance/confidence/claims of its
+    own, just a rendering of an already-approved story for one segment."""
+
+    why_matters: str

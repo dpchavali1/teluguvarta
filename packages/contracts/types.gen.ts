@@ -770,6 +770,20 @@ export interface components {
             /** Saved Story Ids */
             saved_story_ids?: string[];
         };
+        /**
+         * PersonalizationOut
+         * @description §8.4 explainability: present only when the request supplied
+         *     preferences to rank against, and only ever built from signals that
+         *     actually matched (T16/ADR-005).
+         */
+        PersonalizationOut: {
+            /** Explanation */
+            explanation?: string | null;
+            /** Score */
+            score: number;
+            /** Why Matters */
+            why_matters?: string | null;
+        };
         /** PreferencesUpdate */
         PreferencesUpdate: {
             /** Home City */
@@ -920,6 +934,7 @@ export interface components {
             id: string;
             /** Importance */
             importance: number;
+            personalization?: components["schemas"]["PersonalizationOut"] | null;
             /** Published At */
             published_at?: string | null;
             /**
@@ -1500,7 +1515,14 @@ export interface operations {
     };
     get_home_v1_home_get: {
         parameters: {
-            query?: never;
+            query?: {
+                residence_country?: string | null;
+                residence_region?: string | null;
+                home_state?: string | null;
+                home_city?: string | null;
+                topics?: string | null;
+                segment?: "general" | "international_student" | "graduate_opt" | "professional" | "family_parent" | "other";
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -1514,6 +1536,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HomeResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

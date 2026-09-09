@@ -81,6 +81,9 @@ class Source(Base):
     fail_count: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
     last_success_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     last_error_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    # §8.2 ranking's `source_quality` input (T16/ADR-005). Neutral default
+    # until a later ticket exposes it in the source-registry admin CRUD.
+    quality_score: Mapped[float] = mapped_column(Float, nullable=False, server_default="0.5")
 
 
 class SourceItem(Base):
@@ -257,6 +260,23 @@ class AiCallLog(Base):
     tokens_out: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
     cost_usd: Mapped[float] = mapped_column(Numeric(12, 6), nullable=False, server_default="0")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+
+
+class StoryWhyMattersCache(Base):
+    """T16/§8.3: one AI-generated "why this matters" per (story, audience
+    segment), generated at most once and reused by every subsequent request
+    for that pair — see `app/content/why_matters.py`."""
+
+    __tablename__ = "story_why_matters_cache"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    story_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("stories.id", ondelete="CASCADE"), nullable=False)
+    # 'general' | 'international_student' | 'graduate_opt' | 'professional' |
+    # 'family_parent' | 'other' per `ck_story_why_matters_cache_segment`.
+    segment: Mapped[str] = mapped_column(Text, nullable=False)
+    why_matters: Mapped[str] = mapped_column(Text, nullable=False)
+    model_version: Mapped[str | None] = mapped_column(Text, nullable=True)
+    generated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
 
 
 class AuditEvent(Base):
