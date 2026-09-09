@@ -5,15 +5,15 @@ import { listStories } from "@/lib/api";
 
 export const revalidate = 60;
 
-type Props = { params: { code: string } };
+type Props = { params: Promise<{ code: string }> };
 
-export function generateMetadata({ params }: Props): Metadata {
-  const code = params.code.toUpperCase();
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const code = (await params).code.toUpperCase();
   return { title: `${code} news`, description: `Latest stories about ${code} on Telugu Global.` };
 }
 
 export default async function CountryPage({ params }: Props) {
-  const code = params.code.toUpperCase();
+  const code = (await params).code.toUpperCase();
   const { items } = await listStories({ country: code });
 
   return (

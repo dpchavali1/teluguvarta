@@ -29,8 +29,8 @@ prior conversation history.
 | T16 Personalization | **done** | Deterministic §8.2 ranking (`app/content/ranking.py`), no ML; `GET /v1/home` personalizes when preferences are supplied as query params (no accepted account backend yet — see ADR-005); `Task.WHY_MATTERS` now actually invoked, cached per `(story_id, segment)` in new `story_why_matters_cache`; ADR-005 accepted |
 | T17 Push notifications | **done** | Real anonymous identity (ADR-006 resolved), persisted preferences/push tokens, `notification_dispatch` job with dedupe/quiet-hours/daily-cap/breaking-approval gate |
 | T18 Observability | **done** | Structured JSON logging + request/job context; Sentry-equivalent error tracking (plain HTTP envelope, no SDK) in all 4 apps; `/v1/admin/observability` (ingestion health/job queue/AI cost) + admin dashboard page; alert-dispatch module wired to worker loop; §17 analytics events routed through `POST /v1/events` (T17's endpoint) into `app/analytics.py`, forwarded to PostHog when configured |
-| T19 Hardening | **partial — see changelog** | Real: MFA on admin login, cross-system account deletion, search/admin rate limiting, dependency scanning (pip-audit clean)/SAST (bandit clean, one real XXE finding fixed), budget-breach auto-publish gate wired, backup/restore scripts + one real local restore test passed, WCAG 2.2 AA axe pass across 12 pages, local load test within §16 targets, ADR-007 accepted, 30-item golden AI eval harness, app-store readiness doc. **Known P0/P1 gap, release blocker**: `next@14.2.35` (both apps/web and apps/admin) carries unpatched high/critical CVEs incl. 2 unauthenticated RCEs — no 14.x fix exists, only Next 15 (breaking migration, not attempted this session, `pnpm audit` wired as non-blocking pending it). MFA/rate-limiting/backups not exercised against real managed infra (local-only, per ADR-007). Golden AI set is 30 items, not §18's ≥300, no live-provider run (same no-network-access gap as every AI ticket since T10). |
-| T20 Pilot | not started | |
+| T19 Hardening | **partial — see changelog** | Real: MFA on admin login, cross-system account deletion, search/admin rate limiting, dependency scanning (pip-audit clean)/SAST (bandit clean, one real XXE finding fixed), budget-breach auto-publish gate wired, backup/restore scripts + one real local restore test passed, WCAG 2.2 AA axe pass across 12 pages, local load test within §16 targets, ADR-007 accepted, 30-item golden AI eval harness, app-store readiness doc. **P0 RCE gap now fixed** (see 2026-09-09 entry below) — `next@14.2.35` upgraded to `15.5.25` in both apps. Still open: MFA/rate-limiting/backups not exercised against real managed infra (local-only, per ADR-007). Golden AI set is 30 items, not §18's ≥300, no live-provider run (same no-network-access gap as every AI ticket since T10). |
+| T20 Pilot | **blocked — NO-GO, see report** | `docs/runbooks/pilot-report.md`: pre-build validation gate still NOT STARTED (product-owner action, blocks launch on its own) — this is now the sole remaining launch blocker; no actual 50-100 user pilot run yet (real-world recruiting is product/ops-owned, not Claude Code's). Verified §17 analytics are real, not assumed: all 12 core events implemented server-side (`app/analytics.py`) and actually emitted client-side in both `apps/web` and `apps/mobile` (grepped call sites, not inferred). Walked the full §26 checklist item-by-item against what's built; S1/S2 (student) and X1-X4 (X adapter) rows marked not-applicable since those parallel tickets haven't started. |
 
 ## X adapter
 
@@ -66,6 +66,39 @@ Mirrors `docs/adr/README.md` — keep both in sync.
 
 (newest first — one line per ticket completion)
 
+- 2026-09-09: T19 P0 fix — upgraded `next` from `14.2.35` (2 unauthenticated
+  RCEs, no 14.x patch) to `15.5.25` in both `apps/web` and `apps/admin`
+  (`package.json`), the latest patched 15.x release. Kept React at `18.3.1`
+  — Next 15.5.25's peer range (`^18.2.0 || 19.0.0`) supports it, so no React
+  19 migration was needed. Fixed the one real breaking-change surface: four
+  server-component pages used Next 14's synchronous `params`/`searchParams`
+  (`apps/web/src/app/{topic/[slug],country/[code],story/[slug],search}/
+  page.tsx`) — Next 15 makes both `Promise`s, so each now `await`s them.
+  `apps/admin/src/app/review/[id]/page.tsx` uses the client-side
+  `useParams()` hook, which is unaffected. Also added root `pnpm.overrides`
+  for `postcss` (>=8.5.18) and `js-yaml` (>=4.3.2) to clear the remaining
+  high-severity transitive advisories pulled in by `next`'s own bundled
+  deps and `openapi-typescript`'s toolchain — `pnpm audit --audit-level=high`
+  now reports **zero** high/critical findings (3 moderate remain: `uuid`,
+  `fast-xml-parser`, `decode-uri-component`, all deep transitive, none in
+  the request path). Flipped `.github/workflows/ci.yml`'s dependency-scan
+  step from `continue-on-error: true` (informational) to a real hard gate.
+  Verified, not assumed: `pnpm run lint`/`typecheck` clean across the repo;
+  `next build` succeeds for both `apps/web` and `apps/admin` against a real
+  local Postgres + FastAPI backend (Homebrew Postgres left running from a
+  prior session, `apps/api` started with `.env` loaded) — the web build
+  actually fetches `/v1/home` and pre-renders 15/15 static+dynamic routes,
+  not just `next lint`/`tsc`; `apps/web`'s `test:a11y` (axe-core, 12 pages,
+  a real `next start` server) still passes with zero violations. The mobile
+  Jest suite has one pre-existing flaky failure
+  (`PrivacyScreen`/`act()`-wrapping in `analytics.test.tsx`) confirmed via
+  `git stash` to already fail identically on `main` before this change —
+  not a regression from this upgrade, left untouched as out of scope for a
+  security fix. This was the sole blocker in T19's changelog entry below
+  marked "release blocker" — with it fixed, T20's NO-GO
+  (`docs/runbooks/pilot-report.md`) now rests solely on the pre-build
+  validation gate never having been run, which is a product/ops action, not
+  something further engineering closes.
 - 2026-09-09: T19 partial — hardening. This ticket's scope (§16/§18 release
   gates) is too broad to fully close in a sandbox with no production infra,
   no app-store accounts, and no live AI provider network access (the same

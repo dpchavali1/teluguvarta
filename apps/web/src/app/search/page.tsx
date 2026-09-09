@@ -6,10 +6,10 @@ import { search } from "@/lib/api";
 
 export const metadata: Metadata = { title: "Search" };
 
-type Props = { searchParams: { q?: string } };
+type Props = { searchParams: Promise<{ q?: string }> };
 
 export default async function SearchPage({ searchParams }: Props) {
-  const q = searchParams.q?.trim() ?? "";
+  const q = (await searchParams).q?.trim() ?? "";
   const results = q.length > 0 ? await search(q) : null;
 
   return (

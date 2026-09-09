@@ -7,11 +7,12 @@ import { ApiNotFoundError, getShareMeta, getStory } from "@/lib/api";
 
 export const revalidate = 60;
 
-type Props = { params: { slug: string } };
+type Props = { params: Promise<{ slug: string }> };
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const { slug } = await params;
   try {
-    const meta = await getShareMeta(params.slug);
+    const meta = await getShareMeta(slug);
     return {
       title: meta.title,
       description: meta.description,
@@ -33,9 +34,10 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 }
 
 export default async function StoryPage({ params }: Props) {
+  const { slug } = await params;
   let story;
   try {
-    story = await getStory(params.slug);
+    story = await getStory(slug);
   } catch (err) {
     if (err instanceof ApiNotFoundError) notFound();
     throw err;

@@ -6,11 +6,12 @@ import { ApiNotFoundError, getTopic } from "@/lib/api";
 
 export const revalidate = 60;
 
-type Props = { params: { slug: string } };
+type Props = { params: Promise<{ slug: string }> };
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const { slug } = await params;
   try {
-    const { topic } = await getTopic(params.slug);
+    const { topic } = await getTopic(slug);
     return { title: topic.name, description: `Latest ${topic.name} stories on Telugu Global.` };
   } catch (err) {
     if (err instanceof ApiNotFoundError) return {};
@@ -19,9 +20,10 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 }
 
 export default async function TopicPage({ params }: Props) {
+  const { slug } = await params;
   let data;
   try {
-    data = await getTopic(params.slug);
+    data = await getTopic(slug);
   } catch (err) {
     if (err instanceof ApiNotFoundError) notFound();
     throw err;
