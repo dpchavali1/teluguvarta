@@ -1,5 +1,7 @@
 import Link from "next/link";
 
+import { ThemeToggle } from "@/components/ThemeToggle";
+
 const NAV_LINKS = [
   { href: "/", label: "Home" },
   { href: "/search", label: "Search" },
@@ -12,17 +14,21 @@ export function SiteHeader() {
     <header className="site-header">
       <div className="site-header__inner">
         <Link href="/" className="site-header__brand">
-          Telugu Global
+          <span className="site-header__brand-en">Telugu Global</span>
+          <span className="site-header__brand-te" lang="te">తెలుగు గ్లోబల్</span>
         </Link>
-        <nav className="site-nav" aria-label="Main navigation">
-          <ul>
-            {NAV_LINKS.map((link) => (
-              <li key={link.href}>
-                <Link href={link.href}>{link.label}</Link>
-              </li>
-            ))}
-          </ul>
-        </nav>
+        <div className="site-header__right">
+          <nav className="site-nav" aria-label="Main navigation">
+            <ul>
+              {NAV_LINKS.map((link) => (
+                <li key={link.href}>
+                  <Link href={link.href}>{link.label}</Link>
+                </li>
+              ))}
+            </ul>
+          </nav>
+          <ThemeToggle />
+        </div>
       </div>
     </header>
   );

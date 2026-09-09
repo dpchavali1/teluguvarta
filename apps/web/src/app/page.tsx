@@ -12,12 +12,14 @@ export default async function HomePage() {
   return (
     <>
       <TrackEvent event="feed_view" properties={{ story_count: topStories.length }} />
-      <h1>Telugu Global</h1>
-      <p>The latest stories for the global Telugu diaspora — original summaries, always linked to the source.</p>
+      <section className="page-hero">
+        <h1>Telugu Global</h1>
+        <p>The latest stories for the global Telugu diaspora — original summaries, always linked to the source.</p>
+      </section>
 
       {topics.length > 0 && (
         <nav aria-label="Topics">
-          <ul className="site-footer__inner" style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem", listStyle: "none", padding: 0 }}>
+          <ul style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem", listStyle: "none", padding: 0, marginBottom: "2rem" }}>
             {topics.map((topic) => (
               <li key={topic.slug}>
                 <Link className="pill" href={`/topic/${topic.slug}`}>

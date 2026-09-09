@@ -84,12 +84,16 @@ export function StoryCard({ story, headingLevel = "h2" }: { story: StoryOut; hea
         </p>
       )}
 
-      <Heading className="story-card__headline" id={`story-${story.id}-headline`}>
+      <Heading className="story-card__headline" id={`story-${story.id}-headline`} lang={language}>
         <Link href={`/story/${story.canonical_slug}`}>{variant.headline}</Link>
       </Heading>
 
-      <p>{variant.summary}</p>
-      {variant.why_matters && <p className="story-card__why">Why this matters: {variant.why_matters}</p>}
+      <p lang={language}>{variant.summary}</p>
+      {variant.why_matters && (
+        <p className="story-card__why" lang={language}>
+          <strong>Why this matters:</strong> {variant.why_matters}
+        </p>
+      )}
 
       {primarySource && (
         <p>
@@ -118,6 +122,7 @@ export function StoryCard({ story, headingLevel = "h2" }: { story: StoryOut; hea
               type="button"
               aria-pressed={language === "te"}
               onClick={() => handleLanguageSwitch("te")}
+              lang="te"
             >
               తెలుగు
             </button>

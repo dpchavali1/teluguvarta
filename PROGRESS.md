@@ -70,6 +70,81 @@ Mirrors `docs/adr/README.md` — keep both in sync.
 
 (newest first — one line per ticket completion)
 
+- 2026-09-09: Product-owner decision (not a Claude Code call): proceed with
+  remaining build-order tickets (S1/S2, X1-X4) without running the T20
+  pilot. `docs/runbooks/pilot-report.md`'s NO-GO and its reasoning stand
+  unchanged — this is a recorded scope decision, not a resolution of that
+  gate.
+- 2026-09-09: apps/web visual redesign v2 — the v1 redesign below (warm
+  cream/copper, Fraunces+Inter) was shown to the user and rejected as
+  generic/"primitive" and, separately, was applied by a subagent that had
+  been told to only survey files, not edit them (an instruction-following
+  failure caught after the fact — flagged as user feedback). Before writing
+  any more app code this time, published an HTML mockup as a Claude
+  Artifact for review and got explicit sign-off on the direction before
+  touching the real codebase. Design: a "wire desk" dispatch layout (Axios
+  Smart Brevity density + Bloomberg-style mono datelines/tabular figures +
+  NYT-grade serif headline type), on a deep teal-ink ground with a marigold
+  accent and a separate teal secondary — chosen to avoid the cream+serif+
+  terracotta look that both v1 and generic AI-generated designs default to.
+  Typography: Newsreader (headline serif) + IBM Plex Sans (body/UI) +
+  IBM Plex Mono (datelines/labels/tabular numbers) + Noto Serif Telugu
+  (Telugu headlines, new) + Noto Sans Telugu (Telugu body, already present)
+  — all via `next/font/google` as CSS variables in `layout.tsx`, self-hosted.
+  Real explicit light/dark toggle (not just OS `prefers-color-scheme`): new
+  `apps/web/src/components/ThemeToggle.tsx` (sun/moon buttons, `aria-pressed`
+  state) sets `data-theme` on `<html>` and persists to `localStorage`
+  (`tg-theme`); `globals.css` tokens are structured so system-preference dark
+  mode and the explicit toggle both resolve correctly regardless of which
+  one is active (media query guarded by `:not([data-theme="light"])`, plus a
+  `[data-theme="dark"]` override so the toggle always wins); an inline
+  pre-hydration script in `layout.tsx`'s `<head>` applies the stored choice
+  before first paint to avoid a flash. `SiteHeader` now shows the toggle and
+  a dual-script (EN/Telugu) brand lockup. `StoryCard` restyled from
+  shadow-elevated cards to rule-separated dispatch rows with mono-caps
+  topic/country chips and a bolded "Why this matters:" lead-in — behavior
+  unchanged (still the same EN/Telugu variant-toggle buttons, save/share/
+  report actions), purely a visual/CSS pass plus one JSX tweak (`why_matters`
+  label wrapped in `<strong>` so the CSS rule has something to target).
+  Because the whole app is CSS-token driven, this reached every route
+  (home, `/pilot`, search, story detail, topic/country, legal pages) through
+  `globals.css` + `layout.tsx` + `SiteHeader`/`StoryCard` alone — no other
+  page files needed edits. Verified: `pnpm run lint`/`typecheck` clean,
+  dev server serves `/`, `/pilot`, `/search` at 200 after a clean `.next`
+  rebuild, `apps/web/scripts/a11y-check.mjs` (axe-core, all 13 pages) still
+  zero violations. Not verified: actual visual screenshot — the Claude in
+  Chrome extension isn't connected on this machine, so this is confirmed via
+  build/lint/a11y output, not a rendered screenshot; a manual look in a real
+  browser is still worth doing.
+- 2026-09-09 (superseded by v2 above): apps/web visual redesign (whole app,
+  not just `/pilot`) — requested explicitly, done ahead of the next ticket
+  since new components will build on it. Replaced the plain maroon-on-cream/
+  system-font look with a distinct editorial identity: `apps/web/src/app/
+  globals.css` rewritten with a warm-paper/copper-and-gold palette (light +
+  dark, both still meet the existing focus-ring/reduced-motion a11y rules,
+  untouched), a serif display face (Fraunces) for headlines paired with
+  Inter for body/UI, and `next/font/google`'s `Noto_Sans_Telugu` for Telugu
+  script — loaded in `apps/web/src/app/layout.tsx` as CSS variables,
+  self-hosted by Next (no runtime Google Fonts request). Story cards get an
+  elevated surface+shadow treatment with a left accent bar, an
+  underline-on-hover headline, and a highlighted "why this matters" callout
+  instead of plain italic text; header is sticky with a blurred backdrop and
+  a small brand mark; hero sections (home, `/pilot`) got a proper editorial
+  hero block with a soft gradient on `/pilot`. Fixed a real pre-existing gap
+  while in there: Telugu-variant text in `StoryCard` had no `lang="te"`
+  anywhere (including the తెలుగు toggle button itself) — it was silently
+  inheriting `lang="en"` from the document, wrong for both screen readers
+  and font selection; now every Telugu-variant node and the toggle button
+  carry `lang="te"`, which is also what makes the new Noto Sans Telugu font
+  actually apply where it should. No new dependencies — plain CSS as
+  before, no Tailwind/component-library adopted. Verified: `pnpm run
+  lint`/`typecheck` clean, `next build` succeeds (production build, `/pilot`
+  and `/` both in the static output), `apps/web/scripts/a11y-check.mjs`
+  (axe-core, all 13 pages) still passes with zero violations. Not verified:
+  actual browser rendering — the Claude in Chrome extension isn't connected
+  on this machine, so this was checked via build output, lint/typecheck,
+  and the automated a11y pass only, not a visual screenshot; worth a manual
+  look in a real browser before calling the look-and-feel change final.
 - 2026-09-09: T20 pre-build validation gate — engineering side. Built the
   `docs/BUILD_ORDER.md` gate's "landing page + 3 example personalized
   feeds": `apps/web/src/app/pilot/page.tsx` fetches 3 real personalized
