@@ -308,6 +308,96 @@
         "title": "AdminLoginResponse",
         "type": "object"
       },
+      "AdminPilotSignupOut": {
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "email": {
+            "title": "Email",
+            "type": "string"
+          },
+          "example_feed": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Example Feed"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "recommend_willingness": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recommend Willingness"
+          },
+          "segment": {
+            "anyOf": [
+              {
+                "enum": [
+                  "general",
+                  "international_student",
+                  "graduate_opt",
+                  "professional",
+                  "family_parent",
+                  "other"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Segment"
+          }
+        },
+        "required": [
+          "id",
+          "email",
+          "segment",
+          "example_feed",
+          "recommend_willingness",
+          "created_at"
+        ],
+        "title": "AdminPilotSignupOut",
+        "type": "object"
+      },
+      "AdminPilotSignupsResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/AdminPilotSignupOut"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "total",
+          "items"
+        ],
+        "title": "AdminPilotSignupsResponse",
+        "type": "object"
+      },
       "AdminRejectRequest": {
         "properties": {
           "archive": {
@@ -1400,6 +1490,80 @@
           "score"
         ],
         "title": "PersonalizationOut",
+        "type": "object"
+      },
+      "PilotSignupIn": {
+        "properties": {
+          "email": {
+            "title": "Email",
+            "type": "string"
+          },
+          "example_feed": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Example Feed"
+          },
+          "recommend_willingness": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recommend Willingness"
+          },
+          "segment": {
+            "anyOf": [
+              {
+                "enum": [
+                  "general",
+                  "international_student",
+                  "graduate_opt",
+                  "professional",
+                  "family_parent",
+                  "other"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Segment"
+          }
+        },
+        "required": [
+          "email"
+        ],
+        "title": "PilotSignupIn",
+        "type": "object"
+      },
+      "PilotSignupOut": {
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "created_at"
+        ],
+        "title": "PilotSignupOut",
         "type": "object"
       },
       "PreferencesUpdate": {
@@ -2757,6 +2921,56 @@
         ]
       }
     },
+    "/v1/admin/pilot-signups": {
+      "get": {
+        "description": "T20 pre-build validation gate: the opt-in count and roster behind the\nlanding page's 3 example feeds \u2014 this table is the whole measurement of\nthe gate's \"opt-in\" metric, see `docs/BUILD_ORDER.md`.",
+        "operationId": "list_pilot_signups_v1_admin_pilot_signups_get",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminPilotSignupsResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Pilot Signups",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
     "/v1/admin/review-queue": {
       "get": {
         "operationId": "get_review_queue_v1_admin_review_queue_get",
@@ -3970,6 +4184,48 @@
         "summary": "Save Story",
         "tags": [
           "me"
+        ]
+      }
+    },
+    "/v1/pilot-signups": {
+      "post": {
+        "description": "T20 pre-build validation gate: capture a landing-page opt-in. Public,\nno auth (NON_NEGOTIABLES #9) \u2014 same-day-repeatable, tightly rate-limited\nsince it's a write. Re-signup with the same email updates which example\nfeed/segment drew them back rather than erroring, so a visitor who\nrevisits and picks a different example feed still counts once.",
+        "operationId": "create_pilot_signup_v1_pilot_signups_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PilotSignupIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PilotSignupOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Pilot Signup",
+        "tags": [
+          "public"
         ]
       }
     },

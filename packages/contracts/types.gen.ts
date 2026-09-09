@@ -163,6 +163,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/admin/pilot-signups": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Pilot Signups
+         * @description T20 pre-build validation gate: the opt-in count and roster behind the
+         *     landing page's 3 example feeds — this table is the whole measurement of
+         *     the gate's "opt-in" metric, see `docs/BUILD_ORDER.md`.
+         */
+        get: operations["list_pilot_signups_v1_admin_pilot_signups_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/admin/review-queue": {
         parameters: {
             query?: never;
@@ -486,6 +508,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/pilot-signups": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Create Pilot Signup
+         * @description T20 pre-build validation gate: capture a landing-page opt-in. Public,
+         *     no auth (NON_NEGOTIABLES #9) — same-day-repeatable, tightly rate-limited
+         *     since it's a write. Re-signup with the same email updates which example
+         *     feed/segment drew them back rather than erroring, so a visitor who
+         *     revisits and picks a different example feed still counts once.
+         */
+        post: operations["create_pilot_signup_v1_pilot_signups_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/search": {
         parameters: {
             query?: never;
@@ -703,6 +749,34 @@ export interface components {
              * @constant
              */
             token_type: "bearer";
+        };
+        /** AdminPilotSignupOut */
+        AdminPilotSignupOut: {
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Email */
+            email: string;
+            /** Example Feed */
+            example_feed: string | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Recommend Willingness */
+            recommend_willingness: number | null;
+            /** Segment */
+            segment: ("general" | "international_student" | "graduate_opt" | "professional" | "family_parent" | "other") | null;
+        };
+        /** AdminPilotSignupsResponse */
+        AdminPilotSignupsResponse: {
+            /** Items */
+            items: components["schemas"]["AdminPilotSignupOut"][];
+            /** Total */
+            total: number;
         };
         /** AdminRejectRequest */
         AdminRejectRequest: {
@@ -1048,6 +1122,30 @@ export interface components {
             score: number;
             /** Why Matters */
             why_matters?: string | null;
+        };
+        /** PilotSignupIn */
+        PilotSignupIn: {
+            /** Email */
+            email: string;
+            /** Example Feed */
+            example_feed?: string | null;
+            /** Recommend Willingness */
+            recommend_willingness?: number | null;
+            /** Segment */
+            segment?: ("general" | "international_student" | "graduate_opt" | "professional" | "family_parent" | "other") | null;
+        };
+        /** PilotSignupOut */
+        PilotSignupOut: {
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
         };
         /** PreferencesUpdate */
         PreferencesUpdate: {
@@ -1649,6 +1747,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ObservabilityOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_pilot_signups_v1_admin_pilot_signups_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminPilotSignupsResponse"];
                 };
             };
             /** @description Validation Error */
@@ -2319,6 +2448,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SavedStoryResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_pilot_signup_v1_pilot_signups_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PilotSignupIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PilotSignupOut"];
                 };
             };
             /** @description Validation Error */

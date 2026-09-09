@@ -5,7 +5,11 @@ Update this file at the end of every ticket. This is the source of truth for
 prior conversation history.
 
 **Pre-build validation gate** (product decision, not a ticket — see
-`docs/BUILD_ORDER.md`): NOT STARTED.
+`docs/BUILD_ORDER.md`): engineering deliverable shipped 2026-09-09 — the
+landing page (`/pilot`) + 3 example personalized feeds + signup capture (see
+2026-09-09 changelog entry below). **Still NOT STARTED**: recruiting the
+actual 50-100 target users and running the 14-day measurement window — that
+part is a product/ops action this repo can support but not perform.
 
 ## Main spine
 
@@ -30,7 +34,7 @@ prior conversation history.
 | T17 Push notifications | **done** | Real anonymous identity (ADR-006 resolved), persisted preferences/push tokens, `notification_dispatch` job with dedupe/quiet-hours/daily-cap/breaking-approval gate |
 | T18 Observability | **done** | Structured JSON logging + request/job context; Sentry-equivalent error tracking (plain HTTP envelope, no SDK) in all 4 apps; `/v1/admin/observability` (ingestion health/job queue/AI cost) + admin dashboard page; alert-dispatch module wired to worker loop; §17 analytics events routed through `POST /v1/events` (T17's endpoint) into `app/analytics.py`, forwarded to PostHog when configured |
 | T19 Hardening | **partial — see changelog** | Real: MFA on admin login, cross-system account deletion, search/admin rate limiting, dependency scanning (pip-audit clean)/SAST (bandit clean, one real XXE finding fixed), budget-breach auto-publish gate wired, backup/restore scripts + one real local restore test passed, WCAG 2.2 AA axe pass across 12 pages, local load test within §16 targets, ADR-007 accepted, 30-item golden AI eval harness, app-store readiness doc. **P0 RCE gap now fixed** (see 2026-09-09 entry below) — `next@14.2.35` upgraded to `15.5.25` in both apps. Still open: MFA/rate-limiting/backups not exercised against real managed infra (local-only, per ADR-007). Golden AI set is 30 items, not §18's ≥300, no live-provider run (same no-network-access gap as every AI ticket since T10). |
-| T20 Pilot | **blocked — NO-GO, see report** | `docs/runbooks/pilot-report.md`: pre-build validation gate still NOT STARTED (product-owner action, blocks launch on its own) — this is now the sole remaining launch blocker; no actual 50-100 user pilot run yet (real-world recruiting is product/ops-owned, not Claude Code's). Verified §17 analytics are real, not assumed: all 12 core events implemented server-side (`app/analytics.py`) and actually emitted client-side in both `apps/web` and `apps/mobile` (grepped call sites, not inferred). Walked the full §26 checklist item-by-item against what's built; S1/S2 (student) and X1-X4 (X adapter) rows marked not-applicable since those parallel tickets haven't started. |
+| T20 Pilot | **blocked — NO-GO, see report** | `docs/runbooks/pilot-report.md`. Engineering side of the pre-build validation gate now shipped: `/pilot` landing page (3 example personalized feeds using real T16 `/v1/home` ranking for professional/international_student/family_parent segments) + email signup capture (`POST /v1/pilot-signups`, dedupes by email, rate-limited; `GET /v1/admin/pilot-signups` for the opt-in count/roster) — see 2026-09-09 changelog entry. **Still blocks GO**: recruiting the actual 50-100 users and running the 14-day measurement window is a product/ops action, not something further engineering closes. Verified §17 analytics are real, not assumed: all 12 core events implemented server-side (`app/analytics.py`) and actually emitted client-side in both `apps/web` and `apps/mobile` (grepped call sites, not inferred). Walked the full §26 checklist item-by-item against what's built; S1/S2 (student) and X1-X4 (X adapter) rows marked not-applicable since those parallel tickets haven't started. |
 
 ## X adapter
 
@@ -66,6 +70,42 @@ Mirrors `docs/adr/README.md` — keep both in sync.
 
 (newest first — one line per ticket completion)
 
+- 2026-09-09: T20 pre-build validation gate — engineering side. Built the
+  `docs/BUILD_ORDER.md` gate's "landing page + 3 example personalized
+  feeds": `apps/web/src/app/pilot/page.tsx` fetches 3 real personalized
+  previews via a new `getHomeFor(segment, topics)` helper
+  (`apps/web/src/lib/api.ts`) against the existing T16 `GET /v1/home`
+  ranking — professional (jobs/immigration/money), international_student
+  (education/immigration/community), family_parent (Andhra
+  Pradesh/Telangana/parents/property) — reusing `StoryCard`, not mock data.
+  Each feed has a `PilotSignupForm` (new client component) posting to a new
+  public `POST /v1/pilot-signups` endpoint (`apps/api/app/routers/
+  public.py`): validates email format, dedupes by email (re-signup updates
+  segment/example_feed rather than erroring), rate-limited via a new
+  `rate_limit_signup` (5 req/5min/IP, tighter than search's since it's a
+  write). New `pilot_signups` table (migration `8c4f2a1e9d03`,
+  `PilotSignup` model) — deliberately separate from the `users`/`profiles`
+  account model since a landing-page visitor has neither. New admin
+  `GET /v1/admin/pilot-signups` (`AdminPilotSignupsResponse`: total + roster)
+  for reading the opt-in count/segment breakdown, same `current_admin`+
+  `rate_limit_admin` gating as every other admin endpoint. Added
+  `pilot_signup_created` to `app/analytics.py`'s event allowlist (tracked
+  separately from the §17 in-product events since it fires before there's a
+  product session). Regenerated `packages/contracts` for the new schemas.
+  Verified: 6 new pytest cases (`tests/test_pilot_signups.py` — create,
+  invalid-email rejection, dedupe/case-normalization, rate-limit trip, admin
+  list, admin auth-required) plus the full existing suite still green;
+  `ruff check .` clean; `pnpm run lint`/`typecheck` clean repo-wide; `next
+  build` includes `/pilot` in the static output; `/pilot` added to
+  `apps/web/scripts/a11y-check.mjs` and passes with zero violations;
+  manually curl-verified signup/validation/DB-write against a real local
+  Postgres+API. **What this does not and cannot do**: recruit the actual
+  50-100 real users or run the 14-day measurement window — that's the
+  product/ops half of the gate, tracked as still NOT STARTED at the top of
+  this file. `docs/runbooks/pilot-report.md` updated in the same pass: the
+  NO-GO stands (the gate isn't satisfied until the actual pilot runs), but
+  product/ops now has a concrete `/pilot` URL to send recruits to instead
+  of a from-scratch build step.
 - 2026-09-09: T19 P0 fix — upgraded `next` from `14.2.35` (2 unauthenticated
   RCEs, no 14.x patch) to `15.5.25` in both `apps/web` and `apps/admin`
   (`package.json`), the latest patched 15.x release. Kept React at `18.3.1`

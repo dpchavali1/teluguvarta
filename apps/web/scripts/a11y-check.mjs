@@ -59,6 +59,7 @@ async function main() {
     "/corrections",
     "/copyright-takedown",
     "/account/delete",
+    "/pilot",
   ];
   if (storySlug) pages.push(`/story/${storySlug}`);
   else console.warn("No published story found — skipping the story-page a11y check (seed one with `pnpm run seed`).");

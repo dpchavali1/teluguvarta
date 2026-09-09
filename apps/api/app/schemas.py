@@ -439,3 +439,29 @@ class ObservabilityOut(BaseModel):
     ingestion_health: list[SourceIngestionHealthOut]
     job_queue: JobQueueHealthOut
     ai_cost: AiCostSummaryOut
+
+
+class PilotSignupIn(BaseModel):
+    email: str
+    segment: Segment | None = None
+    example_feed: str | None = None
+    recommend_willingness: int | None = None
+
+
+class PilotSignupOut(BaseModel):
+    id: UUID
+    created_at: datetime
+
+
+class AdminPilotSignupOut(BaseModel):
+    id: UUID
+    email: str
+    segment: Segment | None
+    example_feed: str | None
+    recommend_willingness: int | None
+    created_at: datetime
+
+
+class AdminPilotSignupsResponse(BaseModel):
+    total: int
+    items: list[AdminPilotSignupOut]

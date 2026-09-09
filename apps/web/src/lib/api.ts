@@ -67,6 +67,17 @@ export async function getHome(): Promise<HomeResponse> {
   return { top_stories: (raw.top_stories ?? []).map(normalizeStory), topics: raw.topics ?? [] };
 }
 
+// T20 pre-build validation gate: a personalized preview for one of the
+// landing page's 3 example feeds, using the same T16 `/v1/home` ranking the
+// real product uses — no separate demo/mock data path.
+export async function getHomeFor(segment: string, topics: string[]): Promise<HomeResponse> {
+  const raw = await apiGet<components["schemas"]["HomeResponse"]>("/v1/home", {
+    segment,
+    topics: topics.join(","),
+  });
+  return { top_stories: (raw.top_stories ?? []).map(normalizeStory), topics: raw.topics ?? [] };
+}
+
 export async function listStories(
   params: { topic?: string; country?: string; cursor?: string } = {}
 ): Promise<StoriesListResponse> {
@@ -96,4 +107,22 @@ export async function search(q: string): Promise<SearchResponse> {
 export async function getConfig(): Promise<ConfigResponse> {
   const raw = await apiGet<components["schemas"]["ConfigResponse"]>("/v1/config");
   return { ...raw, topics: raw.topics ?? [] };
+}
+
+// T20 pre-build validation gate: landing-page signup, called from the
+// browser (a mutation, not the SSR fetch path above).
+export async function submitPilotSignup(body: {
+  email: string;
+  segment?: string;
+  example_feed?: string;
+}): Promise<void> {
+  const response = await fetch(new URL("/v1/pilot-signups", apiUrl()), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!response.ok) {
+    const errorBody = (await response.json().catch(() => null)) as { error?: { message?: string } } | null;
+    throw new Error(errorBody?.error?.message ?? "Signup failed");
+  }
 }

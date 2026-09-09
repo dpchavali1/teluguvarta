@@ -1,22 +1,42 @@
 # T20 — Pilot report and go/no-go decision
 
-**Status: NO-GO for public launch, pilot not yet executable.**
-Last updated: 2026-09-09 (revised after the Next.js RCE fix below).
+**Status: NO-GO for public launch, pilot not yet run.**
+Last updated: 2026-09-09 (revised after the Next.js RCE fix and the
+`/pilot` landing page, both below).
 
-## 1. Pre-build validation gate — NOT SATISFIED
+## 1. Pre-build validation gate — engineering side shipped, pilot itself not run
 
 `docs/BUILD_ORDER.md`'s "Pre-build validation gate" (landing page + 3 example
 personalized feeds → recruit 50-100 target users → 14-day digest pilot →
-measure repeat usage before *any* V1 build) is recorded in `PROGRESS.md` as
-**NOT STARTED**. The full T01-T19 build proceeded without it. This is
-flagged per T20's explicit instruction, not silently skipped:
+measure repeat usage before *any* V1 build) was recorded in `PROGRESS.md` as
+NOT STARTED — the full T01-T19 build proceeded without it. That's flagged
+per T20's explicit instruction, not silently skipped, and it's why this
+report is NO-GO. As of 2026-09-09, the engineering half of the gate exists:
 
-- No landing-page usage data or opt-in/recommend-willingness signal exists
-  anywhere in the repo to support the §1.5 "repeat weekly usage +
-  qualitative utility" launch bar.
-- This is a product-owner action Claude Code cannot perform (it requires
-  recruiting and observing real external users), so it cannot be closed by
-  further engineering work in this session.
+- **`/pilot`** (`apps/web/src/app/pilot/page.tsx`): pitch copy + 3 example
+  personalized feeds, each a real preview via the T16 `/v1/home` ranking
+  (not mock data) — professional (jobs/immigration/money), international
+  student (education/immigration/community), and family/parent (Andhra
+  Pradesh/Telangana/parents/property), the three segments closest to
+  `docs/BUILD_ORDER.md`'s "target USA Telugu NRI users". Each has an email
+  signup form.
+- **`POST /v1/pilot-signups`**: public, rate-limited, dedupes by email,
+  stores segment + which example feed drew the signup + an optional
+  recommend-willingness score (0-10) — the concrete opt-in/recommend
+  metrics the gate asks for. `GET /v1/admin/pilot-signups` gives product/ops
+  the running count and roster.
+- Verified, not assumed: 6 new pytest cases green, full existing suite still
+  green, `next build` includes `/pilot`, a11y check (axe-core) passes on it
+  with zero violations, manual curl-verified signup + validation + DB write.
+
+**What's still missing — and still the reason this is NO-GO**: nobody has
+been recruited yet, and no real visitor has used `/pilot`. Zero rows in
+`pilot_signups`. No opt-in count, no recommend-willingness data, no repeat-
+usage signal. Recruiting the actual 50-100 target users and running the
+14-day window is a product-owner/ops action Claude Code cannot perform (it
+requires reaching and observing real external people) — it cannot be closed
+by further engineering work. What changed today is that product/ops now has
+a concrete URL to send people to instead of a from-scratch build step.
 
 ## 2. Build-order gate — T19 is not fully "done", but its release blocker is fixed
 
@@ -112,10 +132,11 @@ supporting metric in §17 would actually be captured. This criterion is met.
 
 ## 6. What has to happen before this can flip to GO
 
-- Product/ops: run the pre-build validation gate (or a substitute
-  landing-page test) and get a real repeat-usage signal. **This is now the
-  only open item that isn't already closed or in-progress engineering
-  work.**
+- **Product/ops: recruit the actual 50-100 target users and send them to
+  `/pilot`, then run the 14-day measurement window and check
+  `GET /v1/admin/pilot-signups` plus qualitative follow-up against §1.5's
+  repeat-usage bar.** This is now the only open item — the landing page and
+  signup capture it depends on already exist and are verified working.
 - Engineering: decide whether S1/S2 (student cohort) and X1-X4 (X adapter)
   are in scope for the pilot cohort or explicitly out of scope — if out of
   scope, the corresponding checklist rows above stay "not applicable" and
@@ -123,6 +144,3 @@ supporting metric in §17 would actually be captured. This criterion is met.
 - Product/legal: confirm counsel review of `/privacy` and `/terms`, and
   confirm admin staffing plan for sensitive-category review during the
   pilot window.
-- Once the above are clear, recruit the actual 50-100 pilot users and run
-  the real pilot window — that step is product/ops-owned and cannot be
-  simulated here.
