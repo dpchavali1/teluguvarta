@@ -42,7 +42,7 @@ part is a product/ops action this repo can support but not perform.
 |---|---|---|
 | X1 X source registry fields | **done** | New `x_accounts` table (migration `a1b2c3d4e5f6`), one-to-one with `sources` (`source_id` FK, unique): `x_user_id` (unique stable id), `handle`, `priority`, `polling_cadence`, `since_id`, `budget_class`. Deliberately doesn't duplicate `rights_status`/`active`/`last_success_at`/`last_error_at` — those are read from the linked `Source` row, so enabling an X account goes through T06's exact same rights-evidence gate (`PATCH /v1/admin/sources/{id}`), no parallel approval flow. New `GET /v1/admin/x-accounts` (list, joined with Source) + `POST`/`PATCH /v1/admin/sources/{id}/x-account` (link/update; rejects a second account per source and a reused `x_user_id`), every mutation writes an `AuditEvent`. No X API credentials touch the schema (X2 will read them from the T02 secret manager). |
 | X2 Incremental X fetch | **done** | New `x_official_account_fetch` job (`app/jobs/x_fetch.py`) reusing T07's exact adapter contract (`app/adapters/x.py::XAdapter`) and T08's job-queue retry/backoff (`app/jobs/queue.py`) — a 429 or any other fetch failure just raises and lets the existing bounded exponential backoff handle it, no bespoke retry loop. `app/x/client.py::XApiClient` calls only the official `GET /2/users/{id}/tweets` (bounded to 10 pages/run); a 429 raises `XRateLimitedError` rather than retrying itself; no code path ever touches x.com's public site. Incremental via each `x_accounts.since_id`, advanced to the max post id seen per run — never a full timeline re-fetch. Scheduling (`schedule_due_x_fetches`) mirrors `schedule_due_source_fetches`: only `active`+`LINK_ONLY`-source, cadence-configured, non-circuit-broken accounts are enqueued, and skips *every* account for the cycle when `MONTHLY_X_API_BUDGET_USD` is exhausted (optional; blank = no guardrail, same pattern as T10's AI budget). Cost telemetry lands in a new `x_api_call_log` table (migration `b2c3d4e5f6a7`, mirrors T10's `ai_call_log`) via `app/x/budget.py` (`record_call`/`month_to_date_cost_usd`/`is_over_monthly_budget`/`budget_remaining_usd`) — `posts_read`/`cost_usd`/`status` ('OK'/'RATE_LIMITED'/'ERROR') per run; `X_API_COST_PER_POST_USD` env optionally prices `cost_usd`. No dedicated admin view yet (X4's job, ticket explicitly defers it) — the data just needs to exist, which it does. New env vars in `.env.example`: `X_API_BEARER_TOKEN` (required to fetch at all — unset fails closed via the normal circuit-breaker path, never a scraping fallback), `X_API_COST_PER_POST_USD`, `MONTHLY_X_API_BUDGET_USD`. Verified: `alembic upgrade head`/`downgrade -1`/`upgrade head` round-trip clean; `ruff check .` clean; new `tests/test_x_adapter.py` + `tests/test_x_fetch_job.py` (13 tests: pagination/since_id/429/rights-gate/idempotency/scheduling/budget-gate/telemetry) plus full `pytest` (233 passed) all green against a real local Postgres. |
-| X3 X post to story pipeline | not started | |
+| X3 X post to story pipeline | **done** | See 2026-09-09 changelog entry |
 | X4 X monitoring/budget guard | not started | |
 
 ## Student experience
@@ -70,6 +70,52 @@ Mirrors `docs/adr/README.md` — keep both in sync.
 
 (newest first — one line per ticket completion)
 
+- 2026-09-09: X3 done — X post to story pipeline. Audited the claim that "X
+  gets no special treatment" (§6.3.1, NON_NEGOTIABLES #4/#12) against the
+  actual code rather than assuming X1/X2 already covered it: `XAdapter.emit()`
+  (`app/adapters/x.py`) already reuses `SourceAdapter`'s shared
+  normalize/validate/emit contract (`app/adapters/base.py`) verbatim — same
+  rights gate (`RIGHTS_BLOCKED` unless `LINK_ONLY`), same idempotent
+  `(source_id, external_id)` upsert — and T09/T11/T12/T14
+  (`cluster_normalized_items`/`generate_stories`/`auto_publish_stories`/
+  `story_to_out`) operate purely on `SourceItem`/`Story` rows with zero
+  source-type branching anywhere (confirmed by grep, not inferred). So no
+  code change was needed to satisfy the ticket's four acceptance criteria —
+  they were already true by construction — but no test exercised an actual
+  X-derived item through the full pipeline to prove it, so that's what this
+  ticket adds. New `tests/test_x_story_pipeline.py` drives a real `XAdapter`
+  (mocked HTTP transport, no live network) through
+  fetch→normalize→validate→emit→cluster→generate→approve→publish→serialize
+  for four scenarios: (1) a `DISABLED` X account's post is `RIGHTS_BLOCKED`
+  at emit and a full sweep (cluster/generate/auto-publish/publish) processes
+  zero rows, so no `Story` is ever created, let alone published; (2) an
+  X-derived story classified `IMMIGRATION` stays `REVIEW_REQUIRED` even with
+  `AUTO_PUBLISH_GLOBAL=true` — no official-account bypass exists; (3) a
+  published X-derived story's `story_to_out()` output links to the specific
+  canonical post URL (`https://x.com/{handle}/status/{id}`), not a generic
+  "X" label; (4) fetching the same tweet twice never creates a second
+  `SourceItem` or, after clustering, a second `Story`. Considered and
+  rejected one apparent gap: `XAdapter` stores the tweet's full text as
+  `SourceItem.title`, which reaches the public story page verbatim via
+  `StorySourceOut.title` (`StoryCard.tsx`'s "Read the original source:
+  {title}") — looked like a "copying full X post text" violation at first.
+  Rejected the fix (overriding `XAdapter.normalize()` to replace the title
+  with a fixed `"Post by @handle"` label) after checking
+  `app/jobs/cluster.py::_same_story()`: it clusters by exact/lexical match
+  on that same `title` field, so a fixed per-account label would make every
+  post from the same account within the 72h cluster window collapse into
+  one `Story` — a real regression traded for a non-issue. Re-read the
+  ticket's own framing ("same as any other LINK_ONLY source") and
+  NON_NEGOTIABLES #15's actual constraint (the *generated story summary*
+  must be original, not the linked-source attribution metadata) — an RSS
+  item's `title` is its own headline shown the same way, so a tweet's text
+  shown as attribution is parity, not a special case; `app/jobs/
+  generate.py::_summary_too_similar_to_source` is the actual verbatim-copy
+  guard on the AI-generated summary, and it's already source-agnostic.
+  Left as-is, not a gap. **Files**: `apps/api/tests/
+  test_x_story_pipeline.py` (new). No production code changed. **Verified**:
+  `ruff check .` clean; `pytest` 237 passed (real local Postgres, including
+  the 4 new tests); no other test files touched, no migration needed.
 - 2026-09-09: X2 done — incremental X official-account fetch. New
   `x_official_account_fetch` job (`app/jobs/x_fetch.py`) reuses T07's
   adapter contract (`app/adapters/x.py::XAdapter`) and T08's job-queue
