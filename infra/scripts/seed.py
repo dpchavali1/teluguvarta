@@ -17,7 +17,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "apps" / "api"))
 
-# §3.3 interest taxonomy (student topics are a separate, later-ticket list).
+# §3.3 interest taxonomy.
 SEED_TOPICS = [
     ("immigration", "Immigration"),
     ("money", "Money"),
@@ -32,6 +32,29 @@ SEED_TOPICS = [
     ("community", "Community"),
     ("entertainment", "Entertainment"),
     ("sports", "Sports"),
+]
+
+# S2 (docs/tickets/S2.md) / §3.1's student topic taxonomy — plain `Topic`
+# rows, same table as SEED_TOPICS above (no separate topic model), so they
+# flow through the existing ranking/notification/onboarding code unchanged.
+# `packages/domain`'s `STUDENT_TOPIC_SLUGS` is the client-side grouping list
+# used to label these separately in onboarding/settings UI; keep the two in
+# sync. §3.1 also lists "travel" as a student topic, but that's the same
+# concept as the general "Travel" topic above, not a duplicate row.
+STUDENT_SEED_TOPICS = [
+    ("f1", "F-1"),
+    ("cpt", "CPT"),
+    ("opt", "OPT"),
+    ("stem-opt", "STEM OPT"),
+    ("h1b-transition", "H-1B Transition"),
+    ("internships", "Internships"),
+    ("university-policy", "University Policy"),
+    ("campus-safety", "Campus Safety"),
+    ("taxes", "Taxes"),
+    ("housing", "Housing"),
+    ("scholarships", "Scholarships"),
+    ("student-community", "Student Community"),
+    ("international-student-jobs", "International Student Jobs"),
 ]
 
 DEMO_STORY_SLUG = "demo-h1b-visa-fee-update"
@@ -152,7 +175,8 @@ def main() -> int:
         print(f"Seeded {len(SEED_SOURCES)} LINK_ONLY sources.")
 
     with Session(engine) as db:
-        for slug, name in SEED_TOPICS:
+        all_topics = SEED_TOPICS + STUDENT_SEED_TOPICS
+        for slug, name in all_topics:
             topic = db.scalar(select(Topic).where(Topic.slug == slug))
             if topic is None:
                 db.add(Topic(id=uuid.uuid4(), slug=slug, name=name, active=True))
@@ -160,7 +184,7 @@ def main() -> int:
                 topic.name = name
                 topic.active = True
         db.commit()
-        print(f"Seeded {len(SEED_TOPICS)} topics.")
+        print(f"Seeded {len(all_topics)} topics ({len(STUDENT_SEED_TOPICS)} student).")
 
     with Session(engine) as db:
         story = db.scalar(select(Story).where(Story.canonical_slug == DEMO_STORY_SLUG))

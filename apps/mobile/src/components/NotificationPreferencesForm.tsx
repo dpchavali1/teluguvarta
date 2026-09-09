@@ -1,3 +1,4 @@
+import { STUDENT_TOPIC_SLUGS } from "@teluguvarta/domain";
 import React, { useEffect, useState } from "react";
 import { StyleSheet, Switch, Text, TextInput, View } from "react-native";
 
@@ -62,17 +63,25 @@ export function NotificationPreferencesForm({
       </Row>
 
       {topics.length > 0 && (
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Topics</Text>
-          {topics.map((topic) => (
-            <Row key={topic.slug} label={topic.name}>
-              <Switch
-                value={value.topics[topic.slug] ?? true}
-                onValueChange={(v) => setTopicEnabled(topic.slug, v)}
-              />
-            </Row>
-          ))}
-        </View>
+        <TopicSection
+          title="Topics"
+          topics={topics.filter((t) => !STUDENT_TOPIC_SLUGS.includes(t.slug as (typeof STUDENT_TOPIC_SLUGS)[number]))}
+          value={value}
+          onToggle={setTopicEnabled}
+        />
+      )}
+
+      {/* S2: student alert topics (F-1, OPT, campus safety, etc.) toggle
+          independently of the general topics above — unsubscribing from all
+          of one group leaves the other group's switches untouched, since
+          each is just its own entry in `value.topics`. */}
+      {topics.some((t) => STUDENT_TOPIC_SLUGS.includes(t.slug as (typeof STUDENT_TOPIC_SLUGS)[number])) && (
+        <TopicSection
+          title="Student topics"
+          topics={topics.filter((t) => STUDENT_TOPIC_SLUGS.includes(t.slug as (typeof STUDENT_TOPIC_SLUGS)[number]))}
+          value={value}
+          onToggle={setTopicEnabled}
+        />
       )}
 
       <View style={styles.section}>
@@ -116,6 +125,33 @@ export function NotificationPreferencesForm({
           style={styles.numberInput}
         />
       </View>
+    </View>
+  );
+}
+
+function TopicSection({
+  title,
+  topics,
+  value,
+  onToggle,
+}: {
+  title: string;
+  topics: TopicOut[];
+  value: NotificationPreferences;
+  onToggle: (slug: string, enabled: boolean) => void;
+}) {
+  if (topics.length === 0) return null;
+  return (
+    <View style={styles.section}>
+      <Text style={styles.sectionTitle}>{title}</Text>
+      {topics.map((topic) => (
+        <Row key={topic.slug} label={topic.name}>
+          <Switch
+            value={value.topics[topic.slug] ?? true}
+            onValueChange={(v) => onToggle(topic.slug, v)}
+          />
+        </Row>
+      ))}
     </View>
   );
 }

@@ -50,7 +50,7 @@ part is a product/ops action this repo can support but not perform.
 | Ticket | Status | Notes |
 |---|---|---|
 | S1 Student life-stage profile | **done** | See 2026-09-09 changelog entry |
-| S2 Student topics/alerts | not started | |
+| S2 Student topics/alerts | **done** | See 2026-09-09 changelog entry |
 
 ## ADR status
 
@@ -70,6 +70,62 @@ Mirrors `docs/adr/README.md` — keep both in sync.
 
 (newest first — one line per ticket completion)
 
+- 2026-09-09: S2 done — student topic taxonomy + independent student
+  alerts, on top of S1's life-stage profile. Per the ticket's explicit
+  design ("reuse T03's Topic/UserTopic tables... no separate topic model,"
+  "same notification_dispatch worker... no special-cased notification
+  path"), this is almost entirely data + UI grouping, not new backend
+  logic — `app/content/notifications.py::topic_alert_eligible` already
+  takes topic slugs as plain strings with zero special-casing, so a
+  student topic is eligible through the exact same code path as any
+  general topic the moment it exists as a `Topic` row; verified with two
+  new tests in `apps/api/tests/test_notifications.py`
+  (`test_dispatch_delivers_student_topic_alert_through_same_worker_no_parallel_path`
+  drives the real `run_notification_dispatch` worker against a topic
+  slugged "opt", not a mocked path; `test_unsubscribing_student_topic_leaves_general_topic_subscription_untouched`
+  proves removing one topic's `UserTopic` row never touches another's).
+  **Taxonomy**: `infra/scripts/seed.py`'s new `STUDENT_SEED_TOPICS` (13
+  rows: F-1, CPT, OPT, STEM OPT, H-1B Transition, Internships, University
+  Policy, Campus Safety, Taxes, Housing, Scholarships, Student Community,
+  International Student Jobs — §3.1/S2.md's list minus "travel," which is
+  deliberately not duplicated since it's the same concept as the existing
+  general "Travel" topic, not a separate row) seeded alongside the existing
+  `SEED_TOPICS` into the same `topics` table; ran the seed script for real
+  against local Postgres (`Seeded 26 topics (13 student)`). New
+  `packages/domain`'s `STUDENT_TOPIC_SLUGS` is the client-side mirror of
+  those 13 slugs (documented as needing to stay in sync with
+  `STUDENT_SEED_TOPICS` — no automated drift check added, same class of
+  hand-maintained-list judgment call T18's changelog already flagged for
+  the analytics event names). **UI**: since both the mobile onboarding
+  interest-picker (`OnboardingScreen`) and the notification-settings screen
+  (`NotificationPreferencesForm`) already render every active `Topic` row
+  from `GET /v1/config` with zero filtering, the student topics would have
+  appeared automatically, dumped into one flat list — split both into a
+  "general" and a "Student topics" section (new `TopicChips`/`TopicSection`
+  helpers) instead, matching §3.1's framing of student topics as a
+  distinct, independently-toggleable group; picking or clearing one group
+  never touches `interestTopicSlugs`/`prefs.topics` entries from the other,
+  since each topic is just its own independent entry in those structures.
+  **Not done**: `apps/web` has no topic-interest or notification-settings
+  UI at all yet (a pre-existing gap predating S2, unlike S1's web-onboarding
+  gap which S1 itself closed because life-stage collection was that
+  ticket's core ask — building a full topics/settings surface for web is a
+  separate, larger scope than S2's taxonomy+alerts ask) — student topics
+  are real, seeded, and reachable via `PATCH /v1/me/preferences`
+  (`topic_slugs`) on web today, just not yet exposed in any web UI.
+  Verified: `apps/api` — `ruff check .` clean, `pytest` 214 passed (2
+  errors on the full run are the same pre-existing full-suite-only
+  DB-teardown flake documented in prior changelog entries — both pass
+  individually, confirmed by re-running them standalone). `apps/mobile` —
+  `typecheck` clean, `jest` 14/14 passed on a clean rerun (one run hit the
+  same pre-existing Expo-notifications-teardown flake T15/S1 already
+  documented — confirmed pre-existing via `git stash`, not a regression:
+  the exact same failure reproduces on `main` before this change).
+  `apps/web`/`apps/admin` — `typecheck`/`lint` both clean (touched only via
+  the shared `packages/domain` import). **Files**: `infra/scripts/seed.py`,
+  `packages/domain/index.ts`, `apps/mobile/src/{components/
+  NotificationPreferencesForm.tsx,screens/OnboardingScreen.tsx}`,
+  `apps/api/tests/test_notifications.py`.
 - 2026-09-09: S1 done — International Student/Graduate-OPT life stage as a
   first-class profile over the existing feed/ranking, never a parallel
   backend (NON_NEGOTIABLES #13). Backend: `GET /v1/home` gained

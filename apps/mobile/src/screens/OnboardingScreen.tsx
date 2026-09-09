@@ -1,5 +1,6 @@
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
+import { STUDENT_TOPIC_SLUGS } from "@teluguvarta/domain";
 import React, { useEffect, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from "react-native";
 
@@ -183,30 +184,40 @@ export function OnboardingScreen() {
 
         {step === 4 && (
           <StepShell title="What are you interested in? (optional)">
-            <View style={styles.chipWrap}>
-              {topics.map((topic) => {
-                const selected = profile.interestTopicSlugs.includes(topic.slug);
-                return (
-                  <Pressable
-                    key={topic.slug}
-                    onPress={() =>
-                      setProfileDraft({
-                        ...profile,
-                        interestTopicSlugs: selected
-                          ? profile.interestTopicSlugs.filter((s) => s !== topic.slug)
-                          : [...profile.interestTopicSlugs, topic.slug],
-                      })
-                    }
-                    accessibilityRole="checkbox"
-                    accessibilityState={{ checked: selected }}
-                    accessibilityLabel={topic.name}
-                    style={[styles.chip, selected && styles.chipActive]}
-                  >
-                    <Text>{topic.name}</Text>
-                  </Pressable>
-                );
-              })}
-            </View>
+            <TopicChips
+              topics={topics.filter((t) => !STUDENT_TOPIC_SLUGS.includes(t.slug as (typeof STUDENT_TOPIC_SLUGS)[number]))}
+              selectedSlugs={profile.interestTopicSlugs}
+              onToggle={(slug, selected) =>
+                setProfileDraft({
+                  ...profile,
+                  interestTopicSlugs: selected
+                    ? profile.interestTopicSlugs.filter((s) => s !== slug)
+                    : [...profile.interestTopicSlugs, slug],
+                })
+              }
+            />
+            {/* S2: student topics (F-1, OPT, campus safety, etc.) are the
+                same kind of Topic row as the general ones above, shown as a
+                separate group per §3.1 rather than mixed in — selecting or
+                clearing this group never touches interestTopicSlugs entries
+                from the general group. */}
+            {topics.some((t) => STUDENT_TOPIC_SLUGS.includes(t.slug as (typeof STUDENT_TOPIC_SLUGS)[number])) && (
+              <>
+                <Text style={styles.hint}>Student topics</Text>
+                <TopicChips
+                  topics={topics.filter((t) => STUDENT_TOPIC_SLUGS.includes(t.slug as (typeof STUDENT_TOPIC_SLUGS)[number]))}
+                  selectedSlugs={profile.interestTopicSlugs}
+                  onToggle={(slug, selected) =>
+                    setProfileDraft({
+                      ...profile,
+                      interestTopicSlugs: selected
+                        ? profile.interestTopicSlugs.filter((s) => s !== slug)
+                        : [...profile.interestTopicSlugs, slug],
+                    })
+                  }
+                />
+              </>
+            )}
           </StepShell>
         )}
 
@@ -248,6 +259,36 @@ export function OnboardingScreen() {
           </Pressable>
         )}
       </View>
+    </View>
+  );
+}
+
+function TopicChips({
+  topics,
+  selectedSlugs,
+  onToggle,
+}: {
+  topics: TopicOut[];
+  selectedSlugs: string[];
+  onToggle: (slug: string, wasSelected: boolean) => void;
+}) {
+  return (
+    <View style={styles.chipWrap}>
+      {topics.map((topic) => {
+        const selected = selectedSlugs.includes(topic.slug);
+        return (
+          <Pressable
+            key={topic.slug}
+            onPress={() => onToggle(topic.slug, selected)}
+            accessibilityRole="checkbox"
+            accessibilityState={{ checked: selected }}
+            accessibilityLabel={topic.name}
+            style={[styles.chip, selected && styles.chipActive]}
+          >
+            <Text>{topic.name}</Text>
+          </Pressable>
+        );
+      })}
     </View>
   );
 }

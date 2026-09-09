@@ -250,6 +250,59 @@ def test_dispatch_never_alerts_unsubscribed_topic(db_session):
     assert rows == []
 
 
+def test_dispatch_delivers_student_topic_alert_through_same_worker_no_parallel_path(db_session):
+    """S2 (docs/tickets/S2.md): a student topic (e.g. "f1", part of
+    `infra/scripts/seed.py`'s STUDENT_SEED_TOPICS) is a plain `Topic` row
+    with zero special-casing anywhere in `app/content/notifications.py` or
+    `app/jobs/notify.py` — this is the same `run_notification_dispatch` call
+    as `test_dispatch_dedupes_same_notification_across_repeated_runs`
+    above, just with a student-taxonomy slug instead of "money"."""
+
+    f1_topic = _make_topic(db_session, "f1")
+    _make_published_story(db_session, topics=[f1_topic], importance=0.9)
+    user = _make_user_with_topic(db_session, f1_topic)
+
+    run_notification_dispatch(db_session, _job())
+
+    rows = db_session.scalars(
+        select(Notification).where(Notification.user_id == user.id, Notification.type == "TOPIC_ALERT")
+    ).all()
+    assert len(rows) == 1
+
+
+def test_unsubscribing_student_topic_leaves_general_topic_subscription_untouched(db_session):
+    """S2 acceptance criterion: unsubscribing from all student topics
+    doesn't affect general topic notification settings, and vice versa.
+    Both are just rows in `user_topics` — removing one topic's row never
+    touches another's, proven here via the same dispatch path both topics
+    go through."""
+
+    money = _make_topic(db_session, "money")
+    opt = _make_topic(db_session, "opt")
+    money_story = _make_published_story(db_session, topics=[money], importance=0.9)
+    opt_story = _make_published_story(db_session, topics=[opt], importance=0.9)
+    user = _make_user_with_topic(db_session, money)
+    db_session.add(UserTopic(user_id=user.id, topic_id=opt.id))
+    db_session.commit()
+
+    # Unsubscribe from the student topic only.
+    db_session.query(UserTopic).filter(UserTopic.user_id == user.id, UserTopic.topic_id == opt.id).delete()
+    db_session.commit()
+
+    run_notification_dispatch(db_session, _job())
+
+    money_alerts = db_session.scalars(
+        select(Notification).where(Notification.user_id == user.id, Notification.type == "TOPIC_ALERT",
+                                    Notification.story_id == money_story.id)
+    ).all()
+    opt_alerts = db_session.scalars(
+        select(Notification).where(Notification.user_id == user.id, Notification.type == "TOPIC_ALERT",
+                                    Notification.story_id == opt_story.id)
+    ).all()
+    assert len(money_alerts) == 1
+    assert opt_alerts == []
+
+
 def test_quiet_hours_suppresses_and_emits_analytics_event(db_session, caplog):
     topic = _make_topic(db_session, "money")
     _make_published_story(db_session, topics=[topic], importance=0.9)
