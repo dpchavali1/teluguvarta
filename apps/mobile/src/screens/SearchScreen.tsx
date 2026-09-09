@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { ActivityIndicator, StyleSheet, TextInput, View } from "react-native";
 
 import { StoryList } from "../components/StoryList";
-import { search, type StoryOut } from "../lib/api";
+import { search, trackEvent, type StoryOut } from "../lib/api";
 import { useStoryCache } from "../lib/StoryCacheContext";
 
 export function SearchScreen() {
@@ -24,6 +24,7 @@ export function SearchScreen() {
       const result = await search(q.trim());
       setResults(result.items);
       cache.put(result.items);
+      trackEvent("search", { query: q.trim(), result_count: result.items.length });
     } finally {
       setLoading(false);
       setSearched(true);

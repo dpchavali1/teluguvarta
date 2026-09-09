@@ -13,6 +13,9 @@ from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.middleware.base import BaseHTTPMiddleware
 
+from app.observability.error_tracking import capture_exception
+from app.observability.logging import request_context
+
 
 class APIError(Exception):
     """Raise this from route/dependency code for a domain-specific error."""
@@ -27,7 +30,8 @@ class APIError(Exception):
 class RequestIDMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next: Any) -> Any:
         request.state.request_id = str(uuid.uuid4())
-        response = await call_next(request)
+        with request_context(request.state.request_id):
+            response = await call_next(request)
         response.headers["X-Request-ID"] = request.state.request_id
         return response
 
@@ -66,7 +70,11 @@ def register_error_handlers(app: FastAPI) -> None:
 
     @app.exception_handler(Exception)
     async def handle_unexpected_error(request: Request, exc: Exception) -> JSONResponse:
+        request_id = _request_id(request)
+        actor = getattr(request.state, "actor", None)
+        with request_context(request_id, actor):
+            capture_exception(exc, path=request.url.path, method=request.method)
         return JSONResponse(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            content=_envelope("INTERNAL_ERROR", "Internal server error", _request_id(request)),
+            content=_envelope("INTERNAL_ERROR", "Internal server error", request_id),
         )

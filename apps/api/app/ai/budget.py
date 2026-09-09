@@ -47,6 +47,18 @@ def _month_start(now: datetime) -> datetime:
     return now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
 
 
+def _day_start(now: datetime) -> datetime:
+    return now.replace(hour=0, minute=0, second=0, microsecond=0)
+
+
+def today_cost_usd(db: Session, now: datetime | None = None) -> float:
+    now = now or datetime.now(UTC)
+    total = db.scalar(
+        select(func.coalesce(func.sum(AiCallLog.cost_usd), 0)).where(AiCallLog.created_at >= _day_start(now))
+    )
+    return float(total or 0.0)
+
+
 def month_to_date_cost_usd(db: Session, now: datetime | None = None) -> float:
     now = now or datetime.now(UTC)
     total = db.scalar(
@@ -81,7 +93,7 @@ def cost_by_task_and_day(db: Session, task: Task | None = None) -> list[dict]:
     return [
         {
             "task": row.task,
-            "day": row.day,
+            "day": row.day.isoformat() if hasattr(row.day, "isoformat") else str(row.day),
             "tokens_in": int(row.tokens_in or 0),
             "tokens_out": int(row.tokens_out or 0),
             "cost_usd": float(row.cost_usd or 0.0),

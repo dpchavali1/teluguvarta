@@ -4,7 +4,7 @@ import React, { useCallback, useEffect, useState } from "react";
 import { ActivityIndicator, Linking, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
 import { StoryCard } from "../components/StoryCard";
-import { getHome, type StoryOut, type TopicOut } from "../lib/api";
+import { getHome, trackEvent, type StoryOut, type TopicOut } from "../lib/api";
 import { useStoryCache } from "../lib/StoryCacheContext";
 import type { RootStackParamList } from "../navigation/types";
 
@@ -24,6 +24,7 @@ export function HomeScreen() {
       setStories(home.top_stories);
       setTopics(home.topics);
       cache.put(home.top_stories);
+      trackEvent("feed_view", { story_count: home.top_stories.length });
     } catch {
       setError("Couldn't load the feed. Pull down to try again.");
     } finally {

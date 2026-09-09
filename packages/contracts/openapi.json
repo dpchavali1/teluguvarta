@@ -885,13 +885,120 @@
         "title": "AdminStorySourceOut",
         "type": "object"
       },
+      "AiCostRowOut": {
+        "properties": {
+          "cost_usd": {
+            "title": "Cost Usd",
+            "type": "number"
+          },
+          "day": {
+            "title": "Day",
+            "type": "string"
+          },
+          "task": {
+            "title": "Task",
+            "type": "string"
+          },
+          "tokens_in": {
+            "title": "Tokens In",
+            "type": "integer"
+          },
+          "tokens_out": {
+            "title": "Tokens Out",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "task",
+          "day",
+          "tokens_in",
+          "tokens_out",
+          "cost_usd"
+        ],
+        "title": "AiCostRowOut",
+        "type": "object"
+      },
+      "AiCostSummaryOut": {
+        "properties": {
+          "daily_alert_usd": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Daily Alert Usd"
+          },
+          "month_to_date_cost_usd": {
+            "title": "Month To Date Cost Usd",
+            "type": "number"
+          },
+          "monthly_budget_remaining_usd": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Monthly Budget Remaining Usd"
+          },
+          "monthly_budget_usd": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Monthly Budget Usd"
+          },
+          "over_monthly_budget": {
+            "title": "Over Monthly Budget",
+            "type": "boolean"
+          },
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/AiCostRowOut"
+            },
+            "title": "Rows",
+            "type": "array"
+          },
+          "today_cost_usd": {
+            "title": "Today Cost Usd",
+            "type": "number"
+          }
+        },
+        "required": [
+          "month_to_date_cost_usd",
+          "today_cost_usd",
+          "over_monthly_budget",
+          "rows"
+        ],
+        "title": "AiCostSummaryOut",
+        "type": "object"
+      },
       "AnalyticsEventIn": {
         "properties": {
           "event": {
             "enum": [
+              "app_open",
+              "feed_view",
+              "story_open",
+              "story_save",
               "story_share",
-              "notification_received",
-              "notification_open"
+              "language_switch",
+              "search",
+              "notification_open",
+              "notification_opt_in",
+              "onboarding_complete",
+              "account_delete_request",
+              "report_issue",
+              "notification_received"
             ],
             "title": "Event",
             "type": "string"
@@ -994,6 +1101,33 @@
           }
         },
         "title": "HomeResponse",
+        "type": "object"
+      },
+      "JobQueueHealthOut": {
+        "properties": {
+          "counts_by_status": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Counts By Status",
+            "type": "object"
+          },
+          "oldest_pending_age_seconds": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Oldest Pending Age Seconds"
+          }
+        },
+        "required": [
+          "counts_by_status"
+        ],
+        "title": "JobQueueHealthOut",
         "type": "object"
       },
       "KillSwitchesOut": {
@@ -1133,6 +1267,30 @@
           "created_at"
         ],
         "title": "NotificationOut",
+        "type": "object"
+      },
+      "ObservabilityOut": {
+        "properties": {
+          "ai_cost": {
+            "$ref": "#/components/schemas/AiCostSummaryOut"
+          },
+          "ingestion_health": {
+            "items": {
+              "$ref": "#/components/schemas/SourceIngestionHealthOut"
+            },
+            "title": "Ingestion Health",
+            "type": "array"
+          },
+          "job_queue": {
+            "$ref": "#/components/schemas/JobQueueHealthOut"
+          }
+        },
+        "required": [
+          "ingestion_health",
+          "job_queue",
+          "ai_cost"
+        ],
+        "title": "ObservabilityOut",
         "type": "object"
       },
       "PersonalizationOut": {
@@ -1660,6 +1818,70 @@
           "canonical_url"
         ],
         "title": "ShareMetaResponse",
+        "type": "object"
+      },
+      "SourceIngestionHealthOut": {
+        "description": "T18 \u00a79.3 \"ingestion health\": one row per source, scoped to the\n`source_fetch` jobs run in the last 24h (not all-time counters, which\n`fail_count`/`AdminSourceOut` already expose).",
+        "properties": {
+          "circuit_breaker_tripped": {
+            "title": "Circuit Breaker Tripped",
+            "type": "boolean"
+          },
+          "fail_count": {
+            "title": "Fail Count",
+            "type": "integer"
+          },
+          "failure_count_24h": {
+            "title": "Failure Count 24H",
+            "type": "integer"
+          },
+          "last_error_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Error At"
+          },
+          "last_success_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Success At"
+          },
+          "source_id": {
+            "format": "uuid",
+            "title": "Source Id",
+            "type": "string"
+          },
+          "source_name": {
+            "title": "Source Name",
+            "type": "string"
+          },
+          "success_count_24h": {
+            "title": "Success Count 24H",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "source_id",
+          "source_name",
+          "success_count_24h",
+          "failure_count_24h",
+          "fail_count",
+          "circuit_breaker_tripped"
+        ],
+        "title": "SourceIngestionHealthOut",
         "type": "object"
       },
       "StoriesListResponse": {
@@ -2193,6 +2415,56 @@
           }
         },
         "summary": "Get Kill Switches",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/v1/admin/observability": {
+      "get": {
+        "description": "T18: the one admin surface for \"is the pipeline healthy and what is\nit costing\" \u2014 ingestion health, job queue state, and AI spend vs.\nbudget, all scoped to what an editor needs to see in the last 24h.",
+        "operationId": "get_observability_v1_admin_observability_get",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObservabilityOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Observability",
         "tags": [
           "admin"
         ]

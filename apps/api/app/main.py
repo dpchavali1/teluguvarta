@@ -1,7 +1,10 @@
 from fastapi import FastAPI
 
 from app.errors import RequestIDMiddleware, register_error_handlers
+from app.observability.logging import configure_logging
 from app.routers import admin, admin_auth, me, public
+
+configure_logging()
 
 app = FastAPI(title="Telugu Global API")
 app.add_middleware(RequestIDMiddleware)

@@ -32,6 +32,7 @@ export default function App() {
     if (!registeredForPush.current) {
       registeredForPush.current = true;
       registerForPushNotificationsAsync();
+      trackEvent("app_open");
     }
 
     const receivedSub = Notifications.addNotificationReceivedListener((notification) => {

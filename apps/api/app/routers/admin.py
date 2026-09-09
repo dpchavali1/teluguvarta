@@ -17,17 +17,24 @@ everything else about a source but cannot flip the rights gate itself.
 
 import hashlib
 import os
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any
 from uuid import UUID
 
 from fastapi import APIRouter, Depends
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from app.ai.budget import (
+    cost_by_task_and_day,
+    is_over_monthly_budget,
+    month_to_date_cost_usd,
+    today_cost_usd,
+)
 from app.auth import AdminPrincipal, current_admin
 from app.db import get_db
 from app.errors import APIError
+from app.jobs.source_fetch import CIRCUIT_BREAKER_THRESHOLD
 from app.models import (
     AuditEvent,
     Correction,
@@ -52,9 +59,14 @@ from app.schemas import (
     AdminSourceUpdate,
     AdminStoryDetailOut,
     AdminStorySourceOut,
+    AiCostRowOut,
+    AiCostSummaryOut,
+    JobQueueHealthOut,
     KillSwitchesOut,
+    ObservabilityOut,
     ReviewQueueItemOut,
     RightsEvidence,
+    SourceIngestionHealthOut,
     StoryVariantOut,
 )
 
@@ -438,6 +450,79 @@ def list_jobs(db: Session = Depends(get_db)) -> list[AdminJobOut]:
         )
         for job in jobs
     ]
+
+
+@router.get("/observability")
+def get_observability(db: Session = Depends(get_db)) -> ObservabilityOut:
+    """T18: the one admin surface for "is the pipeline healthy and what is
+    it costing" — ingestion health, job queue state, and AI spend vs.
+    budget, all scoped to what an editor needs to see in the last 24h."""
+    now = datetime.now(UTC)
+    since_24h = now - timedelta(hours=24)
+
+    # Aggregated in Python rather than via a SQL GROUP BY on a JSONB `->>`
+    # expression: Postgres requires the GROUP BY expression to be
+    # syntactically identical to the selected one, which SQLAlchemy's JSONB
+    # comparator doesn't reliably produce — and this table is small enough
+    # (recent source_fetch jobs only) that it doesn't matter.
+    recent_fetch_jobs = db.scalars(
+        select(Job).where(
+            Job.type == "source_fetch", Job.run_after >= since_24h, Job.status.in_(["DONE", "FAILED"])
+        )
+    ).all()
+    counts_by_source: dict[str, dict[str, int]] = {}
+    for job in recent_fetch_jobs:
+        source_id = job.payload.get("source_id") if isinstance(job.payload, dict) else None
+        if source_id is None:
+            continue
+        counts_by_source.setdefault(source_id, {})[job.status] = counts_by_source.get(source_id, {}).get(job.status, 0) + 1
+
+    sources = db.scalars(select(Source).order_by(Source.name)).all()
+    ingestion_health = [
+        SourceIngestionHealthOut(
+            source_id=source.id,
+            source_name=source.name,
+            success_count_24h=counts_by_source.get(str(source.id), {}).get("DONE", 0),
+            failure_count_24h=counts_by_source.get(str(source.id), {}).get("FAILED", 0),
+            fail_count=source.fail_count,
+            circuit_breaker_tripped=source.fail_count >= CIRCUIT_BREAKER_THRESHOLD,
+            last_success_at=source.last_success_at,
+            last_error_at=source.last_error_at,
+        )
+        for source in sources
+    ]
+
+    status_rows = db.execute(select(Job.status, func.count()).group_by(Job.status)).all()
+    oldest_pending = db.scalar(select(func.min(Job.run_after)).where(Job.status == "PENDING"))
+    job_queue = JobQueueHealthOut(
+        counts_by_status=dict(status_rows),
+        oldest_pending_age_seconds=(now - oldest_pending).total_seconds() if oldest_pending else None,
+    )
+
+    monthly_budget = os.environ.get("MONTHLY_AI_BUDGET_USD")
+    daily_alert = os.environ.get("DAILY_AI_ALERT_USD")
+    mtd = month_to_date_cost_usd(db, now)
+    ai_cost = AiCostSummaryOut(
+        month_to_date_cost_usd=mtd,
+        monthly_budget_usd=float(monthly_budget) if monthly_budget else None,
+        monthly_budget_remaining_usd=(float(monthly_budget) - mtd) if monthly_budget else None,
+        today_cost_usd=today_cost_usd(db, now),
+        daily_alert_usd=float(daily_alert) if daily_alert else None,
+        over_monthly_budget=is_over_monthly_budget(db, now),
+        rows=[AiCostRowOut(**row) for row in cost_by_task_and_day(db)],
+    )
+
+    return ObservabilityOut(ingestion_health=ingestion_health, job_queue=job_queue, ai_cost=ai_cost)
+
+
+@router.get("/_debug/throw", include_in_schema=False)
+def debug_throw() -> None:
+    """T18 acceptance criteria: "a deliberately thrown error... surfaces in
+    the error tracker with useful context". Admin-authed (via the router's
+    `current_admin` dependency) so it can't be hit anonymously; exists only
+    to prove request_id/actor context reaches `capture_exception` — see
+    `tests/test_observability.py`."""
+    raise RuntimeError("T18 debug throw — deliberate, for error-tracking verification")
 
 
 @router.get("/audit")

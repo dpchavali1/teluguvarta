@@ -7,13 +7,13 @@ iteration, sleeping when there's nothing to do.
 
 from __future__ import annotations
 
-import logging
 import os
 import time
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 
+from app.alerts import check_all
 from app.jobs.cluster import run_dedup_cluster, schedule_dedup_cluster
 from app.jobs.generate import run_ai_classify, schedule_ai_classify
 from app.jobs.notify import run_notification_dispatch, schedule_notification_dispatch
@@ -21,8 +21,16 @@ from app.jobs.publish import run_publish_scheduler, schedule_publish_scheduler
 from app.jobs.queue import claim_job, complete_job, fail_job
 from app.jobs.source_fetch import run_source_fetch, schedule_due_source_fetches
 from app.jobs.translate import run_ai_translate, schedule_ai_translate
+from app.observability.error_tracking import capture_exception
+from app.observability.logging import configure_logging, get_logger, job_context
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
+
+# How often (in process_one calls) to run the alert threshold checks —
+# every call would just re-fire the same still-tripped condition on every
+# poll; once every ~5 minutes at the default 5s poll interval is enough to
+# be "observable in a reasonable time" without spamming the channel.
+ALERT_CHECK_EVERY_N_LOOPS = 60
 
 JOB_HANDLERS = {
     "source_fetch": run_source_fetch,
@@ -56,21 +64,32 @@ def process_one(db: Session) -> bool:
         return False
 
     handler = JOB_HANDLERS[job.type]
-    try:
-        handler(db, job)
-    except Exception as exc:  # noqa: BLE001 - any handler failure must be retried/bounded, not crash the worker
-        logger.warning("job %s (%s) failed: %s", job.id, job.type, exc)
-        fail_job(db, job, str(exc))
-    else:
-        complete_job(db, job)
+    story_id = job.payload.get("story_id") if isinstance(job.payload, dict) else None
+    with job_context(job.type, job_id=job.id, story_id=story_id):
+        try:
+            handler(db, job)
+        except Exception as exc:  # noqa: BLE001 - any handler failure must be retried/bounded, not crash the worker
+            logger.warning("job %s (%s) failed: %s", job.id, job.type, exc)
+            capture_exception(exc, job_id=str(job.id), job_type=job.type)
+            fail_job(db, job, str(exc))
+        else:
+            complete_job(db, job)
     return True
 
 
 def run_forever() -> None:
+    configure_logging()
     db = _session()
+    loop_count = 0
     try:
         while True:
             processed = process_one(db)
+            loop_count += 1
+            if loop_count % ALERT_CHECK_EVERY_N_LOOPS == 0:
+                try:
+                    check_all(db)
+                except Exception as exc:  # noqa: BLE001 - alerting must never take the worker down
+                    logger.warning("alert check failed: %s", exc)
             if not processed:
                 time.sleep(POLL_INTERVAL_SECONDS)
     finally:
@@ -78,5 +97,4 @@ def run_forever() -> None:
 
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO)
     run_forever()

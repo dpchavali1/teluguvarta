@@ -11,6 +11,7 @@
     "test:a11y": "node scripts/a11y-check.mjs"
   },
   "dependencies": {
+    "@teluguvarta/domain": "workspace:*",
     "next": "^14.2.15",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"

@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 
 import { storyUrl, type Language, type StoryOut } from "@/lib/api";
 import { isSaved, toggleSaved } from "@/lib/saved";
+import { track } from "@/lib/analytics";
 
 const STATUS_LABEL: Record<string, { text: string; className: string } | undefined> = {
   RETRACTED: { text: "Retracted", className: "story-card__notice--retracted" },
@@ -30,6 +31,7 @@ export function StoryCard({ story, headingLevel = "h2" }: { story: StoryOut; hea
   const Heading = headingLevel;
 
   async function handleShare() {
+    track("story_share", { story_id: story.id });
     const shareData = { title: variant!.headline, text: variant!.summary, url };
     if (typeof navigator !== "undefined" && "share" in navigator) {
       try {
@@ -48,7 +50,21 @@ export function StoryCard({ story, headingLevel = "h2" }: { story: StoryOut; hea
   }
 
   function handleSaveToggle() {
-    setSaved(toggleSaved(story.id));
+    const nowSaved = toggleSaved(story.id);
+    setSaved(nowSaved);
+    if (nowSaved) track("story_save", { story_id: story.id });
+  }
+
+  function handleLanguageSwitch(next: Language) {
+    if (next !== language) track("language_switch", { story_id: story.id, language: next });
+    setLanguage(next);
+  }
+
+  function handleReportIssue() {
+    const description = window.prompt("Describe the issue with this story:");
+    if (description === null) return;
+    track("report_issue", { story_id: story.id, description });
+    window.alert("Thanks — we've logged this for review.");
   }
 
   return (
@@ -94,14 +110,14 @@ export function StoryCard({ story, headingLevel = "h2" }: { story: StoryOut; hea
             <button
               type="button"
               aria-pressed={language === "en"}
-              onClick={() => setLanguage("en")}
+              onClick={() => handleLanguageSwitch("en")}
             >
               English
             </button>
             <button
               type="button"
               aria-pressed={language === "te"}
-              onClick={() => setLanguage("te")}
+              onClick={() => handleLanguageSwitch("te")}
             >
               తెలుగు
             </button>
@@ -117,6 +133,9 @@ export function StoryCard({ story, headingLevel = "h2" }: { story: StoryOut; hea
           aria-label={saved ? `Unsave: ${variant.headline}` : `Save: ${variant.headline}`}
         >
           {saved ? "Saved" : "Save"}
+        </button>
+        <button type="button" onClick={handleReportIssue} aria-label={`Report an issue: ${variant.headline}`}>
+          Report an issue
         </button>
       </div>
     </article>

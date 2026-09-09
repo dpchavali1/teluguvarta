@@ -18,7 +18,7 @@ request-scoped like T16's query-param preferences.
 
 import uuid
 
-from fastapi import Depends, Header
+from fastapi import Depends, Header, Request
 from jwt import PyJWTError
 from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
@@ -27,6 +27,7 @@ from sqlalchemy.orm import Session
 from app.db import get_db
 from app.errors import APIError
 from app.models import User
+from app.observability.logging import set_actor
 from app.security import decode_admin_access_token
 
 ADMIN_ROLES = {"EDITOR", "ADMIN"}
@@ -46,7 +47,7 @@ class AdminPrincipal:
 
 
 def current_user(
-    authorization: str | None = Header(default=None), db: Session = Depends(get_db)
+    request: Request, authorization: str | None = Header(default=None), db: Session = Depends(get_db)
 ) -> Principal:
     if not authorization or not authorization.startswith("Bearer "):
         raise APIError(401, "UNAUTHENTICATED", "Missing or invalid bearer token")
@@ -64,10 +65,13 @@ def current_user(
         db.execute(insert_stmt)
         db.commit()
         user = db.scalars(select(User).where(User.client_token == token)).first()
+    actor = str(user.id)
+    request.state.actor = actor
+    set_actor(actor)
     return Principal(user_id=user.id, token=token)
 
 
-def current_admin(authorization: str | None = Header(default=None)) -> AdminPrincipal:
+def current_admin(request: Request, authorization: str | None = Header(default=None)) -> AdminPrincipal:
     if not authorization or not authorization.startswith("Bearer "):
         raise APIError(401, "UNAUTHENTICATED", "Missing or invalid bearer token")
     token = authorization.removeprefix("Bearer ")
@@ -78,4 +82,6 @@ def current_admin(authorization: str | None = Header(default=None)) -> AdminPrin
     role = claims.get("role")
     if role not in ADMIN_ROLES:
         raise APIError(403, "FORBIDDEN", "This account does not have admin access")
+    request.state.actor = claims["email"]
+    set_actor(claims["email"])
     return AdminPrincipal(user_id=claims["sub"], email=claims["email"], role=role)

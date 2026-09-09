@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
-import { AccessibilityInfo, Pressable, StyleSheet, Text, View } from "react-native";
+import { Alert, AccessibilityInfo, Pressable, StyleSheet, Text, View } from "react-native";
 
-import type { Language, StoryOut } from "../lib/api";
+import { trackEvent, type Language, type StoryOut } from "../lib/api";
 import { shareStory } from "../lib/share";
 import { isSaved, toggleSaved } from "../lib/storage";
 
@@ -45,13 +45,27 @@ export function StoryCard({
   const primarySource = story.sources[0];
 
   async function handleShare() {
+    trackEvent("story_share", { story_id: story.id });
     await shareStory(story.canonical_slug, variant!);
   }
 
   async function handleSaveToggle() {
     const next = await toggleSaved(story.id);
     setSaved(next);
+    if (next) trackEvent("story_save", { story_id: story.id });
     AccessibilityInfo.announceForAccessibility(next ? "Saved" : "Removed from saved");
+  }
+
+  function handleLanguageSwitch(next: Language) {
+    if (next !== language) trackEvent("language_switch", { story_id: story.id, language: next });
+    setLanguage(next);
+  }
+
+  function handleReportIssue() {
+    Alert.alert("Report an issue", "Let us know this story has a problem?", [
+      { text: "Cancel", style: "cancel" },
+      { text: "Report", onPress: () => trackEvent("report_issue", { story_id: story.id }) },
+    ]);
   }
 
   return (
@@ -101,7 +115,7 @@ export function StoryCard({
         {hasTelugu && (
           <View accessibilityRole="radiogroup" accessibilityLabel="Language" style={styles.langGroup}>
             <Pressable
-              onPress={() => setLanguage("en")}
+              onPress={() => handleLanguageSwitch("en")}
               accessibilityRole="radio"
               accessibilityState={{ selected: language === "en" }}
               accessibilityLabel="English"
@@ -110,7 +124,7 @@ export function StoryCard({
               <Text>English</Text>
             </Pressable>
             <Pressable
-              onPress={() => setLanguage("te")}
+              onPress={() => handleLanguageSwitch("te")}
               accessibilityRole="radio"
               accessibilityState={{ selected: language === "te" }}
               accessibilityLabel="Telugu"
@@ -136,6 +150,14 @@ export function StoryCard({
           style={styles.actionButton}
         >
           <Text>{saved ? "Saved" : "Save"}</Text>
+        </Pressable>
+        <Pressable
+          onPress={handleReportIssue}
+          accessibilityRole="button"
+          accessibilityLabel={`Report an issue: ${variant.headline}`}
+          style={styles.actionButton}
+        >
+          <Text>Report an issue</Text>
         </Pressable>
       </View>
     </View>

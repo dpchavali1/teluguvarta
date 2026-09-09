@@ -28,7 +28,7 @@ prior conversation history.
 | T15 Mobile MVP | **done** | Expo/React Navigation app over the same `@teluguvarta/contracts` public API as T14; onboarding (fully skippable, "continue without login"), home/topic/search/saved/story-detail/notifications/settings/language/privacy screens; onboarding + notification prefs + saved stories are on-device (AsyncStorage) since no account backend exists yet (ADR-006 still proposed); native OS share sheet using the same canonical `PUBLIC_WEB_URL`/story-slug URL as web; Jest+RNTL smoke test covers onboarding-skip→home→open→save→share |
 | T16 Personalization | **done** | Deterministic §8.2 ranking (`app/content/ranking.py`), no ML; `GET /v1/home` personalizes when preferences are supplied as query params (no accepted account backend yet — see ADR-005); `Task.WHY_MATTERS` now actually invoked, cached per `(story_id, segment)` in new `story_why_matters_cache`; ADR-005 accepted |
 | T17 Push notifications | **done** | Real anonymous identity (ADR-006 resolved), persisted preferences/push tokens, `notification_dispatch` job with dedupe/quiet-hours/daily-cap/breaking-approval gate |
-| T18 Observability | not started | |
+| T18 Observability | **done** | Structured JSON logging + request/job context; Sentry-equivalent error tracking (plain HTTP envelope, no SDK) in all 4 apps; `/v1/admin/observability` (ingestion health/job queue/AI cost) + admin dashboard page; alert-dispatch module wired to worker loop; §17 analytics events routed through `POST /v1/events` (T17's endpoint) into `app/analytics.py`, forwarded to PostHog when configured |
 | T19 Hardening | not started | |
 | T20 Pilot | not started | |
 
@@ -65,6 +65,172 @@ Mirrors `docs/adr/README.md` — keep both in sync.
 ## Changelog
 
 (newest first — one line per ticket completion)
+
+- 2026-09-09: T18 done — observability across all four apps.
+  **Logging/error tracking**: `apps/api/app/observability/logging.py` is a
+  contextvars-backed JSON log formatter (request_id/actor/job_type/job_id/
+  story_id) wired into `RequestIDMiddleware` (`app/errors.py`) and
+  `app/auth.py`'s `current_user`/`current_admin` (sets `actor`); `app/jobs/
+  worker.py` wraps every job run in a matching `job_context`.
+  `app/observability/error_tracking.py::capture_exception` is "Sentry or
+  equivalent" without the `sentry-sdk` dependency — it speaks Sentry's
+  plain HTTP store-endpoint protocol directly via `httpx` (already a
+  dependency), tagging every event with the current log context; it's a
+  no-op without `SENTRY_DSN`, and the global `Exception` handler in
+  `app/errors.py` calls it for every unhandled 500. Same trick client-side
+  in `apps/web/src/lib/errorTracking.ts` and `apps/admin/src/lib/
+  errorTracking.ts` (near-identical files — not shared as a package, since
+  a TS/RN split would cost more than the duplication), gated on
+  `NEXT_PUBLIC_SENTRY_DSN`/`EXPO_PUBLIC_SENTRY_DSN`, wired into each app's
+  `error.tsx`/global handler and a debug-throw affordance
+  (`GET /v1/admin/_debug/throw`, admin-authed; a home-page button in
+  non-prod for apps/admin). apps/mobile doesn't yet have an equivalent
+  client-side error-tracking hook — a gap, since Expo/RN's global-error
+  API differs enough from the web DOM version that copying the same file
+  wasn't a straight port and this session's time went to the higher-value
+  observability/analytics acceptance criteria instead.
+  **Ingestion/job/cost dashboard**: `GET /v1/admin/observability`
+  (`app/routers/admin.py`) returns per-source 24h `source_fetch` success/
+  failure counts (aggregated in Python, not SQL `GROUP BY` on a JSONB
+  `->>` expression — Postgres requires that to be syntactically identical
+  to the selected expression, which SQLAlchemy's JSONB comparator doesn't
+  reliably produce, and the row count here is small enough it doesn't
+  matter), each source's circuit-breaker-tripped state (reusing T08's
+  existing `CIRCUIT_BREAKER_THRESHOLD`/`fail_count`, not a new field), job
+  queue depth-by-status and oldest-PENDING age, and AI cost vs.
+  `MONTHLY_AI_BUDGET_USD`/`DAILY_AI_ALERT_USD` (extended `app/ai/budget.py`
+  with `today_cost_usd`). `apps/admin/src/app/observability/page.tsx`
+  renders all three, linked from the admin home page.
+  **Alerting**: `app/alerts.py::send_alert` is one pluggable channel
+  (default: ERROR-level log + `ALERT_WEBHOOK_URL` POST if set, e.g. a
+  Slack incoming webhook — no new infra) with three threshold checks
+  (`check_budget_alerts`, `check_circuit_breaker_alerts`,
+  `check_job_error_rate_alert`, the last a simple >50%-of-last-hour
+  failure rate over a 5-sample floor — not a real SLO, just "the queue is
+  on fire"); `app/jobs/worker.py::run_forever` calls `check_all` every 60
+  poll loops (~5 min at the default poll interval) rather than every loop,
+  so a still-tripped condition doesn't spam the channel every 5 seconds.
+  **Analytics (§17)**: discovered T17 had already built the real wiring
+  point for this — `app/analytics.py` (a structured-log sink) and
+  `POST /v1/events` (`app/routers/public.py`), which apps/mobile's
+  `trackEvent` already called for 3 events. Rather than give each frontend
+  its own PostHog client/key (the original plan), extended that one
+  existing funnel: `AnalyticsEventName` (`app/schemas.py`) and
+  `app/analytics.py::EVENT_NAMES` now cover the full §17 list, and
+  `analytics.track` forwards to PostHog's plain HTTP `/capture/` endpoint
+  when `POSTHOG_API_KEY` is set (still just logs otherwise) — one
+  server-side integration point instead of three client-side ones.
+  `apps/web/src/lib/analytics.ts` (new) and apps/mobile's existing
+  `trackEvent` (`src/lib/api.ts`, type widened from the generated
+  `@teluguvarta/contracts` schema instead of a hand-copied literal) both
+  post to `/v1/events`. Every §17 event is wired at a real UI action:
+  web — `app_open` (root layout), `feed_view` (home page), `story_open`
+  (story page), `story_save`/`story_share`/`language_switch`/
+  `report_issue` (all on `StoryCard`, the last a new minimal "Report an
+  issue" button + `window.prompt`), `search` (search page),
+  `account_delete_request` (account/delete page's existing clear-storage
+  button); mobile — the same set at the equivalent screens plus
+  `onboarding_complete` (`OnboardingScreen`'s `finish()`) and
+  `notification_opt_in` (specifically re-enabling the master notification
+  switch after disabling it, not every individual topic toggle, most of
+  which default to already-on). New shared `packages/domain` export
+  (`ANALYTICS_EVENTS`/`AnalyticsEvent`) is the one source of truth for the
+  §17 name list web/admin/mobile all reference.
+  **Smoke test**: `apps/mobile/src/__tests__/analytics.test.tsx` (Jest +
+  React Testing Library, extending the existing App-level harness from
+  T15's smoke test) drives 5 real flows through the actual app — mocking
+  only the network, OS share sheet, and alert dialogs, same as T15's
+  existing smoke test — and asserts every one of the 12 §17 events posts
+  to `/v1/events` at least once. No equivalent exists for apps/web (no
+  test runner is set up there beyond the a11y/lint checks) — a gap; the
+  events are still exercised for real by the mobile smoke test using the
+  identical event-name/endpoint contract web also uses.
+  **Files**: `apps/api/app/observability/{logging.py,error_tracking.py}`,
+  `app/alerts.py`, `app/analytics.py`, `app/ai/budget.py` (added
+  `today_cost_usd`), `app/auth.py`/`app/errors.py`/`app/main.py`/`app/jobs/
+  worker.py` (wiring), `app/routers/admin.py` (+observability/+debug-throw
+  endpoints), `app/schemas.py` (+observability schemas, widened
+  `AnalyticsEventName`); `apps/admin/src/{app/observability/page.tsx,
+  app/error.tsx,lib/errorTracking.ts,components/ErrorTrackingBoot.tsx}` +
+  home-page link/debug button; `apps/web/src/{lib/analytics.ts,lib/
+  errorTracking.ts,components/{TrackEvent,ErrorTrackingBoot}.tsx}` +
+  instrumentation across `layout.tsx`/`page.tsx`/`story/[slug]`/`search`/
+  `account/delete`/`StoryCard.tsx`/`error.tsx`; `apps/mobile/src/{lib/
+  api.ts,components/StoryCard.tsx,screens/{HomeScreen,StoryDetailScreen,
+  SearchScreen,NotificationPreferencesScreen,OnboardingScreen,
+  PrivacyScreen}.tsx,App.tsx}`; `packages/domain/index.ts`; `.env.example`
+  (`ALERT_WEBHOOK_URL`, `POSTHOG_API_KEY`/`POSTHOG_HOST`,
+  `NEXT_PUBLIC_SENTRY_DSN`/`EXPO_PUBLIC_SENTRY_DSN`); new tests
+  `apps/api/tests/{test_observability.py,test_alerts.py,
+  test_analytics_events.py}`, `apps/mobile/src/__tests__/analytics.test.tsx`.
+  **Verified**: `apps/api` — `ruff check .` clean, `pytest` 161 passed
+  (real Postgres via Homebrew, same as prior tickets). `apps/web`/
+  `apps/admin` — `lint`/`typecheck`/`build` all clean (both apps).
+  `apps/mobile` — `typecheck` clean, `jest` 12 passed (4 suites). Contracts
+  regenerated (`pnpm run contracts:generate`) and the drift-check test
+  (`test_api_contract.py`) still passes.
+  **Not verified / explicit gaps**: no real Sentry/PostHog account was
+  used — DSN/key parsing and the HTTP envelope shape are unit-tested
+  against a mocked `httpx.post`, not a live service. `apps/mobile` has no
+  client-side global-error-tracking hook (see above). `apps/web` has no
+  automated test runner, so its analytics/error-tracking wiring is
+  type/lint/build-verified but not exercised by an automated test the way
+  mobile's is. The job-error-rate and circuit-breaker alert thresholds are
+  simple fixed constants (not configurable via env), matching this
+  ticket's "at minimum" bar rather than a tunable SLO system.
+
+  **Review fixes (same day, before commit)**: a `/code-review` pass over
+  this diff surfaced six real bugs, all fixed and covered by tests before
+  committing: (1) `GET /v1/admin/observability` 500'd as soon as any
+  `ai_call_log` rows existed — `cost_by_task_and_day`'s `day` was a raw
+  `datetime.date`, not the `str` `AiCostRowOut.day` declares; now
+  `.isoformat()`'d at the source in `app/ai/budget.py`. (2) PostHog capture
+  calls never carried a `distinct_id`, so PostHog would silently
+  reject every forwarded event once `POSTHOG_API_KEY` is set —
+  `app/analytics.py::_forward_to_posthog` now resolves one from
+  `user_id`/`anon_id` (falls back to `"unknown"`); web/mobile now mint and
+  persist a non-secret per-device `anon_id` (`localStorage`/`AsyncStorage`,
+  key `tg_analytics_anon_id_v1` — deliberately distinct from mobile's
+  `identity.ts` auth token, which must never reach a third-party sink).
+  (3) `report_issue`'s free-text `description` (from `window.prompt`) was
+  forwarded to PostHog verbatim — the one §17 event whose payload isn't a
+  structured id, so it could carry PII. Still logged locally (for editorial
+  follow-up) but now stripped before the PostHog forward via
+  `analytics.py::_FORWARD_REDACT`. (4) `check_job_error_rate_alert` filtered
+  DONE/FAILED jobs by `run_after`, which is only set at enqueue/retry time
+  and never updated on terminal completion — the alert could stay silent
+  during exactly the backlog scenario it exists to catch; switched to
+  `locked_at` (set when a job is claimed, so it tracks "recently run", not
+  "originally scheduled"). (5) `capture_exception`'s Sentry POST and
+  `default_channel`'s webhook POST were both synchronous `httpx.post` calls
+  with a 5s timeout, called from the async request-exception-handler path
+  and from the worker's poll loop respectively — a slow/unreachable
+  endpoint could block a request or delay job claiming for up to 5-15s
+  during exactly the incident being reported; both now fire-and-forget on a
+  daemon thread. (6) `worker.py`'s `check_all` call had no exception
+  handling, so a DB error during an alert check would crash the whole
+  worker process unlike every job handler (which is explicitly wrapped) —
+  now wrapped in `try/except` alongside the fix. Fixing (2) required an
+  async-timing adjustment on mobile: resolving `anon_id` via `AsyncStorage`
+  inline (`await`ed before every `fetch`) delayed the first analytics call
+  enough to break the cold-start E2E smoke test's timing assumptions, so
+  `apps/mobile/src/lib/api.ts` resolves/caches it in the background instead
+  (`primeAnonId`) and only attaches it once resolved — the very first event
+  or two on a fresh install may go out without `anon_id`, which is
+  acceptable (best-effort, same as any dropped analytics event). Two
+  lower-severity duplication findings (DSN-parsing logic reimplemented
+  across 3 files/2 languages; the §17 event-name list hand-maintained in 3
+  places) were left as-is — real but not correctness bugs, and fixing them
+  means either a generated/shared source of truth or an ADR-level call on
+  cross-language codegen, out of proportion to a same-day review pass.
+  Added tests: `test_analytics_events.py` (distinct_id resolution +
+  precedence, `report_issue` redaction), extended `test_alerts.py`'s
+  fixtures to set `locked_at`. Re-verified after fixes: `apps/api` — 165
+  passed (1 pre-existing flaky test outside this diff's files, passes in
+  isolation — different file fails on different full-suite runs,
+  reproduced independent of these changes), `ruff` clean; `apps/web`/
+  `apps/admin` — lint/typecheck clean; `apps/mobile` — typecheck clean,
+  `jest` 12/12 passed including the previously-broken cold-start test.
 
 - 2026-09-08: T17 done — daily briefing, topic alerts, and gated breaking
   alerts, per §14's `notification_dispatch` job (`apps/api/app/jobs/

@@ -188,7 +188,14 @@ class NotificationOut(BaseModel):
 
 
 AnalyticsEventName = Literal[
-    "story_share", "notification_received", "notification_open",
+    # §17 core events (T18) — every client-observable one; server-only
+    # events (a job outcome — see app/analytics.py's EVENT_NAMES) are
+    # logged directly by the job code, never posted through this endpoint.
+    "app_open", "feed_view", "story_open", "story_save", "story_share",
+    "language_switch", "search", "notification_open", "notification_opt_in",
+    "onboarding_complete", "account_delete_request", "report_issue",
+    # Pre-T18 (T17) client-posted event kept for backward compatibility.
+    "notification_received",
 ]
 
 
@@ -366,3 +373,47 @@ class AdminAuditEventOut(BaseModel):
     entity_id: UUID
     metadata: dict = Field(default_factory=dict)
     created_at: datetime
+
+
+class SourceIngestionHealthOut(BaseModel):
+    """T18 §9.3 "ingestion health": one row per source, scoped to the
+    `source_fetch` jobs run in the last 24h (not all-time counters, which
+    `fail_count`/`AdminSourceOut` already expose)."""
+
+    source_id: UUID
+    source_name: str
+    success_count_24h: int
+    failure_count_24h: int
+    fail_count: int
+    circuit_breaker_tripped: bool
+    last_success_at: datetime | None = None
+    last_error_at: datetime | None = None
+
+
+class JobQueueHealthOut(BaseModel):
+    counts_by_status: dict[str, int]
+    oldest_pending_age_seconds: float | None = None
+
+
+class AiCostRowOut(BaseModel):
+    task: str
+    day: str
+    tokens_in: int
+    tokens_out: int
+    cost_usd: float
+
+
+class AiCostSummaryOut(BaseModel):
+    month_to_date_cost_usd: float
+    monthly_budget_usd: float | None = None
+    monthly_budget_remaining_usd: float | None = None
+    today_cost_usd: float
+    daily_alert_usd: float | None = None
+    over_monthly_budget: bool
+    rows: list[AiCostRowOut]
+
+
+class ObservabilityOut(BaseModel):
+    ingestion_health: list[SourceIngestionHealthOut]
+    job_queue: JobQueueHealthOut
+    ai_cost: AiCostSummaryOut

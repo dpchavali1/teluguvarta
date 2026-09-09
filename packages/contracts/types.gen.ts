@@ -89,6 +89,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/admin/observability": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Observability
+         * @description T18: the one admin surface for "is the pipeline healthy and what is
+         *     it costing" — ingestion health, job queue state, and AI spend vs.
+         *     budget, all scoped to what an editor needs to see in the last 24h.
+         */
+        get: operations["get_observability_v1_admin_observability_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/admin/review-queue": {
         parameters: {
             query?: never;
@@ -784,13 +806,43 @@ export interface components {
             /** Url */
             url: string;
         };
+        /** AiCostRowOut */
+        AiCostRowOut: {
+            /** Cost Usd */
+            cost_usd: number;
+            /** Day */
+            day: string;
+            /** Task */
+            task: string;
+            /** Tokens In */
+            tokens_in: number;
+            /** Tokens Out */
+            tokens_out: number;
+        };
+        /** AiCostSummaryOut */
+        AiCostSummaryOut: {
+            /** Daily Alert Usd */
+            daily_alert_usd?: number | null;
+            /** Month To Date Cost Usd */
+            month_to_date_cost_usd: number;
+            /** Monthly Budget Remaining Usd */
+            monthly_budget_remaining_usd?: number | null;
+            /** Monthly Budget Usd */
+            monthly_budget_usd?: number | null;
+            /** Over Monthly Budget */
+            over_monthly_budget: boolean;
+            /** Rows */
+            rows: components["schemas"]["AiCostRowOut"][];
+            /** Today Cost Usd */
+            today_cost_usd: number;
+        };
         /** AnalyticsEventIn */
         AnalyticsEventIn: {
             /**
              * Event
              * @enum {string}
              */
-            event: "story_share" | "notification_received" | "notification_open";
+            event: "app_open" | "feed_view" | "story_open" | "story_save" | "story_share" | "language_switch" | "search" | "notification_open" | "notification_opt_in" | "onboarding_complete" | "account_delete_request" | "report_issue" | "notification_received";
             /** Properties */
             properties?: {
                 [key: string]: unknown;
@@ -831,6 +883,15 @@ export interface components {
             top_stories?: components["schemas"]["StoryOut"][];
             /** Topics */
             topics?: components["schemas"]["TopicOut"][];
+        };
+        /** JobQueueHealthOut */
+        JobQueueHealthOut: {
+            /** Counts By Status */
+            counts_by_status: {
+                [key: string]: number;
+            };
+            /** Oldest Pending Age Seconds */
+            oldest_pending_age_seconds?: number | null;
         };
         /**
          * KillSwitchesOut
@@ -888,6 +949,13 @@ export interface components {
              * @enum {string}
              */
             type: "DAILY_BRIEFING" | "TOPIC_ALERT" | "BREAKING_ALERT";
+        };
+        /** ObservabilityOut */
+        ObservabilityOut: {
+            ai_cost: components["schemas"]["AiCostSummaryOut"];
+            /** Ingestion Health */
+            ingestion_health: components["schemas"]["SourceIngestionHealthOut"][];
+            job_queue: components["schemas"]["JobQueueHealthOut"];
         };
         /**
          * PersonalizationOut
@@ -1058,6 +1126,33 @@ export interface components {
             image_url?: string | null;
             /** Title */
             title: string;
+        };
+        /**
+         * SourceIngestionHealthOut
+         * @description T18 §9.3 "ingestion health": one row per source, scoped to the
+         *     `source_fetch` jobs run in the last 24h (not all-time counters, which
+         *     `fail_count`/`AdminSourceOut` already expose).
+         */
+        SourceIngestionHealthOut: {
+            /** Circuit Breaker Tripped */
+            circuit_breaker_tripped: boolean;
+            /** Fail Count */
+            fail_count: number;
+            /** Failure Count 24H */
+            failure_count_24h: number;
+            /** Last Error At */
+            last_error_at?: string | null;
+            /** Last Success At */
+            last_success_at?: string | null;
+            /**
+             * Source Id
+             * Format: uuid
+             */
+            source_id: string;
+            /** Source Name */
+            source_name: string;
+            /** Success Count 24H */
+            success_count_24h: number;
         };
         /** StoriesListResponse */
         StoriesListResponse: {
@@ -1313,6 +1408,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["KillSwitchesOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_observability_v1_admin_observability_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ObservabilityOut"];
                 };
             };
             /** @description Validation Error */

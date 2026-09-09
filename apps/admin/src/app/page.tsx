@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 import { apiUrl, clearSession, getRole, getToken } from "@/lib/auth";
+import { captureException } from "@/lib/errorTracking";
 
 export default function Home() {
   const router = useRouter();
@@ -48,6 +49,9 @@ export default function Home() {
       <p>
         <Link href="/review">Review queue</Link>
       </p>
+      <p>
+        <Link href="/observability">Observability</Link>
+      </p>
       <button
         type="button"
         onClick={() => {
@@ -57,6 +61,16 @@ export default function Home() {
       >
         Sign out
       </button>
+      {process.env.NODE_ENV !== "production" ? (
+        <p>
+          <button
+            type="button"
+            onClick={() => captureException(new Error("T18 debug throw — deliberate, for error-tracking verification"), { role: role ?? "" })}
+          >
+            Debug: throw error
+          </button>
+        </p>
+      ) : null}
     </main>
   );
 }

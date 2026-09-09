@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { ActivityIndicator, ScrollView, StyleSheet, View } from "react-native";
 
 import { NotificationPreferencesForm } from "../components/NotificationPreferencesForm";
-import { updatePreferences } from "../lib/api";
+import { trackEvent, updatePreferences } from "../lib/api";
 import {
   DEFAULT_NOTIFICATION_PREFERENCES,
   getNotificationPreferences,
@@ -48,6 +48,12 @@ export function NotificationPreferencesScreen() {
   }
 
   function handleChange(next: NotificationPreferences) {
+    // "opt in" is specifically re-enabling the master switch after having
+    // turned it off — not every individual topic/breaking/daily toggle,
+    // most of which start (and often stay) on by default.
+    if (prefs?.disableAll && !next.disableAll) {
+      trackEvent("notification_opt_in");
+    }
     setPrefs(next);
     setNotificationPreferences(next);
     syncToServer(next);

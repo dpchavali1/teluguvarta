@@ -2,10 +2,13 @@
 
 import { useState } from "react";
 
+import { track } from "@/lib/analytics";
+
 export default function DeleteAccountPage() {
   const [cleared, setCleared] = useState(false);
 
   function handleClear() {
+    track("account_delete_request");
     try {
       window.localStorage.removeItem("tg_saved_stories");
     } catch {

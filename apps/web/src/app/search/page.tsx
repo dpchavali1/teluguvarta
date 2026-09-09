@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 
 import { StoryCard } from "@/components/StoryCard";
+import { TrackEvent } from "@/components/TrackEvent";
 import { search } from "@/lib/api";
 
 export const metadata: Metadata = { title: "Search" };
@@ -13,6 +14,7 @@ export default async function SearchPage({ searchParams }: Props) {
 
   return (
     <>
+      {results && <TrackEvent event="search" properties={{ query: q, result_count: results.items.length }} />}
       <h1>Search</h1>
       <form className="search-form" role="search" action="/search" method="get">
         <label className="visually-hidden" htmlFor="search-q">Search stories</label>

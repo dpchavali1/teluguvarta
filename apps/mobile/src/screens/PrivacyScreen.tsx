@@ -2,6 +2,8 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import React, { useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text } from "react-native";
 
+import { trackEvent } from "../lib/api";
+
 // Mirrors apps/web/src/app/account/delete/page.tsx: no account system
 // exists yet (ADR-006 proposed, not accepted), so "delete account" is
 // "clear everything this app stored on this device" — onboarding profile,
@@ -12,6 +14,7 @@ export function PrivacyScreen() {
   const [cleared, setCleared] = useState(false);
 
   async function handleClear() {
+    trackEvent("account_delete_request");
     await AsyncStorage.removeMany([
       "tg_onboarded_v1",
       "tg_profile_v1",

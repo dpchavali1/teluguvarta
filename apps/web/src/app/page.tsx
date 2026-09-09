@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { StoryCard } from "@/components/StoryCard";
+import { TrackEvent } from "@/components/TrackEvent";
 import { getHome } from "@/lib/api";
 
 export const revalidate = 60;
@@ -10,6 +11,7 @@ export default async function HomePage() {
 
   return (
     <>
+      <TrackEvent event="feed_view" properties={{ story_count: topStories.length }} />
       <h1>Telugu Global</h1>
       <p>The latest stories for the global Telugu diaspora — original summaries, always linked to the source.</p>
 

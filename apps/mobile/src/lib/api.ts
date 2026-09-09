@@ -1,6 +1,7 @@
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import type { components } from "@teluguvarta/contracts";
 
-import { getClientToken } from "./identity";
+import { getClientToken, randomToken } from "./identity";
 
 export type StoryVariantOut = components["schemas"]["StoryVariantOut"];
 export type TopicOut = components["schemas"]["TopicOut"];
@@ -133,14 +134,50 @@ export function registerPushToken(token: string, platform: "ios" | "android"): P
   return authedRequest("POST", "/v1/me/push-tokens", { token, platform }).then(() => undefined);
 }
 
-export type AnalyticsEventName = "story_share" | "notification_received" | "notification_open";
+// T18 expands this to the full §17 core-events list server-side
+// (app/schemas.py::AnalyticsEventName) — derived from the generated
+// contract rather than re-typed here so the two can't drift.
+export type AnalyticsEventName = components["schemas"]["AnalyticsEventIn"]["event"];
+
+const ANON_ID_KEY = "tg_analytics_anon_id_v1";
+let cachedAnonId: string | null = null;
+
+// A non-secret, per-device id used only to group analytics events in
+// PostHog (which requires a `distinct_id` or silently rejects the event —
+// see apps/api/app/analytics.py::_forward_to_posthog). Deliberately a
+// separate key/value from identity.ts's `tg_client_token_v1` — that token
+// is an auth credential and must never be sent to a third-party analytics
+// sink.
+//
+// Resolved lazily and cached in-memory rather than awaited inline in
+// `trackEvent`: awaiting an AsyncStorage round trip before the very first
+// `fetch` delays app-launch events (app_open/feed_view) enough to break the
+// E2E smoke test's cold-start assertions. Events fired before resolution
+// completes just go out without `anon_id` — best-effort, same as a dropped
+// event.
+function primeAnonId(): void {
+  if (cachedAnonId) return;
+  AsyncStorage.getItem(ANON_ID_KEY)
+    .then((existing) => {
+      if (existing) {
+        cachedAnonId = existing;
+        return;
+      }
+      const id = randomToken();
+      cachedAnonId = id;
+      AsyncStorage.setItem(ANON_ID_KEY, id).catch(() => undefined);
+    })
+    .catch(() => undefined);
+}
 
 export async function trackEvent(event: AnalyticsEventName, properties: Record<string, unknown> = {}): Promise<void> {
+  primeAnonId();
   try {
+    const props = cachedAnonId ? { ...properties, anon_id: cachedAnonId } : properties;
     await fetch(new URL("/v1/events", apiUrl()).toString(), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ event, properties }),
+      body: JSON.stringify({ event, properties: props }),
     });
   } catch {
     // Best-effort — a dropped analytics event must never break the flow

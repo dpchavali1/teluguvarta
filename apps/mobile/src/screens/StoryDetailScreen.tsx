@@ -3,7 +3,7 @@ import React, { useEffect, useState } from "react";
 import { ActivityIndicator, Linking, StyleSheet, Text, View } from "react-native";
 
 import { StoryCard } from "../components/StoryCard";
-import { getStory, type StoryOut } from "../lib/api";
+import { getStory, trackEvent, type StoryOut } from "../lib/api";
 import { useStoryCache } from "../lib/StoryCacheContext";
 import type { RootStackParamList } from "../navigation/types";
 
@@ -22,6 +22,7 @@ export function StoryDetailScreen({ route }: Props) {
         if (cancelled) return;
         setStory(result);
         cache.put([result]);
+        trackEvent("story_open", { story_id: result.id });
       })
       .catch(() => {
         if (!cancelled) setError("Couldn't load this story.");

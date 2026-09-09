@@ -4,7 +4,7 @@ import React, { useEffect, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from "react-native";
 
 import { NotificationPreferencesForm } from "../components/NotificationPreferencesForm";
-import { getConfig, type TopicOut } from "../lib/api";
+import { getConfig, trackEvent, type TopicOut } from "../lib/api";
 import type { RootStackParamList } from "../navigation/types";
 import {
   DEFAULT_NOTIFICATION_PREFERENCES,
@@ -49,6 +49,7 @@ export function OnboardingScreen() {
     await setProfile(finalProfile);
     await setNotificationPreferences(finalPrefs);
     await setOnboarded(true);
+    trackEvent("onboarding_complete", { life_stage: finalProfile.lifeStage });
     navigation.reset({ index: 0, routes: [{ name: "Main" }] });
   }
 
