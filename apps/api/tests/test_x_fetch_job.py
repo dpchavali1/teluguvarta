@@ -72,24 +72,32 @@ def test_schedule_skips_disabled_circuit_broken_and_uncadenced_accounts(migrated
 
 
 @requires_postgres
-def test_schedule_skips_everyone_when_over_monthly_budget(migrated_database, monkeypatch):
+def test_schedule_pauses_only_low_priority_accounts_when_over_monthly_budget(migrated_database, monkeypatch):
+    """X4 acceptance: a budget breach pauses `budget_class="LOW"` accounts
+    only — a higher-priority account (and, implicitly, any other ingestion
+    source not filtered by this query at all) keeps polling."""
     monkeypatch.setenv("MONTHLY_X_API_BUDGET_USD", "1")
     engine = create_engine(migrated_database)
     with Session(engine) as db:
-        source = _make_source()
-        db.add(source)
+        low_source = _make_source(name="Low priority")
+        high_source = _make_source(name="High priority")
+        db.add_all([low_source, high_source])
         db.commit()
-        x_account = _make_x_account(source.id)
-        db.add(x_account)
+        low_account = _make_x_account(low_source.id, handle="low", x_user_id="910", budget_class="LOW")
+        high_account = _make_x_account(high_source.id, handle="high", x_user_id="911", budget_class="STANDARD")
+        db.add_all([low_account, high_account])
         db.commit()
         # Spend past budget via a real logged call.
-        x_fetch.record_call(db, x_account_id=x_account.id, posts_read=0, cost_usd=5.0, status="OK")
+        x_fetch.record_call(db, x_account_id=high_account.id, posts_read=0, cost_usd=5.0, status="OK")
         db.commit()
 
         enqueued = x_fetch.schedule_due_x_fetches(db)
-        assert enqueued == 0
+        db.commit()
+
+        assert enqueued == 1
         jobs = db.scalars(select(Job).where(Job.type == "x_official_account_fetch")).all()
-        assert len(jobs) == 0
+        assert len(jobs) == 1
+        assert jobs[0].payload["x_account_id"] == str(high_account.id)
 
 
 @requires_postgres

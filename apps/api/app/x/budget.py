@@ -12,7 +12,17 @@ from datetime import UTC, datetime
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.models import XApiCallLog
+from app.models import XAccount, XApiCallLog
+
+# X4: the only `budget_class` value the budget guard treats as
+# skippable when over budget — anything else (None/"STANDARD"/"HIGH") keeps
+# polling even past the threshold, per §19 ("pause/reduce low-priority
+# polling", not everything).
+LOW_PRIORITY_BUDGET_CLASS = "LOW"
+
+
+def is_low_priority(x_account: XAccount) -> bool:
+    return x_account.budget_class == LOW_PRIORITY_BUDGET_CLASS
 
 
 def record_call(
@@ -71,3 +81,28 @@ def budget_remaining_usd(db: Session, now: datetime | None = None) -> float | No
     if not budget:
         return None
     return float(budget) - month_to_date_cost_usd(db, now)
+
+
+def month_to_date_cost_usd_for_account(db: Session, x_account_id: uuid.UUID, now: datetime | None = None) -> float:
+    now = now or datetime.now(UTC)
+    total = db.scalar(
+        select(func.coalesce(func.sum(XApiCallLog.cost_usd), 0)).where(
+            XApiCallLog.x_account_id == x_account_id, XApiCallLog.created_at >= _month_start(now)
+        )
+    )
+    return float(total or 0.0)
+
+
+def recent_error_count(db: Session, x_account_id: uuid.UUID, since: datetime) -> int:
+    """X4 admin health view: count of `RATE_LIMITED`/`ERROR` fetch attempts
+    for one account since `since`, so an admin doesn't have to read logs."""
+    return (
+        db.scalar(
+            select(func.count()).where(
+                XApiCallLog.x_account_id == x_account_id,
+                XApiCallLog.status.in_(("ERROR", "RATE_LIMITED")),
+                XApiCallLog.created_at >= since,
+            )
+        )
+        or 0
+    )

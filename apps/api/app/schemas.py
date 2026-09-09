@@ -317,6 +317,15 @@ class AdminXAccountOut(BaseModel):
     active: bool
     last_success_at: datetime | None = None
     last_error_at: datetime | None = None
+    # X4: per-account health/cost, so an admin never has to read logs.
+    fail_count: int
+    circuit_breaker_tripped: bool
+    recent_error_count_24h: int
+    month_to_date_cost_usd: float
+    # True when the X4 budget guard is currently skipping this account's
+    # polling (over monthly budget AND `budget_class="LOW"`) — distinct from
+    # `active`, which is the manual/rights-gate on/off switch.
+    budget_paused: bool
 
 
 class AdminXAccountCreate(BaseModel):
@@ -468,10 +477,23 @@ class AiCostSummaryOut(BaseModel):
     rows: list[AiCostRowOut]
 
 
+class XCostSummaryOut(BaseModel):
+    """X4 §19: same shape as `AiCostSummaryOut` but scoped to X API spend,
+    plus how many low-priority accounts the budget guard is currently
+    pausing as a result."""
+
+    month_to_date_cost_usd: float
+    monthly_budget_usd: float | None = None
+    monthly_budget_remaining_usd: float | None = None
+    over_monthly_budget: bool
+    low_priority_accounts_paused: int
+
+
 class ObservabilityOut(BaseModel):
     ingestion_health: list[SourceIngestionHealthOut]
     job_queue: JobQueueHealthOut
     ai_cost: AiCostSummaryOut
+    x_cost: XCostSummaryOut
 
 
 class PilotSignupIn(BaseModel):

@@ -76,7 +76,15 @@ from app.schemas import (
     RightsEvidence,
     SourceIngestionHealthOut,
     StoryVariantOut,
+    XCostSummaryOut,
 )
+from app.x.budget import (
+    is_low_priority,
+    month_to_date_cost_usd_for_account,
+    recent_error_count,
+)
+from app.x.budget import is_over_monthly_budget as x_is_over_monthly_budget
+from app.x.budget import month_to_date_cost_usd as x_month_to_date_cost_usd
 
 router = APIRouter(
     prefix="/v1/admin", tags=["admin"], dependencies=[Depends(current_admin), Depends(rate_limit_admin)]
@@ -191,7 +199,9 @@ def update_source(
     return _source_out(source)
 
 
-def _x_account_out(account: XAccount, source: Source) -> AdminXAccountOut:
+def _x_account_out(db: Session, account: XAccount, source: Source) -> AdminXAccountOut:
+    now = datetime.now(UTC)
+    over_budget = x_is_over_monthly_budget(db, now)
     return AdminXAccountOut(
         id=account.id,
         source_id=account.source_id,
@@ -205,13 +215,18 @@ def _x_account_out(account: XAccount, source: Source) -> AdminXAccountOut:
         active=source.active,
         last_success_at=source.last_success_at,
         last_error_at=source.last_error_at,
+        fail_count=source.fail_count,
+        circuit_breaker_tripped=source.fail_count >= CIRCUIT_BREAKER_THRESHOLD,
+        recent_error_count_24h=recent_error_count(db, account.id, now - timedelta(hours=24)),
+        month_to_date_cost_usd=month_to_date_cost_usd_for_account(db, account.id, now),
+        budget_paused=over_budget and is_low_priority(account),
     )
 
 
 @router.get("/x-accounts")
 def list_x_accounts(db: Session = Depends(get_db)) -> list[AdminXAccountOut]:
     rows = db.execute(select(XAccount, Source).join(Source, XAccount.source_id == Source.id)).all()
-    return [_x_account_out(account, source) for account, source in rows]
+    return [_x_account_out(db, account, source) for account, source in rows]
 
 
 @router.post("/sources/{source_id}/x-account", status_code=201)
@@ -245,7 +260,7 @@ def create_x_account(
     )
     db.commit()
     db.refresh(account)
-    return _x_account_out(account, source)
+    return _x_account_out(db, account, source)
 
 
 @router.patch("/sources/{source_id}/x-account")
@@ -269,7 +284,7 @@ def update_x_account(
     _write_audit_event(db, admin.email, "X_ACCOUNT_UPDATED", "x_account", account.id, updates)
     db.commit()
     db.refresh(account)
-    return _x_account_out(account, source)
+    return _x_account_out(db, account, source)
 
 
 @router.get("/kill-switches")
@@ -603,7 +618,22 @@ def get_observability(db: Session = Depends(get_db)) -> ObservabilityOut:
         rows=[AiCostRowOut(**row) for row in cost_by_task_and_day(db)],
     )
 
-    return ObservabilityOut(ingestion_health=ingestion_health, job_queue=job_queue, ai_cost=ai_cost)
+    x_monthly_budget = os.environ.get("MONTHLY_X_API_BUDGET_USD")
+    x_mtd = x_month_to_date_cost_usd(db, now)
+    x_over_budget = x_is_over_monthly_budget(db, now)
+    low_priority_paused = 0
+    if x_over_budget:
+        x_accounts = db.scalars(select(XAccount)).all()
+        low_priority_paused = sum(1 for account in x_accounts if is_low_priority(account))
+    x_cost = XCostSummaryOut(
+        month_to_date_cost_usd=x_mtd,
+        monthly_budget_usd=float(x_monthly_budget) if x_monthly_budget else None,
+        monthly_budget_remaining_usd=(float(x_monthly_budget) - x_mtd) if x_monthly_budget else None,
+        over_monthly_budget=x_over_budget,
+        low_priority_accounts_paused=low_priority_paused,
+    )
+
+    return ObservabilityOut(ingestion_health=ingestion_health, job_queue=job_queue, ai_cost=ai_cost, x_cost=x_cost)
 
 
 @router.get("/pilot-signups")

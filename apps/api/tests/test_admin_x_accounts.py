@@ -157,6 +157,94 @@ def test_update_x_account_since_id_and_health_fields_queryable(client, db_sessio
     assert "last_error_at" in listed[0]
 
 
+def test_x_account_list_surfaces_health_and_cost_fields(client, db_session):
+    """X4 acceptance: admin can see health/poll-state/errors/cost/active
+    state per X account without reading logs directly."""
+    token = _token(client, db_session)
+    source_id = _make_source(client, token)
+    client.post(
+        f"/v1/admin/sources/{source_id}/x-account",
+        json={"x_user_id": "123456789", "handle": "@example"},
+        headers=_auth(token),
+    )
+
+    listed = client.get("/v1/admin/x-accounts", headers=_auth(token)).json()
+    account = listed[0]
+    assert account["fail_count"] == 0
+    assert account["circuit_breaker_tripped"] is False
+    assert account["recent_error_count_24h"] == 0
+    assert account["month_to_date_cost_usd"] == 0
+    assert account["budget_paused"] is False
+
+
+def test_budget_guard_pauses_only_low_priority_x_accounts(client, db_session, monkeypatch):
+    """X4 acceptance: a simulated budget breach flags `budget_class="LOW"`
+    accounts as paused and leaves a higher-priority account untouched."""
+    from app.x.budget import record_call
+
+    monkeypatch.setenv("MONTHLY_X_API_BUDGET_USD", "1")
+    token = _token(client, db_session)
+
+    low_source_id = _make_source(client, token, "Low priority account")
+    high_source_id = _make_source(client, token, "High priority account")
+    low_account = client.post(
+        f"/v1/admin/sources/{low_source_id}/x-account",
+        json={"x_user_id": "111", "handle": "@low", "budget_class": "LOW"},
+        headers=_auth(token),
+    ).json()
+    high_account = client.post(
+        f"/v1/admin/sources/{high_source_id}/x-account",
+        json={"x_user_id": "222", "handle": "@high", "budget_class": "STANDARD"},
+        headers=_auth(token),
+    ).json()
+
+    record_call(db_session, x_account_id=uuid.UUID(high_account["id"]), posts_read=0, cost_usd=5.0, status="OK")
+    db_session.commit()
+
+    listed = {row["id"]: row for row in client.get("/v1/admin/x-accounts", headers=_auth(token)).json()}
+    assert listed[low_account["id"]]["budget_paused"] is True
+    assert listed[high_account["id"]]["budget_paused"] is False
+
+
+def test_manual_pause_of_one_x_account_does_not_affect_another(client, db_session):
+    """X4 acceptance: manual pause reuses T06's per-source `active` kill
+    switch, which is already scoped one-to-one to an X account — pausing
+    one source must not touch any other account's `active` state."""
+    token = _token(client, db_session)
+    source_a = _make_source(client, token, "Account A")
+    source_b = _make_source(client, token, "Account B")
+    client.post(
+        f"/v1/admin/sources/{source_a}/x-account",
+        json={"x_user_id": "333", "handle": "@a", "budget_class": "STANDARD"},
+        headers=_auth(token),
+    )
+    client.post(
+        f"/v1/admin/sources/{source_b}/x-account",
+        json={"x_user_id": "444", "handle": "@b", "budget_class": "STANDARD"},
+        headers=_auth(token),
+    )
+    # Give both sources rights evidence so `active` can be toggled true.
+    for source_id in (source_a, source_b):
+        client.patch(
+            f"/v1/admin/sources/{source_id}",
+            json={
+                "rights_status": "LINK_ONLY",
+                "rights_evidence_url": "https://example.com/evidence",
+                "rights_reviewed_at": "2026-01-01T00:00:00Z",
+                "reviewer": "reviewer@example.com",
+            },
+            headers=_auth(token),
+        )
+
+    client.patch(f"/v1/admin/sources/{source_a}", json={"active": True}, headers=_auth(token))
+    client.patch(f"/v1/admin/sources/{source_b}", json={"active": True}, headers=_auth(token))
+    client.patch(f"/v1/admin/sources/{source_a}", json={"active": False}, headers=_auth(token))
+
+    listed = {row["source_id"]: row for row in client.get("/v1/admin/x-accounts", headers=_auth(token)).json()}
+    assert listed[source_a]["active"] is False
+    assert listed[source_b]["active"] is True
+
+
 def test_x_account_mutations_write_audit_events(client, db_session):
     from app.models import AuditEvent
 

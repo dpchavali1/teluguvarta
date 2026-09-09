@@ -19,7 +19,12 @@ from app.adapters.x import XAdapter
 from app.jobs.queue import enqueue_job
 from app.jobs.source_fetch import CIRCUIT_BREAKER_THRESHOLD
 from app.models import Job, Source, XAccount
-from app.x.budget import estimate_cost_usd, is_over_monthly_budget, record_call
+from app.x.budget import (
+    estimate_cost_usd,
+    is_low_priority,
+    is_over_monthly_budget,
+    record_call,
+)
 from app.x.client import XRateLimitedError
 
 FETCH_TIMEOUT_SECONDS = 10.0
@@ -43,14 +48,13 @@ def schedule_due_x_fetches(db: Session) -> int:
     """Enqueues an `x_official_account_fetch` job for every X account whose
     linked source is active + `LINK_ONLY` (the same rights gate as any other
     source, ADR-002/NON_NEGOTIABLES #12), has a configured polling cadence,
-    and hasn't tripped the circuit breaker. Skips every account for this
-    cycle — never just downgrades — once the monthly X API budget is
-    exhausted (§19), the same degrade-rather-than-keep-spending behavior as
-    T10's AI budget guard. Returns the number of jobs actually enqueued.
+    and hasn't tripped the circuit breaker. X4/§19: once the monthly X API
+    budget is exhausted, skips only accounts with `budget_class="LOW"` for
+    this cycle — never higher-priority X accounts, and never unrelated
+    ingestion sources, as a side effect of the guard. Returns the number of
+    jobs actually enqueued.
     """
-    if is_over_monthly_budget(db):
-        return 0
-
+    over_budget = is_over_monthly_budget(db)
     now = _now()
     rows = (
         db.query(XAccount, Source)
@@ -66,6 +70,8 @@ def schedule_due_x_fetches(db: Session) -> int:
     enqueued = 0
     for x_account, source in rows:
         if source.fail_count >= CIRCUIT_BREAKER_THRESHOLD:
+            continue
+        if over_budget and is_low_priority(x_account):
             continue
         assert x_account.polling_cadence is not None  # filtered by the query above
         window = _fetch_window(x_account.polling_cadence, now)

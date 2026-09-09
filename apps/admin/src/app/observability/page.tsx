@@ -40,16 +40,58 @@ interface AiCostSummary {
   rows: AiCostRow[];
 }
 
+interface XCostSummary {
+  month_to_date_cost_usd: number;
+  monthly_budget_usd: number | null;
+  monthly_budget_remaining_usd: number | null;
+  over_monthly_budget: boolean;
+  low_priority_accounts_paused: number;
+}
+
 interface Observability {
   ingestion_health: SourceIngestionHealth[];
   job_queue: JobQueueHealth;
   ai_cost: AiCostSummary;
+  x_cost: XCostSummary;
+}
+
+interface XAccount {
+  id: string;
+  source_id: string;
+  x_user_id: string;
+  handle: string;
+  priority: number;
+  polling_cadence: number | null;
+  since_id: string | null;
+  budget_class: string | null;
+  rights_status: string;
+  active: boolean;
+  last_success_at: string | null;
+  last_error_at: string | null;
+  fail_count: number;
+  circuit_breaker_tripped: boolean;
+  recent_error_count_24h: number;
+  month_to_date_cost_usd: number;
+  budget_paused: boolean;
 }
 
 export default function ObservabilityPage() {
   const router = useRouter();
   const [data, setData] = useState<Observability | null>(null);
+  const [xAccounts, setXAccounts] = useState<XAccount[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [pausingSourceId, setPausingSourceId] = useState<string | null>(null);
+
+  const loadXAccounts = () => {
+    const token = getToken();
+    if (!token) return;
+    fetch(`${apiUrl()}/v1/admin/x-accounts`, {
+      headers: { Authorization: `Bearer ${token}` }
+    })
+      .then((response) => (response.ok ? response.json() : Promise.reject(new Error("Failed to load X accounts"))))
+      .then((body: XAccount[]) => setXAccounts(body))
+      .catch((err) => setError(err instanceof Error ? err.message : "Failed to load X accounts"));
+  };
 
   useEffect(() => {
     const token = getToken();
@@ -72,7 +114,31 @@ export default function ObservabilityPage() {
       })
       .then((body: Observability) => setData(body))
       .catch((err) => setError(err instanceof Error ? err.message : "Failed to load observability data"));
+    loadXAccounts();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [router]);
+
+  async function togglePause(account: XAccount) {
+    const token = getToken();
+    setPausingSourceId(account.source_id);
+    setError(null);
+    try {
+      const response = await fetch(`${apiUrl()}/v1/admin/sources/${account.source_id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ active: !account.active })
+      });
+      if (!response.ok) {
+        const errorBody = (await response.json().catch(() => null)) as { error?: { message?: string } } | null;
+        throw new Error(errorBody?.error?.message ?? "Failed to update X account");
+      }
+      loadXAccounts();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to update X account");
+    } finally {
+      setPausingSourceId(null);
+    }
+  }
 
   return (
     <main>
@@ -175,6 +241,78 @@ export default function ObservabilityPage() {
                 ))}
               </tbody>
             </table>
+          </section>
+
+          <section>
+            <h2>X account health &amp; budget (X4)</h2>
+            <ul>
+              <li>Month-to-date X API spend: ${data.x_cost.month_to_date_cost_usd.toFixed(2)}</li>
+              <li>
+                Monthly budget:{" "}
+                {data.x_cost.monthly_budget_usd !== null ? `$${data.x_cost.monthly_budget_usd.toFixed(2)}` : "not set"}
+              </li>
+              <li>
+                Remaining budget:{" "}
+                {data.x_cost.monthly_budget_remaining_usd !== null
+                  ? `$${data.x_cost.monthly_budget_remaining_usd.toFixed(2)}`
+                  : "n/a"}
+              </li>
+              {data.x_cost.over_monthly_budget ? (
+                <li role="alert">
+                  Over monthly budget — {data.x_cost.low_priority_accounts_paused} low-priority account(s) paused
+                </li>
+              ) : null}
+            </ul>
+            {xAccounts === null ? (
+              <p>Loading X accounts…</p>
+            ) : xAccounts.length === 0 ? (
+              <p>No X accounts configured.</p>
+            ) : (
+              <table>
+                <thead>
+                  <tr>
+                    <th>Handle</th>
+                    <th>Rights status</th>
+                    <th>Active</th>
+                    <th>Budget class</th>
+                    <th>Budget paused</th>
+                    <th>since_id</th>
+                    <th>Fail count</th>
+                    <th>Errors (24h)</th>
+                    <th>MTD cost</th>
+                    <th>Last success</th>
+                    <th>Last error</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {xAccounts.map((account) => (
+                    <tr key={account.id}>
+                      <td>{account.handle}</td>
+                      <td>{account.rights_status}</td>
+                      <td>{account.active ? "active" : "paused"}</td>
+                      <td>{account.budget_class ?? "—"}</td>
+                      <td>{account.budget_paused ? "PAUSED (budget)" : "—"}</td>
+                      <td>{account.since_id ?? "—"}</td>
+                      <td>{account.fail_count}{account.circuit_breaker_tripped ? " (TRIPPED)" : ""}</td>
+                      <td>{account.recent_error_count_24h}</td>
+                      <td>${account.month_to_date_cost_usd.toFixed(2)}</td>
+                      <td>{account.last_success_at ? new Date(account.last_success_at).toLocaleString() : "—"}</td>
+                      <td>{account.last_error_at ? new Date(account.last_error_at).toLocaleString() : "—"}</td>
+                      <td>
+                        <button
+                          type="button"
+                          disabled={pausingSourceId === account.source_id}
+                          onClick={() => togglePause(account)}
+                        >
+                          {account.active ? "Pause" : "Resume"}
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
           </section>
         </>
       )}

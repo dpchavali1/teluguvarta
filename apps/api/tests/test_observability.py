@@ -190,3 +190,5 @@ def test_observability_endpoint_reports_ingestion_job_and_cost_health(client, db
     assert body["job_queue"]["oldest_pending_age_seconds"] >= 0
 
     assert body["ai_cost"]["month_to_date_cost_usd"] >= 0
+    assert body["x_cost"]["month_to_date_cost_usd"] >= 0
+    assert body["x_cost"]["low_priority_accounts_paused"] == 0
