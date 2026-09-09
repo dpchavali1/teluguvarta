@@ -1,19 +1,40 @@
 """Seed script — run after migrations.
 
-Seeds one admin user (for T05 local login) from ADMIN_SEED_EMAIL/
-ADMIN_SEED_PASSWORD, plus the T07 starter source registry — 3 LINK_ONLY
-government/news feeds with rights evidence already on file (ADR-002: no
-source may be enabled without it). Idempotent throughout: re-running updates
-existing rows by natural key rather than erroring or duplicating. Topics
-land here once a later ticket needs them.
+Seeds one admin user (for T05 local login), the T07 starter source registry
+(3 LINK_ONLY government/news feeds with rights evidence already on file —
+ADR-002: no source may be enabled without it), the §3.3 interest taxonomy as
+`Topic` rows, and one demo `PUBLISHED` story (T14: apps/web's acceptance
+criteria is real data "for at least one seeded story" — this is that
+story). Idempotent throughout: re-running updates existing rows by natural
+key rather than erroring or duplicating.
 """
 
 import os
 import sys
+import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "apps" / "api"))
+
+# §3.3 interest taxonomy (student topics are a separate, later-ticket list).
+SEED_TOPICS = [
+    ("immigration", "Immigration"),
+    ("money", "Money"),
+    ("andhra-pradesh", "Andhra Pradesh"),
+    ("telangana", "Telangana"),
+    ("hyderabad", "Hyderabad"),
+    ("jobs", "Jobs"),
+    ("property", "Property"),
+    ("education", "Education"),
+    ("parents", "Parents"),
+    ("travel", "Travel"),
+    ("community", "Community"),
+    ("entertainment", "Entertainment"),
+    ("sports", "Sports"),
+]
+
+DEMO_STORY_SLUG = "demo-h1b-visa-fee-update"
 
 # feed_url reachability/shape confirmed 2026-09-08; rights_evidence_url points
 # at each publisher's own terms/reuse page and should be re-verified by an
@@ -85,7 +106,7 @@ def main() -> int:
     from sqlalchemy import create_engine, select
     from sqlalchemy.orm import Session
 
-    from app.models import Source, User
+    from app.models import Source, SourceItem, Story, StorySource, StoryTopic, StoryVariant, Topic, User
     from app.security import hash_password
 
     engine = create_engine(database_url)
@@ -100,8 +121,6 @@ def main() -> int:
             user = db.scalar(select(User).where(User.email == email))
             password_hash = hash_password(admin_password)
             if user is None:
-                import uuid
-
                 db.add(User(id=uuid.uuid4(), email=email, role="ADMIN", password_hash=password_hash))
                 print(f"Seeded admin user {email}.")
             else:
@@ -115,8 +134,6 @@ def main() -> int:
         for spec in SEED_SOURCES:
             source = db.scalar(select(Source).where(Source.name == spec["name"]))
             if source is None:
-                import uuid
-
                 source = Source(id=uuid.uuid4(), name=spec["name"])
                 db.add(source)
             source.base_url = spec["base_url"]
@@ -133,6 +150,87 @@ def main() -> int:
             source.active = True
         db.commit()
         print(f"Seeded {len(SEED_SOURCES)} LINK_ONLY sources.")
+
+    with Session(engine) as db:
+        for slug, name in SEED_TOPICS:
+            topic = db.scalar(select(Topic).where(Topic.slug == slug))
+            if topic is None:
+                db.add(Topic(id=uuid.uuid4(), slug=slug, name=name, active=True))
+            else:
+                topic.name = name
+                topic.active = True
+        db.commit()
+        print(f"Seeded {len(SEED_TOPICS)} topics.")
+
+    with Session(engine) as db:
+        story = db.scalar(select(Story).where(Story.canonical_slug == DEMO_STORY_SLUG))
+        if story is not None:
+            print(f"Demo story '{DEMO_STORY_SLUG}' already exists — skipping.")
+        else:
+            source = db.scalar(select(Source).where(Source.name == "NPR News"))
+            if source is None:
+                print("NPR News source not seeded yet — skipping demo story.")
+            else:
+                item = SourceItem(
+                    id=uuid.uuid4(), source_id=source.id, external_id="seed-demo-item",
+                    url="https://www.npr.org/sections/immigration/",
+                    title="Demo source item for the seeded story", raw_hash="seed-demo-hash",
+                    ingest_status="ARCHIVED",
+                )
+                db.add(item)
+                db.flush()
+
+                story = Story(
+                    id=uuid.uuid4(), canonical_slug=DEMO_STORY_SLUG, status="DRAFT",
+                    sensitivity="NONE", importance=0.8,
+                )
+                db.add(story)
+                db.flush()
+                db.add(StorySource(id=uuid.uuid4(), story_id=story.id, source_item_id=item.id, role="PRIMARY", evidence_rank=0))
+
+                topic = db.scalar(select(Topic).where(Topic.slug == "immigration"))
+                if topic is not None:
+                    db.add(StoryTopic(story_id=story.id, topic_id=topic.id, weight=1))
+
+                db.add(StoryVariant(
+                    id=uuid.uuid4(), story_id=story.id, language="en",
+                    headline="H-1B visa fee changes: what applicants need to know",
+                    summary=(
+                        "US Citizenship and Immigration Services has updated H-1B "
+                        "filing fees for the upcoming cap season. Employers and "
+                        "applicants should review the new fee schedule before "
+                        "submitting petitions."
+                    ),
+                    why_matters=(
+                        "If you're on OPT/STEM OPT or your employer is sponsoring an "
+                        "H-1B this season, the new fees change your total filing cost "
+                        "and the paperwork timeline."
+                    ),
+                    qa_status="PASSED",
+                ))
+                db.add(StoryVariant(
+                    id=uuid.uuid4(), story_id=story.id, language="te",
+                    headline="H-1B వీసా ఫీజు మార్పులు: దరఖాస్తుదారులు తెలుసుకోవలసినవి",
+                    summary=(
+                        "రాబోయే క్యాప్ సీజన్ కోసం USCIS H-1B దాఖలు రుసుములను నవీకరించింది. "
+                        "యజమానులు మరియు దరఖాస్తుదారులు పిటిషన్లు సమర్పించే ముందు కొత్త రుసుము "
+                        "షెడ్యూల్‌ను సమీక్షించాలి."
+                    ),
+                    why_matters=(
+                        "మీరు OPT/STEM OPTలో ఉన్నా లేదా మీ యజమాని ఈ సీజన్‌లో H-1B స్పాన్సర్ "
+                        "చేస్తున్నా, కొత్త రుసుములు మీ మొత్తం దాఖలు ఖర్చును మరియు కాగితప్పనుల "
+                        "కాలక్రమాన్ని మారుస్తాయి."
+                    ),
+                    qa_status="PASSED",
+                ))
+                db.flush()
+
+                for intermediate in ("AI_READY", "REVIEW_REQUIRED", "APPROVED", "SCHEDULED", "PUBLISHED"):
+                    story.status = intermediate
+                    db.flush()
+                story.published_at = datetime.now(timezone.utc)
+                db.commit()
+                print(f"Seeded demo published story '{DEMO_STORY_SLUG}'.")
 
     return 0
 

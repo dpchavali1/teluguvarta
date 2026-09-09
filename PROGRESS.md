@@ -24,7 +24,7 @@ prior conversation history.
 | T11 Story generation | **done** | `apps/api/app/jobs/generate.py`: `ai_classify` job sweeps `CLUSTERED` stories through two AI-gateway calls (classify, then generate) and advances state; `9d3f6b1a2c47` adds `ENRICHED`/`REVIEW`/`SCHEDULED`/`ARCHIVED` to `source_items.ingest_status`; fixed a pre-existing T09 bug (`dedup_cluster` job type wasn't in `ck_jobs_type`, so it always errored — renamed to `story_cluster`) |
 | T12 Editorial workflow | **done** | Real approve/reject/retract/correct on `/v1/admin/stories/{id}/*` + `GET .../stories/{id}` detail + real `/v1/admin/review-queue`; every mutation writes an `AuditEvent`; new `publish_scheduler` job (`app/jobs/publish.py`) implements the kill-switch-gated auto-publish sweep from T11's `AI_READY` output; migration `73a24fe47a9f` adds `ARCHIVED` to `story_status` + the reject transitions; `apps/admin` gets a review-queue list + story detail/action page |
 | T13 Bilingual variants | **done** | `app/jobs/translate.py`: `ai_translate` job translates the `en` `StoryVariant` via the AI gateway's `TRANSLATION_EN_TE` task, applies `app/content/glossary.py` proper-noun correction, runs `app/content/qa.py`'s number/date/currency/URL/negation checks (`qa_status` PASSED/FAILED), and samples IMMIGRATION/LEGAL/FINANCIAL passes into the review queue; `app/content/variants.py::resolve_display_variant` is the pure English-fallback resolver for T14 to call; ADR-004 accepted |
-| T14 Web MVP | not started | |
+| T14 Web MVP | **done** | Public `/v1` endpoints wired to real Postgres data (`app/content/serialize.py`); `apps/web` is a real Next.js SSR/ISR site over `@teluguvarta/contracts` types covering every §9.1 page; axe-core a11y check passes on home + story pages |
 | T15 Mobile MVP | not started | |
 | T16 Personalization | not started | |
 | T17 Push notifications | not started | |
@@ -65,6 +65,103 @@ Mirrors `docs/adr/README.md` — keep both in sync.
 ## Changelog
 
 (newest first — one line per ticket completion)
+
+- 2026-09-08: T14 done — the public Next.js site over real API data,
+  completing the vertical slice on web.
+
+  **Backend (real data, not stub)**: `app/content/serialize.py::story_to_out`
+  is the one place a `Story` row becomes the public `StoryOut` contract —
+  `app/routers/public.py` (`/home`, `/stories`, `/stories/{slug}`,
+  `/stories/{slug}/share-meta`, `/topics/{slug}`, `/search`, `/config`) now
+  all query Postgres instead of returning T04's stub data. Only
+  `PUBLISHED/UPDATED/RETRACTED/CORRECTION_PENDING` stories are ever public
+  (`PUBLIC_STATUSES`) — the retracted/corrected indicator a story card must
+  show (ticket's acceptance criteria) is just that `status` field, no new
+  column. `variants` only ever includes `te` once it clears T13's QA gate
+  (calls `resolve_display_variant` per language), so a client never sees a
+  broken translation to fall back from itself. `countries` has no dedicated
+  §12 table — derived from the `Source.country` of every linked source
+  (documented in `serialize.py` as the deterministic, no-new-migration
+  reading, not a taxonomy decision that needed an ADR). `/search` is
+  `ILIKE` over `story_variants.headline`/`summary` (pg_trgm-indexed since
+  T03) — NON_NEGOTIABLES #1's Postgres-search rule, not a ranked-relevance
+  engine no one has measured a need for yet. `/stories` and `/topics/{slug}`
+  gained `topic`/`country` query params and opaque base64-offset
+  `cursor` pagination; `/config`'s feature flags now actually read
+  `AI_TRANSLATION_ENABLED`/`PUSH_NOTIFICATIONS_ENABLED` instead of being
+  hardcoded. New `PUBLIC_WEB_URL` env var (server-side) backs
+  `share-meta.canonical_url`. `packages/contracts` regenerated for the new
+  query params (`pnpm run contracts:generate`) — schema shapes themselves
+  were already final since T04. New `tests/test_public_web.py` (11 cases)
+  covers all of the above against real Postgres; `tests/test_api_contract.py`
+  converted to the same `migrated_database`-fixture pattern other suites
+  use, since the public endpoints now need a real DB.
+
+  **Seed data**: `infra/scripts/seed.py` (previously sources+admin-user
+  only) now also seeds the §3.3 interest taxonomy as `Topic` rows and one
+  demo `PUBLISHED` story with EN+TE variants — this is the "at least one
+  seeded story" the ticket's acceptance criteria requires, and what
+  `apps/web`'s ISR pages and the a11y check render against.
+
+  **`apps/web`**: real Next.js 14 App Router site, SSR/ISR
+  (`revalidate: 60` on every fetch) against `NEXT_PUBLIC_API_URL`, typed
+  only via `@teluguvarta/contracts` (added as a workspace dependency — a
+  small normalization layer in `src/lib/api.ts` defaults the
+  `Field(default_factory=...)` collections the generated types mark
+  optional, since FastAPI's OpenAPI output can't express "always present,
+  defaults to empty"). Every §9.1 page exists: home/feed (`/`), story detail
+  (`/story/[slug]`, `generateMetadata` pulls text-only OG/Twitter tags from
+  `share-meta` per ADR-002 — no image), topic (`/topic/[slug]`), country
+  (`/country/[code]`, filters `/v1/stories?country=`), search (`/search`),
+  saved (`/saved`), about, five legal pages (privacy/terms/ai-disclosure/
+  corrections/copyright-takedown) plus account deletion, and 404/500
+  (`not-found.tsx`/`error.tsx`) — all reachable from the footer.
+  `StoryCard` (`src/components/StoryCard.tsx`) is the one place §3.3's card
+  is implemented: labels, retracted/updated notice, headline+summary+why-
+  matters, a prominent `target="_blank"` source link, an EN⇄Telugu toggle
+  (only rendered when a QA-passed `te` variant exists — both variants are
+  already in the API response, so the toggle is a pure client-side state
+  flip, no extra fetch), a native-share-with-copy-link-fallback Share
+  button, and a Save button. `sitemap.ts`/`robots.ts` cover SEO.
+
+  **Save, without an account system**: §3.3 says save is "local or
+  account-backed depending on auth state" — the public site has no account
+  system yet (only admin auth exists, from T05), so `src/lib/saved.ts`
+  stores saved story ids in the viewer's own `localStorage`, matching
+  NON_NEGOTIABLES #9 (browsing — and here, saving — never requires login).
+  This was a judgment call, not an ADR-worthy one: it's an additive,
+  reversible choice (swapping in `/v1/me/saved` once real public accounts
+  ship is not a breaking change), and §3.3's own text already sanctions it.
+  `/v1/me/*` stays exactly as stubbed by T04 — wiring it to a real account
+  system is ADR-006's (proposed, not accepted) territory, out of scope here.
+
+  **Accessibility**: `apps/web/scripts/a11y-check.mjs` (`pnpm run
+  test:a11y`) fetches rendered HTML from a running server and checks it with
+  `axe-core` inside `jsdom` — no headless-browser download needed. Verified
+  against the seeded demo story: zero violations (not just zero
+  critical/serious) on both home and the story detail page. Semantic
+  landmarks, a skip-link, visible focus rings, a `prefers-reduced-motion`
+  block, and a dark-mode palette are in `globals.css`/`layout.tsx`.
+
+  Verified end-to-end against the real local Postgres + a live `uvicorn` +
+  `next start`: seeded the demo story, fetched it through both the API and
+  the rendered web page, toggled it to `RETRACTED` and confirmed the
+  "Retracted" notice appears, then restored clean seed state (the DB
+  trigger correctly refused `RETRACTED -> PUBLISHED`, so the story was
+  deleted and re-seeded rather than force-reset). All 112 `pytest` cases
+  pass (11 new), `ruff check .` clean, `mypy` shows only the same
+  pre-existing ORM-`str`-vs-`Literal` noise already present in `admin.py`
+  (none introduced by this ticket). Repo-wide `pnpm run lint`/`typecheck`
+  clean (`apps/web` included for the first time); `pnpm run build` succeeds
+  and statically prerenders `/` against live data.
+
+  **Not done / follow-ups**: no Playwright/browser-based a11y run (jsdom's
+  axe check doesn't cover CSS-rendering-dependent rules like real contrast
+  ratios against computed styles — a real browser check is future scope,
+  not blocking this ticket's stated "e.g. axe" criterion); `apps/mobile`
+  still doesn't call the API (T15); country pages use the raw `Source.country`
+  code as-is (no display-name/flag mapping) since no country taxonomy table
+  exists yet.
 
 - 2026-09-08: T13 done — the English-canonical/Telugu-derived lifecycle
   (NON_NEGOTIABLES #7). New `app/jobs/translate.py`: one `ai_translate` job

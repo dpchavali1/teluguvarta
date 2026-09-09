@@ -20,6 +20,8 @@ from app.schemas import Language
 class VariantLike(Protocol):
     language: str
     qa_status: str
+    headline: str
+    summary: str
 
 
 @dataclass(frozen=True)

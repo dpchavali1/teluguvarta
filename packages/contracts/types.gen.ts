@@ -1720,6 +1720,7 @@ export interface operations {
         parameters: {
             query: {
                 q: string;
+                limit?: number;
             };
             header?: never;
             path?: never;
@@ -1749,7 +1750,12 @@ export interface operations {
     };
     list_stories_v1_stories_get: {
         parameters: {
-            query?: never;
+            query?: {
+                topic?: string | null;
+                country?: string | null;
+                limit?: number;
+                cursor?: string | null;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -1763,6 +1769,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["StoriesListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
