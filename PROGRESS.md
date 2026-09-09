@@ -49,7 +49,7 @@ part is a product/ops action this repo can support but not perform.
 
 | Ticket | Status | Notes |
 |---|---|---|
-| S1 Student life-stage profile | not started | |
+| S1 Student life-stage profile | **done** | See 2026-09-09 changelog entry |
 | S2 Student topics/alerts | not started | |
 
 ## ADR status
@@ -70,6 +70,58 @@ Mirrors `docs/adr/README.md` — keep both in sync.
 
 (newest first — one line per ticket completion)
 
+- 2026-09-09: S1 done — International Student/Graduate-OPT life stage as a
+  first-class profile over the existing feed/ranking, never a parallel
+  backend (NON_NEGOTIABLES #13). Backend: `GET /v1/home` gained
+  `student_briefing: bool` (`apps/api/app/routers/public.py`) — when true,
+  composes the fixed immigration/education/jobs/money/travel/community
+  topic set (`STUDENT_BRIEFING_TOPIC_SLUGS`, all pre-existing `SEED_TOPICS`
+  slugs; "community" stands in for "campus/community", no separate campus
+  topic exists) into `Preferences.topics` and reuses T16's ranking/serialize
+  path unchanged — no new endpoint, no new content pipeline. New test
+  `test_student_briefing_composes_fixed_topics_without_explicit_topics_param`
+  in `apps/api/tests/test_personalization_api.py`. Mobile: closed a
+  pre-existing gap where onboarding already collected
+  `residenceCountry/homeRegion/homeCity/lifeStage/interestTopicSlugs`
+  (T15) but `getHome()` never sent them — `apps/mobile/src/lib/api.ts`'s
+  `getHome()` now takes params and `apps/mobile/src/screens/HomeScreen.tsx`
+  reads the stored profile and passes them through, plus fetches
+  `student_briefing` and renders it as a section above the main feed when
+  `storage.ts`'s new `isStudentSegment()` is true. New `lifeStageToSegment()`
+  maps onboarding's SCREAMING_SNAKE `LifeStage` to the API's snake_case
+  `Segment` (these were never reconciled before). Web had no onboarding at
+  all (T14 shipped without one) — added `apps/web/src/app/onboarding/page.tsx`
+  (life-stage + optional residence/home fields, fully skippable, mirrors
+  mobile's flow) backed by a new client-only `apps/web/src/lib/onboarding.ts`
+  (localStorage, same on-device-only judgment call as `./saved.ts` — no
+  account backend exists on web either) and a new client component
+  `apps/web/src/components/StudentBriefing.tsx` rendered on the home page,
+  reading the local profile and calling the new `getStudentBriefing()` in
+  `apps/web/src/lib/api.ts`. Explicit-preference-only throughout (§3.5):
+  grepped for any life-stage/segment inference from behavior — none exists;
+  `student_briefing`/`segment` only ever come from what the user selected
+  in onboarding. Regenerated `packages/contracts` (new query param) via
+  `pnpm run contracts:generate`. Verified: `pytest` (216 passed, 1
+  pre-existing flaky MFA test unrelated to this change — passes in
+  isolation), `ruff check .` clean; `pnpm run typecheck` clean across all
+  workspaces, `pnpm run lint` clean (web/admin; mobile has no lint script);
+  `apps/mobile` Jest suite 14/14 passed (added 2 pure-function tests for
+  `lifeStageToSegment`/`isStudentSegment` to `storage.test.ts`; did not add
+  a new full-app RTL smoke test — hit a pre-existing Expo-notifications
+  teardown crash in that harness unrelated to this change, not worth
+  papering over); `apps/web` production build succeeds
+  (`/onboarding` compiles). Manually verified end-to-end against a real
+  local Postgres + `uvicorn` + `next dev`: `GET /v1/home?student_briefing=true&segment=international_student`
+  returns a personalized, immigration-topic-boosted result; `/` and
+  `/onboarding` both render server-side with expected content (curl-only —
+  the Chrome extension wasn't connected in this sandbox, so the
+  client-rendered Student Briefing section and the onboarding form's
+  interactivity were not visually confirmed in a browser). Not done: no
+  server-persisted life-stage (deliberately — matches the existing
+  on-device-only judgment call for web/mobile preferences pre-ADR-006
+  reconsideration; `student_briefing`/`segment` stay request-time-only like
+  T16's other preferences). S2 (student topic taxonomy + independent
+  student alerts) is a separate, not-yet-started ticket.
 - 2026-09-09: Product-owner decision (not a Claude Code call): proceed with
   remaining build-order tickets (S1/S2, X1-X4) without running the T20
   pilot. `docs/runbooks/pilot-report.md`'s NO-GO and its reasoning stand

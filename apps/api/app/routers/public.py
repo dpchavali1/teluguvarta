@@ -61,6 +61,19 @@ HOME_PAGE_SIZE = 10
 # the entire published-story history.
 HOME_CANDIDATE_POOL = 50
 
+# S1: "Student Briefing" is a composed/filtered view over the same `/v1/home`
+# feed and ranking (docs/tickets/S1.md) — not a separate content pipeline.
+# Slugs must exist in SEED_TOPICS (infra/scripts/seed.py); "community" stands
+# in for "campus/community" since there's no separate campus topic.
+STUDENT_BRIEFING_TOPIC_SLUGS = (
+    "immigration",
+    "education",
+    "jobs",
+    "money",
+    "travel",
+    "community",
+)
+
 
 def _public_web_url() -> str:
     return os.environ.get("PUBLIC_WEB_URL", "http://localhost:3000").rstrip("/")
@@ -131,14 +144,25 @@ def get_home(
     home_city: str | None = Query(default=None),
     topics_pref: str | None = Query(default=None, alias="topics"),
     segment: Segment = Query(default="general"),
+    student_briefing: bool = Query(default=False),
     db: Session = Depends(get_db),
 ) -> HomeResponse:
+    explicit_topics = tuple(t.strip() for t in topics_pref.split(",") if t.strip()) if topics_pref else ()
+    if student_briefing:
+        # Explicit-preference-only (NON_NEGOTIABLES / §3.5): this only fires
+        # when the caller passes student_briefing=true, which only ever
+        # happens because the user explicitly selected International Student
+        # or Graduate/OPT during onboarding — never inferred from behavior.
+        topics_for_prefs = tuple(dict.fromkeys((*STUDENT_BRIEFING_TOPIC_SLUGS, *explicit_topics)))
+    else:
+        topics_for_prefs = explicit_topics
+
     prefs = Preferences(
         residence_country=residence_country,
         residence_region=residence_region,
         home_state=home_state,
         home_city=home_city,
-        topics=tuple(t.strip() for t in topics_pref.split(",") if t.strip()) if topics_pref else (),
+        topics=topics_for_prefs,
     )
 
     if prefs.is_empty():

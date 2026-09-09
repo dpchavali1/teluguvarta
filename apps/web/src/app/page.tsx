@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { StoryCard } from "@/components/StoryCard";
+import { StudentBriefing } from "@/components/StudentBriefing";
 import { TrackEvent } from "@/components/TrackEvent";
 import { getHome } from "@/lib/api";
 
@@ -15,7 +16,12 @@ export default async function HomePage() {
       <section className="page-hero">
         <h1>Telugu Global</h1>
         <p>The latest stories for the global Telugu diaspora — original summaries, always linked to the source.</p>
+        <p>
+          <Link href="/onboarding">Personalize your feed</Link>
+        </p>
       </section>
+
+      <StudentBriefing />
 
       {topics.length > 0 && (
         <nav aria-label="Topics">

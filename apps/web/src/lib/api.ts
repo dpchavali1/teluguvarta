@@ -78,6 +78,30 @@ export async function getHomeFor(segment: string, topics: string[]): Promise<Hom
   return { top_stories: (raw.top_stories ?? []).map(normalizeStory), topics: raw.topics ?? [] };
 }
 
+// S1: browser-side fetch (unlike the other functions here, which run
+// server-side during SSR/ISR) — the "Student Briefing" module depends on
+// the client-only onboarding profile in ./onboarding.ts, so it can only be
+// requested once the page has hydrated. Composes the same `/v1/home`
+// endpoint/ranking via `student_briefing=true` rather than a separate
+// pipeline (docs/tickets/S1.md).
+export async function getStudentBriefing(params: {
+  segment: string;
+  residenceCountry?: string;
+  homeState?: string;
+  homeCity?: string;
+}): Promise<HomeResponse> {
+  const url = new URL("/v1/home", apiUrl());
+  url.searchParams.set("student_briefing", "true");
+  url.searchParams.set("segment", params.segment);
+  if (params.residenceCountry) url.searchParams.set("residence_country", params.residenceCountry);
+  if (params.homeState) url.searchParams.set("home_state", params.homeState);
+  if (params.homeCity) url.searchParams.set("home_city", params.homeCity);
+  const response = await fetch(url);
+  if (!response.ok) throw new Error(`API /v1/home failed: ${response.status}`);
+  const raw = (await response.json()) as components["schemas"]["HomeResponse"];
+  return { top_stories: (raw.top_stories ?? []).map(normalizeStory), topics: raw.topics ?? [] };
+}
+
 export async function listStories(
   params: { topic?: string; country?: string; cursor?: string } = {}
 ): Promise<StoriesListResponse> {

@@ -129,6 +129,25 @@ def test_home_personalizes_by_residence_and_explains_why(client, db_session):
     assert "Immigration" in explanation
 
 
+def test_student_briefing_composes_fixed_topics_without_explicit_topics_param(client, db_session):
+    """S1: `student_briefing=true` should personalize using the fixed
+    immigration/education/jobs/money/travel/community topic set even with
+    no `topics` query param — it's a filtered/composed view over the same
+    `/v1/home` ranking, not a separate pipeline (docs/tickets/S1.md)."""
+    matching = _seed_published_story(db_session, country="IN", topic_slug="education", headline="Education story")
+    _seed_published_story(db_session, country="IN", topic_slug="sports", headline="Sports story")
+
+    unpersonalized = client.get("/v1/home")
+    assert unpersonalized.json()["top_stories"][0]["personalization"] is None
+
+    response = client.get("/v1/home", params={"student_briefing": "true"})
+    assert response.status_code == 200
+    body = response.json()
+    slugs = [s["canonical_slug"] for s in body["top_stories"]]
+    assert slugs[0] == matching.canonical_slug
+    assert body["top_stories"][0]["personalization"] is not None
+
+
 def test_why_matters_generated_once_and_cached(client, db_session, monkeypatch):
     _seed_published_story(db_session, country="US", topic_slug="immigration")
     _use_fake_provider(monkeypatch, [

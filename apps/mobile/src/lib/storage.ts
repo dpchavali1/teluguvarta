@@ -29,6 +29,17 @@ export const LIFE_STAGES: { value: LifeStage; label: string }[] = [
   { value: "OTHER", label: "Other" },
 ];
 
+// S1: apps/api's `Segment` (app/schemas.py) is lowercase snake_case; this
+// storage module predates it and uses SCREAMING_SNAKE — map explicitly at
+// the API boundary rather than changing either representation.
+export function lifeStageToSegment(lifeStage: LifeStage | undefined): string {
+  return lifeStage ? lifeStage.toLowerCase() : "general";
+}
+
+export function isStudentSegment(lifeStage: LifeStage | undefined): boolean {
+  return lifeStage === "INTERNATIONAL_STUDENT" || lifeStage === "GRADUATE_OPT";
+}
+
 // §3.1: conditional student sub-questions — deliberately no university name
 // or immigration-document fields (NON_NEGOTIABLES: don't collect what isn't
 // needed; immigration content itself is always human-reviewed, but that's

@@ -2205,6 +2205,7 @@ export interface operations {
                 home_city?: string | null;
                 topics?: string | null;
                 segment?: "general" | "international_student" | "graduate_opt" | "professional" | "family_parent" | "other";
+                student_briefing?: boolean;
             };
             header?: never;
             path?: never;

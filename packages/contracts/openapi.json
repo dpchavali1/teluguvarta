@@ -3772,6 +3772,16 @@
               "title": "Segment",
               "type": "string"
             }
+          },
+          {
+            "in": "query",
+            "name": "student_briefing",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Student Briefing",
+              "type": "boolean"
+            }
           }
         ],
         "responses": {

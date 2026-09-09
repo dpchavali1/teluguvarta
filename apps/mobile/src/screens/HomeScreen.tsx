@@ -5,6 +5,7 @@ import { ActivityIndicator, Linking, Pressable, ScrollView, StyleSheet, Text, Vi
 
 import { StoryCard } from "../components/StoryCard";
 import { getHome, trackEvent, type StoryOut, type TopicOut } from "../lib/api";
+import { getProfile, isStudentSegment, lifeStageToSegment } from "../lib/storage";
 import { useStoryCache } from "../lib/StoryCacheContext";
 import type { RootStackParamList } from "../navigation/types";
 
@@ -13,6 +14,7 @@ export function HomeScreen() {
   const cache = useStoryCache();
   const [stories, setStories] = useState<StoryOut[]>([]);
   const [topics, setTopics] = useState<TopicOut[]>([]);
+  const [briefingStories, setBriefingStories] = useState<StoryOut[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -20,11 +22,31 @@ export function HomeScreen() {
     setLoading(true);
     setError(null);
     try {
-      const home = await getHome();
+      const profile = await getProfile();
+      const homeParams = {
+        residenceCountry: profile.residenceCountry,
+        homeRegion: profile.homeRegion,
+        homeCity: profile.homeCity,
+        topics: profile.interestTopicSlugs,
+        segment: lifeStageToSegment(profile.lifeStage),
+      };
+      const home = await getHome(homeParams);
       setStories(home.top_stories);
       setTopics(home.topics);
       cache.put(home.top_stories);
       trackEvent("feed_view", { story_count: home.top_stories.length });
+
+      // S1: "Student Briefing" — explicit-preference-only (never inferred
+      // from behavior), only fetched when the user selected this life stage
+      // during onboarding. Same feed/ranking endpoint, `student_briefing`
+      // composes the topic filter server-side (see docs/tickets/S1.md).
+      if (isStudentSegment(profile.lifeStage)) {
+        const briefing = await getHome({ ...homeParams, studentBriefing: true });
+        setBriefingStories(briefing.top_stories);
+        cache.put(briefing.top_stories);
+      } else {
+        setBriefingStories([]);
+      }
     } catch {
       setError("Couldn't load the feed. Pull down to try again.");
     } finally {
@@ -65,6 +87,19 @@ export function HomeScreen() {
           ))}
         </ScrollView>
       )}
+      {briefingStories.length > 0 && (
+        <View style={styles.briefing} accessibilityLabel="Student Briefing">
+          <Text style={styles.briefingTitle}>Student Briefing</Text>
+          {briefingStories.map((story) => (
+            <StoryCard
+              key={story.id}
+              story={story}
+              onOpen={() => navigation.navigate("StoryDetail", { slug: story.canonical_slug })}
+              onOpenSource={(url) => Linking.openURL(url)}
+            />
+          ))}
+        </View>
+      )}
       {stories.map((story) => (
         <StoryCard
           key={story.id}
@@ -89,5 +124,17 @@ const styles = StyleSheet.create({
     marginRight: 8,
     borderRadius: 16,
     backgroundColor: "#f0f0f0",
+  },
+  briefing: {
+    marginBottom: 16,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "#e0e0e0",
+  },
+  briefingTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    paddingHorizontal: 16,
+    paddingVertical: 8,
   },
 });

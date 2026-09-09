@@ -67,8 +67,30 @@ async function apiGet<T>(path: string, params?: Record<string, string | undefine
   return response.json() as Promise<T>;
 }
 
-export async function getHome(): Promise<HomeResponse> {
-  const raw = await apiGet<components["schemas"]["HomeResponse"]>("/v1/home");
+export type HomeParams = {
+  residenceCountry?: string;
+  homeRegion?: string;
+  homeCity?: string;
+  topics?: string[];
+  segment?: string;
+  studentBriefing?: boolean;
+};
+
+// S1: mirrors apps/web/src/lib/api.ts::getHomeFor — the same `/v1/home`
+// personalization T16 already ships, now actually fed the onboarding-
+// collected profile (previously collected in storage.ts but never sent,
+// see docs/tickets/S1.md gap). `studentBriefing: true` composes the
+// "Student Briefing" filtered view over this same endpoint/ranking —
+// never a separate content pipeline.
+export async function getHome(params: HomeParams = {}): Promise<HomeResponse> {
+  const raw = await apiGet<components["schemas"]["HomeResponse"]>("/v1/home", {
+    residence_country: params.residenceCountry,
+    home_state: params.homeRegion,
+    home_city: params.homeCity,
+    topics: params.topics && params.topics.length > 0 ? params.topics.join(",") : undefined,
+    segment: params.segment,
+    student_briefing: params.studentBriefing ? "true" : undefined,
+  });
   return { top_stories: (raw.top_stories ?? []).map(normalizeStory), topics: raw.topics ?? [] };
 }
 

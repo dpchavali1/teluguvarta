@@ -609,6 +609,87 @@ main {
   color: var(--color-text);
 }
 
+/* ---------- S1: Student Briefing ---------- */
+
+.student-briefing {
+  margin-bottom: 2rem;
+  padding: 1.25rem 1.5rem;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border);
+  background: var(--color-teal-soft);
+}
+
+.student-briefing h2 {
+  font-size: 1.15rem;
+  margin: 0 0 0.75rem;
+}
+
+.student-briefing .story-list {
+  border-top: 1px solid var(--color-border);
+}
+
+/* ---------- S1: Onboarding ---------- */
+
+.onboarding {
+  max-width: 34rem;
+}
+
+.onboarding__fieldset {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 1rem 1.25rem;
+  margin: 1.5rem 0;
+}
+
+.onboarding__fieldset legend {
+  font-weight: 600;
+  padding: 0 0.4rem;
+}
+
+.onboarding__radio {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem 0;
+}
+
+.onboarding__field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin-bottom: 1rem;
+}
+
+.onboarding__field input {
+  padding: 0.6rem 0.9rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  font-size: 1rem;
+  background: var(--color-surface);
+  color: var(--color-text);
+}
+
+.onboarding__actions {
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 1.5rem;
+}
+
+.onboarding__actions button {
+  border: 1px solid var(--color-teal);
+  background: var(--color-teal);
+  color: var(--color-accent-contrast);
+  border-radius: var(--radius-md);
+  padding: 0.6rem 1.1rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.onboarding__skip {
+  background: transparent !important;
+  color: var(--color-teal) !important;
+}
+
 @media (prefers-reduced-motion: reduce) {
   * {
     animation-duration: 0.001ms !important;

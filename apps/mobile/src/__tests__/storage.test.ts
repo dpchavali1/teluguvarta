@@ -2,6 +2,8 @@ import {
   DEFAULT_NOTIFICATION_PREFERENCES,
   getNotificationPreferences,
   getOnboarded,
+  isStudentSegment,
+  lifeStageToSegment,
   setNotificationPreferences,
   setOnboarded,
   type NotificationPreferences,
@@ -51,4 +53,25 @@ test("onboarded flag defaults to false and persists once set", async () => {
   expect(await getOnboarded()).toBe(false);
   await setOnboarded(true);
   expect(await getOnboarded()).toBe(true);
+});
+
+// S1: onboarding's SCREAMING_SNAKE `LifeStage` must map to apps/api's
+// lowercase `Segment` (app/schemas.py) exactly, and only the two student
+// life stages count as "student" for the Student Briefing module.
+test("lifeStageToSegment maps onboarding life stages to API segment values", () => {
+  expect(lifeStageToSegment("INTERNATIONAL_STUDENT")).toBe("international_student");
+  expect(lifeStageToSegment("GRADUATE_OPT")).toBe("graduate_opt");
+  expect(lifeStageToSegment("PROFESSIONAL")).toBe("professional");
+  expect(lifeStageToSegment("FAMILY_PARENT")).toBe("family_parent");
+  expect(lifeStageToSegment("OTHER")).toBe("other");
+  expect(lifeStageToSegment(undefined)).toBe("general");
+});
+
+test("isStudentSegment is true only for International Student and Graduate/OPT", () => {
+  expect(isStudentSegment("INTERNATIONAL_STUDENT")).toBe(true);
+  expect(isStudentSegment("GRADUATE_OPT")).toBe(true);
+  expect(isStudentSegment("PROFESSIONAL")).toBe(false);
+  expect(isStudentSegment("FAMILY_PARENT")).toBe(false);
+  expect(isStudentSegment("OTHER")).toBe(false);
+  expect(isStudentSegment(undefined)).toBe(false);
 });
