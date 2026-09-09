@@ -4,9 +4,18 @@ T16 only ever echoed the request back; there was nothing to attach
 persisted state to until push tokens/preferences needed to be readable
 outside a request, by the `notification_dispatch` job.
 
-`save_story`/`unsave_story`/`delete_account` stay stub-echo: saved stories
-and account deletion are out of T17's scope (no `saved_stories` table
-exists yet) and unaffected by push notifications.
+`save_story`/`unsave_story` stay stub-echo: saved stories are client-side
+only (web `localStorage` / mobile `AsyncStorage`, see T14/T15) since no
+`saved_stories` table exists — there's nothing server-side to save to yet.
+
+`delete_account` (T19 §16/§5.5 cross-system deletion) is real: deleting the
+`users` row cascades in the database itself (T03's `ondelete="CASCADE"` FKs
+on `profiles`/`user_topics`/`push_tokens`/`notifications`, and
+`ondelete="SET NULL"` on `review_tasks.reviewer_id`/`corrections.created_by`
+so editorial history survives losing the anonymous identity that made it) —
+there is no separate per-table purge to keep in sync. This only reaches
+`users` rows with no admin `role` (an anonymous end-user identity); an
+admin's own account is out of scope for this self-service endpoint.
 """
 
 from datetime import UTC, datetime
@@ -149,5 +158,9 @@ def list_notifications(
 
 
 @router.delete("/account")
-def delete_account(principal: Principal = Depends(current_user)) -> DeleteAccountResponse:
+def delete_account(principal: Principal = Depends(current_user), db: Session = Depends(get_db)) -> DeleteAccountResponse:
+    user = db.get(User, principal.user_id)
+    if user is not None:
+        db.delete(user)
+        db.commit()
     return DeleteAccountResponse(deleted=True)

@@ -36,3 +36,6 @@ pnpm-debug.log*
 coverage/
 .pytest_cache/
 .turbo/
+
+# Local backup dumps (infra/scripts/backup.sh default output dir)
+/backups/

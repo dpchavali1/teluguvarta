@@ -39,12 +39,14 @@ from datetime import UTC, datetime, timedelta
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.ai.budget import is_over_monthly_budget
 from app.jobs.queue import enqueue_job
 from app.models import AuditEvent, Job, ReviewTask, Story
 
 SCHEDULE_INTERVAL_MINUTES = 2
 
 AUTO_PUBLISH_GLOBAL_ENV = "AUTO_PUBLISH_GLOBAL"
+AUTO_PUBLISH_DISABLE_ON_BUDGET_BREACH_ENV = "AUTO_PUBLISH_DISABLE_ON_BUDGET_BREACH"
 
 
 def _now() -> datetime:
@@ -55,12 +57,24 @@ def _auto_publish_enabled() -> bool:
     return os.environ.get(AUTO_PUBLISH_GLOBAL_ENV, "false").lower() == "true"
 
 
+def _budget_breach_disables_auto_publish(db: Session) -> bool:
+    """§19: `AUTO_PUBLISH_DISABLE_ON_BUDGET_BREACH` — once `MONTHLY_AI_BUDGET_USD`
+    is crossed, auto-publish stops (falls back to the review queue, same as
+    `AUTO_PUBLISH_GLOBAL` off) until an operator raises the budget or a new
+    month resets it. Defaults to enabled: a cost breach should fail toward
+    "more human review", not toward "keep auto-publishing regardless of
+    cost" — an operator opts *out* of the safety behavior, not into it."""
+    if os.environ.get(AUTO_PUBLISH_DISABLE_ON_BUDGET_BREACH_ENV, "true").lower() != "true":
+        return False
+    return is_over_monthly_budget(db)
+
+
 def auto_publish_stories(db: Session) -> int:
     stories = db.scalars(select(Story).where(Story.status == "AI_READY")).all()
     if not stories:
         return 0
 
-    enabled = _auto_publish_enabled()
+    enabled = _auto_publish_enabled() and not _budget_breach_disables_auto_publish(db)
     count = 0
     for story in stories:
         # NON_NEGOTIABLES #5: never auto-publish a sensitive category,

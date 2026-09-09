@@ -39,3 +39,18 @@ export async function getClientToken(): Promise<string> {
     return cached;
   }
 }
+
+// T19: after server-side account deletion, the old token must never be
+// reused — the server has forgotten it, but reusing it would just
+// get-or-create a fresh, empty `users` row under the same identifier,
+// which is harmless but pointless. Clearing it here means the next
+// `getClientToken()` mints a genuinely new one.
+export async function resetClientToken(): Promise<void> {
+  cached = null;
+  try {
+    await AsyncStorage.removeItem(KEY);
+  } catch {
+    // Storage unavailable — in-memory `cached` is already cleared, which is
+    // all that matters for the rest of this app session.
+  }
+}

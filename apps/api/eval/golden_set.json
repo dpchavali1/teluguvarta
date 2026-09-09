@@ -1,0 +1,360 @@
+{
+  "_meta": {
+    "description": "T19 §18 golden AI regression set. Each item is an English source (headline+summary) plus a hand-written good/bad Telugu rendering used to exercise app/content/qa.py and app/content/glossary.py deterministically, without a live provider call — see PROGRESS.md's T19 entry and eval/README.md for why this corpus is 30 items, not the spec's >=300 target, and what running it against a real provider would look like.",
+    "categories": [
+      "politics",
+      "money",
+      "immigration",
+      "entertainment",
+      "ap",
+      "telangana",
+      "us",
+      "common_names",
+      "numbers",
+      "multilingual"
+    ],
+    "count": 30
+  },
+  "items": [
+    {
+      "id": "politics-01",
+      "category": "politics",
+      "expected_sensitivity": "NONE",
+      "expected_entities": [
+        "White House"
+      ],
+      "en_headline": "White House announces new infrastructure council",
+      "en_summary": "The White House said on March 4 the council will oversee $12 billion in projects.",
+      "te_good": "వైట్ హౌస్ మార్చి 4న ఈ మండలి $12 billion ప్రాజెక్టులను పర్యవేక్షిస్తుందని ప్రకటించింది.",
+      "te_bad": "వైట్ హౌస్ ఈ మండలి ప్రాజెక్టులను పర్యవేక్షిస్తుందని ప్రకటించింది."
+    },
+    {
+      "id": "politics-02",
+      "category": "politics",
+      "expected_sensitivity": "NONE",
+      "expected_entities": [
+        "United States"
+      ],
+      "en_headline": "United States and partner nations sign trade framework",
+      "en_summary": "Officials said the framework does not include new tariffs on electronics.",
+      "te_good": "అమెరికా భాగస్వామ్య దేశాలతో ఒప్పందంపై సంతకం చేసింది; ఎలక్ట్రానిక్స్‌పై కొత్త సుంకాలు లేదు.",
+      "te_bad": "అమెరికా భాగస్వామ్య దేశాలతో ఒప్పందంపై సంతకం చేసింది; ఎలక్ట్రానిక్స్‌పై కొత్త సుంకాలు ఉంటాయి."
+    },
+    {
+      "id": "politics-03",
+      "category": "politics",
+      "expected_sensitivity": "BREAKING",
+      "expected_entities": [
+        "United States"
+      ],
+      "en_headline": "United States Senate passes emergency funding bill",
+      "en_summary": "The Senate voted 62-38 on June 10 to approve the measure.",
+      "te_good": "అమెరికా సెనేట్ జూన్ 10న 62-38 ఓట్లతో ఈ బిల్లును ఆమోదించింది.",
+      "te_bad": "అమెరికా సెనేట్ ఈ బిల్లును ఆమోదించింది."
+    },
+    {
+      "id": "money-01",
+      "category": "money",
+      "expected_sensitivity": "FINANCIAL",
+      "expected_entities": [],
+      "en_headline": "Stock markets rally after inflation data",
+      "en_summary": "The index rose 2.4% after inflation cooled to 3.1% in February.",
+      "te_good": "ద్రవ్యోల్బణం ఫిబ్రవరిలో 3.1%కి తగ్గిన తర్వాత సూచీ 2.4% పెరిగింది.",
+      "te_bad": "ద్రవ్యోల్బణం తగ్గిన తర్వాత సూచీ పెరిగింది."
+    },
+    {
+      "id": "money-02",
+      "category": "money",
+      "expected_sensitivity": "FINANCIAL",
+      "expected_entities": [],
+      "en_headline": "Bank fees rise for overdraft customers",
+      "en_summary": "The new fee of $35 per overdraft takes effect April 1.",
+      "te_good": "ఏప్రిల్ 1 నుండి ఓవర్‌డ్రాఫ్ట్‌కు $35 రుసుము అమల్లోకి వస్తుంది.",
+      "te_bad": "ఓవర్‌డ్రాఫ్ట్‌కు రుసుము అమల్లోకి వస్తుంది."
+    },
+    {
+      "id": "money-03",
+      "category": "money",
+      "expected_sensitivity": "FINANCIAL",
+      "expected_entities": [],
+      "en_headline": "Remittance costs to India decline",
+      "en_summary": "Average transfer fees are not expected to exceed 400 INR this year.",
+      "te_good": "ఈ ఏడాది సగటు బదిలీ రుసుములు 400 INR మించవు అని అంచనా, పెరుగుదల కాదు.",
+      "te_bad": "ఈ ఏడాది సగటు బదిలీ రుసుములు మించుతాయని అంచనా."
+    },
+    {
+      "id": "immigration-01",
+      "category": "immigration",
+      "expected_sensitivity": "IMMIGRATION",
+      "expected_entities": [
+        "USCIS"
+      ],
+      "en_headline": "USCIS raises H-1B registration fee",
+      "en_summary": "USCIS said the $1,000 fee applies to petitions filed after January 15.",
+      "te_good": "జనవరి 15 తర్వాత దాఖలు చేసే పిటిషన్లకు యుఎస్‌సిఐఎస్ $1,000 రుసుము వర్తిస్తుందని తెలిపింది.",
+      "te_bad": "పిటిషన్లకు యుఎస్‌సిఐఎస్ రుసుము వర్తిస్తుందని తెలిపింది."
+    },
+    {
+      "id": "immigration-02",
+      "category": "immigration",
+      "expected_sensitivity": "IMMIGRATION",
+      "expected_entities": [
+        "USCIS",
+        "United States"
+      ],
+      "en_headline": "United States extends OPT processing window",
+      "en_summary": "USCIS confirmed processing will not exceed 90 days for most applicants.",
+      "te_good": "చాలామంది దరఖాస్తుదారులకు ప్రాసెసింగ్ 90 రోజులు మించదు, ఆలస్యం కాదు అని యుఎస్‌సిఐఎస్ ధృవీకరించింది.",
+      "te_bad": "చాలామంది దరఖాస్తుదారులకు ప్రాసెసింగ్ 90 రోజులు మించుతుందని యుఎస్‌సిఐఎస్ ధృవీకరించింది."
+    },
+    {
+      "id": "immigration-03",
+      "category": "immigration",
+      "expected_sensitivity": "IMMIGRATION",
+      "expected_entities": [
+        "USCIS"
+      ],
+      "en_headline": "Green card backlog details published",
+      "en_summary": "USCIS published updated wait-time estimates on https://uscis.gov/backlog on May 2.",
+      "te_good": "మే 2న యుఎస్‌సిఐఎస్ https://uscis.gov/backlog వద్ద తాజా వేచి ఉండే సమయ అంచనాలను ప్రచురించింది.",
+      "te_bad": "యుఎస్‌సిఐఎస్ తాజా వేచి ఉండే సమయ అంచనాలను ప్రచురించింది."
+    },
+    {
+      "id": "entertainment-01",
+      "category": "entertainment",
+      "expected_sensitivity": "NONE",
+      "expected_entities": [],
+      "en_headline": "Telugu film crosses 200 crore worldwide",
+      "en_summary": "The film collected 200 crore INR within 10 days of release.",
+      "te_good": "ఈ సినిమా విడుదలైన 10 రోజుల్లో 200 crore INR వసూలు చేసింది.",
+      "te_bad": "ఈ సినిమా విడుదలైన తర్వాత భారీగా వసూలు చేసింది."
+    },
+    {
+      "id": "entertainment-02",
+      "category": "entertainment",
+      "expected_sensitivity": "NONE",
+      "expected_entities": [],
+      "en_headline": "Popular singer announces US tour",
+      "en_summary": "The tour will not include stops outside the United States this year.",
+      "te_good": "ఈ ఏడాది పర్యటన అమెరికా వెలుపల నగరాలను కలిగి ఉండదు, అదనపు స్టాప్ లేదు.",
+      "te_bad": "ఈ ఏడాది పర్యటన అమెరికా వెలుపల నగరాలను కూడా కలిగి ఉంటుంది."
+    },
+    {
+      "id": "entertainment-03",
+      "category": "entertainment",
+      "expected_sensitivity": "NONE",
+      "expected_entities": [],
+      "en_headline": "Streaming platform sets release date",
+      "en_summary": "The series premieres on September 20 across all regions.",
+      "te_good": "ఈ సిరీస్ సెప్టెంబర్ 20న అన్ని ప్రాంతాల్లో విడుదలవుతుంది.",
+      "te_bad": "ఈ సిరీస్ త్వరలో అన్ని ప్రాంతాల్లో విడుదలవుతుంది."
+    },
+    {
+      "id": "ap-01",
+      "category": "ap",
+      "expected_sensitivity": "NONE",
+      "expected_entities": [
+        "Andhra Pradesh"
+      ],
+      "en_headline": "Andhra Pradesh approves new port project",
+      "en_summary": "Andhra Pradesh will invest $500 million in the port over three years.",
+      "te_good": "ఆంధ్రప్రదేశ్ మూడేళ్లలో ఈ పోర్టులో $500 million పెట్టుబడి పెడుతుంది.",
+      "te_bad": "ఆంధ్రప్రదేశ్ ఈ పోర్టులో పెట్టుబడి పెడుతుంది."
+    },
+    {
+      "id": "ap-02",
+      "category": "ap",
+      "expected_sensitivity": "NONE",
+      "expected_entities": [
+        "Andhra Pradesh"
+      ],
+      "en_headline": "Andhra Pradesh farmers get subsidy update",
+      "en_summary": "The subsidy will not be reduced for the 2026 crop season.",
+      "te_good": "2026 పంట సీజన్‌కు ఈ సబ్సిడీ తగ్గించబడదు, కోత లేదు.",
+      "te_bad": "2026 పంట సీజన్‌కు ఈ సబ్సిడీ తగ్గించబడుతుంది."
+    },
+    {
+      "id": "ap-03",
+      "category": "ap",
+      "expected_sensitivity": "NONE",
+      "expected_entities": [
+        "Andhra Pradesh"
+      ],
+      "en_headline": "Andhra Pradesh IT exports rise",
+      "en_summary": "Exports grew 8.5% in the quarter ending March 31.",
+      "te_good": "మార్చి 31తో ముగిసిన త్రైమాసికంలో ఎగుమతులు 8.5% పెరిగాయి.",
+      "te_bad": "ఈ త్రైమాసికంలో ఎగుమతులు పెరిగాయి."
+    },
+    {
+      "id": "telangana-01",
+      "category": "telangana",
+      "expected_sensitivity": "NONE",
+      "expected_entities": [
+        "Telangana"
+      ],
+      "en_headline": "Telangana signs IT jobs agreement",
+      "en_summary": "Telangana expects 15,000 new jobs by December.",
+      "te_good": "తెలంగాణ డిసెంబర్ నాటికి 15,000 కొత్త ఉద్యోగాలను అంచనా వేస్తోంది.",
+      "te_bad": "తెలంగాణ కొత్త ఉద్యోగాలను అంచనా వేస్తోంది."
+    },
+    {
+      "id": "telangana-02",
+      "category": "telangana",
+      "expected_sensitivity": "NONE",
+      "expected_entities": [
+        "Telangana"
+      ],
+      "en_headline": "Telangana water project update",
+      "en_summary": "Officials said the project is not delayed despite recent rains.",
+      "te_good": "ఇటీవలి వర్షాలు ఉన్నప్పటికీ ఈ ప్రాజెక్టు ఆలస్యం కాలేదు అని అధికారులు తెలిపారు.",
+      "te_bad": "ఇటీవలి వర్షాల కారణంగా ఈ ప్రాజెక్టు ఆలస్యమైంది అని అధికారులు తెలిపారు."
+    },
+    {
+      "id": "telangana-03",
+      "category": "telangana",
+      "expected_sensitivity": "NONE",
+      "expected_entities": [
+        "Telangana"
+      ],
+      "en_headline": "Telangana releases education budget",
+      "en_summary": "The budget allocates 5,000 crore INR for public schools.",
+      "te_good": "ఈ బడ్జెట్ ప్రభుత్వ పాఠశాలలకు 5,000 crore INR కేటాయిస్తుంది.",
+      "te_bad": "ఈ బడ్జెట్ ప్రభుత్వ పాఠశాలలకు నిధులు కేటాయిస్తుంది."
+    },
+    {
+      "id": "us-01",
+      "category": "us",
+      "expected_sensitivity": "NONE",
+      "expected_entities": [
+        "United States"
+      ],
+      "en_headline": "United States unemployment rate holds steady",
+      "en_summary": "The rate stayed at 4.1% in August, matching July.",
+      "te_good": "ఆగస్టులో ఈ రేటు 4.1%గా, జూలైతో సమానంగా కొనసాగింది.",
+      "te_bad": "ఈ నెలలో ఈ రేటు మారలేదు."
+    },
+    {
+      "id": "us-02",
+      "category": "us",
+      "expected_sensitivity": "NONE",
+      "expected_entities": [
+        "United States"
+      ],
+      "en_headline": "United States announces diplomatic visit",
+      "en_summary": "The visit is scheduled for October 3 and will not be postponed.",
+      "te_good": "ఈ పర్యటన అక్టోబర్ 3న జరగనుంది, వాయిదా లేదు.",
+      "te_bad": "ఈ పర్యటన త్వరలో జరగనుంది."
+    },
+    {
+      "id": "us-03",
+      "category": "us",
+      "expected_sensitivity": "NONE",
+      "expected_entities": [
+        "United States"
+      ],
+      "en_headline": "United States airport expansion completed",
+      "en_summary": "The $2 billion terminal opens to travelers this week.",
+      "te_good": "ఈ $2 billion టెర్మినల్ ఈ వారం ప్రయాణికులకు అందుబాటులోకి వస్తుంది.",
+      "te_bad": "ఈ టెర్మినల్ ఈ వారం ప్రయాణికులకు అందుబాటులోకి వస్తుంది."
+    },
+    {
+      "id": "common-names-01",
+      "category": "common_names",
+      "expected_sensitivity": "NONE",
+      "expected_entities": [],
+      "en_headline": "Srinivas Reddy elected community board chair",
+      "en_summary": "Srinivas Reddy will serve a two-year term starting July 1.",
+      "te_good": "శ్రీనివాస్ రెడ్డి జూలై 1 నుండి రెండేళ్ల పదవీకాలం నిర్వహిస్తారు.",
+      "te_bad": "శ్రీనివాస్ రెడ్డి పదవీకాలం నిర్వహిస్తారు."
+    },
+    {
+      "id": "common-names-02",
+      "category": "common_names",
+      "expected_sensitivity": "NONE",
+      "expected_entities": [],
+      "en_headline": "Priya Patel wins state science award",
+      "en_summary": "Priya Patel's project did not place in last year's competition.",
+      "te_good": "ప్రియా పటేల్ ప్రాజెక్టు గత ఏడాది పోటీలో స్థానం పొందలేదు.",
+      "te_bad": "ప్రియా పటేల్ ప్రాజెక్టు గత ఏడాది పోటీలో స్థానం పొందింది."
+    },
+    {
+      "id": "common-names-03",
+      "category": "common_names",
+      "expected_sensitivity": "NONE",
+      "expected_entities": [],
+      "en_headline": "Venkata Rao opens new clinic",
+      "en_summary": "Venkata Rao's clinic serves 300 patients per week.",
+      "te_good": "వెంకట రావు క్లినిక్ వారానికి 300 మంది రోగులకు సేవలందిస్తుంది.",
+      "te_bad": "వెంకట రావు క్లినిక్ చాలామంది రోగులకు సేవలందిస్తుంది."
+    },
+    {
+      "id": "numbers-01",
+      "category": "numbers",
+      "expected_sensitivity": "NONE",
+      "expected_entities": [],
+      "en_headline": "Census update shows population shift",
+      "en_summary": "The metro area grew by 45,231 residents since 2020.",
+      "te_good": "2020 నుండి ఈ మెట్రో ప్రాంతం 45,231 మంది నివాసితులతో పెరిగింది.",
+      "te_bad": "2020 నుండి ఈ మెట్రో ప్రాంతం గణనీయంగా పెరిగింది."
+    },
+    {
+      "id": "numbers-02",
+      "category": "numbers",
+      "expected_sensitivity": "NONE",
+      "expected_entities": [],
+      "en_headline": "School district enrollment figures released",
+      "en_summary": "Enrollment reached 12,480 students, up 3.2% from last year.",
+      "te_good": "ఎన్‌రోల్‌మెంట్ 12,480 విద్యార్థులకు చేరింది, గత ఏడాదితో పోలిస్తే 3.2% పెరిగింది.",
+      "te_bad": "ఎన్‌రోల్‌మెంట్ గత ఏడాదితో పోలిస్తే పెరిగింది."
+    },
+    {
+      "id": "numbers-03",
+      "category": "numbers",
+      "expected_sensitivity": "NONE",
+      "expected_entities": [],
+      "en_headline": "Highway toll rates adjusted",
+      "en_summary": "The toll rises from $4.50 to $5.25 starting November 1.",
+      "te_good": "నవంబర్ 1 నుండి టోల్ $4.50 నుండి $5.25కి పెరుగుతుంది.",
+      "te_bad": "నవంబర్ 1 నుండి టోల్ పెరుగుతుంది."
+    },
+    {
+      "id": "multilingual-01",
+      "category": "multilingual",
+      "expected_sensitivity": "NONE",
+      "expected_entities": [
+        "United States",
+        "Telangana"
+      ],
+      "en_headline": "United States and Telangana sign education exchange",
+      "en_summary": "The program does not charge participating students any fee.",
+      "te_good": "అమెరికా మరియు తెలంగాణ ఈ విద్యా మార్పిడి ఒప్పందంపై సంతకం చేశాయి; పాల్గొనే విద్యార్థులకు రుసుము లేదు.",
+      "te_bad": "అమెరికా మరియు తెలంగాణ ఈ విద్యా మార్పిడి ఒప్పందంపై సంతకం చేశాయి; పాల్గొనే విద్యార్థులకు రుసుము ఉంటుంది."
+    },
+    {
+      "id": "multilingual-02",
+      "category": "multilingual",
+      "expected_sensitivity": "IMMIGRATION",
+      "expected_entities": [
+        "USCIS",
+        "Andhra Pradesh"
+      ],
+      "en_headline": "Andhra Pradesh diaspora reacts to USCIS rule change",
+      "en_summary": "USCIS said the rule takes effect August 12 and does not apply retroactively.",
+      "te_good": "ఈ నియమం ఆగస్టు 12 నుండి అమల్లోకి వస్తుంది, పూర్వానుసరణీయంగా వర్తించదు, తిరోగమనం లేదు అని యుఎస్‌సిఐఎస్ తెలిపింది.",
+      "te_bad": "ఈ నియమం అమల్లోకి వస్తుందని యుఎస్‌సిఐఎస్ తెలిపింది."
+    },
+    {
+      "id": "multilingual-03",
+      "category": "multilingual",
+      "expected_sensitivity": "NONE",
+      "expected_entities": [
+        "White House",
+        "United States"
+      ],
+      "en_headline": "White House hosts United States-India business forum",
+      "en_summary": "The forum on https://whitehouse.gov/forum runs through June 30.",
+      "te_good": "ఈ ఫోరమ్ https://whitehouse.gov/forum వద్ద జూన్ 30 వరకు కొనసాగుతుంది.",
+      "te_bad": "ఈ ఫోరమ్ జూన్ వరకు కొనసాగుతుంది."
+    }
+  ]
+}

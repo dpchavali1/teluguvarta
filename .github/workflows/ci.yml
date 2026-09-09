@@ -20,6 +20,16 @@ jobs:
       - run: pnpm run lint
       - run: pnpm run typecheck
       - run: pnpm --filter @teluguvarta/mobile run test
+      - name: Dependency scan (T19 §16 baseline)
+        # Informational, not a hard gate yet: `next@14.2.35` (the latest
+        # 14.x patch, both apps/web and apps/admin) carries known high/
+        # critical CVEs with no 14.x fix available — only a Next.js 15
+        # upgrade resolves them, which is a breaking migration (async
+        # params/cookies/headers, React 19) tracked as an explicit
+        # follow-up in PROGRESS.md rather than attempted blind here. Once
+        # that lands, drop `continue-on-error` so this becomes a real gate.
+        run: pnpm audit --audit-level=high
+        continue-on-error: true
 
   api:
     runs-on: ubuntu-latest
@@ -56,6 +66,12 @@ jobs:
             echo "A provider SDK is imported outside app/ai/providers — see ADR-001." >&2
             exit 1
           fi
+      - name: Dependency scan (T19 §16 baseline)
+        run: pip-audit --skip-editable
+      - name: SAST (T19 §16 baseline)
+        run: bandit -r app -c pyproject.toml
+      # tests/test_golden_eval.py (T19 §18) runs the golden AI regression
+      # set as part of this same `pytest` invocation — no separate step.
       - run: pytest
 
   contracts:

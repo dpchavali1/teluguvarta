@@ -150,6 +150,6 @@ test("account_delete_request fires from the Privacy screen", async () => {
 
   fireEvent.press(await screen.findByLabelText("Settings"));
   fireEvent.press(await screen.findByLabelText("Privacy & delete account"));
-  fireEvent.press(await screen.findByLabelText("Clear all data on this device"));
+  fireEvent.press(await screen.findByLabelText("Delete account and clear all data on this device"));
   await waitFor(() => expect(mockEvent("account_delete_request")).toBe(true));
 });

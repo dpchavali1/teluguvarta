@@ -9,14 +9,25 @@ from fastapi import APIRouter, Depends, Request
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.auth import AdminPrincipal, current_admin
 from app.db import get_db
 from app.errors import APIError
 from app.models import User
-from app.schemas import AdminLoginRequest, AdminLoginResponse
+from app.schemas import (
+    AdminLoginRequest,
+    AdminLoginResponse,
+    MfaDisableRequest,
+    MfaEnrollRequest,
+    MfaSetupResponse,
+    MfaStatusResponse,
+)
 from app.security import (
     create_admin_access_token,
+    generate_mfa_secret,
     is_login_rate_limited,
+    mfa_provisioning_uri,
     record_login_attempt,
+    verify_mfa_code,
     verify_password,
 )
 
@@ -38,9 +49,60 @@ def login(body: AdminLoginRequest, request: Request, db: Session = Depends(get_d
         record_login_attempt(db, email, client_ip, success=False)
         raise APIError(401, "INVALID_CREDENTIALS", "Incorrect email or password")
 
+    if user.mfa_secret:
+        if not body.mfa_code:
+            record_login_attempt(db, email, client_ip, success=False)
+            raise APIError(401, "MFA_REQUIRED", "Enter your authenticator app code")
+        if not verify_mfa_code(user.mfa_secret, body.mfa_code):
+            record_login_attempt(db, email, client_ip, success=False)
+            raise APIError(401, "INVALID_MFA_CODE", "Incorrect authenticator app code")
+
     record_login_attempt(db, email, client_ip, success=True)
     user.last_login_at = datetime.now(UTC)
     db.commit()
 
     access_token, expires_in = create_admin_access_token(user.id, user.email, user.role)
     return AdminLoginResponse(access_token=access_token, expires_in=expires_in, role=user.role)
+
+
+@router.get("/mfa")
+def mfa_status(admin: AdminPrincipal = Depends(current_admin), db: Session = Depends(get_db)) -> MfaStatusResponse:
+    user = db.get(User, admin.user_id)
+    return MfaStatusResponse(enabled=bool(user and user.mfa_secret))
+
+
+@router.post("/mfa/setup")
+def mfa_setup(admin: AdminPrincipal = Depends(current_admin)) -> MfaSetupResponse:
+    # Not persisted here — see the MFA note above app/security.py's helpers.
+    # An admin can call this repeatedly to get a fresh secret; only a
+    # completed /mfa/enroll ever changes stored state.
+    secret = generate_mfa_secret()
+    return MfaSetupResponse(secret=secret, otpauth_url=mfa_provisioning_uri(secret, admin.email))
+
+
+@router.post("/mfa/enroll")
+def mfa_enroll(
+    body: MfaEnrollRequest, admin: AdminPrincipal = Depends(current_admin), db: Session = Depends(get_db)
+) -> MfaStatusResponse:
+    if not verify_mfa_code(body.secret, body.code):
+        raise APIError(401, "INVALID_MFA_CODE", "Incorrect authenticator app code")
+    user = db.get(User, admin.user_id)
+    if user is None:
+        raise APIError(404, "NOT_FOUND", "Admin user not found")
+    user.mfa_secret = body.secret
+    db.commit()
+    return MfaStatusResponse(enabled=True)
+
+
+@router.delete("/mfa")
+def mfa_disable(
+    body: MfaDisableRequest, admin: AdminPrincipal = Depends(current_admin), db: Session = Depends(get_db)
+) -> MfaStatusResponse:
+    user = db.get(User, admin.user_id)
+    if user is None or not user.mfa_secret:
+        raise APIError(409, "MFA_NOT_ENABLED", "MFA is not enabled on this account")
+    if not verify_mfa_code(user.mfa_secret, body.code):
+        raise APIError(401, "INVALID_MFA_CODE", "Incorrect authenticator app code")
+    user.mfa_secret = None
+    db.commit()
+    return MfaStatusResponse(enabled=False)

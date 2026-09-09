@@ -11,6 +11,7 @@ from uuid import UUID
 
 import bcrypt
 import jwt
+import pyotp
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
@@ -71,3 +72,27 @@ def is_login_rate_limited(db: Session, email: str) -> bool:
 def record_login_attempt(db: Session, email: str, ip: str | None, success: bool) -> None:
     db.add(AdminLoginAttempt(email=email, ip=ip, success=success))
     db.commit()
+
+
+# --- MFA (T19 §16 baseline: MFA on admin sessions) ---
+#
+# `users.mfa_secret` (present in the T03 schema, unused until now) is the
+# TOTP shared secret. Its presence *is* "MFA enabled" for that admin — there
+# is no separate enabled flag, so `/mfa/setup` deliberately does not persist
+# the secret it generates until `/mfa/enroll` proves the admin's
+# authenticator app actually has it (see app/routers/admin_auth.py), to
+# avoid a half-configured admin locking themselves out on next login.
+
+MFA_ISSUER = "Telugu Global Admin"
+
+
+def generate_mfa_secret() -> str:
+    return pyotp.random_base32()
+
+
+def mfa_provisioning_uri(secret: str, email: str) -> str:
+    return pyotp.TOTP(secret).provisioning_uri(name=email, issuer_name=MFA_ISSUER)
+
+
+def verify_mfa_code(secret: str, code: str) -> bool:
+    return pyotp.TOTP(secret).verify(code, valid_window=1)

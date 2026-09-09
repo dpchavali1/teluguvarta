@@ -147,3 +147,79 @@ def test_login_rate_limit_does_not_affect_other_emails(client, db_session):
         json={"email": "other-admin@example.com", "password": ADMIN_PASSWORD},
     )
     assert response.status_code == 200
+
+
+# --- T19 §16 baseline: MFA on admin sessions ---
+
+
+def _login(client, *, email=ADMIN_EMAIL, password=ADMIN_PASSWORD, mfa_code=None):
+    body = {"email": email, "password": password}
+    if mfa_code is not None:
+        body["mfa_code"] = mfa_code
+    return client.post("/v1/admin/auth/login", json=body)
+
+
+def test_login_without_mfa_enrolled_ignores_mfa_code_field(client, db_session):
+    _seed_admin(db_session)
+    response = _login(client)
+    assert response.status_code == 200
+
+
+def test_mfa_enroll_requires_valid_code_then_login_requires_it(client, db_session):
+    import pyotp
+
+    _seed_admin(db_session)
+    token = _login(client).json()["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+
+    setup = client.post("/v1/admin/auth/mfa/setup", headers=headers)
+    assert setup.status_code == 200
+    secret = setup.json()["secret"]
+
+    bad_enroll = client.post("/v1/admin/auth/mfa/enroll", json={"secret": secret, "code": "000000"}, headers=headers)
+    assert bad_enroll.status_code == 401
+    assert bad_enroll.json()["error"]["code"] == "INVALID_MFA_CODE"
+
+    good_code = pyotp.TOTP(secret).now()
+    enroll = client.post("/v1/admin/auth/mfa/enroll", json={"secret": secret, "code": good_code}, headers=headers)
+    assert enroll.status_code == 200
+    assert enroll.json()["enabled"] is True
+
+    status = client.get("/v1/admin/auth/mfa", headers=headers)
+    assert status.json()["enabled"] is True
+
+    # Password alone is no longer enough.
+    no_code = _login(client)
+    assert no_code.status_code == 401
+    assert no_code.json()["error"]["code"] == "MFA_REQUIRED"
+
+    wrong_code = _login(client, mfa_code="000000")
+    assert wrong_code.status_code == 401
+    assert wrong_code.json()["error"]["code"] == "INVALID_MFA_CODE"
+
+    right_code = _login(client, mfa_code=pyotp.TOTP(secret).now())
+    assert right_code.status_code == 200
+
+
+def test_mfa_disable_requires_current_code(client, db_session):
+    import pyotp
+
+    from app.security import generate_mfa_secret
+
+    secret = generate_mfa_secret()
+    user = _seed_admin(db_session)
+    user.mfa_secret = secret
+    db_session.commit()
+
+    token = _login(client, mfa_code=pyotp.TOTP(secret).now()).json()["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+
+    wrong = client.request("DELETE", "/v1/admin/auth/mfa", json={"code": "000000"}, headers=headers)
+    assert wrong.status_code == 401
+
+    right = client.request("DELETE", "/v1/admin/auth/mfa", json={"code": pyotp.TOTP(secret).now()}, headers=headers)
+    assert right.status_code == 200
+    assert right.json()["enabled"] is False
+
+    # MFA no longer required.
+    assert _login(client).status_code == 200

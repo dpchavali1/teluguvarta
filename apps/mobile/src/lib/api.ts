@@ -109,15 +109,15 @@ export async function getConfig(): Promise<ConfigResponse> {
 // since preferences were on-device only until now. ---
 
 async function authedRequest<T>(
-  method: "POST" | "PATCH",
+  method: "POST" | "PATCH" | "DELETE",
   path: string,
-  body: unknown
+  body?: unknown
 ): Promise<T> {
   const token = await getClientToken();
   const response = await fetch(new URL(path, apiUrl()).toString(), {
     method,
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-    body: JSON.stringify(body),
+    body: body === undefined ? undefined : JSON.stringify(body),
   });
   if (!response.ok) throw new Error(`API ${path} failed: ${response.status}`);
   return response.json() as Promise<T>;
@@ -132,6 +132,15 @@ export function updatePreferences(body: PreferencesUpdate): Promise<ProfileOut> 
 
 export function registerPushToken(token: string, platform: "ios" | "android"): Promise<void> {
   return authedRequest("POST", "/v1/me/push-tokens", { token, platform }).then(() => undefined);
+}
+
+// T19 §16/§5.5 cross-system deletion: deletes the server-side `users` row
+// (profile/push tokens/notification history cascade in Postgres — see
+// apps/api/app/routers/me.py), not just the on-device clear PrivacyScreen
+// already did. Best-effort: a network failure here must not block clearing
+// on-device data, since that part always works with no server dependency.
+export async function deleteAccount(): Promise<void> {
+  await authedRequest("DELETE", "/v1/me/account");
 }
 
 // T18 expands this to the full §17 core-events list server-side

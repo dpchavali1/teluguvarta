@@ -46,6 +46,7 @@ from app.models import (
     StorySource,
     StoryVariant,
 )
+from app.rate_limit import rate_limit_admin
 from app.schemas import (
     AdminActionRequest,
     AdminActionResponse,
@@ -70,7 +71,9 @@ from app.schemas import (
     StoryVariantOut,
 )
 
-router = APIRouter(prefix="/v1/admin", tags=["admin"], dependencies=[Depends(current_admin)])
+router = APIRouter(
+    prefix="/v1/admin", tags=["admin"], dependencies=[Depends(current_admin), Depends(rate_limit_admin)]
+)
 
 # ADR-002: only these two tiers are reachable in this build phase.
 ENABLABLE_RIGHTS_STATUSES = {"DISABLED", "LINK_ONLY"}

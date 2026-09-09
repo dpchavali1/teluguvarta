@@ -213,6 +213,10 @@ class AnalyticsEventResponse(BaseModel):
 class AdminLoginRequest(BaseModel):
     email: str
     password: str
+    # Required only once this admin has MFA enrolled (see
+    # `app/routers/admin_auth.py`'s /mfa/enroll). Omitting it when MFA is
+    # enrolled fails with MFA_REQUIRED, not a silent bypass.
+    mfa_code: str | None = None
 
 
 class AdminLoginResponse(BaseModel):
@@ -220,6 +224,24 @@ class AdminLoginResponse(BaseModel):
     token_type: Literal["bearer"] = "bearer"
     expires_in: int
     role: Literal["EDITOR", "ADMIN"]
+
+
+class MfaSetupResponse(BaseModel):
+    secret: str
+    otpauth_url: str
+
+
+class MfaEnrollRequest(BaseModel):
+    secret: str
+    code: str
+
+
+class MfaStatusResponse(BaseModel):
+    enabled: bool
+
+
+class MfaDisableRequest(BaseModel):
+    code: str
 
 
 class RightsEvidence(BaseModel):

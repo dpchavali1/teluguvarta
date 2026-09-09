@@ -12,7 +12,14 @@ from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session
 
 from app.jobs.publish import auto_publish_stories, publish_due_stories
-from app.models import AuditEvent, Correction, ReviewTask, Story, StoryVariant
+from app.models import (
+    AiCallLog,
+    AuditEvent,
+    Correction,
+    ReviewTask,
+    Story,
+    StoryVariant,
+)
 from tests.conftest import requires_postgres
 
 pytestmark = requires_postgres
@@ -271,6 +278,47 @@ def test_auto_publish_never_advances_sensitive_story_even_if_flag_on(db_session,
 
     task = db_session.scalars(select(ReviewTask).where(ReviewTask.story_id == story.id)).first()
     assert task.reason == "SENSITIVE_CATEGORY"
+
+
+def test_auto_publish_disabled_by_monthly_budget_breach(db_session, monkeypatch):
+    """T19 §19: AUTO_PUBLISH_DISABLE_ON_BUDGET_BREACH (defaults to enabled)
+    must stop auto-publish once MONTHLY_AI_BUDGET_USD is crossed, even with
+    AUTO_PUBLISH_GLOBAL on — falling back to the same review queue as the
+    global switch being off, not silently continuing to auto-publish."""
+    monkeypatch.setenv("AUTO_PUBLISH_GLOBAL", "true")
+    monkeypatch.setenv("MONTHLY_AI_BUDGET_USD", "1.00")
+    db_session.add(AiCallLog(task="SUMMARY", provider="openai", model="gpt-4o-mini", status="SUCCESS", cost_usd=5.00))
+    db_session.commit()
+
+    story = Story(canonical_slug=f"story-{uuid.uuid4()}", status="AI_READY", sensitivity="NONE")
+    db_session.add(story)
+    db_session.commit()
+
+    processed = auto_publish_stories(db_session)
+    assert processed == 1
+    db_session.refresh(story)
+    assert story.status == "REVIEW_REQUIRED"
+    task = db_session.scalars(select(ReviewTask).where(ReviewTask.story_id == story.id)).first()
+    assert task.reason == "AUTO_PUBLISH_DISABLED"
+
+
+def test_auto_publish_budget_breach_opt_out_keeps_publishing(db_session, monkeypatch):
+    """An operator can explicitly opt out of the budget-breach safety
+    behavior (accepting the cost overrun) via
+    AUTO_PUBLISH_DISABLE_ON_BUDGET_BREACH=false."""
+    monkeypatch.setenv("AUTO_PUBLISH_GLOBAL", "true")
+    monkeypatch.setenv("MONTHLY_AI_BUDGET_USD", "1.00")
+    monkeypatch.setenv("AUTO_PUBLISH_DISABLE_ON_BUDGET_BREACH", "false")
+    db_session.add(AiCallLog(task="SUMMARY", provider="openai", model="gpt-4o-mini", status="SUCCESS", cost_usd=5.00))
+    db_session.commit()
+
+    story = Story(canonical_slug=f"story-{uuid.uuid4()}", status="AI_READY", sensitivity="NONE")
+    db_session.add(story)
+    db_session.commit()
+
+    auto_publish_stories(db_session)
+    db_session.refresh(story)
+    assert story.status == "SCHEDULED"
 
 
 def test_kill_switch_immigration_flag_is_a_no_op(client, db_session, monkeypatch):

@@ -29,7 +29,7 @@ prior conversation history.
 | T16 Personalization | **done** | Deterministic §8.2 ranking (`app/content/ranking.py`), no ML; `GET /v1/home` personalizes when preferences are supplied as query params (no accepted account backend yet — see ADR-005); `Task.WHY_MATTERS` now actually invoked, cached per `(story_id, segment)` in new `story_why_matters_cache`; ADR-005 accepted |
 | T17 Push notifications | **done** | Real anonymous identity (ADR-006 resolved), persisted preferences/push tokens, `notification_dispatch` job with dedupe/quiet-hours/daily-cap/breaking-approval gate |
 | T18 Observability | **done** | Structured JSON logging + request/job context; Sentry-equivalent error tracking (plain HTTP envelope, no SDK) in all 4 apps; `/v1/admin/observability` (ingestion health/job queue/AI cost) + admin dashboard page; alert-dispatch module wired to worker loop; §17 analytics events routed through `POST /v1/events` (T17's endpoint) into `app/analytics.py`, forwarded to PostHog when configured |
-| T19 Hardening | not started | |
+| T19 Hardening | **partial — see changelog** | Real: MFA on admin login, cross-system account deletion, search/admin rate limiting, dependency scanning (pip-audit clean)/SAST (bandit clean, one real XXE finding fixed), budget-breach auto-publish gate wired, backup/restore scripts + one real local restore test passed, WCAG 2.2 AA axe pass across 12 pages, local load test within §16 targets, ADR-007 accepted, 30-item golden AI eval harness, app-store readiness doc. **Known P0/P1 gap, release blocker**: `next@14.2.35` (both apps/web and apps/admin) carries unpatched high/critical CVEs incl. 2 unauthenticated RCEs — no 14.x fix exists, only Next 15 (breaking migration, not attempted this session, `pnpm audit` wired as non-blocking pending it). MFA/rate-limiting/backups not exercised against real managed infra (local-only, per ADR-007). Golden AI set is 30 items, not §18's ≥300, no live-provider run (same no-network-access gap as every AI ticket since T10). |
 | T20 Pilot | not started | |
 
 ## X adapter
@@ -65,6 +65,203 @@ Mirrors `docs/adr/README.md` — keep both in sync.
 ## Changelog
 
 (newest first — one line per ticket completion)
+
+- 2026-09-09: T19 partial — hardening. This ticket's scope (§16/§18 release
+  gates) is too broad to fully close in a sandbox with no production infra,
+  no app-store accounts, and no live AI provider network access (the same
+  limitation every AI-gateway ticket since T10 has hit) — the acceptance
+  criterion "every §18 release gate passes" is **not** met (see the P0/P1
+  Next.js gap below). What follows is real, verified work plus an honest
+  list of what isn't.
+
+  **MFA on admin sessions** (`app/security.py`, `app/routers/admin_auth.py`,
+  `app/schemas.py`): TOTP via `pyotp`, using the `mfa_secret` column that
+  existed in the T03 schema unused until now. `POST /mfa/setup` generates a
+  secret but deliberately doesn't persist it until `POST /mfa/enroll`
+  proves the admin's authenticator app has it (avoids a half-configured
+  admin locking themselves out). Once `mfa_secret` is set, `POST
+  /admin/auth/login` requires a valid `mfa_code` (`MFA_REQUIRED` /
+  `INVALID_MFA_CODE` otherwise); `DELETE /mfa` disables it after
+  re-verifying a current code. Every attempt (missing/wrong MFA code
+  included) still counts against the existing per-email Postgres rate
+  limiter (`app/security.py::record_login_attempt`) — MFA brute-forcing is
+  covered by the same mechanism as password brute-forcing, not a separate
+  new one.
+
+  **Rate limiting on search/admin** (`app/rate_limit.py`, new): a plain
+  in-process sliding-window limiter (30 req/min/IP on `GET /v1/search`, 120
+  req/min/IP on the whole `/v1/admin/*` surface) — not Redis, per
+  NON_NEGOTIABLES; admin *login* keeps its existing separate Postgres-backed
+  per-email limiter unchanged. Documented as process-local (correct for the
+  single-instance deployment ADR-007 describes; would need a shared store,
+  or Cloudflare edge rate limiting per that ADR, if ever horizontally
+  scaled) — not built speculatively ahead of that need.
+
+  **Cross-system account deletion** (§16/§5.5): `DELETE /v1/me/account`
+  (`app/routers/me.py`) was T17-era stub-echo (`return
+  DeleteAccountResponse(deleted=True)` with no actual deletion) — found
+  while implementing this ticket's explicit "cross-system deletion job
+  implemented and tested end-to-end" acceptance criterion. Now really
+  deletes the `users` row; T03's existing `ondelete="CASCADE"` FKs on
+  `profiles`/`user_topics`/`push_tokens`/`notifications` (and `SET NULL` on
+  `review_tasks.reviewer_id`/`corrections.created_by`, so editorial history
+  survives) do the cross-table purge — no separate per-table code needed.
+  `apps/mobile`'s `PrivacyScreen` (previously on-device-clear only, despite
+  its own comment claiming "no account system exists" — stale since T17
+  actually built one) now calls the real endpoint via a new
+  `deleteAccount()` (`src/lib/api.ts`) and mints a fresh device identity
+  afterward (`resetClientToken`, `src/lib/identity.ts`) before clearing
+  on-device storage; best-effort (a network failure never blocks the
+  on-device clear). `apps/web` has no account/server-state concept at all
+  (never sends a client token) — its `/account/delete` page staying
+  on-device-only is correct, not a gap. New `tests/test_hardening.py`
+  proves the cascade for real against Postgres (create user + profile +
+  push token + notification, delete, assert every row gone, confirm the
+  old token mints a brand-new empty identity) and that a repeat delete is a
+  no-op, not an error.
+
+  **Budget-breach auto-publish gate** (§19): `AUTO_PUBLISH_DISABLE_ON_BUDGET_BREACH`
+  has been in `.env.example` since T10 but `app/jobs/publish.py` never
+  actually read it — found while doing this ticket's "simulate and verify
+  cost-guardrail breach" failure-mode requirement. Now wired: crossing
+  `MONTHLY_AI_BUDGET_USD` disables auto-publish (falls back to the review
+  queue, same as `AUTO_PUBLISH_GLOBAL` off) unless an operator explicitly
+  opts out. Two new tests in `tests/test_editorial_workflow.py` cover both
+  directions.
+
+  **Dependency scanning + SAST, wired into CI**: `pip-audit --skip-editable`
+  (clean) and `bandit -r app` (one real Medium finding — `app/adapters/
+  rss.py` parsed fetched RSS/Atom XML with stdlib `ElementTree.fromstring`,
+  exactly the untrusted-external-content case NON_NEGOTIABLES warns about;
+  switched to `defusedxml.ElementTree`, a drop-in replacement — now clean
+  except two `skips` in `pyproject.toml`'s new `[tool.bandit]` for
+  non-issues, documented there) are now hard-failing steps in the `api` CI
+  job. `pnpm audit --audit-level=high` is wired into the `node` job as
+  **non-blocking** (`continue-on-error: true`) — see the P0/P1 gap below
+  for why.
+
+  **P0/P1 gap, not fixed this session (user-confirmed decision, not an
+  oversight)**: `next@14.2.35` — the latest available 14.x patch for both
+  `apps/web` and `apps/admin` — carries multiple unpatched high/critical
+  CVEs including two unauthenticated RCEs (`pnpm audit`), with no 14.x fix
+  available; only Next.js 15 resolves them. That's a breaking migration
+  (async `params`/`cookies()`/`headers()`, React 19) touching every dynamic
+  route in both apps (`topic/[slug]`, `country/[code]`, `story/[slug]`,
+  admin's `review/[id]`) with no Playwright/E2E coverage in this repo to
+  catch regressions from it. Asked the user how to handle this; they chose
+  "document + non-blocking scan" over a blind major-version migration or
+  turning CI red immediately. **This blocks T19's own "no P0/P1 security
+  defects" release gate — do not consider T19 done, or T20 safe to start,
+  until this is resolved as its own dedicated, tested piece of work.**
+
+  **Backups/restore** (`infra/scripts/backup.sh`/`restore.sh`, new):
+  `pg_dump -Fc`, optional `age`-encrypted at rest (`BACKUP_AGE_RECIPIENT`;
+  `age` isn't installed in this sandbox, so encryption itself wasn't
+  exercised — only the unencrypted path was). `restore.sh` always targets a
+  freshly created database (never overwrites one) and verifies the restore
+  actually reached Alembic head, not just "pg_restore exited 0". **Ran for
+  real** against the local dev Postgres: backed up, restored into
+  `teluguvarta_restore_test`, confirmed `alembic current` reports `(head)`,
+  cleaned up. This satisfies "a monthly restore test actually run once" for
+  local Postgres; ADR-007's chosen production DB (Supabase) has its own
+  included backup/PITR — these scripts are the vendor-independent
+  fallback/audit path, not yet run against a real Supabase project (none
+  exists in this sandbox).
+
+  **Accessibility**: extended `apps/web/scripts/a11y-check.mjs` from 2 pages
+  (home, story) to 12 (+ search, saved, about, all 5 legal pages,
+  account/delete, one topic page) and pinned axe-core's ruleset to the
+  explicit WCAG 2.2 AA tag set (`wcag2a`/`wcag2aa`/`wcag21aa`/`wcag22aa`)
+  instead of its broader best-practice default. **Ran for real** against a
+  live `next start` + seeded `uvicorn`: zero violations (not just
+  zero critical/serious) across all 12 pages. Same jsdom caveat T14 already
+  documented still applies: no layout engine, so contrast-ratio and other
+  CSS-rendering-dependent rules can't fire here — a real-browser
+  (Playwright) pass is still future scope. No mobile-equivalent
+  accessibility check exists (`apps/mobile` has no automated a11y tooling
+  set up) — a gap, not attempted this session.
+
+  **Load test**: no `hey`/`wrk` available in this sandbox; used Apache
+  Bench (`ab`, pre-installed) against a live local `uvicorn` + seeded
+  Postgres. `GET /v1/home`: 200 req/10 concurrent, P95 23ms. `GET /v1/
+  search`: P95 19ms at 25 req/5 concurrent (fewer than 30, to stay under
+  this same session's new rate limiter — confirmed it correctly 429s past
+  30 req/min/IP when tested at higher concurrency first). Both comfortably
+  inside §16's 800ms-cached/1.5s-uncached targets — but this is one
+  single-instance local Postgres with a handful of seeded rows, not
+  production traffic/data volume; treat as "the code path is fast," not "§16's
+  availability/latency targets are met in production."
+
+  **Golden AI regression set** (§18, `apps/api/eval/`, new): 30-item JSON
+  corpus (3 per category × the 10 categories §18 lists), each with a
+  hand-written good/bad Telugu rendering. `eval/run_golden_eval.py` +
+  `tests/test_golden_eval.py` (parametrized, runs in the normal `pytest`
+  CI step, no network needed) exercise `app/content/qa.py` and `app/
+  content/glossary.py` against it: every "good" rendering must pass QA,
+  every "bad" one (one invariant deliberately removed) must fail it, and
+  glossary-relevant entities must get corrected back to canonical spelling
+  from a naive rendering. **Real gaps, documented in `eval/README.md`**:
+  30 items, not §18's ≥300 — growing that is editorial content work, not
+  something to fabricate wholesale in one session; and it never calls a
+  live AI provider (same no-network-access limitation as T10-T13), so
+  `expected_sensitivity`/`expected_entities` describe what a *correct*
+  classification call should produce but nothing here currently diffs a
+  live call's output against them — wiring that in is a documented
+  follow-up once a provider key exists, not attempted against a
+  `FakeProvider` that would prove nothing.
+
+  **ADR-007 accepted** (`docs/adr/ADR-007-production-hosting-cost-limits.md`):
+  Vercel (web+admin) / Render (API+worker) / Supabase (Postgres) /
+  Cloudflare R2+CDN/DNS / Expo EAS / Sentry+PostHog Cloud, and concrete
+  pilot-phase budget numbers (`MONTHLY_AI_BUDGET_USD=150`,
+  `DAILY_AI_ALERT_USD=10`, `MONTHLY_INFRA_BUDGET_USD=200`) — explicitly
+  flagged in the ADR as unmeasured-against-real-traffic starting points,
+  not a scaled-architecture decision.
+
+  **App-store readiness** (`docs/APP_STORE_READINESS.md`, new): maps what
+  `apps/mobile` actually collects at runtime to Apple/Google's privacy
+  disclosure categories, confirms required URLs exist (privacy/terms/
+  account-deletion, both in-app and web) and flags one real gap: no
+  dedicated support contact/URL exists yet, which both stores' submission
+  forms require. No store metadata/screenshots produced (needs a
+  simulator/device build this sandbox doesn't have — T20 work).
+
+  **Not attempted this session**: MFA/rate-limiting/backups against real
+  managed infra (everything above was verified against local Postgres +
+  local `uvicorn`, per ADR-007's platform choices existing only on paper
+  until T20); a managed secret store (no cloud account here — ADR-007 names
+  the intended platforms, provisioning them is T20); the Next.js 15
+  migration (see the P0/P1 gap above); growing the golden set toward 300 or
+  running it against a live provider; `apps/mobile`'s own accessibility
+  audit tooling; Playwright/real-browser a11y and E2E coverage for either
+  web app.
+
+  **Files**: `apps/api/app/{security.py,rate_limit.py (new),schemas.py,
+  routers/{admin_auth.py,admin.py,me.py,public.py},jobs/publish.py,
+  adapters/rss.py}`; `apps/api/pyproject.toml` (+pyotp, +defusedxml,
+  +pip-audit/bandit dev deps, `[tool.bandit]`); `apps/api/eval/` (new:
+  `golden_set.json`, `run_golden_eval.py`, `README.md`, `__init__.py`);
+  `apps/api/tests/{test_hardening.py (new),test_golden_eval.py (new),
+  test_admin_auth.py,test_editorial_workflow.py}`; `apps/mobile/src/lib/
+  {api.ts,identity.ts}`, `apps/mobile/src/screens/PrivacyScreen.tsx`,
+  `apps/mobile/src/__tests__/analytics.test.tsx`; `apps/web/scripts/
+  a11y-check.mjs`; `infra/scripts/{backup.sh,restore.sh}` (new);
+  `docs/adr/ADR-007-production-hosting-cost-limits.md` (new),
+  `docs/adr/README.md`; `docs/APP_STORE_READINESS.md` (new); `.env.example`
+  (ADR-007 comment); `.gitignore` (`/backups/`); `.github/workflows/
+  ci.yml`; `packages/contracts/{openapi.json,types.gen.ts}` (regenerated
+  for the new MFA schemas/`AdminLoginRequest.mfa_code`).
+
+  **Verified**: `apps/api` — `ruff check .` clean, `bandit -r app -c
+  pyproject.toml` clean, `pip-audit --skip-editable` clean, `pytest` 205
+  passed (real Postgres; one full-suite-only DB-teardown flake, same
+  pre-existing class documented in every prior ticket's changelog —
+  confirmed by re-running the specific failing test standalone, which
+  passes, and the failing test name changing between runs). `apps/web`/
+  `apps/admin`/`apps/mobile` — `lint`/`typecheck` clean repo-wide;
+  `apps/mobile` `jest` 12/12 passed; `apps/web` `pnpm run build` +
+  `test:a11y` both run for real against a live seeded server (see above).
+  Contracts regenerated and `apps/contracts` typecheck clean.
 
 - 2026-09-09: T18 done — observability across all four apps.
   **Logging/error tracking**: `apps/api/app/observability/logging.py` is a

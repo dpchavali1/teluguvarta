@@ -33,6 +33,7 @@ from app.models import (
     StoryVariant,
     Topic,
 )
+from app.rate_limit import rate_limit_search
 from app.schemas import (
     AnalyticsEventIn,
     AnalyticsEventResponse,
@@ -206,7 +207,7 @@ def get_topic(slug: str, db: Session = Depends(get_db)) -> TopicDetailResponse:
     return TopicDetailResponse(topic=topic_out(topic), stories=page.items)
 
 
-@router.get("/search")
+@router.get("/search", dependencies=[Depends(rate_limit_search)])
 def search(
     q: str = Query(min_length=1), limit: int = Query(default=DEFAULT_PAGE_SIZE, ge=1, le=100),
     db: Session = Depends(get_db),

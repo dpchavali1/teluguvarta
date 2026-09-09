@@ -10,9 +10,14 @@ from __future__ import annotations
 
 from datetime import datetime
 from email.utils import parsedate_to_datetime
-from xml.etree import ElementTree as ET
 
 import httpx
+
+# T19 SAST finding (bandit B314): raw stdlib ElementTree.fromstring on a
+# fetched feed body is exactly the untrusted-external-content case
+# NON_NEGOTIABLES warns about (XXE/billion-laughs). defusedxml.ElementTree
+# is a drop-in replacement with the same API, hardened against those.
+from defusedxml import ElementTree as ET
 
 from .base import RawItem, RawItems, SourceAdapter
 
