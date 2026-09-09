@@ -885,6 +885,40 @@
         "title": "AdminStorySourceOut",
         "type": "object"
       },
+      "AnalyticsEventIn": {
+        "properties": {
+          "event": {
+            "enum": [
+              "story_share",
+              "notification_received",
+              "notification_open"
+            ],
+            "title": "Event",
+            "type": "string"
+          },
+          "properties": {
+            "additionalProperties": true,
+            "title": "Properties",
+            "type": "object"
+          }
+        },
+        "required": [
+          "event"
+        ],
+        "title": "AnalyticsEventIn",
+        "type": "object"
+      },
+      "AnalyticsEventResponse": {
+        "properties": {
+          "accepted": {
+            "default": true,
+            "title": "Accepted",
+            "type": "boolean"
+          }
+        },
+        "title": "AnalyticsEventResponse",
+        "type": "object"
+      },
       "ConfigResponse": {
         "properties": {
           "features": {
@@ -1018,6 +1052,89 @@
         "title": "MeResponse",
         "type": "object"
       },
+      "NotificationOut": {
+        "description": "\u00a79.4 notification history \u2014 deep link is `story_id` (None means the\nhome feed, e.g. DAILY_BRIEFING or a suppressed/retracted target).",
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "sent_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sent At"
+          },
+          "status": {
+            "enum": [
+              "PENDING",
+              "SENT",
+              "FAILED",
+              "SUPPRESSED"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "story_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Story Id"
+          },
+          "suppressed_reason": {
+            "anyOf": [
+              {
+                "enum": [
+                  "QUIET_HOURS",
+                  "DAILY_CAP"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Suppressed Reason"
+          },
+          "type": {
+            "enum": [
+              "DAILY_BRIEFING",
+              "TOPIC_ALERT",
+              "BREAKING_ALERT"
+            ],
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "type",
+          "story_id",
+          "status",
+          "sent_at",
+          "created_at"
+        ],
+        "title": "NotificationOut",
+        "type": "object"
+      },
       "PersonalizationOut": {
         "description": "\u00a78.4 explainability: present only when the request supplied\npreferences to rank against, and only ever built from signals that\nactually matched (T16/ADR-005).",
         "properties": {
@@ -1056,6 +1173,28 @@
       },
       "PreferencesUpdate": {
         "properties": {
+          "breaking_alerts_enabled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Breaking Alerts Enabled"
+          },
+          "daily_briefing_enabled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Daily Briefing Enabled"
+          },
           "home_city": {
             "anyOf": [
               {
@@ -1093,6 +1232,17 @@
             ],
             "title": "Language"
           },
+          "max_alerts_per_day": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Alerts Per Day"
+          },
           "notification_mode": {
             "anyOf": [
               {
@@ -1103,6 +1253,28 @@
               }
             ],
             "title": "Notification Mode"
+          },
+          "quiet_hours_end": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Quiet Hours End"
+          },
+          "quiet_hours_start": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Quiet Hours Start"
           },
           "residence_country": {
             "anyOf": [
@@ -1146,6 +1318,16 @@
       },
       "ProfileOut": {
         "properties": {
+          "breaking_alerts_enabled": {
+            "default": true,
+            "title": "Breaking Alerts Enabled",
+            "type": "boolean"
+          },
+          "daily_briefing_enabled": {
+            "default": true,
+            "title": "Daily Briefing Enabled",
+            "type": "boolean"
+          },
           "home_city": {
             "anyOf": [
               {
@@ -1177,6 +1359,11 @@
             "title": "Language",
             "type": "string"
           },
+          "max_alerts_per_day": {
+            "default": 5,
+            "title": "Max Alerts Per Day",
+            "type": "integer"
+          },
           "notification_mode": {
             "anyOf": [
               {
@@ -1187,6 +1374,28 @@
               }
             ],
             "title": "Notification Mode"
+          },
+          "quiet_hours_end": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Quiet Hours End"
+          },
+          "quiet_hours_start": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Quiet Hours Start"
           },
           "residence_country": {
             "anyOf": [
@@ -2349,6 +2558,76 @@
         ]
       }
     },
+    "/v1/admin/stories/{story_id}/approve-breaking-alert": {
+      "post": {
+        "description": "T17: the \"never auto-sent\" gate for a `BREAKING_ALERT` push \u2014 separate\nfrom, and in addition to, the publish approval NON_NEGOTIABLES #5\nalready required for a `sensitivity == 'BREAKING'` story to reach\nPUBLISHED. `notification_dispatch` (app/jobs/notify.py) only ever\nconsiders a story for a breaking push once `breaking_alert_approved_at`\nis set here.",
+        "operationId": "approve_breaking_alert_v1_admin_stories__story_id__approve_breaking_alert_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "story_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Story Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdminActionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminActionResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Approve Breaking Alert",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
     "/v1/admin/stories/{story_id}/correct": {
       "post": {
         "operationId": "correct_story_v1_admin_stories__story_id__correct_post",
@@ -2572,6 +2851,48 @@
           }
         },
         "summary": "Get Config",
+        "tags": [
+          "public"
+        ]
+      }
+    },
+    "/v1/events": {
+      "post": {
+        "description": "T17 \u00a79.4 client-emitted events (`story_share`, `notification_received`,\n`notification_open`) \u2014 the ones the server can't observe on its own\n(a user tapping share, or a device receiving/opening a push). No auth:\nbrowsing/sharing works without login (NON_NEGOTIABLES #9), and there's\nno per-user data here beyond whatever the caller puts in `properties`.",
+        "operationId": "track_event_v1_events_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AnalyticsEventIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnalyticsEventResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Track Event",
         "tags": [
           "public"
         ]
@@ -2801,6 +3122,59 @@
           }
         },
         "summary": "Delete Account",
+        "tags": [
+          "me"
+        ]
+      }
+    },
+    "/v1/me/notifications": {
+      "get": {
+        "operationId": "list_notifications_v1_me_notifications_get",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/NotificationOut"
+                  },
+                  "title": "Response List Notifications V1 Me Notifications Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Notifications",
         "tags": [
           "me"
         ]

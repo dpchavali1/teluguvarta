@@ -27,7 +27,7 @@ prior conversation history.
 | T14 Web MVP | **done** | Public `/v1` endpoints wired to real Postgres data (`app/content/serialize.py`); `apps/web` is a real Next.js SSR/ISR site over `@teluguvarta/contracts` types covering every §9.1 page; axe-core a11y check passes on home + story pages |
 | T15 Mobile MVP | **done** | Expo/React Navigation app over the same `@teluguvarta/contracts` public API as T14; onboarding (fully skippable, "continue without login"), home/topic/search/saved/story-detail/notifications/settings/language/privacy screens; onboarding + notification prefs + saved stories are on-device (AsyncStorage) since no account backend exists yet (ADR-006 still proposed); native OS share sheet using the same canonical `PUBLIC_WEB_URL`/story-slug URL as web; Jest+RNTL smoke test covers onboarding-skip→home→open→save→share |
 | T16 Personalization | **done** | Deterministic §8.2 ranking (`app/content/ranking.py`), no ML; `GET /v1/home` personalizes when preferences are supplied as query params (no accepted account backend yet — see ADR-005); `Task.WHY_MATTERS` now actually invoked, cached per `(story_id, segment)` in new `story_why_matters_cache`; ADR-005 accepted |
-| T17 Push notifications | not started | |
+| T17 Push notifications | **done** | Real anonymous identity (ADR-006 resolved), persisted preferences/push tokens, `notification_dispatch` job with dedupe/quiet-hours/daily-cap/breaking-approval gate |
 | T18 Observability | not started | |
 | T19 Hardening | not started | |
 | T20 Pilot | not started | |
@@ -65,6 +65,91 @@ Mirrors `docs/adr/README.md` — keep both in sync.
 ## Changelog
 
 (newest first — one line per ticket completion)
+
+- 2026-09-08: T17 done — daily briefing, topic alerts, and gated breaking
+  alerts, per §14's `notification_dispatch` job (`apps/api/app/jobs/
+  notify.py`).
+
+  **ADR-006 resolution**: end-user identity was left as "T05 does not
+  change `current_user`, real design is ADR-006, later ticket implements
+  it" through T14/T15/T16, since none of them needed state outside a
+  request. Push tokens and notification preferences do — the dispatch job
+  has no request to read query params from — so T17 is that later ticket.
+  `app/auth.py::current_user` now get-or-creates a `users` row by
+  `client_token`, the opaque token the client mints on first launch and
+  sends as `Authorization: Bearer` (mobile: `src/lib/identity.ts`, a
+  crypto-random UUID persisted in AsyncStorage — no server round trip to
+  "issue" one). `profiles`/`user_topics`/`notifications` (present in the
+  T03 schema, unused until now) get real ORM models and `/v1/me/*` moved
+  off T04's stub-echo onto real persistence; new `push_tokens` table.
+  ADR-006 itself is still marked "proposed" in `docs/adr/README.md` (not
+  changed here, consistent with how T14/T15/T16 left it) even though its
+  decision is now load-bearing across five tickets — flagging this because
+  the status column no longer reflects reality; a session doing ADR
+  bookkeeping should reconcile it.
+
+  **Eligibility** (`app/content/notifications.py`, pure/deterministic, no
+  AI call): `topic_alert_eligible` and `breaking_alert_eligible` are two
+  functions with zero shared code, per the ticket's explicit acceptance
+  criterion — a story can never earn a breaking push via topic/engagement
+  match, and vice versa. Breaking alerts additionally require a *new*,
+  separate editorial approval (`stories.breaking_alert_approved_at`, set
+  only via `POST /v1/admin/stories/{id}/approve-breaking-alert`) — distinct
+  from the publish approval NON_NEGOTIABLES #5 already required for a
+  `sensitivity == 'BREAKING'` story to reach PUBLISHED, so a breaking push
+  is never auto-sent even once the story itself is live. Quiet hours are
+  UTC-hour-of-day (no per-user timezone column exists in §12 — same class
+  of judgment call as T16's ranking constants); thresholds
+  (`TOPIC_ALERT_MIN_IMPORTANCE=0.5`, `BREAKING_ALERT_MIN_CONFIDENCE=0.7`,
+  `BREAKING_ALERT_MIN_SOURCE_QUALITY=0.5`) are starting-point tuning knobs,
+  documented in the module rather than a new ADR.
+
+  **Dedupe/retry**: a `PENDING` row is inserted per (user, notification_key)
+  with `ON CONFLICT DO NOTHING` on T03's existing unique constraint before
+  any send decision is made — this, not application logic, is what makes
+  repeated dispatch runs never double-send. A delivery failure gets
+  bounded, backed-off retry (new `notifications.attempts`/`next_attempt_at`,
+  same shape as the T08 job queue's backoff) rather than a fresh insert.
+  Quiet-hours/daily-cap suppressions are terminal (not retried later) and
+  emit their own analytics event instead of silently dropping the send.
+
+  **Delivery**: `app/push.py` calls Expo's push API directly (§10.1: Expo
+  fans out to both FCM and APNs, so there's one endpoint, not two) — a
+  no-op when `PUSH_NOTIFICATIONS_ENABLED`/`EXPO_PUSH_ACCESS_TOKEN` aren't
+  set, matching every other §15 kill-switch precedent.
+
+  **Analytics**: no PostHog-or-equivalent sink exists yet (T18's job) — a
+  structured log line (`app/analytics.py`) is the deterministic interim
+  sink; `POST /v1/events` (public, no auth) lets the mobile/web clients
+  report the events the server can't observe itself (`story_share`,
+  `notification_received`, `notification_open`).
+
+  **Deep links**: push payload carries `story_slug` (resolved server-side
+  at send time, not the story id — T14/T15 route by slug), `null` for
+  DAILY_BRIEFING or a story that's since become unreachable; mobile's
+  `resolveNotificationDeepLink` (`apps/mobile/src/lib/push.ts`, pure/unit-
+  tested) falls back to Home rather than erroring. A RETRACTED story stays
+  in `PUBLIC_STATUSES` (T14 behavior, unchanged) so an already-delivered
+  deep link to it still resolves instead of 404ing.
+
+  **Mobile integration**: added `expo-notifications`/`expo-device`/
+  `expo-constants`; `App.tsx` requests permission and registers the Expo
+  push token on launch, wires foreground-received and tap-to-open
+  listeners. **Not verified on a device/simulator** (none available in
+  this environment) — permission prompts, actual token retrieval, and
+  tap-to-navigate need a real device/EAS build to confirm; registration
+  itself no-ops safely without an `EAS projectId` configured in `app.json`
+  (not set up yet). Web push (service workers) was scoped out — §10.1's
+  wording centers on "FCM/APNs via Expo/React Native tooling," i.e. mobile.
+
+  Tests: `apps/api/tests/test_notifications.py` (20 tests) covers every
+  acceptance criterion — unsubscribed-topic negative test, breaking-vs-topic
+  path independence + sensitive-category-never-auto-sent, dispatch dedupe
+  across repeated runs, quiet-hours/daily-cap suppression + analytics event,
+  retracted-story deep-link fallback. `apps/mobile/src/__tests__/push.test.ts`
+  covers the deep-link fallback pure function. Full `apps/api` suite (142
+  tests) and repo-wide lint/typecheck clean; migration round-trips
+  (upgrade head / downgrade base) verified against real Postgres.
 
 - 2026-09-08: T16 done — §8.2's deterministic ranking formula and §8.3's
   cached per-segment "why this matters", replacing `/v1/home`'s generic

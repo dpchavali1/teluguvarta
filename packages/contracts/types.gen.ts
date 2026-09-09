@@ -175,6 +175,31 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/admin/stories/{story_id}/approve-breaking-alert": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Approve Breaking Alert
+         * @description T17: the "never auto-sent" gate for a `BREAKING_ALERT` push — separate
+         *     from, and in addition to, the publish approval NON_NEGOTIABLES #5
+         *     already required for a `sensitivity == 'BREAKING'` story to reach
+         *     PUBLISHED. `notification_dispatch` (app/jobs/notify.py) only ever
+         *     considers a story for a breaking push once `breaking_alert_approved_at`
+         *     is set here.
+         */
+        post: operations["approve_breaking_alert_v1_admin_stories__story_id__approve_breaking_alert_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/admin/stories/{story_id}/correct": {
         parameters: {
             query?: never;
@@ -243,6 +268,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Track Event
+         * @description T17 §9.4 client-emitted events (`story_share`, `notification_received`,
+         *     `notification_open`) — the ones the server can't observe on its own
+         *     (a user tapping share, or a device receiving/opening a push). No auth:
+         *     browsing/sharing works without login (NON_NEGOTIABLES #9), and there's
+         *     no per-user data here beyond whatever the caller puts in `properties`.
+         */
+        post: operations["track_event_v1_events_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/home": {
         parameters: {
             query?: never;
@@ -289,6 +338,23 @@ export interface paths {
         post?: never;
         /** Delete Account */
         delete: operations["delete_account_v1_me_account_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/me/notifications": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Notifications */
+        get: operations["list_notifications_v1_me_notifications_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -718,6 +784,26 @@ export interface components {
             /** Url */
             url: string;
         };
+        /** AnalyticsEventIn */
+        AnalyticsEventIn: {
+            /**
+             * Event
+             * @enum {string}
+             */
+            event: "story_share" | "notification_received" | "notification_open";
+            /** Properties */
+            properties?: {
+                [key: string]: unknown;
+            };
+        };
+        /** AnalyticsEventResponse */
+        AnalyticsEventResponse: {
+            /**
+             * Accepted
+             * @default true
+             */
+            accepted: boolean;
+        };
         /** ConfigResponse */
         ConfigResponse: {
             /** Features */
@@ -771,6 +857,39 @@ export interface components {
             saved_story_ids?: string[];
         };
         /**
+         * NotificationOut
+         * @description §9.4 notification history — deep link is `story_id` (None means the
+         *     home feed, e.g. DAILY_BRIEFING or a suppressed/retracted target).
+         */
+        NotificationOut: {
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Sent At */
+            sent_at: string | null;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "PENDING" | "SENT" | "FAILED" | "SUPPRESSED";
+            /** Story Id */
+            story_id: string | null;
+            /** Suppressed Reason */
+            suppressed_reason?: ("QUIET_HOURS" | "DAILY_CAP") | null;
+            /**
+             * Type
+             * @enum {string}
+             */
+            type: "DAILY_BRIEFING" | "TOPIC_ALERT" | "BREAKING_ALERT";
+        };
+        /**
          * PersonalizationOut
          * @description §8.4 explainability: present only when the request supplied
          *     preferences to rank against, and only ever built from signals that
@@ -786,14 +905,24 @@ export interface components {
         };
         /** PreferencesUpdate */
         PreferencesUpdate: {
+            /** Breaking Alerts Enabled */
+            breaking_alerts_enabled?: boolean | null;
+            /** Daily Briefing Enabled */
+            daily_briefing_enabled?: boolean | null;
             /** Home City */
             home_city?: string | null;
             /** Home State */
             home_state?: string | null;
             /** Language */
             language?: ("en" | "te") | null;
+            /** Max Alerts Per Day */
+            max_alerts_per_day?: number | null;
             /** Notification Mode */
             notification_mode?: string | null;
+            /** Quiet Hours End */
+            quiet_hours_end?: number | null;
+            /** Quiet Hours Start */
+            quiet_hours_start?: number | null;
             /** Residence Country */
             residence_country?: string | null;
             /** Residence Region */
@@ -803,6 +932,16 @@ export interface components {
         };
         /** ProfileOut */
         ProfileOut: {
+            /**
+             * Breaking Alerts Enabled
+             * @default true
+             */
+            breaking_alerts_enabled: boolean;
+            /**
+             * Daily Briefing Enabled
+             * @default true
+             */
+            daily_briefing_enabled: boolean;
             /** Home City */
             home_city?: string | null;
             /** Home State */
@@ -813,8 +952,17 @@ export interface components {
              * @enum {string}
              */
             language: "en" | "te";
+            /**
+             * Max Alerts Per Day
+             * @default 5
+             */
+            max_alerts_per_day: number;
             /** Notification Mode */
             notification_mode?: string | null;
+            /** Quiet Hours End */
+            quiet_hours_end?: number | null;
+            /** Quiet Hours Start */
+            quiet_hours_start?: number | null;
             /** Residence Country */
             residence_country?: string | null;
             /** Residence Region */
@@ -1382,6 +1530,43 @@ export interface operations {
             };
         };
     };
+    approve_breaking_alert_v1_admin_stories__story_id__approve_breaking_alert_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                story_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminActionRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminActionResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     correct_story_v1_admin_stories__story_id__correct_post: {
         parameters: {
             query?: never;
@@ -1513,6 +1698,39 @@ export interface operations {
             };
         };
     };
+    track_event_v1_events_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AnalyticsEventIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AnalyticsEventResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     get_home_v1_home_get: {
         parameters: {
             query?: {
@@ -1598,6 +1816,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DeleteAccountResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_notifications_v1_me_notifications_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NotificationOut"][];
                 };
             };
             /** @description Validation Error */

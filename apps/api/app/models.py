@@ -50,13 +50,17 @@ class Base(DeclarativeBase):
 class User(Base):
     __tablename__ = "users"
 
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True)
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     email: Mapped[str | None] = mapped_column(Text, nullable=True)
     role: Mapped[str | None] = mapped_column(Text, nullable=True)
     password_hash: Mapped[str | None] = mapped_column(Text, nullable=True)
     mfa_secret: Mapped[str | None] = mapped_column(Text, nullable=True)
     last_login_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    # ADR-006 device-scoped anonymous identity (T17): the opaque token the
+    # client mints on first launch and sends as `Authorization: Bearer`.
+    # NULL for admin users (identified by JWT, see app/routers/admin_auth.py).
+    client_token: Mapped[str | None] = mapped_column(Text, nullable=True)
 
 
 class Source(Base):
@@ -119,6 +123,12 @@ class Story(Base):
     sensitivity: Mapped[str] = mapped_column(Text, nullable=False, server_default="NONE")
     importance: Mapped[float] = mapped_column(Float, nullable=False, server_default="0")
     published_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    # T17: separate, always-manual editorial gate for *sending a breaking
+    # push* — distinct from the publish approval that already guards
+    # `sensitivity == 'BREAKING'` reaching PUBLISHED at all (NON_NEGOTIABLES
+    # #5). NULL means never send; set once an editor explicitly approves the
+    # alert (see `app/routers/admin.py::approve_breaking_alert`).
+    breaking_alert_approved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
 class StoryVariant(Base):
@@ -179,6 +189,80 @@ class StoryTopic(Base):
     story_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("stories.id", ondelete="CASCADE"), primary_key=True)
     topic_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("topics.id", ondelete="CASCADE"), primary_key=True)
     weight: Mapped[float] = mapped_column(Numeric(), nullable=False, server_default="1")
+
+
+class Profile(Base):
+    """T17: first real persistence for §8.1 preferences and §9.4 notification
+    controls, gated behind ADR-006's anonymous `users` row rather than a real
+    account. T16 deliberately kept ranking preferences as request-time query
+    params instead of reading this table — push notifications can't do that
+    (the dispatch job has no request to read params from), so this is where
+    persisted preferences become load-bearing."""
+
+    __tablename__ = "profiles"
+
+    user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
+    residence_country: Mapped[str | None] = mapped_column(Text, nullable=True)
+    residence_region: Mapped[str | None] = mapped_column(Text, nullable=True)
+    home_state: Mapped[str | None] = mapped_column(Text, nullable=True)
+    home_city: Mapped[str | None] = mapped_column(Text, nullable=True)
+    language: Mapped[str] = mapped_column(Text, nullable=False, server_default="en")
+    notification_mode: Mapped[str | None] = mapped_column(Text, nullable=True)
+    breaking_alerts_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="true")
+    daily_briefing_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="true")
+    # Quiet hours as UTC hour-of-day (0-23); no per-user timezone column
+    # exists in §12, so UTC is the deterministic, no-new-migration reading
+    # (same class of judgment call as T16's "home" topic reuse).
+    quiet_hours_start: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    quiet_hours_end: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    max_alerts_per_day: Mapped[int] = mapped_column(Integer, nullable=False, server_default="5")
+
+
+class UserTopic(Base):
+    __tablename__ = "user_topics"
+
+    user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
+    topic_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("topics.id", ondelete="CASCADE"), primary_key=True)
+    weight: Mapped[float] = mapped_column(Numeric(), nullable=False, server_default="1")
+
+
+class PushToken(Base):
+    __tablename__ = "push_tokens"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    # 'ios' | 'android' | 'web' per `ck_push_tokens_platform`.
+    platform: Mapped[str] = mapped_column(Text, nullable=False)
+    token: Mapped[str] = mapped_column(Text, nullable=False)
+    active: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="true")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    last_seen_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+
+
+class Notification(Base):
+    """T17 §14 `notification_dispatch` bookkeeping. `notification_key` +
+    `user_id` is the dedupe unit (`uq_notifications_user_notification_key`,
+    T03): a row is inserted (status=PENDING) *before* the send decision is
+    made, so a retried/duplicate dispatch pass can never double-send — the
+    unique constraint, not application logic, is what makes dedupe safe
+    under concurrent workers."""
+
+    __tablename__ = "notifications"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    story_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("stories.id", ondelete="CASCADE"), nullable=True)
+    # 'DAILY_BRIEFING' | 'TOPIC_ALERT' | 'BREAKING_ALERT' per `ck_notifications_type`.
+    type: Mapped[str] = mapped_column(Text, nullable=False)
+    notification_key: Mapped[str] = mapped_column(Text, nullable=False)
+    sent_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    # 'PENDING' | 'SENT' | 'FAILED' | 'SUPPRESSED' per `ck_notifications_status`.
+    status: Mapped[str] = mapped_column(Text, nullable=False, server_default="PENDING")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    # 'QUIET_HOURS' | 'DAILY_CAP' | NULL per `ck_notifications_suppressed_reason`.
+    suppressed_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+    attempts: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
+    next_attempt_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
 class ReviewTask(Base):

@@ -12,6 +12,7 @@
     },
     "android": {
       "package": "org.teluguglobal.app"
-    }
+    },
+    "plugins": ["expo-notifications"]
   }
 }

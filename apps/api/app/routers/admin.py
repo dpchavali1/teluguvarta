@@ -17,6 +17,7 @@ everything else about a source but cannot flip the rights gate itself.
 
 import hashlib
 import os
+from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID
 
@@ -329,6 +330,30 @@ def retract_story(
     db.flush()
 
     _write_audit_event(db, admin.email, "STORY_RETRACTED", "story", story.id, {"reason": body.reason})
+    db.commit()
+    db.refresh(story)
+    return AdminActionResponse(story_id=story.id, status=story.status)
+
+
+@router.post("/stories/{story_id}/approve-breaking-alert")
+def approve_breaking_alert(
+    story_id: UUID, body: AdminActionRequest, admin: AdminPrincipal = Depends(current_admin), db: Session = Depends(get_db)
+) -> AdminActionResponse:
+    """T17: the "never auto-sent" gate for a `BREAKING_ALERT` push — separate
+    from, and in addition to, the publish approval NON_NEGOTIABLES #5
+    already required for a `sensitivity == 'BREAKING'` story to reach
+    PUBLISHED. `notification_dispatch` (app/jobs/notify.py) only ever
+    considers a story for a breaking push once `breaking_alert_approved_at`
+    is set here."""
+
+    story = _get_story_or_404(db, story_id)
+    _require_status(story, "PUBLISHED", "UPDATED")
+    if story.sensitivity != "BREAKING":
+        raise APIError(422, "NOT_BREAKING", "Only a BREAKING-sensitivity story can have a breaking alert approved")
+
+    story.breaking_alert_approved_at = datetime.now(UTC)
+    db.flush()
+    _write_audit_event(db, admin.email, "BREAKING_ALERT_APPROVED", "story", story.id, {"reason": body.reason})
     db.commit()
     db.refresh(story)
     return AdminActionResponse(story_id=story.id, status=story.status)

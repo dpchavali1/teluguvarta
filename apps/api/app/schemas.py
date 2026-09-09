@@ -122,6 +122,13 @@ class ProfileOut(BaseModel):
     language: Language = "en"
     notification_mode: str | None = None
     topics: list[TopicOut] = Field(default_factory=list)
+    # §9.4 notification controls (T17). Defaults favor low frequency/high
+    # relevance per the ticket text.
+    breaking_alerts_enabled: bool = True
+    daily_briefing_enabled: bool = True
+    quiet_hours_start: int | None = None
+    quiet_hours_end: int | None = None
+    max_alerts_per_day: int = 5
 
 
 class MeResponse(BaseModel):
@@ -139,6 +146,11 @@ class PreferencesUpdate(BaseModel):
     language: Language | None = None
     notification_mode: str | None = None
     topic_slugs: list[str] | None = None
+    breaking_alerts_enabled: bool | None = None
+    daily_briefing_enabled: bool | None = None
+    quiet_hours_start: int | None = None
+    quiet_hours_end: int | None = None
+    max_alerts_per_day: int | None = None
 
 
 class SavedStoryResponse(BaseModel):
@@ -157,6 +169,36 @@ class PushTokenResponse(BaseModel):
 
 class DeleteAccountResponse(BaseModel):
     deleted: bool
+
+
+NotificationType = Literal["DAILY_BRIEFING", "TOPIC_ALERT", "BREAKING_ALERT"]
+
+
+class NotificationOut(BaseModel):
+    """§9.4 notification history — deep link is `story_id` (None means the
+    home feed, e.g. DAILY_BRIEFING or a suppressed/retracted target)."""
+
+    id: UUID
+    type: NotificationType
+    story_id: UUID | None
+    status: Literal["PENDING", "SENT", "FAILED", "SUPPRESSED"]
+    suppressed_reason: Literal["QUIET_HOURS", "DAILY_CAP"] | None = None
+    sent_at: datetime | None
+    created_at: datetime
+
+
+AnalyticsEventName = Literal[
+    "story_share", "notification_received", "notification_open",
+]
+
+
+class AnalyticsEventIn(BaseModel):
+    event: AnalyticsEventName
+    properties: dict = Field(default_factory=dict)
+
+
+class AnalyticsEventResponse(BaseModel):
+    accepted: bool = True
 
 
 # --- Admin ---

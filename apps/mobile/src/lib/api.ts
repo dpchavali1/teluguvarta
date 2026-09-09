@@ -1,5 +1,7 @@
 import type { components } from "@teluguvarta/contracts";
 
+import { getClientToken } from "./identity";
+
 export type StoryVariantOut = components["schemas"]["StoryVariantOut"];
 export type TopicOut = components["schemas"]["TopicOut"];
 export type ShareMetaResponse = components["schemas"]["ShareMetaResponse"];
@@ -98,4 +100,50 @@ export async function search(q: string): Promise<SearchResponse> {
 export async function getConfig(): Promise<ConfigResponse> {
   const raw = await apiGet<components["schemas"]["ConfigResponse"]>("/v1/config");
   return { ...raw, topics: raw.topics ?? [] };
+}
+
+// --- T17: push tokens, notification preferences, analytics events. Every
+// call here is `Authorization: Bearer <client_token>` (ADR-006 anonymous
+// identity, see ./identity.ts) — the same header T14/T15 never needed
+// since preferences were on-device only until now. ---
+
+async function authedRequest<T>(
+  method: "POST" | "PATCH",
+  path: string,
+  body: unknown
+): Promise<T> {
+  const token = await getClientToken();
+  const response = await fetch(new URL(path, apiUrl()).toString(), {
+    method,
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    body: JSON.stringify(body),
+  });
+  if (!response.ok) throw new Error(`API ${path} failed: ${response.status}`);
+  return response.json() as Promise<T>;
+}
+
+export type PreferencesUpdate = components["schemas"]["PreferencesUpdate"];
+export type ProfileOut = components["schemas"]["ProfileOut"];
+
+export function updatePreferences(body: PreferencesUpdate): Promise<ProfileOut> {
+  return authedRequest<ProfileOut>("PATCH", "/v1/me/preferences", body);
+}
+
+export function registerPushToken(token: string, platform: "ios" | "android"): Promise<void> {
+  return authedRequest("POST", "/v1/me/push-tokens", { token, platform }).then(() => undefined);
+}
+
+export type AnalyticsEventName = "story_share" | "notification_received" | "notification_open";
+
+export async function trackEvent(event: AnalyticsEventName, properties: Record<string, unknown> = {}): Promise<void> {
+  try {
+    await fetch(new URL("/v1/events", apiUrl()).toString(), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ event, properties }),
+    });
+  } catch {
+    // Best-effort — a dropped analytics event must never break the flow
+    // that triggered it (opening a story, sharing, etc).
+  }
 }

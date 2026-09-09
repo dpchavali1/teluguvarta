@@ -12,6 +12,7 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app import analytics
 from app.content.ranking import Preferences, rank_stories
 from app.content.serialize import (
     PUBLIC_STATUSES,
@@ -33,6 +34,8 @@ from app.models import (
     Topic,
 )
 from app.schemas import (
+    AnalyticsEventIn,
+    AnalyticsEventResponse,
     ConfigResponse,
     HomeResponse,
     PersonalizationOut,
@@ -239,3 +242,16 @@ def get_config(db: Session = Depends(get_db)) -> ConfigResponse:
         },
         topics=[topic_out(t) for t in topics],
     )
+
+
+@router.post("/events")
+def track_event(body: AnalyticsEventIn) -> AnalyticsEventResponse:
+    """T17 §9.4 client-emitted events (`story_share`, `notification_received`,
+    `notification_open`) — the ones the server can't observe on its own
+    (a user tapping share, or a device receiving/opening a push). No auth:
+    browsing/sharing works without login (NON_NEGOTIABLES #9), and there's
+    no per-user data here beyond whatever the caller puts in `properties`.
+    """
+
+    analytics.track(body.event, body.properties)
+    return AnalyticsEventResponse()
