@@ -14,6 +14,25 @@ interface ReviewQueueItem {
   created_at: string;
 }
 
+// Reasons that map to the always-human-reviewed categories in
+// docs/NON_NEGOTIABLES.md get the danger tone so a reviewer can spot them
+// without reading every row; everything else is a warn-tone pill.
+const DANGER_REASONS = new Set([
+  "SENSITIVE_CATEGORY",
+  "IMMIGRATION",
+  "LEGAL",
+  "FINANCIAL",
+  "BREAKING"
+]);
+
+function reasonTone(reason: string): "warn" | "danger" {
+  return DANGER_REASONS.has(reason) ? "danger" : "warn";
+}
+
+function humanize(value: string): string {
+  return value.replace(/_/g, " ").toLowerCase();
+}
+
 export default function ReviewQueuePage() {
   const router = useRouter();
   const [items, setItems] = useState<ReviewQueueItem[] | null>(null);
@@ -47,14 +66,15 @@ export default function ReviewQueuePage() {
       <h1>Review queue</h1>
       {error ? <p role="alert">{error}</p> : null}
       {items === null ? (
-        <p>Loading…</p>
+        <p className="state-note">Loading…</p>
       ) : items.length === 0 ? (
-        <p>Nothing pending review.</p>
+        <p className="state-note">Nothing pending review.</p>
       ) : (
         <table>
           <thead>
             <tr>
               <th>Reason</th>
+              <th>Status</th>
               <th>Created</th>
               <th></th>
             </tr>
@@ -62,7 +82,23 @@ export default function ReviewQueuePage() {
           <tbody>
             {items.map((item) => (
               <tr key={item.id}>
-                <td>{item.reason}</td>
+                <td>
+                  {/* `reason` is a comma-joined list when a story trips more
+                      than one gate (see jobs/generate.py). */}
+                  <span className="pill-row">
+                    {item.reason.split(",").map((reason) => (
+                      <span
+                        key={reason}
+                        className={`status-pill status-pill--${reasonTone(reason.trim())}`}
+                      >
+                        {humanize(reason.trim())}
+                      </span>
+                    ))}
+                  </span>
+                </td>
+                <td>
+                  <span className="status-pill status-pill--warn">{humanize(item.status)}</span>
+                </td>
                 <td>{new Date(item.created_at).toLocaleString()}</td>
                 <td>
                   <Link href={`/review/${item.story_id}`}>Open</Link>

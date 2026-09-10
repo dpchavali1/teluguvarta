@@ -144,7 +144,7 @@ export default function ObservabilityPage() {
       <h1>Observability</h1>
       {error ? <p role="alert">{error}</p> : null}
       {data === null ? (
-        <p>Loading…</p>
+        <p className="state-note">Loading…</p>
       ) : (
         <>
           <section>

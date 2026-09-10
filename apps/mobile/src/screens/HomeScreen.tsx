@@ -1,7 +1,16 @@
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import React, { useCallback, useEffect, useState } from "react";
-import { ActivityIndicator, Linking, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import {
+  ActivityIndicator,
+  Linking,
+  Pressable,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 
 import { StoryCard } from "../components/StoryCard";
 import { getHome, trackEvent, type StoryOut, type TopicOut } from "../lib/api";
@@ -17,6 +26,7 @@ export function HomeScreen() {
   const [topics, setTopics] = useState<TopicOut[]>([]);
   const [briefingStories, setBriefingStories] = useState<StoryOut[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
@@ -60,6 +70,18 @@ export function HomeScreen() {
     load();
   }, [load]);
 
+  // The error copy tells the user to pull down to retry, so that gesture has
+  // to actually exist — without it the error state is unrecoverable short of
+  // restarting the app.
+  const handleRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await load();
+    } finally {
+      setRefreshing(false);
+    }
+  }, [load]);
+
   if (loading && stories.length === 0) {
     return (
       <View style={styles.center}>
@@ -72,6 +94,15 @@ export function HomeScreen() {
     <ScrollView
       contentContainerStyle={styles.container}
       accessibilityLabel="Home feed"
+      refreshControl={
+        <RefreshControl
+          refreshing={refreshing}
+          onRefresh={handleRefresh}
+          tintColor={colors.teal}
+          colors={[colors.teal]}
+          accessibilityLabel="Refresh the feed"
+        />
+      }
     >
       {error && <Text style={styles.error}>{error}</Text>}
       {topics.length > 0 && (

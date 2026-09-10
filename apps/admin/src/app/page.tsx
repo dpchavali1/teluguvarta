@@ -37,7 +37,7 @@ export default function Home() {
   if (status !== "ready") {
     return (
       <main>
-        <p>Checking session…</p>
+        <p className="state-note">Checking session…</p>
       </main>
     );
   }

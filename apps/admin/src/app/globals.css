@@ -283,3 +283,20 @@ td button {
   background: var(--color-danger-soft);
   color: var(--color-danger);
 }
+
+/* A cell can hold several pills when a story trips more than one gate. */
+.pill-row {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+}
+
+/* ---------- Loading / empty states ---------- */
+
+/* Bare <p> loading and empty states read as unstyled page defaults; this
+   makes them read as intentional, matching web's `.empty-state`. */
+.state-note {
+  color: var(--color-muted);
+  font-size: 0.9rem;
+  padding: 1.25rem 0;
+}

@@ -70,10 +70,44 @@ Mirrors `docs/adr/README.md` — keep both in sync.
 | ADR-006 Account/privacy architecture | **proposed** |
 | ADR-007 Production hosting/cost limits | not started |
 | ADR-008 Visual design refresh (no new UI framework) | **accepted** |
+| ADR-009 Single design-token source, generated per surface | **proposed** |
 
 ## Changelog
 
 (newest first — one line per ticket completion)
+
+- 2026-09-10: T21 follow-up — design review (UI + UX passes over all three
+  surfaces) found the parity gap now recorded in the T21 entry below, plus
+  four smaller defects, all fixed here. (1) `apps/mobile` rendered Telugu
+  with the Latin display scale: `letterSpacing: -0.2` crowds conjunct
+  clusters and 1.4x leading clips the stacked vowel signs. Added
+  `typographyTe` + `typographyFor()` to `src/theme/tokens.ts` (mirroring
+  web's existing `[lang="te"]` cascade, which was already correct) and
+  wired `StoryCard` to key off the *rendered* language, not the requested
+  one — `variant` falls back to `en` when a `te` variant is missing, so the
+  metrics have to follow the glyphs actually on screen. (2)
+  `HomeScreen`'s error copy said "Pull down to try again" but the
+  `ScrollView` had no `refreshControl` — the error state was unrecoverable
+  without restarting the app; added one. (3) `apps/admin`'s
+  `.status-pill--ok/warn/danger` classes were defined but never rendered:
+  the review queue showed `reason` as plain text and didn't display
+  `status` at all. Review reasons now render as pills (split on `,`, since
+  `jobs/generate.py` comma-joins multiple gates), with the
+  always-human-reviewed categories in danger tone. (4) `apps/web`'s
+  generic `main button` had no `:disabled` state (only the pilot signup
+  form did), so a disabled button kept the ink fill, hard shadow and hover
+  press-shift and read as clickable. Also styled admin's bare `<p>`
+  loading/empty states via a new `.state-note`. ADR-009 written (proposed,
+  not accepted) for the single-token-source generator that would have
+  caught the parity gap. Verified: `pnpm --filter web build`, `pnpm
+  --filter admin build`, `next lint` on both, `apps/mobile` `tsc --noEmit`
+  — all clean. **Correction to the T21 entry below**: it claims the mobile
+  Jest suite is 14/14 passing "re-verified independently"; it is not.
+  `src/__tests__/analytics.test.tsx` fails on a `findByLabelText` in an
+  `App.tsx` render (expo-notifications import chain). Confirmed
+  pre-existing by stashing these changes and re-running at the T21 commit —
+  same failure. Not fixed here; it is unrelated to design work and wants
+  its own investigation.
 
 - 2026-09-10: T21 visual design refresh across all three apps, ad-hoc (not in
   the original BUILD_ORDER spine) per explicit product request to make the

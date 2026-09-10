@@ -53,3 +53,21 @@ export const typography = {
   body: { fontSize: 15, lineHeight: 21 },
   meta: { fontSize: 12, fontWeight: "600" as const, letterSpacing: 0.4 },
 } as const;
+
+// Telugu-specific type. The Latin scale above is display-tuned with negative
+// tracking (-0.2), which crowds Telugu conjunct clusters, and its 1.4x body
+// leading clips the stacked vowel signs (talakattu/gunintam) that sit above
+// and below the baseline — Telugu glyphs occupy a taller box than Latin at
+// the same font size. These values mirror the [lang="te"] cascade in
+// apps/web/src/app/globals.css: near-zero tracking and 1.2x leading on
+// headings, the looser 1.55x body leading web already applies.
+export const typographyTe = {
+  headline: { fontSize: 18, fontWeight: "700" as const, letterSpacing: -0.1, lineHeight: 22 },
+  body: { fontSize: 15, lineHeight: 23 },
+  meta: { fontSize: 12, fontWeight: "600" as const, letterSpacing: 0.4 },
+} as const;
+
+/** Type scale for a story variant's language. Telugu needs its own metrics. */
+export function typographyFor(language: "en" | "te") {
+  return language === "te" ? typographyTe : typography;
+}

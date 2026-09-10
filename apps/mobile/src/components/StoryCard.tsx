@@ -4,7 +4,7 @@ import { Alert, AccessibilityInfo, Pressable, StyleSheet, Text, View } from "rea
 import { trackEvent, type Language, type StoryOut } from "../lib/api";
 import { shareStory } from "../lib/share";
 import { isSaved, toggleSaved } from "../lib/storage";
-import { colors, radius, shadow, spacing, typography } from "../theme/tokens";
+import { colors, radius, shadow, spacing, typography, typographyFor } from "../theme/tokens";
 
 const STATUS_LABEL: Record<string, string | undefined> = {
   RETRACTED: "Retracted",
@@ -41,6 +41,12 @@ export function StoryCard({
 
   const variant = story.variants[language] ?? story.variants.en;
   if (!variant) return null;
+
+  // The rendered language, not the requested one — `variant` falls back to
+  // `en` when the requested variant is missing, and the type metrics have to
+  // follow the glyphs actually on screen.
+  const renderedLanguage: Language = story.variants[language] ? language : "en";
+  const type = typographyFor(renderedLanguage);
 
   const statusNotice = STATUS_LABEL[story.status];
   const primarySource = story.sources[0];
@@ -91,12 +97,14 @@ export function StoryCard({
         accessibilityLabel={`Open story: ${variant.headline}`}
         style={styles.touchTarget}
       >
-        <Text style={styles.headline}>{variant.headline}</Text>
+        <Text style={[styles.headline, type.headline]}>{variant.headline}</Text>
       </Pressable>
 
-      <Text style={styles.body}>{variant.summary}</Text>
+      <Text style={[styles.body, type.body]}>{variant.summary}</Text>
       {variant.why_matters ? (
-        <Text style={styles.why}>Why this matters: {variant.why_matters}</Text>
+        <Text style={[styles.why, renderedLanguage === "te" && styles.whyTe]}>
+          Why this matters: {variant.why_matters}
+        </Text>
       ) : null}
 
       {primarySource && (
@@ -199,6 +207,9 @@ const styles = StyleSheet.create({
     borderLeftColor: colors.accent,
     padding: spacing.sm,
   },
+  // Telugu glyphs are taller than Latin at the same size; without explicit
+  // leading this block sets solid and the vowel signs collide.
+  whyTe: { lineHeight: 22 },
   sourceLink: { color: colors.teal, fontWeight: "600" },
   actions: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: spacing.sm, marginTop: spacing.xs },
   langGroup: { flexDirection: "row", gap: spacing.xs },

@@ -927,9 +927,23 @@ main button {
   transition: transform 0.12s var(--ease-out), box-shadow 0.12s var(--ease-out);
 }
 
-main button:hover {
+main button:hover:not(:disabled) {
   transform: translate(2px, 2px);
   box-shadow: 1px 1px 0 var(--color-rule);
+}
+
+/* Without this a disabled button keeps the full ink fill, the hard shadow and
+   the press-shift on hover, so it reads as clickable. Colour is not the sole
+   signal: the shadow drops and the cursor changes too. `.pilot-signup-form`
+   keeps its own `cursor: progress` override below, since there the disable is
+   a pending submit rather than an unavailable action. */
+main button:disabled {
+  background: var(--color-surface-sunken);
+  color: var(--color-faint);
+  border-color: var(--color-border);
+  box-shadow: none;
+  transform: none;
+  cursor: not-allowed;
 }
 
 .search-form {
