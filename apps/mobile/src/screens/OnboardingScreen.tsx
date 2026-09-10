@@ -328,6 +328,8 @@ function LanguageChoice({
         value={value === "te"}
         onValueChange={(isTelugu) => onChange(isTelugu ? "te" : "en")}
         accessibilityLabel="Toggle preferred language between English and Telugu"
+        accessibilityRole="switch"
+        accessibilityState={{ checked: value === "te" }}
       />
       <Text>తెలుగు</Text>
     </View>

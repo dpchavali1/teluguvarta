@@ -23,6 +23,11 @@ interface StorySource {
   source_rights_status: string;
 }
 
+// Same always-human-reviewed set as the review queue list page's
+// DANGER_REASONS — a sensitivity here should read with the same urgency as
+// the reason pill a reviewer already saw on the queue.
+const ALWAYS_REVIEWED_SENSITIVITIES = new Set(["IMMIGRATION", "LEGAL", "FINANCIAL", "BREAKING", "OBITUARY_ACCUSATION"]);
+
 interface Correction {
   id: string;
   reason: string;
@@ -69,6 +74,11 @@ export default function StoryReviewPage() {
   const [correctedHeadline, setCorrectedHeadline] = useState("");
   const [correctedSummary, setCorrectedSummary] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  // Design-review fix: approve/reject on an always-human-reviewed category
+  // (immigration/legal/financial/breaking/obituary-accusation) previously
+  // required no more friction, and no recorded reason, than any other
+  // story — no audit trail for the highest-stakes decision in the product.
+  const [pendingAction, setPendingAction] = useState<"approve" | "reject" | null>(null);
 
   const load = useCallback(() => {
     const token = getToken();
@@ -104,6 +114,7 @@ export default function StoryReviewPage() {
   async function handleAction(action: "approve" | "reject" | "retract") {
     setSubmitting(true);
     setError(null);
+    setPendingAction(null);
     try {
       const body = action === "reject" ? { reason: reason || null, archive } : { reason: reason || null };
       await postAction(storyId, action, body);
@@ -153,6 +164,8 @@ export default function StoryReviewPage() {
 
   const en = story.variants.en;
   const te = story.variants.te;
+  const isAlwaysReviewed = ALWAYS_REVIEWED_SENSITIVITIES.has(story.sensitivity);
+  const reasonRequired = isAlwaysReviewed && reason.trim().length === 0;
 
   return (
     <main>
@@ -161,8 +174,11 @@ export default function StoryReviewPage() {
       </p>
       <h1>{en?.headline ?? story.canonical_slug}</h1>
       <p>
-        Status: <strong>{story.status}</strong> · Sensitivity: <strong>{story.sensitivity}</strong> · Importance:{" "}
-        {story.importance.toFixed(2)}
+        Status: <strong>{story.status}</strong> ·{" "}
+        <span className={`status-pill status-pill--${isAlwaysReviewed ? "danger" : "warn"}`}>
+          {story.sensitivity}
+        </span>{" "}
+        · Importance: {story.importance.toFixed(2)}
       </p>
       {story.review_task ? <p>Review reason: {story.review_task.reason}</p> : null}
       {error ? <p role="alert">{error}</p> : null}
@@ -182,6 +198,7 @@ export default function StoryReviewPage() {
           <>
             <h3>Telugu variant</h3>
             <p>{te.summary}</p>
+            {te.why_matters ? <p><em>Why it matters:</em> {te.why_matters}</p> : null}
             <p>QA status: {te.qa_status}</p>
           </>
         ) : null}
@@ -192,7 +209,13 @@ export default function StoryReviewPage() {
         <ul>
           {story.sources.map((source) => (
             <li key={source.url}>
-              <strong>{source.role}</strong> — {source.source_name} [{source.source_rights_status}]:{" "}
+              <strong>{source.role}</strong> — {source.source_name}{" "}
+              <span
+                className={`status-pill status-pill--${source.source_rights_status === "DISABLED" ? "danger" : "ok"}`}
+              >
+                {source.source_rights_status}
+              </span>
+              :{" "}
               <a href={source.url} target="_blank" rel="noreferrer">
                 {source.title ?? source.url}
               </a>
@@ -204,22 +227,58 @@ export default function StoryReviewPage() {
       <section>
         <h2>Actions</h2>
         <div>
-          <label htmlFor="reason">Reason</label>
+          <label htmlFor="reason">Reason{isAlwaysReviewed ? " (required for this category)" : ""}</label>
           <input id="reason" value={reason} onChange={(event) => setReason(event.target.value)} />
         </div>
 
         {story.status === "REVIEW_REQUIRED" ? (
           <>
-            <button type="button" disabled={submitting} onClick={() => handleAction("approve")}>
-              Approve
-            </button>
+            {isAlwaysReviewed && (
+              <p className="status-pill status-pill--danger">
+                {story.sensitivity} requires a recorded reason before approve/reject.
+              </p>
+            )}
             <label>
               <input type="checkbox" checked={archive} onChange={(event) => setArchive(event.target.checked)} />
               Archive instead of sending back to draft
             </label>
-            <button type="button" disabled={submitting} onClick={() => handleAction("reject")}>
-              Reject
-            </button>
+
+            {pendingAction === "approve" ? (
+              <>
+                <button type="button" disabled={submitting || reasonRequired} onClick={() => handleAction("approve")}>
+                  Confirm approve
+                </button>
+                <button type="button" disabled={submitting} onClick={() => setPendingAction(null)}>
+                  Cancel
+                </button>
+              </>
+            ) : pendingAction === "reject" ? (
+              <>
+                <button type="button" disabled={submitting || reasonRequired} onClick={() => handleAction("reject")}>
+                  Confirm reject
+                </button>
+                <button type="button" disabled={submitting} onClick={() => setPendingAction(null)}>
+                  Cancel
+                </button>
+              </>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  disabled={submitting}
+                  onClick={() => (isAlwaysReviewed ? setPendingAction("approve") : handleAction("approve"))}
+                >
+                  Approve
+                </button>
+                <button
+                  type="button"
+                  disabled={submitting}
+                  onClick={() => (isAlwaysReviewed ? setPendingAction("reject") : handleAction("reject"))}
+                >
+                  Reject
+                </button>
+              </>
+            )}
           </>
         ) : null}
 

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { CSSProperties } from "react";
 
+import { OnboardingCta } from "@/components/OnboardingCta";
 import { StoryCard } from "@/components/StoryCard";
 import { StudentBriefing } from "@/components/StudentBriefing";
 import { TrackEvent } from "@/components/TrackEvent";
@@ -18,9 +19,7 @@ export default async function HomePage() {
         <div className="page-hero__glow" aria-hidden="true" />
         <h1>Telugu Global</h1>
         <p>The latest stories for the global Telugu diaspora — original summaries, always linked to the source.</p>
-        <p>
-          <Link className="page-hero__cta" href="/onboarding">Personalize your feed →</Link>
-        </p>
+        <OnboardingCta />
       </section>
 
       <StudentBriefing />

@@ -7,7 +7,10 @@
   --color-surface-sunken: #e4e9e7;
   --color-text: #12262b;
   --color-muted: #52686a;
-  --color-faint: #7c8c8d;
+  /* Design-review fix: #7c8c8d on --color-bg was 3.08:1, failing WCAG AA
+     (4.5:1) for the normal-weight text (nav role, table labels) it's used
+     for. */
+  --color-faint: #5f7072;
   --color-border: #c9d2cf;
 
   --color-accent: #b8791f;
@@ -15,7 +18,9 @@
   --color-accent-soft: #f4e6c9;
   --color-accent-ink: #6b4712;
 
-  --color-teal: #1f7d6f;
+  /* Design-review fix: #1f7d6f on --color-teal-soft was 4.16:1, marginally
+     failing AA for the 0.72rem/600-weight status-pill text that uses it. */
+  --color-teal: #1a6d61;
   --color-teal-soft: #dcefe9;
 
   --color-danger: #a3321f;

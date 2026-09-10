@@ -14,6 +14,14 @@ const Tab = createBottomTabNavigator<MainTabParamList>();
 
 // Plain-text glyphs (no icon-library dependency, per ADR-008) rendered via
 // the system emoji font, so they're free and consistent on iOS + Android.
+// Design review (2026-09-10) flagged this as visually unfinished and
+// recommended @expo/vector-icons; re-attempted here and it installs
+// cleanly in apps/mobile alone, but pulls in a second @types/react
+// resolution that breaks apps/web's and apps/admin's `next build` type
+// checking repo-wide (LayoutProps<"/"> "bigint is not assignable to
+// ReactNode" — confirmed by reverting the install and rebuilding both
+// clean). Not safe to add without a workspace-wide @types/react version
+// audit first; see PROGRESS.md.
 const TAB_GLYPHS: Record<keyof MainTabParamList, string> = {
   Home: "⌂",
   Search: "⌕",

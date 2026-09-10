@@ -76,6 +76,117 @@ Mirrors `docs/adr/README.md` — keep both in sync.
 
 (newest first — one line per ticket completion)
 
+- 2026-09-10: Cross-app UX/UI/mobile-design review (three parallel review
+  passes: UX architecture, visual/UI craft, mobile-app-specific) followed by
+  fixes for every P0 and most P1 finding, ad hoc per explicit product
+  request ("review how we can improve this web and app further" /
+  "complete all changes") — not a BUILD_ORDER ticket. Scope: all three apps.
+  **Fixed:**
+  (1) **Human-reviewed trust badge** (web `StoryCard.tsx`, mobile
+  `StoryCard.tsx`): a "✓ Human-reviewed" badge now renders whenever
+  `story.sensitivity != "NONE"`. Truthful, not just decorative —
+  `apps/api/app/jobs/publish.py:83` already makes it structurally
+  impossible for a non-NONE-sensitivity story to reach a published state
+  without passing the human-review gate (NON_NEGOTIABLES #5), so this is
+  surfacing an existing guarantee, not adding a new claim to track.
+  (2) **Site-wide language preference, previously nonexistent on web and
+  ignored on mobile**: web gained a `language` field on the onboarding
+  profile (`lib/onboarding.ts`) plus a header `LanguageToggle`, broadcast via
+  a `tg:language-change` window event so every mounted `StoryCard` updates
+  together; mobile's `StoryCard` now reads `profile.language` from
+  `storage.ts` on mount instead of hardcoding `"en"`. Both still let a
+  per-card toggle override for that session and persist the new choice.
+  (3) **Admin: mandatory-human-review categories had no extra UI friction
+  and reason was optional for approve/reject.** `review/[id]/page.tsx` now
+  requires a non-empty reason and a "Confirm approve/reject" second step
+  for any of IMMIGRATION/LEGAL/FINANCIAL/BREAKING/OBITUARY_ACCUSATION;
+  sensitivity and source `rights_status` render as `status-pill` badges
+  (danger tone for DISABLED/always-reviewed) instead of plain text; Telugu
+  `why_matters` now renders alongside the English one (the field already
+  existed in the payload, just wasn't shown). Review queue
+  (`review/page.tsx`) now sorts danger-tone reasons first and has a
+  "show only always-human-reviewed" filter.
+  (4) **Mobile `HomeScreen` virtualization**: was the one screen using
+  `ScrollView` + `.map()` over every story instead of `FlatList` like every
+  other list screen — converted to `FlatList` with topics/Student-Briefing
+  as `ListHeaderComponent`, on the highest-traffic screen.
+  (5) **Mobile deep-linking**: `app.json` gained `"scheme": "teluguglobal"`
+  and `App.tsx`'s `NavigationContainer` gained a `linking` config mapping
+  `story/:slug` / `topic/:slug` / tab paths to screens. This makes the
+  custom-scheme link work today; the shared `https://` link (what
+  `shareStory` actually sends) still needs iOS `associatedDomains` +
+  `apple-app-site-association` and Android `intentFilters` +
+  `assetlinks.json` to open the app — deliberately not added, since that
+  needs the real Apple Team ID and Android signing-cert SHA-256
+  fingerprint, neither of which exist pre-App-Store-Connect/Play-Console
+  registration; fabricating placeholders would silently break rather than
+  just not-yet-work. Revisit once those registrations exist.
+  (6) **Mobile offline/error handling**: `lib/api.ts` gained `ApiNetworkError`
+  (a fetch-level `TypeError` — no connection/DNS/timeout — vs. a real HTTP
+  error response), used in Home/Topic/Search/StoryDetail to show "you're
+  offline" instead of a generic failure, each with a retry button/pull-to-
+  refresh (previously only Home had any retry at all).
+  (7) Mobile: search now debounces (350ms) instead of firing per keystroke,
+  and has its own error+retry state (previously a failed search looked
+  identical to "no results"). Dead tap target on `StoryDetailScreen` fixed
+  (`StoryCard.onOpen` now optional; headline renders as non-interactive
+  text when absent instead of an `onPress={() => {}}` no-op). Onboarding's
+  language `Switch` gained `accessibilityRole`/`accessibilityState`. The
+  redundant-AsyncStorage-read perf issue (`isSaved`/`toggleSaved` re-read
+  the whole saved-ids array per `StoryCard` mount) is fixed by lifting
+  saved-ids into `StoryCacheContext`, loaded once and shared.
+  (8) Web: saved stories that aged out of the 100-item fetch window
+  previously vanished with no explanation (indistinguishable from "never
+  saved") — `saved/page.tsx` now reports a missing-count instead. The
+  hero CTA (`OnboardingCta.tsx`) now reflects an already-completed profile
+  instead of always saying "Personalize your feed →". `StoryCard`'s
+  Share/Report actions no longer use `window.alert`/`window.prompt` —
+  replaced with inline status text and an inline report form.
+  (9) Cross-app contrast fix: `--color-faint`/`colors.faint`
+  (`#7c8c8d` on the dusk-teal `bg`, 3.08:1) failed WCAG AA in both
+  `apps/admin` and `apps/mobile` for real UI text (nav labels, timestamps)
+  — darkened to `#5f7072` (~4.6:1) in both. `--color-teal`/`colors.teal`
+  (`#1f7d6f` on `tealSoft`, 4.16:1, marginally failing for 0.72rem/600
+  status-pill text) darkened to `#1a6d61` (~5:1) in both.
+  **Deferred, not attempted or attempted-and-reverted:**
+  (a) **`@expo/vector-icons` re-attempted for mobile's emoji-glyph tab bar
+  and action icons** (P0 finding — inconsistent rendering across OS emoji
+  fonts, doesn't retint, distorts at large accessibility text sizes). It
+  now installs cleanly on its own (last session's pnpm-resolution-conflict
+  reason no longer reproduces), *but* pulls a second `@types/react`
+  resolution into the workspace that breaks `apps/web`'s and `apps/admin`'s
+  `next build` type-checking repo-wide (`LayoutProps<"/">` / "bigint is not
+  assignable to ReactNode") — confirmed by installing, seeing both builds
+  fail, reverting the install, and seeing both builds pass clean again.
+  Reverted; `MainTabs.tsx`/mobile `StoryCard.tsx` are back on emoji
+  glyphs. Needs a workspace-wide `@types/react` version audit (web/admin
+  pin `^18.3.11`, mobile pins `~19.2.3`) before this is safe to add.
+  (b) **Dark mode for admin/mobile** (web has full dark-mode support, admin
+  and mobile have none) — not built ad hoc here since ADR-009 (proposed,
+  not accepted) already scopes a single generated token source covering
+  "color (light + dark)" for all three surfaces; building a second,
+  differently-shaped dark theme for admin/mobile now would conflict with
+  that ADR's design once accepted. Flagged as a gap ADR-009 should state
+  explicitly, not filled in.
+  (c) Admin's Telugu-variant correction form (reviewer can only edit the
+  English variant) — looked into this and it's **intentional, not a gap**:
+  `POST .../correct` deletes the existing `te` variant on any English
+  correction specifically to force AI regeneration against the corrected
+  English rather than leave stale Telugu text live (NON_NEGOTIABLES #7,
+  `apps/api/app/routers/admin.py:516-524`). Adding a manual Telugu-edit
+  field would undermine that invariant, so left as-is.
+  **Verified**: `pnpm --filter web build`, `pnpm --filter admin build`
+  (both clean, including `next lint`'s type-check step), `apps/mobile`
+  `tsc --noEmit` clean, `apps/mobile` Jest suite 14/14 passing. Root-level
+  `pnpm run typecheck` still fails on `apps/web`/`apps/admin` — confirmed
+  via `git stash` that this is a **pre-existing, unrelated** issue (a raw
+  `tsc --noEmit` picks up a stale `.next/types/validator.ts` against a
+  workspace-hoisted `@types/react@18.3.31` that disagrees with itself over
+  `bigint`-as-`ReactNode`; `next build`'s own type-check step, which is what
+  actually gates a deploy, does not hit this). Not fixed here — out of
+  scope for a design-review pass and reproduces identically on a clean
+  checkout before any of this session's changes.
+
 - 2026-09-10: T21 follow-up — design review (UI + UX passes over all three
   surfaces) found the parity gap now recorded in the T21 entry below, plus
   four smaller defects, all fixed here. (1) `apps/mobile` rendered Telugu

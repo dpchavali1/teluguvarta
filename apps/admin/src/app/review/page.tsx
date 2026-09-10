@@ -37,6 +37,9 @@ export default function ReviewQueuePage() {
   const router = useRouter();
   const [items, setItems] = useState<ReviewQueueItem[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // Design-review fix: the queue was flat and unsorted — as volume grows,
+  // there was no way to surface always-human-reviewed categories first.
+  const [dangerOnly, setDangerOnly] = useState(false);
 
   useEffect(() => {
     const token = getToken();
@@ -61,14 +64,36 @@ export default function ReviewQueuePage() {
       .catch((err) => setError(err instanceof Error ? err.message : "Failed to load review queue"));
   }, [router]);
 
+  // Danger-tone (always-human-reviewed) rows first, otherwise oldest first
+  // (queue order) — a reviewer scanning top-to-bottom sees the
+  // highest-stakes items before routine ones regardless of arrival order.
+  const sortedItems = items
+    ? [...items].sort((a, b) => {
+        const aDanger = a.reason.split(",").some((r) => reasonTone(r.trim()) === "danger");
+        const bDanger = b.reason.split(",").some((r) => reasonTone(r.trim()) === "danger");
+        return aDanger === bDanger ? 0 : aDanger ? -1 : 1;
+      })
+    : null;
+  const visibleItems = dangerOnly
+    ? sortedItems?.filter((item) => item.reason.split(",").some((r) => reasonTone(r.trim()) === "danger"))
+    : sortedItems;
+
   return (
     <main>
       <h1>Review queue</h1>
       {error ? <p role="alert">{error}</p> : null}
+      {items !== null && items.length > 0 && (
+        <label>
+          <input type="checkbox" checked={dangerOnly} onChange={(event) => setDangerOnly(event.target.checked)} />
+          Show only always-human-reviewed categories
+        </label>
+      )}
       {items === null ? (
         <p className="state-note">Loading…</p>
       ) : items.length === 0 ? (
         <p className="state-note">Nothing pending review.</p>
+      ) : visibleItems && visibleItems.length === 0 ? (
+        <p className="state-note">No items match this filter.</p>
       ) : (
         <table>
           <thead>
@@ -80,7 +105,7 @@ export default function ReviewQueuePage() {
             </tr>
           </thead>
           <tbody>
-            {items.map((item) => (
+            {(visibleItems ?? []).map((item) => (
               <tr key={item.id}>
                 <td>
                   {/* `reason` is a comma-joined list when a story trips more

@@ -6,6 +6,7 @@
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
+    "scheme": "teluguglobal",
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "org.teluguglobal.app"

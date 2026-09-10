@@ -56,12 +56,25 @@ export function storyUrl(canonicalSlug: string): string {
 
 export class ApiNotFoundError extends Error {}
 
+// Design-review fix: previously every failure (offline, DNS, timeout, or a
+// real 5xx) surfaced as the same generic error text with no way for a
+// screen to tell "you're offline" from "something's wrong on our end".
+// React Native's `fetch` rejects with a TypeError for a network-layer
+// failure (no connection, DNS, timeout) — a real HTTP response, even an
+// error one, resolves rather than rejects — so that's the signal to key on.
+export class ApiNetworkError extends Error {}
+
 async function apiGet<T>(path: string, params?: Record<string, string | undefined>): Promise<T> {
   const url = new URL(path, apiUrl());
   for (const [key, value] of Object.entries(params ?? {})) {
     if (value !== undefined) url.searchParams.set(key, value);
   }
-  const response = await fetch(url.toString());
+  let response: Response;
+  try {
+    response = await fetch(url.toString());
+  } catch (err) {
+    throw new ApiNetworkError(err instanceof Error ? err.message : "Network request failed");
+  }
   if (response.status === 404) throw new ApiNotFoundError(path);
   if (!response.ok) throw new Error(`API ${path} failed: ${response.status}`);
   return response.json() as Promise<T>;

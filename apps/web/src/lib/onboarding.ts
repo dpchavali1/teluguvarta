@@ -20,14 +20,33 @@ export const LIFE_STAGES: { value: LifeStage; label: string }[] = [
   { value: "other", label: "Other" },
 ];
 
+export type Language = "en" | "te";
+
 export type OnboardingProfile = {
   lifeStages: LifeStage[];
   residenceCountry?: string;
   homeState?: string;
   homeCity?: string;
+  // Design-review fix: previously there was no site-wide language
+  // preference at all — every StoryCard defaulted to "en" and reset on
+  // every reload. Mirrors apps/mobile/src/lib/storage.ts's profile.language.
+  language: Language;
 };
 
-const EMPTY_PROFILE: OnboardingProfile = { lifeStages: [] };
+const EMPTY_PROFILE: OnboardingProfile = { lifeStages: [], language: "en" };
+
+export const LANGUAGE_CHANGE_EVENT = "tg:language-change";
+
+export function getPreferredLanguage(): Language {
+  return getOnboardingProfile().language ?? "en";
+}
+
+export function setPreferredLanguage(language: Language): void {
+  setOnboardingProfile({ ...getOnboardingProfile(), language });
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new CustomEvent<Language>(LANGUAGE_CHANGE_EVENT, { detail: language }));
+  }
+}
 
 export function getOnboardingProfile(): OnboardingProfile {
   if (typeof window === "undefined") return EMPTY_PROFILE;

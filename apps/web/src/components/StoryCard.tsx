@@ -1,11 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 
 import { storyUrl, type Language, type StoryOut } from "@/lib/api";
 import { isSaved, toggleSaved } from "@/lib/saved";
 import { track } from "@/lib/analytics";
+import { getPreferredLanguage, LANGUAGE_CHANGE_EVENT, setPreferredLanguage } from "@/lib/onboarding";
 
 const STATUS_LABEL: Record<string, { text: string; className: string } | undefined> = {
   RETRACTED: { text: "Retracted", className: "story-card__notice--retracted" },
@@ -13,14 +14,35 @@ const STATUS_LABEL: Record<string, { text: string; className: string } | undefin
   CORRECTION_PENDING: { text: "Correction pending", className: "story-card__notice--updated" },
 };
 
+// NON_NEGOTIABLES #5: sensitivity != "NONE" can never reach a published
+// state without passing the human-review gate (see apps/api/app/jobs/
+// publish.py:83), so surfacing sensitivity here is a truthful trust signal,
+// not a claim we have to separately track.
+const REVIEWED_SENSITIVITIES = new Set(["IMMIGRATION", "LEGAL", "FINANCIAL", "BREAKING", "OBITUARY_ACCUSATION"]);
+
 export function StoryCard({ story, headingLevel = "h2" }: { story: StoryOut; headingLevel?: "h1" | "h2" }) {
   const [language, setLanguage] = useState<Language>("en");
   const [saved, setSaved] = useState(false);
+  const [shareStatus, setShareStatus] = useState<string | null>(null);
+  const [reportOpen, setReportOpen] = useState(false);
+  const [reportText, setReportText] = useState("");
+  const [reportStatus, setReportStatus] = useState<string | null>(null);
   const hasTelugu = Boolean(story.variants.te);
+  const isHumanReviewed = REVIEWED_SENSITIVITIES.has(story.sensitivity);
 
   useEffect(() => {
     setSaved(isSaved(story.id));
   }, [story.id]);
+
+  useEffect(() => {
+    setLanguage(getPreferredLanguage());
+    function onLanguageChange(event: Event) {
+      const next = (event as CustomEvent<Language>).detail;
+      if (next) setLanguage(next);
+    }
+    window.addEventListener(LANGUAGE_CHANGE_EVENT, onLanguageChange);
+    return () => window.removeEventListener(LANGUAGE_CHANGE_EVENT, onLanguageChange);
+  }, []);
 
   const variant = story.variants[language] ?? story.variants.en;
   if (!variant) return null;
@@ -43,9 +65,9 @@ export function StoryCard({ story, headingLevel = "h2" }: { story: StoryOut; hea
     }
     try {
       await navigator.clipboard.writeText(url);
-      window.alert("Link copied to clipboard.");
+      setShareStatus("Link copied to clipboard.");
     } catch {
-      window.prompt("Copy this link:", url);
+      setShareStatus(url);
     }
   }
 
@@ -58,13 +80,15 @@ export function StoryCard({ story, headingLevel = "h2" }: { story: StoryOut; hea
   function handleLanguageSwitch(next: Language) {
     if (next !== language) track("language_switch", { story_id: story.id, language: next });
     setLanguage(next);
+    setPreferredLanguage(next);
   }
 
-  function handleReportIssue() {
-    const description = window.prompt("Describe the issue with this story:");
-    if (description === null) return;
-    track("report_issue", { story_id: story.id, description });
-    window.alert("Thanks — we've logged this for review.");
+  function handleReportSubmit(event: FormEvent) {
+    event.preventDefault();
+    track("report_issue", { story_id: story.id, description: reportText });
+    setReportOpen(false);
+    setReportText("");
+    setReportStatus("Thanks — we've logged this for review.");
   }
 
   return (
@@ -77,6 +101,12 @@ export function StoryCard({ story, headingLevel = "h2" }: { story: StoryOut; hea
           <span className="pill" key={t}>{t}</span>
         ))}
       </div>
+
+      {isHumanReviewed && (
+        <p className="story-card__reviewed">
+          <span aria-hidden="true">✓</span> Human-reviewed
+        </p>
+      )}
 
       {statusNotice && (
         <p className={`story-card__notice ${statusNotice.className}`} role="status">
@@ -139,10 +169,45 @@ export function StoryCard({ story, headingLevel = "h2" }: { story: StoryOut; hea
         >
           {saved ? "Saved" : "Save"}
         </button>
-        <button type="button" onClick={handleReportIssue} aria-label={`Report an issue: ${variant.headline}`}>
+        <button
+          type="button"
+          onClick={() => setReportOpen((open) => !open)}
+          aria-expanded={reportOpen}
+          aria-label={`Report an issue: ${variant.headline}`}
+        >
           Report an issue
         </button>
       </div>
+
+      {shareStatus && (
+        <p className="story-card__inline-status" role="status">
+          {shareStatus}
+        </p>
+      )}
+
+      {reportOpen && (
+        <form className="story-card__report" onSubmit={handleReportSubmit}>
+          <label htmlFor={`report-${story.id}`}>Describe the issue with this story</label>
+          <textarea
+            id={`report-${story.id}`}
+            value={reportText}
+            onChange={(event) => setReportText(event.target.value)}
+            rows={2}
+          />
+          <div className="story-card__report-actions">
+            <button type="submit">Submit</button>
+            <button type="button" onClick={() => setReportOpen(false)}>
+              Cancel
+            </button>
+          </div>
+        </form>
+      )}
+
+      {reportStatus && (
+        <p className="story-card__inline-status" role="status">
+          {reportStatus}
+        </p>
+      )}
     </article>
   );
 }

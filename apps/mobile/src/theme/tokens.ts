@@ -7,7 +7,9 @@ export const colors = {
   surfaceSunken: "#e4e9e7",
   text: "#12262b",
   muted: "#52686a",
-  faint: "#7c8c8d",
+  // Design-review fix: #7c8c8d on `bg` was 3.08:1, failing WCAG AA (4.5:1)
+  // for the normal-weight meta/timestamp text this token is used for.
+  faint: "#5f7072",
   border: "#c9d2cf",
 
   accent: "#b8791f",
@@ -16,7 +18,9 @@ export const colors = {
   accentSoft: "#f4e6c9",
   accentInk: "#6b4712",
 
-  teal: "#1f7d6f",
+  // Design-review fix: #1f7d6f on `tealSoft` was 4.16:1, marginally failing
+  // AA (4.5:1) for the 0.72rem/600-weight status-pill text that uses it.
+  teal: "#1a6d61",
   tealSoft: "#dcefe9",
 
   danger: "#a3321f",

@@ -38,6 +38,7 @@ export default function OnboardingPage() {
 
   function save(finalLifeStages: LifeStage[]) {
     setOnboardingProfile({
+      ...getOnboardingProfile(),
       lifeStages: finalLifeStages,
       residenceCountry: residenceCountry.trim() || undefined,
       homeState: homeState.trim() || undefined,

@@ -1,10 +1,11 @@
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
-import React, { useEffect, useState } from "react";
-import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
+import React, { useCallback, useEffect, useState } from "react";
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
 
 import { StoryList } from "../components/StoryList";
-import { getTopic, type StoryOut } from "../lib/api";
+import { ApiNetworkError, getTopic, type StoryOut } from "../lib/api";
 import { useStoryCache } from "../lib/StoryCacheContext";
+import { colors, radius, spacing } from "../theme/tokens";
 import type { RootStackParamList } from "../navigation/types";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Topic">;
@@ -16,17 +17,19 @@ export function TopicScreen({ route }: Props) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
+  const load = useCallback(() => {
     let cancelled = false;
     setLoading(true);
+    setError(null);
     getTopic(slug)
       .then((result) => {
         if (cancelled) return;
         setStories(result.stories);
         cache.put(result.stories);
       })
-      .catch(() => {
-        if (!cancelled) setError("Couldn't load this topic.");
+      .catch((err) => {
+        if (cancelled) return;
+        setError(err instanceof ApiNetworkError ? "You're offline. Check your connection." : "Couldn't load this topic.");
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -35,6 +38,8 @@ export function TopicScreen({ route }: Props) {
       cancelled = true;
     };
   }, [slug, cache]);
+
+  useEffect(() => load(), [load]);
 
   if (loading) {
     return (
@@ -48,6 +53,9 @@ export function TopicScreen({ route }: Props) {
     return (
       <View style={styles.center}>
         <Text>{error}</Text>
+        <Pressable onPress={load} accessibilityRole="button" accessibilityLabel="Retry" style={styles.retryButton}>
+          <Text style={styles.retryButtonText}>Retry</Text>
+        </Pressable>
       </View>
     );
   }
@@ -56,5 +64,15 @@ export function TopicScreen({ route }: Props) {
 }
 
 const styles = StyleSheet.create({
-  center: { flex: 1, alignItems: "center", justifyContent: "center" },
+  center: { flex: 1, alignItems: "center", justifyContent: "center", gap: spacing.md },
+  retryButton: {
+    minHeight: 44,
+    minWidth: 44,
+    paddingHorizontal: spacing.lg,
+    justifyContent: "center",
+    alignItems: "center",
+    borderRadius: radius.pill,
+    backgroundColor: colors.teal,
+  },
+  retryButtonText: { color: colors.accentContrast, fontWeight: "600" },
 });

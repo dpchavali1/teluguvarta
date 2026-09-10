@@ -3,6 +3,7 @@ import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import React, { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
+  FlatList,
   Linking,
   Pressable,
   RefreshControl,
@@ -13,7 +14,7 @@ import {
 } from "react-native";
 
 import { StoryCard } from "../components/StoryCard";
-import { getHome, trackEvent, type StoryOut, type TopicOut } from "../lib/api";
+import { ApiNetworkError, getHome, trackEvent, type StoryOut, type TopicOut } from "../lib/api";
 import { getProfile, isStudentSegment, primaryLifeStageSegment } from "../lib/storage";
 import { useStoryCache } from "../lib/StoryCacheContext";
 import { colors, radius, spacing } from "../theme/tokens";
@@ -59,8 +60,12 @@ export function HomeScreen() {
       } else {
         setBriefingStories([]);
       }
-    } catch {
-      setError("Couldn't load the feed. Pull down to try again.");
+    } catch (err) {
+      setError(
+        err instanceof ApiNetworkError
+          ? "You're offline. Pull down to try again once you're back online."
+          : "Couldn't load the feed. Pull down to try again."
+      );
     } finally {
       setLoading(false);
     }
@@ -90,10 +95,26 @@ export function HomeScreen() {
     );
   }
 
+  // Design-review fix: this was a ScrollView + .map() over every story —
+  // the one screen mounting every card at once, unlike every other list
+  // screen (Search/Saved/Topic), which use FlatList via StoryList. Topics
+  // and the Student Briefing are small/bounded, so they stay in the
+  // header; only the main feed (unbounded, highest-traffic) needs
+  // virtualization.
   return (
-    <ScrollView
+    <FlatList
+      style={styles.list}
       contentContainerStyle={styles.container}
       accessibilityLabel="Home feed"
+      data={stories}
+      keyExtractor={(story) => story.id}
+      renderItem={({ item }) => (
+        <StoryCard
+          story={item}
+          onOpen={() => navigation.navigate("StoryDetail", { slug: item.canonical_slug })}
+          onOpenSource={(url) => Linking.openURL(url)}
+        />
+      )}
       refreshControl={
         <RefreshControl
           refreshing={refreshing}
@@ -103,49 +124,52 @@ export function HomeScreen() {
           accessibilityLabel="Refresh the feed"
         />
       }
-    >
-      {error && <Text style={styles.error}>{error}</Text>}
-      {topics.length > 0 && (
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.topicRow}>
-          {topics.map((topic) => (
-            <Pressable
-              key={topic.slug}
-              onPress={() => navigation.navigate("Topic", { slug: topic.slug, name: topic.name })}
-              accessibilityRole="button"
-              accessibilityLabel={`Browse topic: ${topic.name}`}
-              style={styles.topicChip}
-            >
-              <Text style={styles.topicChipText}>{topic.name}</Text>
-            </Pressable>
-          ))}
-        </ScrollView>
-      )}
-      {briefingStories.length > 0 && (
-        <View style={styles.briefing} accessibilityLabel="Student Briefing">
-          <Text style={styles.briefingTitle}>Student Briefing</Text>
-          {briefingStories.map((story) => (
-            <StoryCard
-              key={story.id}
-              story={story}
-              onOpen={() => navigation.navigate("StoryDetail", { slug: story.canonical_slug })}
-              onOpenSource={(url) => Linking.openURL(url)}
+      ListHeaderComponent={
+        <>
+          {error && <Text style={styles.error}>{error}</Text>}
+          {topics.length > 0 && (
+            <FlatList
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={styles.topicRow}
+              data={topics}
+              keyExtractor={(topic) => topic.slug}
+              renderItem={({ item: topic }) => (
+                <Pressable
+                  onPress={() => navigation.navigate("Topic", { slug: topic.slug, name: topic.name })}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Browse topic: ${topic.name}`}
+                  style={styles.topicChip}
+                >
+                  <Text style={styles.topicChipText}>{topic.name}</Text>
+                </Pressable>
+              )}
             />
-          ))}
-        </View>
-      )}
-      {stories.map((story) => (
-        <StoryCard
-          key={story.id}
-          story={story}
-          onOpen={() => navigation.navigate("StoryDetail", { slug: story.canonical_slug })}
-          onOpenSource={(url) => Linking.openURL(url)}
-        />
-      ))}
-    </ScrollView>
+          )}
+          {briefingStories.length > 0 && (
+            <View style={styles.briefing} accessibilityLabel="Student Briefing">
+              <Text style={styles.briefingTitle}>Student Briefing</Text>
+              <Text style={styles.briefingSubtitle}>
+                Shown because you selected a student life stage during setup.
+              </Text>
+              {briefingStories.map((story) => (
+                <StoryCard
+                  key={story.id}
+                  story={story}
+                  onOpen={() => navigation.navigate("StoryDetail", { slug: story.canonical_slug })}
+                  onOpenSource={(url) => Linking.openURL(url)}
+                />
+              ))}
+            </View>
+          )}
+        </>
+      }
+    />
   );
 }
 
 const styles = StyleSheet.create({
+  list: { backgroundColor: colors.bg },
   container: { paddingBottom: 24, backgroundColor: colors.bg },
   center: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: colors.bg },
   error: { color: colors.danger, padding: spacing.lg },
@@ -170,6 +194,12 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: colors.text,
     paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.sm,
+    paddingTop: spacing.sm,
+  },
+  briefingSubtitle: {
+    fontSize: 13,
+    color: colors.muted,
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.sm,
   },
 });

@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { LanguageToggle } from "@/components/LanguageToggle";
 import { ThemeToggle } from "@/components/ThemeToggle";
 
 const NAV_LINKS = [
@@ -30,6 +31,7 @@ export function SiteHeader() {
               ))}
             </ul>
           </nav>
+          <LanguageToggle />
           <ThemeToggle />
         </div>
       </div>

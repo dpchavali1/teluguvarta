@@ -405,6 +405,49 @@ button {
   color: var(--mh-fg);
 }
 
+.language-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0;
+  background: transparent;
+  border: 1px solid #3a3a33;
+  border-radius: 0;
+  padding: 0;
+}
+
+.language-toggle button {
+  all: unset;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 30px;
+  height: 26px;
+  padding: 0 0.4rem;
+  font-family: var(--font-mono-stack);
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  border-radius: 0;
+  cursor: pointer;
+  color: var(--mh-muted);
+  transition: background 0.12s var(--ease-out), color 0.12s var(--ease-out);
+}
+
+.language-toggle button + button {
+  border-left: 1px solid #3a3a33;
+}
+
+.language-toggle button[aria-pressed="true"] {
+  background: var(--color-accent);
+  color: #0c0c0a;
+}
+
+.language-toggle button:hover:not([aria-pressed="true"]) {
+  background: #1e1e19;
+  color: var(--mh-fg);
+}
+
 /* ------------------------------------- 4. Page shell, headings, footer */
 
 main {
@@ -741,6 +784,51 @@ a.pill:hover {
   border-radius: 0;
   padding: 0.3rem 0.6rem;
   margin: 0 0 1rem;
+}
+
+.story-card__inline-status {
+  font-size: 0.8rem;
+  color: var(--color-muted);
+  margin-top: 0.5rem;
+}
+
+.story-card__report {
+  margin-top: 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.story-card__report textarea {
+  width: 100%;
+  font: inherit;
+  border: 1px solid var(--color-border);
+  border-radius: 0;
+  background: var(--color-surface);
+  color: var(--color-text);
+  padding: 0.5rem;
+}
+
+.story-card__report-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.story-card__reviewed {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-family: var(--font-mono-stack);
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  border: 1px solid var(--color-rule);
+  border-radius: 0;
+  padding: 0.3rem 0.6rem;
+  margin: 0 0 1rem;
+  color: var(--color-text);
+  background: transparent;
 }
 
 .story-card__notice--retracted {

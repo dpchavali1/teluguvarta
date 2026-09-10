@@ -3,7 +3,8 @@ import { Alert, AccessibilityInfo, Pressable, StyleSheet, Text, View } from "rea
 
 import { trackEvent, type Language, type StoryOut } from "../lib/api";
 import { shareStory } from "../lib/share";
-import { isSaved, toggleSaved } from "../lib/storage";
+import { getProfile, setProfile } from "../lib/storage";
+import { useStoryCache } from "../lib/StoryCacheContext";
 import { colors, radius, shadow, spacing, typography, typographyFor } from "../theme/tokens";
 
 const STATUS_LABEL: Record<string, string | undefined> = {
@@ -11,6 +12,11 @@ const STATUS_LABEL: Record<string, string | undefined> = {
   UPDATED: "Updated / corrected",
   CORRECTION_PENDING: "Correction pending",
 };
+
+// NON_NEGOTIABLES #5: sensitivity != "NONE" can never reach a published
+// state without passing the human-review gate (apps/api/app/jobs/
+// publish.py:83), so surfacing sensitivity here is a truthful trust signal.
+const REVIEWED_SENSITIVITIES = new Set(["IMMIGRATION", "LEGAL", "FINANCIAL", "BREAKING", "OBITUARY_ACCUSATION"]);
 
 // Mirrors apps/web/src/components/StoryCard.tsx's fields/behavior exactly
 // (T15 acceptance criterion): labels, retracted/updated notice, headline +
@@ -22,22 +28,28 @@ export function StoryCard({
   onOpenSource,
 }: {
   story: StoryOut;
-  onOpen: () => void;
+  // Optional: the detail screen renders this card for a story already
+  // open, so the headline shouldn't be a dead tap target pointing nowhere.
+  onOpen?: () => void;
   onOpenSource: (url: string) => void;
 }) {
+  const cache = useStoryCache();
   const [language, setLanguage] = useState<Language>("en");
-  const [saved, setSaved] = useState(false);
   const hasTelugu = Boolean(story.variants.te);
+  const isHumanReviewed = REVIEWED_SENSITIVITIES.has(story.sensitivity);
+  const saved = cache.isSaved(story.id);
 
   useEffect(() => {
     let cancelled = false;
-    isSaved(story.id).then((value) => {
-      if (!cancelled) setSaved(value);
+    // Design-review fix: the language chosen in Settings/onboarding was
+    // never applied — every card defaulted to "en" regardless of profile.
+    getProfile().then((profile) => {
+      if (!cancelled) setLanguage(profile.language);
     });
     return () => {
       cancelled = true;
     };
-  }, [story.id]);
+  }, []);
 
   const variant = story.variants[language] ?? story.variants.en;
   if (!variant) return null;
@@ -57,8 +69,7 @@ export function StoryCard({
   }
 
   async function handleSaveToggle() {
-    const next = await toggleSaved(story.id);
-    setSaved(next);
+    const next = await cache.toggleSaved(story.id);
     if (next) trackEvent("story_save", { story_id: story.id });
     AccessibilityInfo.announceForAccessibility(next ? "Saved" : "Removed from saved");
   }
@@ -66,6 +77,7 @@ export function StoryCard({
   function handleLanguageSwitch(next: Language) {
     if (next !== language) trackEvent("language_switch", { story_id: story.id, language: next });
     setLanguage(next);
+    getProfile().then((profile) => setProfile({ ...profile, language: next }));
   }
 
   function handleReportIssue() {
@@ -85,20 +97,32 @@ export function StoryCard({
         ))}
       </View>
 
+      {isHumanReviewed && (
+        <View style={styles.reviewedBadge}>
+          <Text style={styles.reviewedBadgeText}>✓ Human-reviewed</Text>
+        </View>
+      )}
+
       {statusNotice && (
         <Text style={styles.notice} accessibilityLiveRegion="polite">
           {statusNotice}
         </Text>
       )}
 
-      <Pressable
-        onPress={onOpen}
-        accessibilityRole="link"
-        accessibilityLabel={`Open story: ${variant.headline}`}
-        style={styles.touchTarget}
-      >
-        <Text style={[styles.headline, type.headline]}>{variant.headline}</Text>
-      </Pressable>
+      {onOpen ? (
+        <Pressable
+          onPress={onOpen}
+          accessibilityRole="link"
+          accessibilityLabel={`Open story: ${variant.headline}`}
+          style={styles.touchTarget}
+        >
+          <Text style={[styles.headline, type.headline]}>{variant.headline}</Text>
+        </Pressable>
+      ) : (
+        <Text style={[styles.headline, type.headline]} accessibilityRole="header">
+          {variant.headline}
+        </Text>
+      )}
 
       <Text style={[styles.body, type.body]}>{variant.summary}</Text>
       {variant.why_matters ? (
@@ -195,6 +219,15 @@ const styles = StyleSheet.create({
   },
   pillText: { ...typography.meta, color: colors.teal, textTransform: "uppercase" },
   notice: { color: colors.danger, fontWeight: "600" },
+  reviewedBadge: {
+    alignSelf: "flex-start",
+    borderWidth: 1,
+    borderColor: colors.teal,
+    borderRadius: radius.sm,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 2,
+  },
+  reviewedBadgeText: { ...typography.meta, color: colors.teal, fontWeight: "700" },
   touchTarget: { minHeight: 44, justifyContent: "center" },
   headline: { ...typography.headline, color: colors.text },
   body: { ...typography.body, color: colors.muted },
