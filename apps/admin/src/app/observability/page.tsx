@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 import { apiUrl, clearSession, getToken } from "@/lib/auth";
@@ -143,9 +142,6 @@ export default function ObservabilityPage() {
   return (
     <main>
       <h1>Observability</h1>
-      <p>
-        <Link href="/">Back to admin home</Link>
-      </p>
       {error ? <p role="alert">{error}</p> : null}
       {data === null ? (
         <p>Loading…</p>
@@ -175,7 +171,11 @@ export default function ObservabilityPage() {
                       <td>{row.success_count_24h}</td>
                       <td>{row.failure_count_24h}</td>
                       <td>{row.fail_count}</td>
-                      <td>{row.circuit_breaker_tripped ? "TRIPPED" : "ok"}</td>
+                      <td>
+                        <span className={`status-pill ${row.circuit_breaker_tripped ? "status-pill--danger" : "status-pill--ok"}`}>
+                          {row.circuit_breaker_tripped ? "Tripped" : "OK"}
+                        </span>
+                      </td>
                       <td>{row.last_success_at ? new Date(row.last_success_at).toLocaleString() : "—"}</td>
                       <td>{row.last_error_at ? new Date(row.last_error_at).toLocaleString() : "—"}</td>
                     </tr>
@@ -290,9 +290,13 @@ export default function ObservabilityPage() {
                     <tr key={account.id}>
                       <td>{account.handle}</td>
                       <td>{account.rights_status}</td>
-                      <td>{account.active ? "active" : "paused"}</td>
+                      <td>
+                        <span className={`status-pill ${account.active ? "status-pill--ok" : "status-pill--warn"}`}>
+                          {account.active ? "Active" : "Paused"}
+                        </span>
+                      </td>
                       <td>{account.budget_class ?? "—"}</td>
-                      <td>{account.budget_paused ? "PAUSED (budget)" : "—"}</td>
+                      <td>{account.budget_paused ? <span className="status-pill status-pill--warn">Budget-paused</span> : "—"}</td>
                       <td>{account.since_id ?? "—"}</td>
                       <td>{account.fail_count}{account.circuit_breaker_tripped ? " (TRIPPED)" : ""}</td>
                       <td>{account.recent_error_count_24h}</td>

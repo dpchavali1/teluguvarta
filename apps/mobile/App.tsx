@@ -1,4 +1,4 @@
-import { NavigationContainer, createNavigationContainerRef } from "@react-navigation/native";
+import { DefaultTheme, NavigationContainer, createNavigationContainerRef, type Theme } from "@react-navigation/native";
 import * as Notifications from "expo-notifications";
 import { StatusBar } from "expo-status-bar";
 import React, { useEffect, useRef } from "react";
@@ -8,7 +8,21 @@ import { trackEvent } from "./src/lib/api";
 import { registerForPushNotificationsAsync, resolveNotificationDeepLink } from "./src/lib/push";
 import { StoryCacheProvider } from "./src/lib/StoryCacheContext";
 import { RootNavigator } from "./src/navigation/RootNavigator";
+import { colors } from "./src/theme/tokens";
 import type { RootStackParamList } from "./src/navigation/types";
+
+const navigationTheme: Theme = {
+  ...DefaultTheme,
+  colors: {
+    ...DefaultTheme.colors,
+    primary: colors.teal,
+    background: colors.bg,
+    card: colors.surface,
+    text: colors.text,
+    border: colors.border,
+    notification: colors.accent,
+  },
+};
 
 const navigationRef = createNavigationContainerRef<RootStackParamList>();
 
@@ -67,7 +81,7 @@ export default function App() {
   return (
     <SafeAreaProvider>
       <StoryCacheProvider>
-        <NavigationContainer ref={navigationRef}>
+        <NavigationContainer ref={navigationRef} theme={navigationTheme}>
           <RootNavigator />
           <StatusBar style="auto" />
         </NavigationContainer>

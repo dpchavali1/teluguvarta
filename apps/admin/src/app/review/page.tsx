@@ -45,9 +45,6 @@ export default function ReviewQueuePage() {
   return (
     <main>
       <h1>Review queue</h1>
-      <p>
-        <Link href="/">Back to admin home</Link>
-      </p>
       {error ? <p role="alert">{error}</p> : null}
       {items === null ? (
         <p>Loading…</p>

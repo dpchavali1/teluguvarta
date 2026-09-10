@@ -1,96 +1,131 @@
+/* ============================================================================
+   Telugu Global — "Ink & Signal"
+
+   Direction: high-contrast editorial press. Warm bone paper, near-black ink,
+   one electric signal-lime accent and a hot vermilion for warnings. Hard
+   edges (2px radius, hairline rules, offset shadows) instead of soft floating
+   cards; the feed reads as a numbered ledger of dispatches, not a card grid.
+   Display type is a wide grotesque set very large with negative tracking;
+   every label and micro-datum is mono uppercase.
+
+   Structure of this file:
+     1. Tokens (light / dark / data-theme)
+     2. Base elements + a11y primitives
+     3. Masthead (always ink) + theme toggle
+     4. Page shell, page headings, footer
+     5. Hero
+     6. Topic rail
+     7. Story ledger + story card
+     8. Forms, buttons, empty states
+     9. Pilot, student briefing, onboarding, legal
+    10. Motion preferences + narrow viewports
+   ========================================================================== */
+
+/* ---------------------------------------------------------------- 1. Tokens */
+
 :root {
   color-scheme: light;
 
-  /* ---- Palette: dusk-teal ground, marigold accent, cool teal secondary ---- */
-  --color-bg: #eef1f0;
-  --color-surface: #ffffff;
-  --color-surface-sunken: #e4e9e7;
-  --color-text: #12262b;
-  --color-muted: #52686a;
-  --color-faint: #7c8c8d;
-  --color-border: #c9d2cf;
+  /* Bone paper / ink */
+  --color-bg: #f2f0e8;
+  --color-surface: #fbfaf6;
+  --color-surface-sunken: #e6e3d7;
+  --color-text: #14140f;
+  --color-muted: #52504a;
+  --color-faint: #6e6c62;
+  --color-border: #d8d4c6;
+  --color-rule: #14140f;
 
-  --color-accent: #b8791f;
-  --color-accent-strong: #8f5c14;
-  --color-accent-contrast: #ffffff;
-  --color-accent-soft: #f4e6c9;
-  --color-accent-ink: #6b4712;
+  /* Signal lime — fills and rules, never small text on paper */
+  --color-accent: #c8f03f;
+  --color-accent-strong: #b2db24;
+  --color-accent-contrast: #14140f;
+  --color-accent-soft: #e9f7c0;
+  --color-accent-ink: #4a5c08;
 
-  --color-teal: #1f7d6f;
-  --color-teal-soft: #dcefe9;
+  /* Hot vermilion — corrections, retractions, alerts */
+  --color-hot: #c63512;
+  --color-hot-soft: #fbe0d8;
+  --color-danger: var(--color-hot);
+  --color-danger-soft: var(--color-hot-soft);
 
-  --color-danger: #a3321f;
-  --color-danger-soft: #f7ddd6;
+  --focus-ring: #14140f;
 
-  --focus-ring: #1f7d6f;
-  --shadow-card: 0 1px 2px rgba(18, 38, 43, 0.05), 0 8px 22px -12px rgba(18, 38, 43, 0.16);
-  --shadow-card-hover: 0 2px 4px rgba(18, 38, 43, 0.07), 0 16px 30px -14px rgba(18, 38, 43, 0.22);
-  --radius-md: 0.5rem;
-  --radius-lg: 0.65rem;
+  /* Hard offset shadow instead of a soft drop shadow */
+  --shadow-hard: 4px 4px 0 var(--color-rule);
+  --shadow-hard-sm: 3px 3px 0 var(--color-rule);
 
+  --radius-md: 2px;
+  --radius-lg: 3px;
+
+  --page-max: 70rem;
+  --measure: 46rem;
+
+  --ease-out: cubic-bezier(0.16, 0.84, 0.44, 1);
+
+  /* next/font (see app/layout.tsx) injects --font-display / --font-sans /
+     --font-mono / --font-telugu on <html>. These are the composed stacks the
+     rest of the file uses; note --font-mono-stack rather than --font-mono, so
+     nothing here shadows next/font's own variable. */
   --font-sans-fallback: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --font-body: var(--font-sans), var(--font-sans-fallback);
-  --font-heading: var(--font-display), Georgia, "Times New Roman", serif;
-  --font-mono: var(--font-mono), "SFMono-Regular", Consolas, monospace;
+  --font-heading: var(--font-display), var(--font-sans), var(--font-sans-fallback);
+  --font-mono-stack: var(--font-mono), "SFMono-Regular", Consolas, monospace;
   --font-te: var(--font-telugu), var(--font-body);
-  --font-te-heading: var(--font-telugu-display), var(--font-heading);
+  --font-te-heading: var(--font-telugu), var(--font-heading);
 }
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     color-scheme: dark;
-    --color-bg: #0e1a1d;
-    --color-surface: #142428;
-    --color-surface-sunken: #0a1517;
-    --color-text: #eef3f1;
-    --color-muted: #aebcbb;
-    --color-faint: #7c8f8f;
-    --color-border: #28393c;
 
-    --color-accent: #e0ab52;
-    --color-accent-strong: #f0c37a;
-    --color-accent-contrast: #12262b;
-    --color-accent-soft: #2c2313;
-    --color-accent-ink: #f3d9a4;
+    --color-bg: #0c0c0a;
+    --color-surface: #151512;
+    --color-surface-sunken: #070706;
+    --color-text: #f3f1e8;
+    --color-muted: #a6a399;
+    --color-faint: #86837a;
+    --color-border: #292924;
+    --color-rule: #f3f1e8;
 
-    --color-teal: #5cc4ae;
-    --color-teal-soft: #113029;
+    --color-accent: #c8f03f;
+    --color-accent-strong: #d7f76e;
+    --color-accent-contrast: #0c0c0a;
+    --color-accent-soft: #1e2409;
+    --color-accent-ink: #d7f76e;
 
-    --color-danger: #e08a72;
-    --color-danger-soft: #2f1810;
+    --color-hot: #ff7a55;
+    --color-hot-soft: #2b1108;
 
-    --focus-ring: #5cc4ae;
-    --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 22px -12px rgba(0, 0, 0, 0.55);
-    --shadow-card-hover: 0 2px 4px rgba(0, 0, 0, 0.45), 0 16px 30px -14px rgba(0, 0, 0, 0.65);
+    --focus-ring: #c8f03f;
   }
 }
 
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --color-bg: #0e1a1d;
-  --color-surface: #142428;
-  --color-surface-sunken: #0a1517;
-  --color-text: #eef3f1;
-  --color-muted: #aebcbb;
-  --color-faint: #7c8f8f;
-  --color-border: #28393c;
 
-  --color-accent: #e0ab52;
-  --color-accent-strong: #f0c37a;
-  --color-accent-contrast: #12262b;
-  --color-accent-soft: #2c2313;
-  --color-accent-ink: #f3d9a4;
+  --color-bg: #0c0c0a;
+  --color-surface: #151512;
+  --color-surface-sunken: #070706;
+  --color-text: #f3f1e8;
+  --color-muted: #a6a399;
+  --color-faint: #86837a;
+  --color-border: #292924;
+  --color-rule: #f3f1e8;
 
-  --color-teal: #5cc4ae;
-  --color-teal-soft: #113029;
+  --color-accent: #c8f03f;
+  --color-accent-strong: #d7f76e;
+  --color-accent-contrast: #0c0c0a;
+  --color-accent-soft: #1e2409;
+  --color-accent-ink: #d7f76e;
 
-  --color-danger: #e08a72;
-  --color-danger-soft: #2f1810;
+  --color-hot: #ff7a55;
+  --color-hot-soft: #2b1108;
 
-  --focus-ring: #5cc4ae;
-  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 22px -12px rgba(0, 0, 0, 0.55);
-  --shadow-card-hover: 0 2px 4px rgba(0, 0, 0, 0.45), 0 16px 30px -14px rgba(0, 0, 0, 0.65);
+  --focus-ring: #c8f03f;
 }
+
+/* -------------------------------------------------------- 2. Base + a11y */
 
 * {
   box-sizing: border-box;
@@ -106,15 +141,18 @@ body {
   background: var(--color-bg);
   color: var(--color-text);
   font-family: var(--font-body);
-  line-height: 1.6;
-  transition: background 0.15s ease, color 0.15s ease;
+  font-size: 1.0625rem;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
 }
 
-h1, h2, h3 {
+h1,
+h2,
+h3 {
   font-family: var(--font-heading);
-  font-weight: 500;
-  line-height: 1.22;
-  letter-spacing: -0.005em;
+  font-weight: 700;
+  line-height: 1.02;
+  letter-spacing: -0.03em;
   text-wrap: balance;
 }
 
@@ -122,14 +160,31 @@ h1, h2, h3 {
   font-family: var(--font-te);
 }
 
-h1[lang="te"], h2[lang="te"], h3[lang="te"],
-[lang="te"] h1, [lang="te"] h2, [lang="te"] h3 {
+h1[lang="te"],
+h2[lang="te"],
+h3[lang="te"],
+[lang="te"] h1,
+[lang="te"] h2,
+[lang="te"] h3 {
   font-family: var(--font-te-heading);
-  font-weight: 600;
+  font-weight: 700;
+  letter-spacing: -0.005em;
+  line-height: 1.2;
 }
 
+/* Links carry their own underline, so colour is never the sole signal. */
 a {
-  color: var(--color-teal);
+  color: var(--color-text);
+  text-decoration: underline;
+  text-decoration-color: var(--color-accent-ink);
+  text-decoration-thickness: 2px;
+  text-underline-offset: 3px;
+  transition: text-decoration-color 0.15s var(--ease-out), color 0.15s var(--ease-out);
+}
+
+a:hover {
+  color: var(--color-accent-ink);
+  text-decoration-color: currentColor;
 }
 
 a:focus-visible,
@@ -138,10 +193,16 @@ input:focus-visible,
 [tabindex]:focus-visible {
   outline: 3px solid var(--focus-ring);
   outline-offset: 2px;
+  border-radius: 0;
 }
 
 button {
   font: inherit;
+}
+
+::selection {
+  background: var(--color-accent);
+  color: var(--color-accent-contrast);
 }
 
 .visually-hidden {
@@ -162,9 +223,15 @@ button {
   top: 0;
   background: var(--color-accent);
   color: var(--color-accent-contrast);
-  padding: 0.75rem 1rem;
+  font-family: var(--font-mono-stack);
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  text-decoration: none;
+  padding: 0.8rem 1.1rem;
   z-index: 100;
-  border-radius: 0 0 var(--radius-md) 0;
+  border: 2px solid var(--color-rule);
 }
 
 .skip-link:focus {
@@ -172,21 +239,39 @@ button {
   top: 0.5rem;
 }
 
-/* ---------- Header ---------- */
+/* Shared micro-label recipe: mono, uppercase, tracked out. */
+.eyebrow,
+.pill,
+.story-card__notice,
+.story-detail__meta,
+.site-nav a,
+.site-footer,
+.topic-rail__list,
+.story-card__actions button {
+  font-family: var(--font-mono-stack);
+}
 
+/* ------------------------------------------------- 3. Masthead + toggle */
+
+/* The masthead is ink in both themes — a fixed brand slab the page scrolls
+   under. Its foreground tokens are scoped locally so the theme toggle and
+   focus rings stay legible against it in light mode too. */
 .site-header {
+  --mh-bg: #0c0c0a;
+  --mh-fg: #f3f1e8;
+  --mh-muted: #a6a399;
+
   position: sticky;
   top: 0;
   z-index: 20;
-  border-bottom: 1px solid var(--color-border);
-  padding: 0.85rem 1rem;
-  background: color-mix(in srgb, var(--color-bg) 90%, transparent);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
+  background: var(--mh-bg);
+  color: var(--mh-fg);
+  border-bottom: 2px solid var(--color-accent);
+  padding: 0.7rem 1.25rem;
 }
 
 .site-header__inner {
-  max-width: 72rem;
+  max-width: var(--page-max);
   margin: 0 auto;
   display: flex;
   align-items: center;
@@ -197,35 +282,63 @@ button {
 
 .site-header__brand {
   display: flex;
-  flex-direction: column;
-  gap: 0.05rem;
+  align-items: center;
+  gap: 0.65rem;
   text-decoration: none;
-  color: var(--color-text);
-  line-height: 1.1;
+  color: var(--mh-fg);
+  line-height: 1;
+}
+
+.site-header__brand:hover {
+  color: var(--mh-fg);
+}
+
+/* Brand mark: a hard lime slab with a notched corner, not a soft blob. */
+.site-header__mark {
+  display: block;
+  width: 1.7rem;
+  height: 1.7rem;
+  flex: none;
+  background: var(--color-accent);
+  clip-path: polygon(0 0, 100% 0, 100% 62%, 62% 100%, 0 100%);
+  transition: transform 0.2s var(--ease-out);
+}
+
+.site-header__brand:hover .site-header__mark {
+  transform: rotate(-90deg);
+}
+
+.site-header__wordmark {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
 }
 
 .site-header__brand-en {
   font-family: var(--font-heading);
-  font-weight: 600;
-  font-size: 1.25rem;
+  font-weight: 800;
+  font-size: 1.22rem;
+  letter-spacing: -0.035em;
+  text-transform: uppercase;
 }
 
 .site-header__brand-te {
-  font-family: var(--font-te-heading);
-  font-size: 0.78rem;
-  color: var(--color-muted);
+  font-family: var(--font-te);
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--mh-muted);
 }
 
 .site-header__right {
   display: flex;
   align-items: center;
-  gap: 1.25rem;
+  gap: 1.5rem;
   flex-wrap: wrap;
 }
 
 .site-nav ul {
   display: flex;
-  gap: 1.5rem;
+  gap: 1.35rem;
   list-style: none;
   margin: 0;
   padding: 0;
@@ -234,30 +347,34 @@ button {
 
 .site-nav a {
   text-decoration: none;
-  color: var(--color-muted);
-  font-size: 0.92rem;
+  color: var(--mh-muted);
+  font-size: 0.72rem;
   font-weight: 500;
-  padding: 0.25rem 0.1rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  padding: 0.3rem 0;
   border-bottom: 2px solid transparent;
-  transition: color 0.15s ease, border-color 0.15s ease;
+  transition: color 0.15s var(--ease-out), border-color 0.15s var(--ease-out);
 }
 
 .site-nav a:hover {
-  color: var(--color-text);
+  color: var(--mh-fg);
   border-bottom-color: var(--color-accent);
-  text-decoration: none;
 }
 
-/* ---------- Theme toggle ---------- */
+.site-header a:focus-visible,
+.site-header button:focus-visible {
+  outline-color: var(--color-accent);
+}
 
 .theme-toggle {
   display: inline-flex;
   align-items: center;
-  gap: 2px;
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: 999px;
-  padding: 3px;
+  gap: 0;
+  background: transparent;
+  border: 1px solid #3a3a33;
+  border-radius: 0;
+  padding: 0;
 }
 
 .theme-toggle button {
@@ -266,164 +383,399 @@ button {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
+  width: 30px;
   height: 26px;
-  border-radius: 999px;
+  border-radius: 0;
   cursor: pointer;
-  color: var(--color-faint);
+  color: var(--mh-muted);
+  transition: background 0.12s var(--ease-out), color 0.12s var(--ease-out);
+}
+
+.theme-toggle button + button {
+  border-left: 1px solid #3a3a33;
 }
 
 .theme-toggle button[aria-pressed="true"] {
-  background: var(--color-text);
-  color: var(--color-bg);
+  background: var(--color-accent);
+  color: #0c0c0a;
 }
 
 .theme-toggle button:hover:not([aria-pressed="true"]) {
-  color: var(--color-text);
+  background: #1e1e19;
+  color: var(--mh-fg);
 }
+
+/* ------------------------------------- 4. Page shell, headings, footer */
 
 main {
-  max-width: 72rem;
+  max-width: var(--page-max);
   margin: 0 auto;
-  padding: 1.5rem 1rem 4rem;
+  padding: 2.5rem 1.25rem 5rem;
 }
 
-/* ---------- Footer ---------- */
+/* Standard page heading for every non-hero route (search, saved, topic,
+   country, story detail, legal, onboarding, 404, error) — oversized display
+   type over a signal-lime slab rule. */
+main h1 {
+  font-size: clamp(2.4rem, 7vw, 4.25rem);
+  font-weight: 800;
+  letter-spacing: -0.045em;
+  text-transform: uppercase;
+  margin: 0 0 1.75rem;
+  max-width: 24ch;
+}
+
+main h1::after {
+  content: "";
+  display: block;
+  width: 5.5rem;
+  height: 8px;
+  margin-top: 1.1rem;
+  background: var(--color-accent);
+}
+
+/* The hero and story headlines run their own treatment. */
+.page-hero h1::after,
+.story-card__headline::after {
+  content: none;
+}
+
+main h2 {
+  font-size: clamp(1.5rem, 3vw, 2rem);
+  margin: 0 0 0.75rem;
+}
+
+main > p,
+.legal p,
+.onboarding p {
+  max-width: var(--measure);
+}
 
 .site-footer {
-  border-top: 1px solid var(--color-border);
-  margin-top: 3rem;
-  padding: 2rem 1rem;
+  background: var(--color-surface-sunken);
+  border-top: 2px solid var(--color-rule);
+  margin-top: 4rem;
+  padding: 3rem 1.25rem 3.5rem;
   color: var(--color-muted);
-  font-size: 0.9rem;
+  font-size: 0.78rem;
+  letter-spacing: 0.02em;
 }
 
 .site-footer__inner {
-  max-width: 72rem;
+  max-width: var(--page-max);
   margin: 0 auto;
+}
+
+.site-footer > .site-footer__inner > p {
+  max-width: 52ch;
+  font-family: var(--font-body);
+  font-size: 0.95rem;
+  letter-spacing: normal;
+  line-height: 1.5;
+  margin: 0;
 }
 
 .site-footer ul {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.5rem 1.25rem;
+  gap: 0.6rem 1.5rem;
   list-style: none;
-  margin: 0.9rem 0 0;
-  padding: 0;
+  margin: 1.75rem 0 0;
+  padding: 1.5rem 0 0;
+  border-top: 1px solid var(--color-border);
 }
 
 .site-footer a {
   color: var(--color-muted);
+  text-transform: uppercase;
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
 }
 
 .site-footer a:hover {
-  color: var(--color-accent);
+  color: var(--color-text);
+  border-bottom-color: var(--color-accent);
 }
 
-/* ---------- Hero (home + pilot) ---------- */
+/* ------------------------------------------------------------- 5. Hero */
 
 .page-hero {
-  padding: 2.5rem 0 1.75rem;
-  margin-bottom: 0.5rem;
-  border-bottom: 1px solid var(--color-border);
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  padding: 3.5rem 2.5rem 3.25rem;
+  margin: -2.5rem -1.25rem 3.5rem;
+  border-bottom: 2px solid var(--color-rule);
+  background: var(--color-bg);
+}
+
+/* Halftone dot field, bleeding off the right edge. */
+.page-hero__glow {
+  position: absolute;
+  inset: 0 0 0 auto;
+  width: min(60%, 34rem);
+  z-index: -1;
+  background-image: radial-gradient(var(--color-accent) 1.5px, transparent 1.6px);
+  background-size: 14px 14px;
+  opacity: 0.55;
+  mask-image: linear-gradient(to left, #000 0%, transparent 85%);
+  -webkit-mask-image: linear-gradient(to left, #000 0%, transparent 85%);
 }
 
 .page-hero::before {
   content: "TODAY'S BRIEFING";
-  display: block;
-  font-family: var(--font-mono);
+  display: inline-block;
+  font-family: var(--font-mono-stack);
   font-size: 0.68rem;
-  letter-spacing: 0.09em;
-  color: var(--color-teal);
-  margin-bottom: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  color: var(--color-accent-contrast);
+  background: var(--color-accent);
+  padding: 0.3rem 0.6rem;
+  margin-bottom: 1.5rem;
 }
 
 .page-hero h1 {
-  font-size: clamp(1.9rem, 4vw, 2.6rem);
-  margin: 0 0 0.85rem;
-  max-width: 32ch;
+  font-size: clamp(3rem, 11vw, 6.5rem);
+  font-weight: 800;
+  line-height: 0.88;
+  letter-spacing: -0.05em;
+  text-transform: uppercase;
+  margin: 0 0 1.5rem;
+  max-width: 16ch;
 }
 
 .page-hero p {
   color: var(--color-muted);
-  font-size: 1.05rem;
-  max-width: 58ch;
+  font-size: clamp(1.05rem, 1.6vw, 1.3rem);
+  max-width: 42ch;
   margin: 0;
 }
 
-/* ---------- Story list / dispatch rows ---------- */
+.page-hero p + p {
+  margin-top: 2rem;
+}
 
-.story-list {
+.page-hero__cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.85rem 1.5rem;
+  background: var(--color-accent);
+  color: var(--color-accent-contrast) !important;
+  border: 2px solid var(--color-rule);
+  border-radius: 0;
+  font-family: var(--font-mono-stack);
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  text-decoration: none !important;
+  box-shadow: var(--shadow-hard);
+  transition: transform 0.14s var(--ease-out), box-shadow 0.14s var(--ease-out);
+}
+
+.page-hero__cta:hover {
+  transform: translate(3px, 3px);
+  box-shadow: 1px 1px 0 var(--color-rule);
+}
+
+/* --------------------------------------------------------- 6. Topic rail */
+
+.topic-rail {
+  position: relative;
+  margin-bottom: 3rem;
+}
+
+.topic-rail::before {
+  content: "TOPICS";
   display: block;
+  font-family: var(--font-mono-stack);
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  color: var(--color-faint);
+  margin-bottom: 0.7rem;
+}
+
+.topic-rail__list {
+  display: flex;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  gap: 0;
   list-style: none;
   margin: 0;
   padding: 0;
-  border-top: 1px solid var(--color-border);
+  border: 1px solid var(--color-rule);
+  scrollbar-width: thin;
 }
 
-.story-list li {
+.topic-rail__list li {
+  flex: none;
+}
+
+.topic-rail__list li + li .pill--topic {
+  border-left: 1px solid var(--color-rule);
+}
+
+.pill--topic {
+  display: block;
+  background: transparent;
+  border: 0;
+  color: var(--color-text);
+  font-family: var(--font-mono-stack);
+  font-size: 0.72rem;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  border-radius: 0;
+  padding: 0.7rem 1.1rem;
+  white-space: nowrap;
+  text-decoration: none;
+  transition: background 0.12s var(--ease-out), color 0.12s var(--ease-out);
+}
+
+.pill--topic:hover {
+  background: var(--color-accent);
+  color: var(--color-accent-contrast);
+}
+
+/* --------------------------------------------- 7. Story ledger + card */
+
+/* The feed is a numbered ledger of hairline-separated dispatches. The first
+   entry on any list gets a lead-story scale bump. */
+.story-list {
+  counter-reset: dispatch;
+  display: block;
+  list-style: none;
+  margin: 0 0 3rem;
+  padding: 0;
+  border-top: 2px solid var(--color-rule);
+}
+
+.story-list > li {
+  counter-increment: dispatch;
+  display: block;
   border-bottom: 1px solid var(--color-border);
+}
+
+@keyframes dispatch-in {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
 }
 
 .story-card {
   position: relative;
-  padding: 1.35rem 0.1rem;
-  background: transparent;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  padding: 2.25rem 0 2rem;
+}
+
+.story-list .story-card {
+  padding-left: 5rem;
+  animation: dispatch-in 0.45s var(--ease-out) both;
+  animation-delay: calc(var(--i, 0) * 55ms);
+}
+
+/* Ledger index — decorative, mirrors the visible list order. */
+.story-list .story-card::before {
+  content: counter(dispatch, decimal-leading-zero);
+  position: absolute;
+  left: 0;
+  top: 2.4rem;
+  font-family: var(--font-mono-stack);
+  font-size: 0.9rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--color-faint);
+  transition: color 0.15s var(--ease-out);
+}
+
+.story-list > li:hover .story-card::before {
+  color: var(--color-accent-ink);
 }
 
 .story-card__labels {
   display: flex;
   flex-wrap: wrap;
   gap: 0.4rem;
-  margin-bottom: 0.65rem;
+  margin-bottom: 1rem;
 }
 
 .pill {
   display: inline-block;
-  font-family: var(--font-mono);
-  font-size: 0.66rem;
+  font-family: var(--font-mono-stack);
+  font-size: 0.62rem;
   font-weight: 500;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
-  border-radius: 4px;
-  padding: 0.22rem 0.55rem;
-  color: var(--color-teal);
-  background: var(--color-teal-soft);
+  border: 1px solid var(--color-border);
+  border-radius: 0;
+  padding: 0.25rem 0.5rem;
+  color: var(--color-faint);
+  background: transparent;
   text-decoration: none;
 }
 
-.pill:hover {
-  text-decoration: none;
-  background: var(--color-teal);
+a.pill:hover {
+  background: var(--color-accent);
+  border-color: var(--color-rule);
   color: var(--color-accent-contrast);
+  text-decoration: none;
 }
 
 .story-card__notice {
   display: inline-block;
-  font-family: var(--font-mono);
-  font-size: 0.72rem;
-  letter-spacing: 0.03em;
+  font-family: var(--font-mono-stack);
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
-  border-radius: 4px;
-  padding: 0.22rem 0.55rem;
-  margin-bottom: 0.6rem;
+  border-radius: 0;
+  padding: 0.3rem 0.6rem;
+  margin: 0 0 1rem;
 }
 
 .story-card__notice--retracted {
-  background: var(--color-danger-soft);
-  color: var(--color-danger);
+  background: var(--color-hot);
+  color: var(--color-bg);
 }
 
 .story-card__notice--updated {
-  background: var(--color-accent-soft);
-  color: var(--color-accent-ink);
+  background: var(--color-accent);
+  color: var(--color-accent-contrast);
 }
 
+/* text-transform is reset explicitly: on /story/[slug] the headline IS the
+   page h1, and `main h1` sets uppercase — a real headline must never be
+   case-folded. */
 .story-card__headline {
-  margin: 0 0 0.5rem;
-  font-size: 1.35rem;
-  font-weight: 500;
-  line-height: 1.28;
+  margin: 0 0 0.8rem;
+  font-size: clamp(1.5rem, 2.6vw, 2rem);
+  font-weight: 700;
+  line-height: 1.04;
+  letter-spacing: -0.032em;
+  text-transform: none;
+  max-width: 30ch;
+}
+
+/* Lead dispatch: bigger headline, bigger deck. */
+.story-list > li:first-child .story-card__headline {
+  font-size: clamp(2rem, 4.4vw, 3.15rem);
+  max-width: 26ch;
+}
+
+/* :not([class]) so the lead bump hits the summary/source paragraphs only and
+   leaves .story-card__why at its own size. */
+.story-list > li:first-child .story-card > p:not([class]) {
+  font-size: 1.15rem;
 }
 
 .story-card__headline a {
@@ -431,245 +783,393 @@ main {
   color: var(--color-text);
   background-image: linear-gradient(var(--color-accent), var(--color-accent));
   background-repeat: no-repeat;
-  background-position: 0 100%;
-  background-size: 0% 1.5px;
-  transition: background-size 0.2s ease;
+  background-position: 0 88%;
+  background-size: 0% 0.28em;
+  transition: background-size 0.28s var(--ease-out);
 }
 
-.story-card__headline a:hover {
-  background-size: 100% 1.5px;
+.story-card__headline a:hover,
+.story-card__headline a:focus-visible {
+  background-size: 100% 0.28em;
+  color: var(--color-text);
   text-decoration: none;
 }
 
-.story-card p {
-  margin: 0 0 0.6rem;
+.story-card > p {
+  margin: 0 0 0.7rem;
+  max-width: var(--measure);
   color: var(--color-muted);
 }
 
+/* "Why this matters" — a lime-ruled aside, not a tinted box. */
 .story-card__why {
-  font-style: normal;
-  color: var(--color-muted);
-  background: var(--color-accent-soft);
-  border-left: 2px solid var(--color-accent);
-  border-radius: 0 var(--radius-md) var(--radius-md) 0;
-  padding: 0.55rem 0.8rem;
-  margin: 0.75rem 0;
-  font-size: 0.92rem;
+  color: var(--color-text);
+  background: transparent;
+  border-left: 4px solid var(--color-accent);
+  border-radius: 0;
+  padding: 0.1rem 0 0.1rem 1rem;
+  margin: 1.1rem 0 1rem;
+  font-size: 0.98rem;
 }
 
 .story-card__why strong,
 .story-card__why b {
-  color: var(--color-accent-ink);
+  display: block;
+  font-family: var(--font-mono-stack);
+  font-size: 0.64rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--color-faint);
+  margin-bottom: 0.3rem;
+}
+
+.story-card__source-link {
+  font-family: var(--font-mono-stack);
+  font-size: 0.78rem;
+  font-weight: 500;
+  letter-spacing: 0.03em;
 }
 
 .story-card__actions {
   display: flex;
   align-items: center;
-  gap: 0.6rem;
-  margin-top: 1rem;
+  gap: 0.5rem;
+  margin-top: 1.35rem;
   flex-wrap: wrap;
 }
 
 .story-card__actions [role="group"] {
   display: inline-flex;
-  gap: 0.35rem;
+  border: 1px solid var(--color-rule);
+}
+
+.story-card__actions [role="group"] button {
+  border: 0;
+  border-radius: 0;
+}
+
+.story-card__actions [role="group"] button + button {
+  border-left: 1px solid var(--color-rule);
 }
 
 .story-card__actions button {
   border: 1px solid var(--color-border);
-  background: var(--color-surface);
+  background: transparent;
   color: var(--color-muted);
-  border-radius: 999px;
-  padding: 0.38rem 0.85rem;
-  font-family: var(--font-mono);
-  font-size: 0.78rem;
-  letter-spacing: 0.01em;
+  border-radius: 0;
+  padding: 0.5rem 0.85rem;
+  font-family: var(--font-mono-stack);
+  font-size: 0.68rem;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
   cursor: pointer;
   min-height: 2.4rem;
-  transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease;
+  box-shadow: none;
+  transform: none;
+  transition: border-color 0.12s var(--ease-out), background 0.12s var(--ease-out),
+    color 0.12s var(--ease-out);
 }
 
 .story-card__actions button:hover {
-  border-color: var(--color-teal);
-  color: var(--color-text);
+  border-color: var(--color-rule);
+  background: var(--color-text);
+  color: var(--color-bg);
+  box-shadow: none;
+  transform: none;
 }
 
 .story-card__actions button[aria-pressed="true"] {
-  background: var(--color-teal);
+  background: var(--color-accent);
   color: var(--color-accent-contrast);
-  border-color: var(--color-teal);
+  border-color: var(--color-rule);
 }
 
-.story-card__source-link {
-  font-weight: 500;
-  font-size: 0.88rem;
-}
-
+/* Story detail: the card stands alone, so it carries its own frame. */
 .story-detail__meta {
-  color: var(--color-muted);
-  font-size: 0.9rem;
-  font-family: var(--font-mono);
+  color: var(--color-faint);
+  font-size: 0.72rem;
+  font-weight: 500;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  margin: 0 0 1.5rem;
 }
 
-.legal ul,
-.legal ol {
-  padding-left: 1.25rem;
+.story-detail .story-card {
+  padding: 0;
+  border-top: 2px solid var(--color-rule);
+  padding-top: 2rem;
 }
 
-/* ---------- Search / forms ---------- */
+.story-detail .story-card__headline {
+  font-size: clamp(2.1rem, 5.5vw, 3.75rem);
+  max-width: 24ch;
+}
+
+/* --------------------------------- 8. Forms, buttons, empty states */
+
+/* Baseline button for routes with no bespoke styling (error boundary,
+   account deletion). Class-scoped rules below win over this. */
+main button {
+  border: 2px solid var(--color-rule);
+  background: var(--color-text);
+  color: var(--color-bg);
+  border-radius: 0;
+  padding: 0.7rem 1.25rem;
+  font-family: var(--font-mono-stack);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+  box-shadow: var(--shadow-hard-sm);
+  transition: transform 0.12s var(--ease-out), box-shadow 0.12s var(--ease-out);
+}
+
+main button:hover {
+  transform: translate(2px, 2px);
+  box-shadow: 1px 1px 0 var(--color-rule);
+}
 
 .search-form {
   display: flex;
-  gap: 0.5rem;
-  margin-bottom: 1.5rem;
+  gap: 0;
+  margin-bottom: 3rem;
+  max-width: 34rem;
+  border: 2px solid var(--color-rule);
 }
 
 .search-form input[type="search"] {
   flex: 1;
-  padding: 0.6rem 0.9rem;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
+  min-width: 0;
+  padding: 0.85rem 1rem;
+  border: 0;
+  border-radius: 0;
+  font-family: var(--font-body);
   font-size: 1rem;
   background: var(--color-surface);
   color: var(--color-text);
+}
+
+.search-form input[type="search"]:focus-visible {
+  outline-offset: -3px;
 }
 
 .search-form button,
 .pilot-signup-form button {
-  border: 1px solid var(--color-teal);
-  background: var(--color-teal);
+  border: 0;
+  border-left: 2px solid var(--color-rule);
+  background: var(--color-accent);
   color: var(--color-accent-contrast);
-  border-radius: var(--radius-md);
-  padding: 0.6rem 1.1rem;
-  font-weight: 600;
+  border-radius: 0;
+  padding: 0.85rem 1.4rem;
+  font-family: var(--font-mono-stack);
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
   cursor: pointer;
-  transition: background 0.15s ease;
+  box-shadow: none;
+  transition: background 0.12s var(--ease-out);
 }
 
 .search-form button:hover,
 .pilot-signup-form button:hover {
-  filter: brightness(0.92);
+  transform: none;
+  box-shadow: none;
+  background: var(--color-text);
+  color: var(--color-bg);
+}
+
+.search-form button:focus-visible,
+.pilot-signup-form button:focus-visible {
+  outline-offset: -3px;
+}
+
+.pilot-signup-form button[disabled] {
+  background: var(--color-surface-sunken);
+  color: var(--color-faint);
+  cursor: progress;
 }
 
 .empty-state {
   color: var(--color-muted);
-  padding: 2rem 0;
-}
-
-/* ---------- Pilot landing ---------- */
-
-.pilot-landing__hero {
-  margin-bottom: 2.5rem;
-  padding: 2.75rem 2rem;
-  border-radius: var(--radius-lg);
-  background:
-    radial-gradient(120% 140% at 0% 0%, var(--color-accent-soft) 0%, transparent 55%),
-    radial-gradient(120% 140% at 100% 100%, var(--color-teal-soft) 0%, transparent 55%),
-    var(--color-surface);
-  border: 1px solid var(--color-border);
-}
-
-.pilot-landing__hero h1 {
-  font-size: clamp(1.9rem, 4vw, 2.6rem);
-  max-width: 28ch;
-  margin: 0 0 1rem;
-}
-
-.pilot-landing__hero p {
-  max-width: 60ch;
-  color: var(--color-muted);
-  font-size: 1.03rem;
-}
-
-.pilot-landing__feed {
-  margin-bottom: 2.75rem;
-  padding-bottom: 2rem;
+  font-family: var(--font-mono-stack);
+  font-size: 0.85rem;
+  letter-spacing: 0.04em;
+  padding: 2.5rem 0;
+  border-top: 1px solid var(--color-border);
   border-bottom: 1px solid var(--color-border);
 }
 
+/* --------------- 9. Pilot, student briefing, onboarding, legal */
+
+.pilot-landing__hero {
+  position: relative;
+  margin-bottom: 3.5rem;
+  padding: 2.75rem 2.25rem 3rem;
+  border-radius: 0;
+  border: 2px solid var(--color-rule);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-hard);
+}
+
+.pilot-landing__hero h1 {
+  font-size: clamp(2.2rem, 5.5vw, 3.5rem);
+  text-transform: uppercase;
+  letter-spacing: -0.04em;
+  line-height: 0.94;
+  max-width: 20ch;
+  margin: 0 0 1.5rem;
+}
+
+.pilot-landing__hero p {
+  max-width: 58ch;
+  color: var(--color-muted);
+  font-size: 1.05rem;
+  margin: 0;
+}
+
+.pilot-landing__feed {
+  margin-bottom: 3.5rem;
+  padding-bottom: 2.5rem;
+  border-bottom: 2px solid var(--color-rule);
+}
+
 .pilot-landing__feed h2 {
-  font-size: 1.4rem;
-  margin-bottom: 0.4rem;
+  font-size: clamp(1.4rem, 3vw, 2rem);
+  text-transform: uppercase;
+  margin: 0 0 0.5rem;
+}
+
+.pilot-landing__feed > p {
+  max-width: 54ch;
+  color: var(--color-muted);
+  margin: 0 0 1.75rem;
 }
 
 .pilot-signup-form {
   display: flex;
-  gap: 0.5rem;
-  margin-top: 1.25rem;
-  max-width: 28rem;
+  gap: 0;
+  margin-top: 1.5rem;
+  max-width: 30rem;
+  border: 2px solid var(--color-rule);
 }
 
 .pilot-signup-form input[type="email"] {
   flex: 1;
-  padding: 0.6rem 0.9rem;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
+  min-width: 0;
+  padding: 0.85rem 1rem;
+  border: 0;
+  border-radius: 0;
+  font-family: var(--font-body);
   font-size: 1rem;
   background: var(--color-surface);
   color: var(--color-text);
 }
 
-/* ---------- S1: Student Briefing ---------- */
+.pilot-signup-form input[type="email"]:focus-visible {
+  outline-offset: -3px;
+}
 
+.pilot-signup-form + p[role="alert"],
+.pilot-landing__feed p[role="status"] {
+  font-family: var(--font-mono-stack);
+  font-size: 0.8rem;
+  letter-spacing: 0.04em;
+}
+
+/* Student briefing: a lime-flagged band above the main ledger. */
 .student-briefing {
-  margin-bottom: 2rem;
-  padding: 1.25rem 1.5rem;
-  border-radius: var(--radius-lg);
-  border: 1px solid var(--color-border);
-  background: var(--color-teal-soft);
+  margin-bottom: 3.5rem;
+  padding: 0;
+  border-radius: 0;
+  border: 0;
+  border-top: 8px solid var(--color-accent);
+  background: transparent;
 }
 
 .student-briefing h2 {
-  font-size: 1.15rem;
-  margin: 0 0 0.75rem;
+  font-family: var(--font-mono-stack);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--color-accent-ink);
+  margin: 0.9rem 0 1.25rem;
 }
 
 .student-briefing .story-list {
-  border-top: 1px solid var(--color-border);
+  margin-bottom: 0;
+  border-top-width: 1px;
 }
 
-/* ---------- S1: Onboarding ---------- */
-
 .onboarding {
-  max-width: 34rem;
+  max-width: 38rem;
 }
 
 .onboarding__fieldset {
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  padding: 1rem 1.25rem;
-  margin: 1.5rem 0;
+  border: 2px solid var(--color-rule);
+  border-radius: 0;
+  padding: 1.5rem;
+  margin: 2rem 0;
 }
 
 .onboarding__fieldset legend {
-  font-weight: 600;
-  padding: 0 0.4rem;
+  font-family: var(--font-mono-stack);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  background: var(--color-accent);
+  color: var(--color-accent-contrast);
+  padding: 0.3rem 0.6rem;
 }
 
 .onboarding__radio {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.4rem 0;
+  gap: 0.65rem;
+  padding: 0.5rem 0;
+  cursor: pointer;
+}
+
+.onboarding__radio input {
+  width: 1.05rem;
+  height: 1.05rem;
+  accent-color: var(--color-accent-ink);
 }
 
 .onboarding__hint {
-  font-size: 0.85rem;
-  color: var(--color-text-muted, #666);
-  margin: 0 0 0.5rem;
+  font-family: var(--font-mono-stack);
+  font-size: 0.74rem;
+  letter-spacing: 0.03em;
+  color: var(--color-faint);
+  margin: 0 0 0.9rem;
 }
 
 .onboarding__field {
   display: flex;
   flex-direction: column;
-  gap: 0.35rem;
-  margin-bottom: 1rem;
+  gap: 0.45rem;
+  margin-bottom: 1.35rem;
+}
+
+.onboarding__field label {
+  font-family: var(--font-mono-stack);
+  font-size: 0.7rem;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-faint);
 }
 
 .onboarding__field input {
-  padding: 0.6rem 0.9rem;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
+  padding: 0.75rem 0.9rem;
+  border: 2px solid var(--color-rule);
+  border-radius: 0;
+  font-family: var(--font-body);
   font-size: 1rem;
   background: var(--color-surface);
   color: var(--color-text);
@@ -677,26 +1177,84 @@ main {
 
 .onboarding__actions {
   display: flex;
-  gap: 0.75rem;
-  margin-top: 1.5rem;
+  gap: 1rem;
+  margin-top: 2rem;
+  flex-wrap: wrap;
 }
 
 .onboarding__actions button {
-  border: 1px solid var(--color-teal);
-  background: var(--color-teal);
+  border: 2px solid var(--color-rule);
+  background: var(--color-accent);
   color: var(--color-accent-contrast);
-  border-radius: var(--radius-md);
-  padding: 0.6rem 1.1rem;
-  font-weight: 600;
+  border-radius: 0;
+  padding: 0.8rem 1.4rem;
+  font-family: var(--font-mono-stack);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
   cursor: pointer;
+  box-shadow: var(--shadow-hard-sm);
 }
 
 .onboarding__skip {
   background: transparent !important;
-  color: var(--color-teal) !important;
+  color: var(--color-text) !important;
+  box-shadow: none !important;
 }
 
+.onboarding__skip:hover {
+  transform: none !important;
+  background: var(--color-surface-sunken) !important;
+}
+
+/* Legal / about: a comfortable single measure, no display bombast. */
+.legal {
+  max-width: 42rem;
+}
+
+/* Policy pages get the same lime slab rule but not the all-caps shout — these
+   are read, not scanned. */
+.legal h1 {
+  font-size: clamp(2rem, 5vw, 2.9rem);
+  text-transform: none;
+  letter-spacing: -0.035em;
+}
+
+.legal h2,
+.legal h3 {
+  margin: 2.5rem 0 0.75rem;
+  font-size: 1.35rem;
+  text-transform: none;
+}
+
+.legal p,
+.legal li {
+  color: var(--color-muted);
+}
+
+.legal ul,
+.legal ol {
+  padding-left: 1.25rem;
+}
+
+.legal li {
+  margin-bottom: 0.4rem;
+}
+
+/* ------------------------------ 10. Motion + narrow viewports */
+
 @media (prefers-reduced-motion: reduce) {
+  .story-list .story-card {
+    animation: none;
+  }
+
+  .page-hero__cta:hover,
+  main button:hover,
+  .site-header__brand:hover .site-header__mark {
+    transform: none;
+  }
+
   * {
     animation-duration: 0.001ms !important;
     animation-iteration-count: 1 !important;
@@ -705,8 +1263,59 @@ main {
   }
 }
 
+@media (max-width: 760px) {
+  main {
+    padding: 1.75rem 1.1rem 4rem;
+  }
+
+  .page-hero {
+    padding: 2.5rem 1.25rem 2.5rem;
+    margin: -1.75rem -1.1rem 2.5rem;
+  }
+
+  /* The ledger index gutter costs too much width on a phone. */
+  .story-list .story-card {
+    padding-left: 0;
+  }
+
+  .story-list .story-card::before {
+    display: none;
+  }
+
+  .pilot-landing__hero {
+    padding: 1.75rem 1.35rem 2rem;
+    box-shadow: var(--shadow-hard-sm);
+  }
+
+  .onboarding__fieldset {
+    padding: 1.1rem;
+  }
+}
+
 @media (max-width: 560px) {
+  .site-header {
+    padding: 0.6rem 1rem;
+  }
+
   .site-header__inner {
     gap: 0.75rem;
+  }
+
+  .site-header__right {
+    gap: 1rem;
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .search-form,
+  .pilot-signup-form {
+    flex-wrap: wrap;
+  }
+
+  .search-form button,
+  .pilot-signup-form button {
+    flex: 1;
+    border-left: 0;
+    border-top: 2px solid var(--color-rule);
   }
 }

@@ -14,8 +14,11 @@ export function SiteHeader() {
     <header className="site-header">
       <div className="site-header__inner">
         <Link href="/" className="site-header__brand">
-          <span className="site-header__brand-en">Telugu Global</span>
-          <span className="site-header__brand-te" lang="te">తెలుగు గ్లోబల్</span>
+          <span className="site-header__mark" aria-hidden="true" />
+          <span className="site-header__wordmark">
+            <span className="site-header__brand-en">Telugu Global</span>
+            <span className="site-header__brand-te" lang="te">తెలుగు గ్లోబల్</span>
+          </span>
         </Link>
         <div className="site-header__right">
           <nav className="site-nav" aria-label="Main navigation">

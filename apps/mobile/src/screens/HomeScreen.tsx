@@ -7,6 +7,7 @@ import { StoryCard } from "../components/StoryCard";
 import { getHome, trackEvent, type StoryOut, type TopicOut } from "../lib/api";
 import { getProfile, isStudentSegment, primaryLifeStageSegment } from "../lib/storage";
 import { useStoryCache } from "../lib/StoryCacheContext";
+import { colors, radius, spacing } from "../theme/tokens";
 import type { RootStackParamList } from "../navigation/types";
 
 export function HomeScreen() {
@@ -83,7 +84,7 @@ export function HomeScreen() {
               accessibilityLabel={`Browse topic: ${topic.name}`}
               style={styles.topicChip}
             >
-              <Text>{topic.name}</Text>
+              <Text style={styles.topicChipText}>{topic.name}</Text>
             </Pressable>
           ))}
         </ScrollView>
@@ -114,28 +115,30 @@ export function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { paddingBottom: 24 },
-  center: { flex: 1, alignItems: "center", justifyContent: "center" },
-  error: { color: "#b00", padding: 16 },
-  topicRow: { paddingVertical: 8, paddingHorizontal: 12 },
+  container: { paddingBottom: 24, backgroundColor: colors.bg },
+  center: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: colors.bg },
+  error: { color: colors.danger, padding: spacing.lg },
+  topicRow: { paddingVertical: spacing.sm, paddingHorizontal: spacing.md },
   topicChip: {
-    minHeight: 44,
+    minHeight: 40,
     justifyContent: "center",
-    paddingHorizontal: 14,
-    marginRight: 8,
-    borderRadius: 16,
-    backgroundColor: "#f0f0f0",
+    paddingHorizontal: spacing.md,
+    marginRight: spacing.sm,
+    borderRadius: radius.pill,
+    backgroundColor: colors.tealSoft,
   },
+  topicChipText: { color: colors.teal, fontWeight: "600", fontSize: 13 },
   briefing: {
-    marginBottom: 16,
-    paddingBottom: 12,
+    marginBottom: spacing.md,
+    paddingBottom: spacing.sm,
     borderBottomWidth: 1,
-    borderBottomColor: "#e0e0e0",
+    borderBottomColor: colors.border,
   },
   briefingTitle: {
     fontSize: 18,
     fontWeight: "700",
-    paddingHorizontal: 16,
-    paddingVertical: 8,
+    color: colors.text,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
   },
 });

@@ -1,18 +1,42 @@
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import React from "react";
+import { Text } from "react-native";
 
 import { HomeScreen } from "../screens/HomeScreen";
 import { NotificationsScreen } from "../screens/NotificationsScreen";
 import { SavedScreen } from "../screens/SavedScreen";
 import { SearchScreen } from "../screens/SearchScreen";
 import { SettingsScreen } from "../screens/SettingsScreen";
+import { colors } from "../theme/tokens";
 import type { MainTabParamList } from "./types";
 
 const Tab = createBottomTabNavigator<MainTabParamList>();
 
+// Plain-text glyphs (no icon-library dependency, per ADR-008) rendered via
+// the system emoji font, so they're free and consistent on iOS + Android.
+const TAB_GLYPHS: Record<keyof MainTabParamList, string> = {
+  Home: "⌂",
+  Search: "⌕",
+  Saved: "🔖",
+  Notifications: "🔔",
+  Settings: "⚙",
+};
+
 export function MainTabs() {
   return (
-    <Tab.Navigator screenOptions={{ headerShown: true }}>
+    <Tab.Navigator
+      screenOptions={({ route }) => ({
+        headerShown: true,
+        tabBarActiveTintColor: colors.teal,
+        tabBarInactiveTintColor: colors.faint,
+        tabBarStyle: { backgroundColor: colors.surface, borderTopColor: colors.border },
+        headerStyle: { backgroundColor: colors.surface },
+        headerTitleStyle: { color: colors.text },
+        tabBarIcon: ({ color }) => (
+          <Text style={{ fontSize: 20, color }}>{TAB_GLYPHS[route.name as keyof MainTabParamList]}</Text>
+        ),
+      })}
+    >
       <Tab.Screen name="Home" component={HomeScreen} options={{ tabBarAccessibilityLabel: "Home" }} />
       <Tab.Screen name="Search" component={SearchScreen} options={{ tabBarAccessibilityLabel: "Search" }} />
       <Tab.Screen name="Saved" component={SavedScreen} options={{ tabBarAccessibilityLabel: "Saved" }} />

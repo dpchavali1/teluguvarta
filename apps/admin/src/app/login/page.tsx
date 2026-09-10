@@ -37,7 +37,8 @@ export default function LoginPage() {
   }
 
   return (
-    <main>
+    <main className="auth-page">
+      <div className="auth-card">
       <h1>Telugu Global Admin — Sign in</h1>
       <form onSubmit={onSubmit}>
         <div>
@@ -65,6 +66,7 @@ export default function LoginPage() {
           {submitting ? "Signing in…" : "Sign in"}
         </button>
       </form>
+      </div>
     </main>
   );
 }

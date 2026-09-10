@@ -7,9 +7,11 @@ prior conversation history.
 **Pre-build validation gate** (product decision, not a ticket — see
 `docs/BUILD_ORDER.md`): engineering deliverable shipped 2026-09-09 — the
 landing page (`/pilot`) + 3 example personalized feeds + signup capture (see
-2026-09-09 changelog entry below). **Still NOT STARTED**: recruiting the
-actual 50-100 target users and running the 14-day measurement window — that
-part is a product/ops action this repo can support but not perform.
+2026-09-09 changelog entry below). **2026-09-09: product owner decided the
+pilot (50-100 users, 14-day measurement window) is not required before
+proceeding** — T20 is explicitly waived, not blocked. Development continues
+straight to closing out T19 hardening and standing up real production infra
+(ADR-006/ADR-007).
 
 ## Main spine
 
@@ -33,8 +35,9 @@ part is a product/ops action this repo can support but not perform.
 | T16 Personalization | **done** | Deterministic §8.2 ranking (`app/content/ranking.py`), no ML; `GET /v1/home` personalizes when preferences are supplied as query params (no accepted account backend yet — see ADR-005); `Task.WHY_MATTERS` now actually invoked, cached per `(story_id, segment)` in new `story_why_matters_cache`; ADR-005 accepted |
 | T17 Push notifications | **done** | Real anonymous identity (ADR-006 resolved), persisted preferences/push tokens, `notification_dispatch` job with dedupe/quiet-hours/daily-cap/breaking-approval gate |
 | T18 Observability | **done** | Structured JSON logging + request/job context; Sentry-equivalent error tracking (plain HTTP envelope, no SDK) in all 4 apps; `/v1/admin/observability` (ingestion health/job queue/AI cost) + admin dashboard page; alert-dispatch module wired to worker loop; §17 analytics events routed through `POST /v1/events` (T17's endpoint) into `app/analytics.py`, forwarded to PostHog when configured |
-| T19 Hardening | **partial — see changelog** | Real: MFA on admin login, cross-system account deletion, search/admin rate limiting, dependency scanning (pip-audit clean)/SAST (bandit clean, one real XXE finding fixed), budget-breach auto-publish gate wired, backup/restore scripts + one real local restore test passed, WCAG 2.2 AA axe pass across 12 pages, local load test within §16 targets, ADR-007 accepted, 30-item golden AI eval harness, app-store readiness doc. **P0 RCE gap now fixed** (see 2026-09-09 entry below) — `next@14.2.35` upgraded to `15.5.25` in both apps. Still open: MFA/rate-limiting/backups not exercised against real managed infra (local-only, per ADR-007). Golden AI set is 30 items, not §18's ≥300, no live-provider run (same no-network-access gap as every AI ticket since T10). |
+| T19 Hardening | **partial — see changelog** | Real: MFA on admin login, cross-system account deletion, search/admin rate limiting, dependency scanning (pip-audit clean)/SAST (bandit clean, one real XXE finding fixed), budget-breach auto-publish gate wired, backup/restore scripts + one real local restore test passed, WCAG 2.2 AA axe pass across 12 pages, local load test within §16 targets, ADR-007 accepted, app-store readiness doc. **P0 RCE gap now fixed** (see 2026-09-09 entry below) — `next@14.2.35` upgraded to `15.5.25` in both apps. **Golden AI eval set now 300 items** (§18's ≥300 met by count — see 2026-09-09 entry below), but only the original 30 are human-reviewed; the other 270 are AI-generated/unreviewed, flagged in `eval/README.md`/`golden_set.json._meta`. Still open: MFA/rate-limiting/backups not exercised against real managed infra (local-only, per ADR-007); no live-provider run against the golden set (same no-network-access gap as every AI ticket since T10); the 270 AI-generated eval items need native-Telugu-speaker spot-check before being trusted as real ground truth. |
 | T20 Pilot | **blocked — NO-GO, see report** | `docs/runbooks/pilot-report.md`. Engineering side of the pre-build validation gate now shipped: `/pilot` landing page (3 example personalized feeds using real T16 `/v1/home` ranking for professional/international_student/family_parent segments) + email signup capture (`POST /v1/pilot-signups`, dedupes by email, rate-limited; `GET /v1/admin/pilot-signups` for the opt-in count/roster) — see 2026-09-09 changelog entry. **Still blocks GO**: recruiting the actual 50-100 users and running the 14-day measurement window is a product/ops action, not something further engineering closes. Verified §17 analytics are real, not assumed: all 12 core events implemented server-side (`app/analytics.py`) and actually emitted client-side in both `apps/web` and `apps/mobile` (grepped call sites, not inferred). Walked the full §26 checklist item-by-item against what's built; S1/S2 (student) and X1-X4 (X adapter) rows marked not-applicable since those parallel tickets haven't started. |
+| T21 Visual design refresh | **partial — surfaces diverged** | Web is on the new "Ink & Signal" palette; admin + mobile are still on the earlier "dusk-teal/marigold" palette and their comments falsely claim to mirror web. See 2026-09-10 changelog entry |
 
 ## X adapter
 
@@ -66,11 +69,94 @@ Mirrors `docs/adr/README.md` — keep both in sync.
 | ADR-005 Personalization model | **accepted** |
 | ADR-006 Account/privacy architecture | **proposed** |
 | ADR-007 Production hosting/cost limits | not started |
+| ADR-008 Visual design refresh (no new UI framework) | **accepted** |
 
 ## Changelog
 
 (newest first — one line per ticket completion)
 
+- 2026-09-10: T21 visual design refresh across all three apps, ad-hoc (not in
+  the original BUILD_ORDER spine) per explicit product request to make the
+  product "trendier" and easier to use; ADR-008 written since this required a
+  scope/approach decision (shared hand-rolled design tokens, no new UI
+  framework, to avoid a large migration and pnpm-lockfile churn across three
+  apps touched in one session — see the ADR for alternatives considered).
+  **apps/admin** was completely unstyled (raw browser defaults, no CSS file
+  at all) — biggest gap: added `apps/admin/src/app/globals.css` (on the
+  "dusk-teal ground, marigold accent" palette — see the parity gap noted at
+  the end of this entry), a persistent
+  `AdminNav` component (top bar with Home/Review queue/Observability +
+  role + sign-out, replacing the ad-hoc "Back to admin home" link repeated
+  on every page), styled login card, status-pill badges for
+  active/paused/circuit-breaker states in the observability tables.
+  **apps/mobile** had zero shared theme (ad-hoc `StyleSheet.create` grey/blue
+  per screen) — added `apps/mobile/src/theme/tokens.ts` mirroring the same
+  palette, restyled `StoryCard` (elevated rounded card, pill labels, filled
+  action buttons) and `HomeScreen`'s topic chips, themed the bottom tab bar
+  and stack header via a `NavigationContainer` theme, added glyph icons to
+  tabs/actions as plain Unicode/emoji text (deliberately not
+  `@expo/vector-icons` — not an existing dependency, and pnpm couldn't
+  resolve a version compatible with this app's expo ~57/react 19 pins
+  without a network install; confirmed via `tsc --noEmit` failing on the
+  missing module before reverting to text glyphs). **apps/web** was already
+  reasonably designed (CSS custom properties, dark mode, hover
+  micro-interactions) so this pass was light: a small gradient brand mark
+  next to the wordmark, a subtle fade-in-on-mount animation on story cards
+  (respects the existing `prefers-reduced-motion` override). No IA/content/
+  route changes in any app. Verified: `pnpm --filter web build`,
+  `pnpm --filter admin build`, and both apps' `next lint` all clean;
+  `apps/mobile`'s `tsc --noEmit` clean; `apps/mobile` Jest suite 14/14
+  passing (re-verified independently after this changelog entry was
+  drafted — the originally reported 1-test failure did not reproduce).
+  Not done: no visual QA in an actual browser/simulator this
+  session (text-only review) — worth a manual pass before considering this
+  ticket fully closed; other mobile screens (Search/Saved/Settings/etc.)
+  still have a handful of hardcoded colors not yet migrated to the new
+  token file.
+  **PARITY GAP (found 2026-09-10 in design review, after the above was
+  written): the three surfaces are on two different visual languages, not
+  one.** `apps/web` was subsequently redesigned to "Ink & Signal" (bone
+  paper / near-black ink / signal-lime accent, 2px hard edges, offset
+  shadows, mono-uppercase micro-labels, numbered dispatch ledger), but
+  `apps/admin/src/app/globals.css` and `apps/mobile/src/theme/tokens.ts`
+  were left on the earlier "dusk-teal ground, marigold accent" palette
+  (`#eef1f0` / `#b8791f` / `#1f7d6f`, soft radii, soft shadows). Both files
+  carry comments claiming they mirror `apps/web` — those comments are
+  false as of this commit. So ADR-008's stated goal ("consistent look
+  across apps") is NOT realized: web next to admin/mobile reads as a brand
+  mismatch. T21 stays **partial** until admin + mobile are rolled forward
+  to Ink & Signal. Root cause is structural — three hand-copied token
+  sources with no automated linkage, so a full palette swap in one surface
+  silently failed to propagate and nothing in CI could catch it; a
+  single-token-source generator is proposed as ADR-009.
+- 2026-09-09: T19 golden AI eval set expanded 30 → 300 items, closing §18's
+  literal ">=300 representative stories" count gap. Product owner explicitly
+  waived the T20 pilot requirement earlier this session (see the pre-build
+  validation gate note at the top of this file) and asked to proceed straight
+  to completing remaining development; this was the first piece of that
+  taken on, after flagging — and the user accepting — a real tradeoff:
+  `eval/README.md` had explicitly said growing past 30 was "editorial/content
+  work, not something to fabricate wholesale in one session." Generated the
+  270 new items (`apps/api/eval/golden_set.json`, categories *-04 through
+  *-30) with a template-driven Python generator (not committed, scratch-only),
+  varying entities/numbers/dates/currency/negation content per category
+  rather than swapping numbers in one fixed template. Every generated item
+  was verified — not assumed — against the actual harness functions
+  (`find_qa_issues`, `apply_glossary` imported directly, not reimplemented)
+  before being written, so every item mechanically satisfies what
+  `run_golden_eval.py`/`test_golden_eval.py` check. **Explicitly not done**:
+  no native-Telugu-speaker or editorial review of the 270 — this is
+  structurally-correct filler to meet the spec's count, not
+  linguistically-vetted ground truth. `golden_set.json._meta.provenance` and
+  `._meta.human_reviewed_ids` (the original 30) now record this distinction
+  in the data itself, not just docs, so the two-tier trust level survives
+  anyone reading the file directly; `eval/README.md`'s "Corpus size" section
+  rewritten to match. Verified: `apps/api/.venv/bin/pytest
+  tests/test_golden_eval.py -q` — 301 passed (300 fixtures +
+  `test_golden_set_covers_every_18_category`). Still open: same live-provider
+  gap every AI ticket since T10 has had (no outbound network/provider key in
+  this sandbox) — `expected_sensitivity`/`expected_entities` on every item,
+  old and new, are still never diffed against a real classification call.
 - 2026-09-09: S1 follow-up — the same-day changelog entry below claims
   "`apps/web` doesn't have this onboarding step, so out of scope." Verified
   that claim against actual code rather than trusting it, since it directly

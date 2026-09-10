@@ -26,6 +26,7 @@ cross-dependency) marked done in `PROGRESS.md`. Each ticket file lives at
 | 18 | T18 | T08..T17 | Observability: logging/metrics/alerts/AI cost dashboard |
 | 19 | T19 | T18 | Hardening: security, accessibility, performance, deletion, app-store readiness |
 | 20 | T20 | T19 | Pilot: 50-100 users, collect data, go/no-go for public launch |
+| 21 | T21 | T14, T15, T18 | Visual design refresh: shared design tokens + restyle web/mobile/admin for a trendier, easier-to-use UI (no IA/content changes) — see ADR-008 |
 
 **Parallel/insertable tickets** (not in the strict spine, but gated by the
 step named in "insert after"):

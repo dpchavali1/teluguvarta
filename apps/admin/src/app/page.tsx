@@ -45,31 +45,24 @@ export default function Home() {
   return (
     <main>
       <h1>Telugu Global Admin</h1>
-      <p>Signed in as {role}.</p>
-      <p>
-        <Link href="/review">Review queue</Link>
-      </p>
-      <p>
-        <Link href="/observability">Observability</Link>
-      </p>
-      <button
-        type="button"
-        onClick={() => {
-          clearSession();
-          router.replace("/login");
-        }}
-      >
-        Sign out
-      </button>
-      {process.env.NODE_ENV !== "production" ? (
+      <section>
         <p>
+          Signed in as <strong>{role}</strong>.
+        </p>
+        <p>
+          <Link href="/review">Review queue</Link> · <Link href="/observability">Observability</Link>
+        </p>
+      </section>
+      {process.env.NODE_ENV !== "production" ? (
+        <section>
+          <h2>Debug</h2>
           <button
             type="button"
             onClick={() => captureException(new Error("T18 debug throw — deliberate, for error-tracking verification"), { role: role ?? "" })}
           >
             Debug: throw error
           </button>
-        </p>
+        </section>
       ) : null}
     </main>
   );

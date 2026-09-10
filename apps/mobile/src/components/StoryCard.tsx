@@ -4,6 +4,7 @@ import { Alert, AccessibilityInfo, Pressable, StyleSheet, Text, View } from "rea
 import { trackEvent, type Language, type StoryOut } from "../lib/api";
 import { shareStory } from "../lib/share";
 import { isSaved, toggleSaved } from "../lib/storage";
+import { colors, radius, shadow, spacing, typography } from "../theme/tokens";
 
 const STATUS_LABEL: Record<string, string | undefined> = {
   RETRACTED: "Retracted",
@@ -121,7 +122,7 @@ export function StoryCard({
               accessibilityLabel="English"
               style={[styles.langButton, language === "en" && styles.langButtonActive]}
             >
-              <Text>English</Text>
+              <Text style={[styles.langButtonText, language === "en" && styles.langButtonTextActive]}>English</Text>
             </Pressable>
             <Pressable
               onPress={() => handleLanguageSwitch("te")}
@@ -130,7 +131,7 @@ export function StoryCard({
               accessibilityLabel="Telugu"
               style={[styles.langButton, language === "te" && styles.langButtonActive]}
             >
-              <Text>తెలుగు</Text>
+              <Text style={[styles.langButtonText, language === "te" && styles.langButtonTextActive]}>తెలుగు</Text>
             </Pressable>
           </View>
         )}
@@ -140,16 +141,18 @@ export function StoryCard({
           accessibilityLabel={`Share: ${variant.headline}`}
           style={styles.actionButton}
         >
-          <Text>Share</Text>
+          <Text style={styles.actionButtonText}>⤴ Share</Text>
         </Pressable>
         <Pressable
           onPress={handleSaveToggle}
           accessibilityRole="button"
           accessibilityState={{ selected: saved }}
           accessibilityLabel={saved ? `Unsave: ${variant.headline}` : `Save: ${variant.headline}`}
-          style={styles.actionButton}
+          style={[styles.actionButton, saved && styles.actionButtonActive]}
         >
-          <Text>{saved ? "Saved" : "Save"}</Text>
+          <Text style={[styles.actionButtonText, saved && styles.actionButtonTextActive]}>
+            {saved ? "🔖 Saved" : "🔖 Save"}
+          </Text>
         </Pressable>
         <Pressable
           onPress={handleReportIssue}
@@ -157,7 +160,7 @@ export function StoryCard({
           accessibilityLabel={`Report an issue: ${variant.headline}`}
           style={styles.actionButton}
         >
-          <Text>Report an issue</Text>
+          <Text style={styles.actionButtonText}>⚑ Report</Text>
         </Pressable>
       </View>
     </View>
@@ -166,37 +169,66 @@ export function StoryCard({
 
 // §9.2 accessibility: every interactive element has a >=44pt touch target.
 const styles = StyleSheet.create({
-  card: { padding: 16, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: "#ddd", gap: 8 },
-  labels: { flexDirection: "row", flexWrap: "wrap", gap: 6 },
-  pill: { backgroundColor: "#eee", borderRadius: 12, paddingHorizontal: 8, paddingVertical: 2 },
-  pillText: { fontSize: 12 },
-  notice: { color: "#b00", fontWeight: "600" },
+  card: {
+    padding: spacing.lg,
+    margin: spacing.md,
+    marginBottom: 0,
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    gap: spacing.sm,
+    ...shadow.card,
+  },
+  labels: { flexDirection: "row", flexWrap: "wrap", gap: spacing.xs },
+  pill: {
+    backgroundColor: colors.tealSoft,
+    borderRadius: radius.sm,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 3,
+  },
+  pillText: { ...typography.meta, color: colors.teal, textTransform: "uppercase" },
+  notice: { color: colors.danger, fontWeight: "600" },
   touchTarget: { minHeight: 44, justifyContent: "center" },
-  headline: { fontSize: 18, fontWeight: "700" },
-  body: { fontSize: 15 },
-  why: { fontSize: 14, fontStyle: "italic", color: "#444" },
-  sourceLink: { color: "#0645ad" },
-  actions: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: 8, marginTop: 4 },
-  langGroup: { flexDirection: "row", gap: 4 },
+  headline: { ...typography.headline, color: colors.text },
+  body: { ...typography.body, color: colors.muted },
+  why: {
+    fontSize: 14,
+    color: colors.accentInk,
+    backgroundColor: colors.accentSoft,
+    borderRadius: radius.sm,
+    borderLeftWidth: 3,
+    borderLeftColor: colors.accent,
+    padding: spacing.sm,
+  },
+  sourceLink: { color: colors.teal, fontWeight: "600" },
+  actions: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: spacing.sm, marginTop: spacing.xs },
+  langGroup: { flexDirection: "row", gap: spacing.xs },
   langButton: {
-    minHeight: 44,
+    minHeight: 40,
     minWidth: 44,
     justifyContent: "center",
     alignItems: "center",
-    paddingHorizontal: 8,
-    borderRadius: 8,
+    paddingHorizontal: spacing.sm,
+    borderRadius: radius.pill,
     borderWidth: 1,
-    borderColor: "#ccc",
+    borderColor: colors.border,
   },
-  langButtonActive: { backgroundColor: "#e6efff", borderColor: "#0645ad" },
+  langButtonActive: { backgroundColor: colors.teal, borderColor: colors.teal },
+  langButtonText: { fontSize: 13, fontWeight: "600", color: colors.muted },
+  langButtonTextActive: { color: colors.accentContrast },
   actionButton: {
-    minHeight: 44,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    minHeight: 40,
     minWidth: 44,
     justifyContent: "center",
-    alignItems: "center",
-    paddingHorizontal: 12,
-    borderRadius: 8,
+    paddingHorizontal: spacing.md,
+    borderRadius: radius.pill,
     borderWidth: 1,
-    borderColor: "#ccc",
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
   },
+  actionButtonActive: { backgroundColor: colors.teal, borderColor: colors.teal },
+  actionButtonText: { fontSize: 13, fontWeight: "600", color: colors.muted },
+  actionButtonTextActive: { color: colors.accentContrast },
 });
