@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 
 import { StoryCard } from "@/components/StoryCard";
 import { getStudentBriefing, type StoryOut } from "@/lib/api";
-import { getOnboardingProfile, isStudentLifeStage } from "@/lib/onboarding";
+import { getOnboardingProfile, isStudentLifeStage, primaryLifeStageSegment } from "@/lib/onboarding";
 
 // S1: renders on the home page only when the visitor explicitly selected
 // International Student or Graduate/OPT during onboarding (never inferred).
@@ -16,10 +16,16 @@ export function StudentBriefing() {
 
   useEffect(() => {
     const profile = getOnboardingProfile();
-    if (!isStudentLifeStage(profile.lifeStage)) return;
+    if (!isStudentLifeStage(profile.lifeStages)) return;
+    // Student-briefing eligibility checks every selected life stage, but the
+    // API's `segment` param is single-valued — use the primary (first
+    // selected) stage, same rule as the personalized home feed's segment
+    // would use (see apps/mobile/src/lib/storage.ts::primaryLifeStageSegment).
+    const segment = primaryLifeStageSegment(profile.lifeStages);
+    if (!segment) return;
     let cancelled = false;
     getStudentBriefing({
-      segment: profile.lifeStage as string,
+      segment,
       residenceCountry: profile.residenceCountry,
       homeState: profile.homeState,
       homeCity: profile.homeCity,

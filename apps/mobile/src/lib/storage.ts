@@ -32,12 +32,23 @@ export const LIFE_STAGES: { value: LifeStage; label: string }[] = [
 // S1: apps/api's `Segment` (app/schemas.py) is lowercase snake_case; this
 // storage module predates it and uses SCREAMING_SNAKE — map explicitly at
 // the API boundary rather than changing either representation.
-export function lifeStageToSegment(lifeStage: LifeStage | undefined): string {
-  return lifeStage ? lifeStage.toLowerCase() : "general";
+//
+// ADR-005 addendum (2026-09-09): a person can pick more than one life stage
+// (e.g. Professional + Family/Parent), but the backend's `segment` query
+// param and the `story_why_matters_cache` table are still keyed on exactly
+// one value — fragmenting that cache per combination isn't worth the AI-cost
+// increase for what's just flavor text. The resolution rule: the *first*
+// life stage the user selected (array order = selection order, since this
+// module only ever appends) is the "primary segment" sent to the API for
+// why-matters generation. Every selected life stage still drives
+// on-device gating (see `isStudentSegment` below, which checks the whole
+// array) — only the why-matters text is limited to one segment.
+export function primaryLifeStageSegment(lifeStages: LifeStage[]): string {
+  return lifeStages.length > 0 ? lifeStages[0].toLowerCase() : "general";
 }
 
-export function isStudentSegment(lifeStage: LifeStage | undefined): boolean {
-  return lifeStage === "INTERNATIONAL_STUDENT" || lifeStage === "GRADUATE_OPT";
+export function isStudentSegment(lifeStages: LifeStage[]): boolean {
+  return lifeStages.includes("INTERNATIONAL_STUDENT") || lifeStages.includes("GRADUATE_OPT");
 }
 
 // §3.1: conditional student sub-questions — deliberately no university name
@@ -56,13 +67,14 @@ export type OnboardingProfile = {
   residenceCountry?: string;
   homeRegion?: string;
   homeCity?: string;
-  lifeStage?: LifeStage;
+  lifeStages: LifeStage[];
   student?: StudentDetails;
   interestTopicSlugs: string[];
   language: "en" | "te";
 };
 
 export const EMPTY_PROFILE: OnboardingProfile = {
+  lifeStages: [],
   interestTopicSlugs: [],
   language: "en",
 };

@@ -71,6 +71,64 @@ Mirrors `docs/adr/README.md` — keep both in sync.
 
 (newest first — one line per ticket completion)
 
+- 2026-09-09: S1 follow-up — the same-day changelog entry below claims
+  "`apps/web` doesn't have this onboarding step, so out of scope." Verified
+  that claim against actual code rather than trusting it, since it directly
+  affects whether mobile/web are in parity: it was **wrong**.
+  `apps/web/src/app/onboarding/page.tsx` + `apps/web/src/lib/onboarding.ts`
+  are a real, separate onboarding implementation (not a stub, not shared
+  code with mobile) — added the same day per its own header comment
+  ("S1: web's onboarding — apps/mobile already has this flow ..., web
+  didn't (docs/tickets/S1.md gap)") — and it still had the exact
+  single-select radio-button bug the mobile fix below addresses: a person
+  could only pick one of International Student / Graduate-OPT /
+  Professional / Family-Parent / Other. `StudentBriefing.tsx` (home-page
+  student-briefing gate) and the `segment` param sent to
+  `getStudentBriefing`/`GET /v1/home` both read that single `lifeStage`
+  value directly. Fixed for parity with the mobile fix: `onboarding.ts`'s
+  `OnboardingProfile.lifeStage: LifeStage | null` → `lifeStages:
+  LifeStage[]`; added `primaryLifeStageSegment()` (same first-selected-wins
+  rule as mobile's function of the same name, ADR-005 addendum) and updated
+  `isStudentLifeStage()` to check the whole array; `onboarding/page.tsx`'s
+  life-stage fieldset now renders checkboxes instead of radios ("Select
+  every option that applies" hint, matching mobile's step-2 copy) and the
+  skip button now saves `[]` instead of `null`; `StudentBriefing.tsx` now
+  gates on `isStudentLifeStage(profile.lifeStages)` and sends
+  `primaryLifeStageSegment(profile.lifeStages)` as `segment`. Confirmed
+  `apps/web`'s home page (`app/page.tsx`) itself does **not** personalize
+  by segment at all (calls the unparameterized `getHome()`, not
+  `getHomeFor(segment, ...)` from `lib/api.ts`) — only the Student Briefing
+  section reads the onboarding profile — so this fix's blast radius is
+  exactly `onboarding.ts`/`onboarding/page.tsx`/`StudentBriefing.tsx`, no
+  other web page. apps/web has no unit-test runner configured (no
+  jest/vitest in `apps/web/package.json` — only `test:a11y`), consistent
+  with T14/T20's web verification relying on `tsc`/`eslint`/`next build`/
+  axe rather than unit tests, so verification here does the same. **Files**:
+  `apps/web/src/lib/onboarding.ts`, `apps/web/src/app/onboarding/page.tsx`,
+  `apps/web/src/components/StudentBriefing.tsx`,
+  `apps/web/src/app/globals.css` (new `.onboarding__hint` rule).
+  **Verified**: `apps/web` `pnpm run typecheck` clean, `pnpm run lint`
+  clean (`next lint`, no warnings), `pnpm run build` clean (all 18 routes
+  generate). Not committed — left for review per task instructions.
+- 2026-09-09: S1 onboarding fix — life stage is now multi-select on mobile
+  (real-device UX feedback: "why only one thing should describe a person...
+  he can be professional and parent right?"). `apps/mobile/src/lib/storage.ts`:
+  `OnboardingProfile.lifeStage?: LifeStage` → `lifeStages: LifeStage[]`;
+  `lifeStageToSegment` renamed `primaryLifeStageSegment` (ADR-005 addendum,
+  dated below: first-selected life stage is the one `segment` sent to the
+  API for why-matters/ranking — fragmenting `story_why_matters_cache` per
+  combination isn't worth the AI-cost increase); `isStudentSegment` now
+  checks the whole array so any selected student-adjacent stage still gates
+  the student sub-questions. `OnboardingScreen.tsx` step 2 now renders
+  checkbox rows (mirrors the interests step's `TopicChips` pattern) instead
+  of radio buttons. `HomeScreen.tsx` updated to the new array shape.
+  Backend untouched by design — resolution to one segment happens
+  client-side before the API call, so `GET /v1/home`'s `segment` param and
+  `app/content/ranking.py`/why-matters caching need no contract change.
+  `apps/web` doesn't have this onboarding step, so out of scope. Verified:
+  `apps/mobile` `tsc --noEmit` clean, `jest` 14/14 (one flaky rerun,
+  reproduced clean second time — not a regression); `apps/api` `ruff check`
+  clean, `pytest` 240/240 (unchanged, confirms no backend regression).
 - 2026-09-09: X4 done — X account monitoring and budget guard. Changed the
   X2 budget guard from all-or-nothing (skip every X account once
   `MONTHLY_X_API_BUDGET_USD` is exhausted) to low-priority-only (skip only

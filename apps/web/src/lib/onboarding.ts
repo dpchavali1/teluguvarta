@@ -21,13 +21,13 @@ export const LIFE_STAGES: { value: LifeStage; label: string }[] = [
 ];
 
 export type OnboardingProfile = {
-  lifeStage: LifeStage | null;
+  lifeStages: LifeStage[];
   residenceCountry?: string;
   homeState?: string;
   homeCity?: string;
 };
 
-const EMPTY_PROFILE: OnboardingProfile = { lifeStage: null };
+const EMPTY_PROFILE: OnboardingProfile = { lifeStages: [] };
 
 export function getOnboardingProfile(): OnboardingProfile {
   if (typeof window === "undefined") return EMPTY_PROFILE;
@@ -51,6 +51,18 @@ export function setOnboardingProfile(profile: OnboardingProfile): void {
 
 // §3.5 / docs/tickets/S1.md: student signals come only from what the user
 // explicitly selected here — never inferred from reading behavior.
-export function isStudentLifeStage(lifeStage: LifeStage | null | undefined): boolean {
-  return lifeStage === "international_student" || lifeStage === "graduate_opt";
+export function isStudentLifeStage(lifeStages: LifeStage[] | null | undefined): boolean {
+  return !!lifeStages && (lifeStages.includes("international_student") || lifeStages.includes("graduate_opt"));
+}
+
+// ADR-005 addendum (2026-09-09), mirrored from apps/mobile/src/lib/storage.ts
+// primaryLifeStageSegment: a person can select more than one life stage
+// (e.g. Professional + Family/Parent) but the backend's `segment` query
+// param is still keyed on exactly one value, so the *first* life stage the
+// user selected (array order = selection order) is what's sent as the
+// personalization segment. Every selected life stage still drives on-device
+// gating (see isStudentLifeStage above, which checks the whole array).
+export function primaryLifeStageSegment(lifeStages: LifeStage[]): string | null {
+  const [first] = lifeStages;
+  return first ?? null;
 }

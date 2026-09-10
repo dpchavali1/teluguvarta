@@ -653,6 +653,12 @@ main {
   padding: 0.4rem 0;
 }
 
+.onboarding__hint {
+  font-size: 0.85rem;
+  color: var(--color-text-muted, #666);
+  margin: 0 0 0.5rem;
+}
+
 .onboarding__field {
   display: flex;
   flex-direction: column;

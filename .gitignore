@@ -21,6 +21,8 @@ build/
 # Expo / React Native
 .expo/
 .expo-shared/
+apps/mobile/android/
+apps/mobile/ios/
 
 # Editors / OS
 .DS_Store

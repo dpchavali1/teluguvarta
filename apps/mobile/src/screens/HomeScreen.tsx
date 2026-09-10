@@ -5,7 +5,7 @@ import { ActivityIndicator, Linking, Pressable, ScrollView, StyleSheet, Text, Vi
 
 import { StoryCard } from "../components/StoryCard";
 import { getHome, trackEvent, type StoryOut, type TopicOut } from "../lib/api";
-import { getProfile, isStudentSegment, lifeStageToSegment } from "../lib/storage";
+import { getProfile, isStudentSegment, primaryLifeStageSegment } from "../lib/storage";
 import { useStoryCache } from "../lib/StoryCacheContext";
 import type { RootStackParamList } from "../navigation/types";
 
@@ -28,7 +28,7 @@ export function HomeScreen() {
         homeRegion: profile.homeRegion,
         homeCity: profile.homeCity,
         topics: profile.interestTopicSlugs,
-        segment: lifeStageToSegment(profile.lifeStage),
+        segment: primaryLifeStageSegment(profile.lifeStages),
       };
       const home = await getHome(homeParams);
       setStories(home.top_stories);
@@ -38,9 +38,10 @@ export function HomeScreen() {
 
       // S1: "Student Briefing" — explicit-preference-only (never inferred
       // from behavior), only fetched when the user selected this life stage
-      // during onboarding. Same feed/ranking endpoint, `student_briefing`
-      // composes the topic filter server-side (see docs/tickets/S1.md).
-      if (isStudentSegment(profile.lifeStage)) {
+      // during onboarding (any of the selected life stages, now that more
+      // than one can be picked — see docs/tickets/S1.md). Same feed/ranking
+      // endpoint, `student_briefing` composes the topic filter server-side.
+      if (isStudentSegment(profile.lifeStages)) {
         const briefing = await getHome({ ...homeParams, studentBriefing: true });
         setBriefingStories(briefing.top_stories);
         cache.put(briefing.top_stories);

@@ -3,7 +3,7 @@ import {
   getNotificationPreferences,
   getOnboarded,
   isStudentSegment,
-  lifeStageToSegment,
+  primaryLifeStageSegment,
   setNotificationPreferences,
   setOnboarded,
   type NotificationPreferences,
@@ -58,20 +58,30 @@ test("onboarded flag defaults to false and persists once set", async () => {
 // S1: onboarding's SCREAMING_SNAKE `LifeStage` must map to apps/api's
 // lowercase `Segment` (app/schemas.py) exactly, and only the two student
 // life stages count as "student" for the Student Briefing module.
-test("lifeStageToSegment maps onboarding life stages to API segment values", () => {
-  expect(lifeStageToSegment("INTERNATIONAL_STUDENT")).toBe("international_student");
-  expect(lifeStageToSegment("GRADUATE_OPT")).toBe("graduate_opt");
-  expect(lifeStageToSegment("PROFESSIONAL")).toBe("professional");
-  expect(lifeStageToSegment("FAMILY_PARENT")).toBe("family_parent");
-  expect(lifeStageToSegment("OTHER")).toBe("other");
-  expect(lifeStageToSegment(undefined)).toBe("general");
+//
+// ADR-005 addendum (2026-09-09): a person can select more than one life
+// stage; `primaryLifeStageSegment` resolves that list to the single value
+// the API's `segment` param/why-matters cache actually key on — the first
+// one selected, since this is the value most likely to reflect what the
+// user picked first/cares most about.
+test("primaryLifeStageSegment uses the first selected life stage", () => {
+  expect(primaryLifeStageSegment(["INTERNATIONAL_STUDENT"])).toBe("international_student");
+  expect(primaryLifeStageSegment(["GRADUATE_OPT"])).toBe("graduate_opt");
+  expect(primaryLifeStageSegment(["PROFESSIONAL"])).toBe("professional");
+  expect(primaryLifeStageSegment(["FAMILY_PARENT"])).toBe("family_parent");
+  expect(primaryLifeStageSegment(["OTHER"])).toBe("other");
+  expect(primaryLifeStageSegment([])).toBe("general");
+  // Professional + Family/Parent: professional was selected first, so it's
+  // the primary segment — but both still count for isStudentSegment below.
+  expect(primaryLifeStageSegment(["PROFESSIONAL", "FAMILY_PARENT"])).toBe("professional");
 });
 
-test("isStudentSegment is true only for International Student and Graduate/OPT", () => {
-  expect(isStudentSegment("INTERNATIONAL_STUDENT")).toBe(true);
-  expect(isStudentSegment("GRADUATE_OPT")).toBe(true);
-  expect(isStudentSegment("PROFESSIONAL")).toBe(false);
-  expect(isStudentSegment("FAMILY_PARENT")).toBe(false);
-  expect(isStudentSegment("OTHER")).toBe(false);
-  expect(isStudentSegment(undefined)).toBe(false);
+test("isStudentSegment is true if any selected life stage is International Student or Graduate/OPT", () => {
+  expect(isStudentSegment(["INTERNATIONAL_STUDENT"])).toBe(true);
+  expect(isStudentSegment(["GRADUATE_OPT"])).toBe(true);
+  expect(isStudentSegment(["PROFESSIONAL"])).toBe(false);
+  expect(isStudentSegment(["FAMILY_PARENT"])).toBe(false);
+  expect(isStudentSegment(["OTHER"])).toBe(false);
+  expect(isStudentSegment([])).toBe(false);
+  expect(isStudentSegment(["PROFESSIONAL", "GRADUATE_OPT"])).toBe(true);
 });

@@ -50,12 +50,18 @@ export function OnboardingScreen() {
     await setProfile(finalProfile);
     await setNotificationPreferences(finalPrefs);
     await setOnboarded(true);
-    trackEvent("onboarding_complete", { life_stage: finalProfile.lifeStage });
+    // A person can select more than one life stage now (ADR-005 addendum);
+    // report the full set plus the primary one the API's `segment` param
+    // will actually use, rather than silently dropping every stage but one.
+    trackEvent("onboarding_complete", {
+      life_stages: finalProfile.lifeStages.join(","),
+      life_stage_count: finalProfile.lifeStages.length,
+    });
     navigation.reset({ index: 0, routes: [{ name: "Main" }] });
   }
 
   function next() {
-    const isStudentStep = step === 2 && profile.lifeStage !== "INTERNATIONAL_STUDENT";
+    const isStudentStep = step === 2 && !profile.lifeStages.includes("INTERNATIONAL_STUDENT");
     const nextStep = isStudentStep ? step + 2 : step + 1;
     if (nextStep >= STEP_COUNT) {
       finish(profile, prefs);
@@ -118,23 +124,29 @@ export function OnboardingScreen() {
 
         {step === 2 && (
           <StepShell title="Which best describes you? (optional)">
-            {LIFE_STAGES.map((option) => (
-              <Pressable
-                key={option.value}
-                onPress={() =>
-                  setProfileDraft({
-                    ...profile,
-                    lifeStage: profile.lifeStage === option.value ? undefined : option.value,
-                  })
-                }
-                accessibilityRole="radio"
-                accessibilityState={{ selected: profile.lifeStage === option.value }}
-                accessibilityLabel={option.label}
-                style={[styles.optionRow, profile.lifeStage === option.value && styles.optionRowActive]}
-              >
-                <Text>{option.label}</Text>
-              </Pressable>
-            ))}
+            <Text style={styles.hint}>Select every option that applies — you're not just one thing.</Text>
+            {LIFE_STAGES.map((option) => {
+              const selected = profile.lifeStages.includes(option.value);
+              return (
+                <Pressable
+                  key={option.value}
+                  onPress={() =>
+                    setProfileDraft({
+                      ...profile,
+                      lifeStages: selected
+                        ? profile.lifeStages.filter((s) => s !== option.value)
+                        : [...profile.lifeStages, option.value],
+                    })
+                  }
+                  accessibilityRole="checkbox"
+                  accessibilityState={{ checked: selected }}
+                  accessibilityLabel={option.label}
+                  style={[styles.optionRow, selected && styles.optionRowActive]}
+                >
+                  <Text>{option.label}</Text>
+                </Pressable>
+              );
+            })}
           </StepShell>
         )}
 

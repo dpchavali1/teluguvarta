@@ -14,7 +14,7 @@ import { LIFE_STAGES, getOnboardingProfile, setOnboardingProfile, type LifeStage
 // acceptance criteria.
 export default function OnboardingPage() {
   const router = useRouter();
-  const [lifeStage, setLifeStage] = useState<LifeStage | null>(null);
+  const [lifeStages, setLifeStages] = useState<LifeStage[]>([]);
   const [residenceCountry, setResidenceCountry] = useState("");
   const [homeState, setHomeState] = useState("");
   const [homeCity, setHomeCity] = useState("");
@@ -24,20 +24,32 @@ export default function OnboardingPage() {
   // defaults, then this fills in any profile already saved on the device.
   useEffect(() => {
     const existing = getOnboardingProfile();
-    setLifeStage(existing.lifeStage);
+    setLifeStages(existing.lifeStages);
     setResidenceCountry(existing.residenceCountry ?? "");
     setHomeState(existing.homeState ?? "");
     setHomeCity(existing.homeCity ?? "");
   }, []);
 
-  function save(finalLifeStage: LifeStage | null) {
+  function toggleLifeStage(stage: LifeStage) {
+    setLifeStages((current) =>
+      current.includes(stage) ? current.filter((s) => s !== stage) : [...current, stage],
+    );
+  }
+
+  function save(finalLifeStages: LifeStage[]) {
     setOnboardingProfile({
-      lifeStage: finalLifeStage,
+      lifeStages: finalLifeStages,
       residenceCountry: residenceCountry.trim() || undefined,
       homeState: homeState.trim() || undefined,
       homeCity: homeCity.trim() || undefined,
     });
-    track("onboarding_complete", { life_stage: finalLifeStage ?? "skipped" });
+    // A person can select more than one life stage (ADR-005 addendum);
+    // report the full set rather than silently dropping every stage but
+    // one — same convention as apps/mobile/src/screens/OnboardingScreen.tsx.
+    track("onboarding_complete", {
+      life_stages: finalLifeStages.length > 0 ? finalLifeStages.join(",") : "skipped",
+      life_stage_count: finalLifeStages.length,
+    });
     router.push("/");
   }
 
@@ -51,14 +63,15 @@ export default function OnboardingPage() {
 
       <fieldset className="onboarding__fieldset">
         <legend>Which best describes you?</legend>
+        <p className="onboarding__hint">Select every option that applies — you&apos;re not just one thing.</p>
         {LIFE_STAGES.map((stage) => (
           <label key={stage.value} className="onboarding__radio">
             <input
-              type="radio"
+              type="checkbox"
               name="lifeStage"
               value={stage.value}
-              checked={lifeStage === stage.value}
-              onChange={() => setLifeStage(stage.value)}
+              checked={lifeStages.includes(stage.value)}
+              onChange={() => toggleLifeStage(stage.value)}
             />
             {stage.label}
           </label>
@@ -99,10 +112,10 @@ export default function OnboardingPage() {
       </div>
 
       <div className="onboarding__actions">
-        <button type="button" onClick={() => save(lifeStage)}>
+        <button type="button" onClick={() => save(lifeStages)}>
           Save and continue
         </button>
-        <button type="button" className="onboarding__skip" onClick={() => save(null)}>
+        <button type="button" className="onboarding__skip" onClick={() => save([])}>
           Skip for now
         </button>
       </div>
