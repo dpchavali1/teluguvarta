@@ -8,6 +8,7 @@ import { OnboardingScreen } from "../screens/OnboardingScreen";
 import { PrivacyScreen } from "../screens/PrivacyScreen";
 import { StoryDetailScreen } from "../screens/StoryDetailScreen";
 import { TopicScreen } from "../screens/TopicScreen";
+import { TopicsIndexScreen } from "../screens/TopicsIndexScreen";
 import { getOnboarded } from "../lib/storage";
 import { MainTabs } from "./MainTabs";
 import type { RootStackParamList } from "./types";
@@ -34,6 +35,7 @@ export function RootNavigator() {
       <Stack.Screen name="Onboarding" component={OnboardingScreen} options={{ headerShown: false }} />
       <Stack.Screen name="Main" component={MainTabs} options={{ headerShown: false }} />
       <Stack.Screen name="Topic" component={TopicScreen} options={({ route }) => ({ title: route.params.name ?? "Topic" })} />
+      <Stack.Screen name="TopicsIndex" component={TopicsIndexScreen} options={{ title: "Topics" }} />
       <Stack.Screen name="StoryDetail" component={StoryDetailScreen} options={{ title: "Story" }} />
       <Stack.Screen
         name="NotificationPreferences"

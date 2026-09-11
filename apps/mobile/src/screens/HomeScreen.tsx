@@ -119,8 +119,8 @@ export function HomeScreen() {
         <RefreshControl
           refreshing={refreshing}
           onRefresh={handleRefresh}
-          tintColor={colors.teal}
-          colors={[colors.teal]}
+          tintColor={colors.text}
+          colors={[colors.text]}
           accessibilityLabel="Refresh the feed"
         />
       }
@@ -174,15 +174,18 @@ const styles = StyleSheet.create({
   center: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: colors.bg },
   error: { color: colors.danger, padding: spacing.lg },
   topicRow: { paddingVertical: spacing.sm, paddingHorizontal: spacing.md },
+  // Matches web's .pill--topic: transparent, ink text, no fill at rest.
   topicChip: {
     minHeight: 40,
     justifyContent: "center",
     paddingHorizontal: spacing.md,
     marginRight: spacing.sm,
     borderRadius: radius.pill,
-    backgroundColor: colors.tealSoft,
+    backgroundColor: "transparent",
+    borderWidth: 1,
+    borderColor: colors.border,
   },
-  topicChipText: { color: colors.teal, fontWeight: "600", fontSize: 13 },
+  topicChipText: { color: colors.text, fontWeight: "600", fontSize: 13 },
   briefing: {
     marginBottom: spacing.md,
     paddingBottom: spacing.sm,

@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from "react";
-import { Alert, AccessibilityInfo, Pressable, StyleSheet, Text, View } from "react-native";
+import { Alert, AccessibilityInfo, DeviceEventEmitter, Pressable, StyleSheet, Text, View } from "react-native";
 
 import { trackEvent, type Language, type StoryOut } from "../lib/api";
 import { shareStory } from "../lib/share";
-import { getProfile, setProfile } from "../lib/storage";
+import { getProfile, setLanguage as persistLanguage, LANGUAGE_CHANGE_EVENT } from "../lib/storage";
 import { useStoryCache } from "../lib/StoryCacheContext";
 import { colors, radius, shadow, spacing, typography, typographyFor } from "../theme/tokens";
 
@@ -46,8 +46,15 @@ export function StoryCard({
     getProfile().then((profile) => {
       if (!cancelled) setLanguage(profile.language);
     });
+    // Design-review fix: a card already on screen only picked up a language
+    // change made elsewhere (the header toggle, Settings) on its next
+    // mount. Mirrors apps/web's StoryCard listening for LANGUAGE_CHANGE_EVENT.
+    const subscription = DeviceEventEmitter.addListener(LANGUAGE_CHANGE_EVENT, (next: Language) => {
+      if (!cancelled) setLanguage(next);
+    });
     return () => {
       cancelled = true;
+      subscription.remove();
     };
   }, []);
 
@@ -77,7 +84,7 @@ export function StoryCard({
   function handleLanguageSwitch(next: Language) {
     if (next !== language) trackEvent("language_switch", { story_id: story.id, language: next });
     setLanguage(next);
-    getProfile().then((profile) => setProfile({ ...profile, language: next }));
+    persistLanguage(next);
   }
 
   function handleReportIssue() {
@@ -211,23 +218,28 @@ const styles = StyleSheet.create({
     ...shadow.card,
   },
   labels: { flexDirection: "row", flexWrap: "wrap", gap: spacing.xs },
+  // Matches web's plain .pill: a neutral outlined tag, not a colored fill —
+  // Ink & Signal has one accent color and one danger color, no third family.
   pill: {
-    backgroundColor: colors.tealSoft,
+    backgroundColor: "transparent",
+    borderWidth: 1,
+    borderColor: colors.border,
     borderRadius: radius.sm,
     paddingHorizontal: spacing.sm,
     paddingVertical: 3,
   },
-  pillText: { ...typography.meta, color: colors.teal, textTransform: "uppercase" },
+  pillText: { ...typography.meta, color: colors.faint, textTransform: "uppercase" },
   notice: { color: colors.danger, fontWeight: "600" },
+  // Matches web's .story-card__reviewed: ink outline, transparent fill.
   reviewedBadge: {
     alignSelf: "flex-start",
     borderWidth: 1,
-    borderColor: colors.teal,
+    borderColor: colors.rule,
     borderRadius: radius.sm,
     paddingHorizontal: spacing.sm,
     paddingVertical: 2,
   },
-  reviewedBadgeText: { ...typography.meta, color: colors.teal, fontWeight: "700" },
+  reviewedBadgeText: { ...typography.meta, color: colors.text, fontWeight: "700" },
   touchTarget: { minHeight: 44, justifyContent: "center" },
   headline: { ...typography.headline, color: colors.text },
   body: { ...typography.body, color: colors.muted },
@@ -237,13 +249,16 @@ const styles = StyleSheet.create({
     backgroundColor: colors.accentSoft,
     borderRadius: radius.sm,
     borderLeftWidth: 3,
-    borderLeftColor: colors.accent,
+    // Raw `accent` (signal-lime) on `accentSoft` is ~1.2:1 contrast — the
+    // border would be nearly invisible. Use ink instead (see design-review
+    // finding #4, same defect as apps/web/src/app/globals.css:896).
+    borderLeftColor: colors.rule,
     padding: spacing.sm,
   },
   // Telugu glyphs are taller than Latin at the same size; without explicit
   // leading this block sets solid and the vowel signs collide.
   whyTe: { lineHeight: 22 },
-  sourceLink: { color: colors.teal, fontWeight: "600" },
+  sourceLink: { color: colors.text, fontWeight: "600", textDecorationLine: "underline" },
   actions: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: spacing.sm, marginTop: spacing.xs },
   langGroup: { flexDirection: "row", gap: spacing.xs },
   langButton: {
@@ -256,7 +271,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
   },
-  langButtonActive: { backgroundColor: colors.teal, borderColor: colors.teal },
+  // Matches web's toggle "pressed" convention: accent fill, ink text.
+  langButtonActive: { backgroundColor: colors.accent, borderColor: colors.rule },
   langButtonText: { fontSize: 13, fontWeight: "600", color: colors.muted },
   langButtonTextActive: { color: colors.accentContrast },
   actionButton: {
@@ -272,7 +288,7 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     backgroundColor: colors.surface,
   },
-  actionButtonActive: { backgroundColor: colors.teal, borderColor: colors.teal },
+  actionButtonActive: { backgroundColor: colors.accent, borderColor: colors.rule },
   actionButtonText: { fontSize: 13, fontWeight: "600", color: colors.muted },
   actionButtonTextActive: { color: colors.accentContrast },
 });

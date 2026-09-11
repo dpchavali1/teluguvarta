@@ -6,6 +6,7 @@ export const revalidate = 3600;
 
 const STATIC_ROUTES = [
   "",
+  "/topics",
   "/search",
   "/saved",
   "/about",

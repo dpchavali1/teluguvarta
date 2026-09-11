@@ -41,6 +41,17 @@ export default function ReviewQueuePage() {
   // there was no way to surface always-human-reviewed categories first.
   const [dangerOnly, setDangerOnly] = useState(false);
 
+  // Design-review fix: this reset to false on every page load, undercutting
+  // a queue whose whole point is surfacing highest-stakes items first — a
+  // reviewer who filtered yesterday saw the unfiltered list again today.
+  useEffect(() => {
+    setDangerOnly(window.localStorage.getItem("tg-admin-review-danger-only") === "1");
+  }, []);
+
+  useEffect(() => {
+    window.localStorage.setItem("tg-admin-review-danger-only", dangerOnly ? "1" : "0");
+  }, [dangerOnly]);
+
   useEffect(() => {
     const token = getToken();
     if (!token) {

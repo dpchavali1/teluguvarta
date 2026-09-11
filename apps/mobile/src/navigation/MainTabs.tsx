@@ -2,6 +2,7 @@ import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import React from "react";
 import { Text } from "react-native";
 
+import { LanguageToggle } from "../components/LanguageToggle";
 import { HomeScreen } from "../screens/HomeScreen";
 import { NotificationsScreen } from "../screens/NotificationsScreen";
 import { SavedScreen } from "../screens/SavedScreen";
@@ -35,11 +36,18 @@ export function MainTabs() {
     <Tab.Navigator
       screenOptions={({ route }) => ({
         headerShown: true,
-        tabBarActiveTintColor: colors.teal,
+        // Ink for active/emphasized, faint for inactive — matches web's
+        // nav convention of reserving the accent color for fills/rules,
+        // not small foreground text or icons (low contrast on light bone).
+        tabBarActiveTintColor: colors.text,
         tabBarInactiveTintColor: colors.faint,
         tabBarStyle: { backgroundColor: colors.surface, borderTopColor: colors.border },
         headerStyle: { backgroundColor: colors.surface },
         headerTitleStyle: { color: colors.text },
+        // Design-review fix: language was two taps deep in Settings with
+        // no persistent affordance. One tap from every main tab now,
+        // matching web's header-level placement.
+        headerRight: () => <LanguageToggle />,
         tabBarIcon: ({ color }) => (
           <Text style={{ fontSize: 20, color }}>{TAB_GLYPHS[route.name as keyof MainTabParamList]}</Text>
         ),

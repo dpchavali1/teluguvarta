@@ -889,11 +889,16 @@ a.pill:hover {
   color: var(--color-muted);
 }
 
-/* "Why this matters" — a lime-ruled aside, not a tinted box. */
+/* "Why this matters" — a ruled aside, not a tinted box. Design-review fix:
+   the rule was --color-accent (signal-lime), which measures ~1.2:1 against
+   the light-mode bone background — below the 3:1 WCAG 1.4.11 floor for a
+   non-text UI indicator, and effectively invisible for low-vision users.
+   --color-rule stays high-contrast in both themes (it's already the ink/
+   off-white text color) and still reads as a deliberate marker. */
 .story-card__why {
   color: var(--color-text);
   background: transparent;
-  border-left: 4px solid var(--color-accent);
+  border-left: 4px solid var(--color-rule);
   border-radius: 0;
   padding: 0.1rem 0 0.1rem 1rem;
   margin: 1.1rem 0 1rem;
@@ -1182,13 +1187,17 @@ main button:disabled {
   letter-spacing: 0.04em;
 }
 
-/* Student briefing: a lime-flagged band above the main ledger. */
+/* Student briefing: a flagged band above the main ledger. Design-review
+   fix: this was --color-accent (signal-lime) at ~1.15:1 against the
+   light-mode bone background — a non-text UI indicator needs 3:1 (WCAG
+   1.4.11) regardless of how thick the rule is. --color-rule holds
+   contrast in both themes. */
 .student-briefing {
   margin-bottom: 3.5rem;
   padding: 0;
   border-radius: 0;
   border: 0;
-  border-top: 8px solid var(--color-accent);
+  border-top: 8px solid var(--color-rule);
   background: transparent;
 }
 

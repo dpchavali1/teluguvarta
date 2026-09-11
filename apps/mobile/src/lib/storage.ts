@@ -1,4 +1,5 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { DeviceEventEmitter } from "react-native";
 
 // §3.1/§16 (ADR-006 proposed, not accepted): V1 has no real account/auth
 // backend for end users — `/v1/me/*` is still T04 stub data (see T14's
@@ -146,6 +147,21 @@ export function getProfile(): Promise<OnboardingProfile> {
 
 export function setProfile(profile: OnboardingProfile): Promise<void> {
   return writeJson(KEYS.profile, profile);
+}
+
+// Design-review fix: apps/web broadcasts a language change so every visible
+// StoryCard updates immediately (see LANGUAGE_CHANGE_EVENT in
+// apps/web/src/lib/onboarding.ts); mobile's LanguageScreen previously only
+// wrote to storage, so a card already on screen kept showing the old
+// language until its next mount. DeviceEventEmitter is RN's equivalent of
+// web's window.dispatchEvent — no new dependency needed.
+export const LANGUAGE_CHANGE_EVENT = "tg:language-change";
+
+export async function setLanguage(language: OnboardingProfile["language"]): Promise<void> {
+  const profile = await getProfile();
+  const next = { ...profile, language };
+  await setProfile(next);
+  DeviceEventEmitter.emit(LANGUAGE_CHANGE_EVENT, language);
 }
 
 export function getNotificationPreferences(): Promise<NotificationPreferences> {

@@ -65,6 +65,7 @@ export function TopicScreen({ route }: Props) {
 
 const styles = StyleSheet.create({
   center: { flex: 1, alignItems: "center", justifyContent: "center", gap: spacing.md },
+  // Ink-filled button, matching apps/web's main button.
   retryButton: {
     minHeight: 44,
     minWidth: 44,
@@ -72,7 +73,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     borderRadius: radius.pill,
-    backgroundColor: colors.teal,
+    backgroundColor: colors.text,
   },
-  retryButtonText: { color: colors.accentContrast, fontWeight: "600" },
+  retryButtonText: { color: colors.bg, fontWeight: "600" },
 });

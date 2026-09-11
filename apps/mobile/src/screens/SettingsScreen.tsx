@@ -10,6 +10,7 @@ export function SettingsScreen() {
 
   return (
     <View style={styles.container}>
+      <SettingsRow label="Browse topics" onPress={() => navigation.navigate("TopicsIndex")} />
       <SettingsRow
         label="Notification preferences"
         onPress={() => navigation.navigate("NotificationPreferences")}

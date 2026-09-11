@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
-import { EMPTY_PROFILE, getProfile, setProfile, type OnboardingProfile } from "../lib/storage";
+import { EMPTY_PROFILE, getProfile, setLanguage, type OnboardingProfile } from "../lib/storage";
 
 const OPTIONS: { value: OnboardingProfile["language"]; label: string }[] = [
   { value: "en", label: "English" },
@@ -16,9 +16,8 @@ export function LanguageScreen() {
   }, []);
 
   async function choose(language: OnboardingProfile["language"]) {
-    const next = { ...profile, language };
-    setProfileState(next);
-    await setProfile(next);
+    setProfileState({ ...profile, language });
+    await setLanguage(language);
   }
 
   return (

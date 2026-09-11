@@ -79,6 +79,11 @@ export default function StoryReviewPage() {
   // required no more friction, and no recorded reason, than any other
   // story — no audit trail for the highest-stakes decision in the product.
   const [pendingAction, setPendingAction] = useState<"approve" | "reject" | null>(null);
+  // Design-review fix: correcting an already-published always-reviewed
+  // story (immigration/legal/financial/breaking) went through on the same
+  // one-click submit as a typo fix to a routine story — no confirm step
+  // matching the one approve/reject already have for this category.
+  const [pendingCorrect, setPendingCorrect] = useState(false);
 
   const load = useCallback(() => {
     const token = getToken();
@@ -127,10 +132,10 @@ export default function StoryReviewPage() {
     }
   }
 
-  async function handleCorrect(event: React.FormEvent) {
-    event.preventDefault();
+  async function submitCorrection() {
     setSubmitting(true);
     setError(null);
+    setPendingCorrect(false);
     try {
       const en = story?.variants.en;
       const body: Record<string, unknown> = { reason };
@@ -144,6 +149,15 @@ export default function StoryReviewPage() {
     } finally {
       setSubmitting(false);
     }
+  }
+
+  function handleCorrectSubmit(event: React.FormEvent) {
+    event.preventDefault();
+    if (isAlwaysReviewed && !pendingCorrect) {
+      setPendingCorrect(true);
+      return;
+    }
+    submitCorrection();
   }
 
   if (error && !story) {
@@ -195,12 +209,12 @@ export default function StoryReviewPage() {
           <p>No English variant yet.</p>
         )}
         {te ? (
-          <>
+          <div lang="te">
             <h3>Telugu variant</h3>
             <p>{te.summary}</p>
             {te.why_matters ? <p><em>Why it matters:</em> {te.why_matters}</p> : null}
-            <p>QA status: {te.qa_status}</p>
-          </>
+            <p lang="en">QA status: {te.qa_status}</p>
+          </div>
         ) : null}
       </section>
 
@@ -292,7 +306,7 @@ export default function StoryReviewPage() {
       {story.status === "PUBLISHED" || story.status === "UPDATED" ? (
         <section>
           <h2>Correct this story</h2>
-          <form onSubmit={handleCorrect}>
+          <form onSubmit={handleCorrectSubmit}>
             <div>
               <label htmlFor="headline">Headline</label>
               <input
@@ -305,9 +319,25 @@ export default function StoryReviewPage() {
               <label htmlFor="summary">Summary</label>
               <textarea id="summary" value={correctedSummary} onChange={(event) => setCorrectedSummary(event.target.value)} />
             </div>
-            <button type="submit" disabled={submitting || !reason}>
-              Submit correction
-            </button>
+            {isAlwaysReviewed && pendingCorrect && (
+              <p className="status-pill status-pill--danger">
+                {story.sensitivity} — confirm this correction to a published sensitive-category story.
+              </p>
+            )}
+            {pendingCorrect ? (
+              <>
+                <button type="submit" disabled={submitting || !reason}>
+                  Confirm submit correction
+                </button>
+                <button type="button" disabled={submitting} onClick={() => setPendingCorrect(false)}>
+                  Cancel
+                </button>
+              </>
+            ) : (
+              <button type="submit" disabled={submitting || !reason}>
+                Submit correction
+              </button>
+            )}
           </form>
         </section>
       ) : null}

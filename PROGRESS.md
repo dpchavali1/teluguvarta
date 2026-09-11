@@ -37,7 +37,7 @@ straight to closing out T19 hardening and standing up real production infra
 | T18 Observability | **done** | Structured JSON logging + request/job context; Sentry-equivalent error tracking (plain HTTP envelope, no SDK) in all 4 apps; `/v1/admin/observability` (ingestion health/job queue/AI cost) + admin dashboard page; alert-dispatch module wired to worker loop; §17 analytics events routed through `POST /v1/events` (T17's endpoint) into `app/analytics.py`, forwarded to PostHog when configured |
 | T19 Hardening | **partial — see changelog** | Real: MFA on admin login, cross-system account deletion, search/admin rate limiting, dependency scanning (pip-audit clean)/SAST (bandit clean, one real XXE finding fixed), budget-breach auto-publish gate wired, backup/restore scripts + one real local restore test passed, WCAG 2.2 AA axe pass across 12 pages, local load test within §16 targets, ADR-007 accepted, app-store readiness doc. **P0 RCE gap now fixed** (see 2026-09-09 entry below) — `next@14.2.35` upgraded to `15.5.25` in both apps. **Golden AI eval set now 300 items** (§18's ≥300 met by count — see 2026-09-09 entry below), but only the original 30 are human-reviewed; the other 270 are AI-generated/unreviewed, flagged in `eval/README.md`/`golden_set.json._meta`. Still open: MFA/rate-limiting/backups not exercised against real managed infra (local-only, per ADR-007); no live-provider run against the golden set (same no-network-access gap as every AI ticket since T10); the 270 AI-generated eval items need native-Telugu-speaker spot-check before being trusted as real ground truth. |
 | T20 Pilot | **blocked — NO-GO, see report** | `docs/runbooks/pilot-report.md`. Engineering side of the pre-build validation gate now shipped: `/pilot` landing page (3 example personalized feeds using real T16 `/v1/home` ranking for professional/international_student/family_parent segments) + email signup capture (`POST /v1/pilot-signups`, dedupes by email, rate-limited; `GET /v1/admin/pilot-signups` for the opt-in count/roster) — see 2026-09-09 changelog entry. **Still blocks GO**: recruiting the actual 50-100 users and running the 14-day measurement window is a product/ops action, not something further engineering closes. Verified §17 analytics are real, not assumed: all 12 core events implemented server-side (`app/analytics.py`) and actually emitted client-side in both `apps/web` and `apps/mobile` (grepped call sites, not inferred). Walked the full §26 checklist item-by-item against what's built; S1/S2 (student) and X1-X4 (X adapter) rows marked not-applicable since those parallel tickets haven't started. |
-| T21 Visual design refresh | **partial — surfaces diverged** | Web is on the new "Ink & Signal" palette; admin + mobile are still on the earlier "dusk-teal/marigold" palette and their comments falsely claim to mirror web. See 2026-09-10 changelog entry |
+| T21 Visual design refresh | **done — palette ported by hand** | All three surfaces now share the "Ink & Signal" palette/shape tokens (admin/mobile ported by hand per ADR-009's sequencing note, not yet via a shared token source). Full design review at `docs/runbooks/design-review-2026-09-10.md`; all 8 findings addressed, see 2026-09-10 changelog entry. Verification was static-source only (no live browser/axe/keyboard pass — the claude-in-chrome extension wasn't connected) — re-run live before treating any WCAG conformance claim as settled. ADR-009 (shared token source, to prevent this divergence recurring) is still proposed/unimplemented. |
 
 ## X adapter
 
@@ -76,6 +76,51 @@ Mirrors `docs/adr/README.md` — keep both in sync.
 
 (newest first — one line per ticket completion)
 
+- 2026-09-10: Acted on every finding in `docs/runbooks/design-review-2026-09-10.md`
+  (the 3-agent UI/UX/accessibility review), ad hoc per explicit request
+  ("start working one by one") — not a BUILD_ORDER ticket. All 8 findings
+  addressed:
+  **P0** (1) admin (`apps/admin/src/app/globals.css`) and mobile
+  (`apps/mobile/src/theme/tokens.ts`) ported by hand to web's "Ink & Signal"
+  palette/shape tokens (hex values, 0–3px radii, offset hard shadows),
+  replacing the old dusk-teal/marigold values and their now-false
+  "mirrors apps/web" comments — every `colors.teal`/`tealSoft` consumer
+  across mobile (StoryCard, MainTabs, TopicScreen, StoryDetailScreen,
+  HomeScreen, SearchScreen, App.tsx) remapped to the ink/accent semantics
+  web actually uses (ink for links/active-nav, accent-fill only on
+  pressed/hover state, no third "teal" color family);
+  (2) admin (`apps/admin/src/app/layout.tsx`) now loads the same 4
+  `next/font/google` faces as web (display/sans/mono/Telugu) — Telugu was
+  included because the review-queue detail page renders the Telugu variant
+  for editorial QA, which also needed a `lang="te"` attribute it was
+  missing (`apps/admin/src/app/review/[id]/page.tsx`);
+  (3) mobile's language control was two taps deep in Settings with no
+  live update to cards already on screen — added `LanguageToggle`
+  (`apps/mobile/src/components/LanguageToggle.tsx`), mounted as every main
+  tab's `headerRight` (one tap, matching web's persistent header
+  placement), plus a `DeviceEventEmitter`-based broadcast
+  (`LANGUAGE_CHANGE_EVENT` in `apps/mobile/src/lib/storage.ts`, mirroring
+  web's `window.dispatchEvent`) so `StoryCard` updates live instead of only
+  on next mount;
+  (4) fixed the ~1.15:1 accent-as-border contrast (WCAG 1.4.11) on both web
+  (`.story-card__why`, `.student-briefing` in `globals.css`) and the
+  equivalent mobile `StoryCard.tsx` "why" box — swapped signal-lime border
+  for `--color-rule`/`colors.rule`, which holds contrast in both themes.
+  **P1** (5) admin's story-correction form (`review/[id]/page.tsx`) now
+  has the same two-step "Confirm submit correction" gate as approve/reject
+  for always-human-reviewed sensitivities; (6) darkened admin/mobile's
+  `--color-border`/`colors.border` from `#d8d4c6` (ported from web, but
+  ~1.4:1 against both backgrounds) to `#7f7c6f` (≥3:1) — noted as an
+  intentional one-value divergence from web, which carries the same
+  unaddressed defect; (7) the review queue's "danger only" filter now
+  persists via `localStorage`; (8) added a `/topics` index page on web
+  (`getConfig().topics`, linked from `SiteHeader`) and a `TopicsIndex`
+  screen on mobile (reachable from Settings → "Browse topics") — topic
+  browsing previously had no entry point outside the home feed's chip row.
+  Verified: `tsc --noEmit`/`next lint`/`next build` clean on web and admin;
+  mobile `tsc --noEmit` clean; mobile `jest` has one pre-existing failure
+  in `analytics.test.tsx` unrelated to this work (confirmed identical on
+  `main` before these changes via `git stash`).
 - 2026-09-10: Cross-app UX/UI/mobile-design review (three parallel review
   passes: UX architecture, visual/UI craft, mobile-app-specific) followed by
   fixes for every P0 and most P1 finding, ad hoc per explicit product

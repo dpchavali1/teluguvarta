@@ -12,6 +12,7 @@ export type RootStackParamList = {
   Onboarding: undefined;
   Main: NavigatorScreenParams<MainTabParamList>;
   Topic: { slug: string; name?: string };
+  TopicsIndex: undefined;
   StoryDetail: { slug: string };
   NotificationPreferences: undefined;
   Language: undefined;

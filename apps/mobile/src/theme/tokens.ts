@@ -1,37 +1,41 @@
-// Mirrors the "dusk-teal ground, marigold accent" palette in
-// apps/web/src/app/globals.css so the mobile app reads as the same brand.
-// React Native can't consume CSS custom properties, hence this JS mirror.
+// Ported by hand from apps/web/src/app/globals.css's light-mode "Ink &
+// Signal" tokens, per ADR-009's sequencing note (palette first, shared
+// token source later). React Native can't consume CSS custom properties,
+// hence this JS mirror — keep values identical to web's :root block.
 export const colors = {
-  bg: "#eef1f0",
-  surface: "#ffffff",
-  surfaceSunken: "#e4e9e7",
-  text: "#12262b",
-  muted: "#52686a",
-  // Design-review fix: #7c8c8d on `bg` was 3.08:1, failing WCAG AA (4.5:1)
-  // for the normal-weight meta/timestamp text this token is used for.
-  faint: "#5f7072",
-  border: "#c9d2cf",
+  bg: "#f2f0e8",
+  surface: "#fbfaf6",
+  surfaceSunken: "#e6e3d7",
+  text: "#14140f",
+  muted: "#52504a",
+  faint: "#6e6c62",
+  // Design-review fix: web's own #d8d4c6 is ~1.4:1 against both `bg` and
+  // `surface`, below the 3:1 WCAG 1.4.11 floor for a UI-component boundary
+  // (unselected pill/langButton borders here rely on it alone). #7f7c6f
+  // clears 3:1 against both — see the matching comment in
+  // apps/admin/src/app/globals.css.
+  border: "#7f7c6f",
+  rule: "#14140f",
 
-  accent: "#b8791f",
-  accentStrong: "#8f5c14",
-  accentContrast: "#ffffff",
-  accentSoft: "#f4e6c9",
-  accentInk: "#6b4712",
+  // Signal lime — fills and rules, never small text on paper.
+  accent: "#c8f03f",
+  accentStrong: "#b2db24",
+  accentContrast: "#14140f",
+  accentSoft: "#e9f7c0",
+  accentInk: "#4a5c08",
 
-  // Design-review fix: #1f7d6f on `tealSoft` was 4.16:1, marginally failing
-  // AA (4.5:1) for the 0.72rem/600-weight status-pill text that uses it.
-  teal: "#1a6d61",
-  tealSoft: "#dcefe9",
-
-  danger: "#a3321f",
-  dangerSoft: "#f7ddd6",
+  // Hot vermilion — corrections, retractions, alerts.
+  hot: "#c63512",
+  hotSoft: "#fbe0d8",
+  danger: "#c63512",
+  dangerSoft: "#fbe0d8",
 } as const;
 
 export const radius = {
-  sm: 6,
-  md: 10,
-  lg: 16,
-  pill: 999,
+  sm: 0,
+  md: 2,
+  lg: 3,
+  pill: 0,
 } as const;
 
 export const spacing = {
@@ -42,12 +46,15 @@ export const spacing = {
   xl: 24,
 } as const;
 
+// Hard offset shadow instead of a soft drop shadow, matching web's
+// --shadow-hard. RN has no box-shadow-offset primitive, so this is the
+// closest approximation: a flat, non-blurred shadow with no elevation glow.
 export const shadow = {
   card: {
-    shadowColor: "#12262b",
-    shadowOpacity: 0.12,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 4 },
+    shadowColor: "#14140f",
+    shadowOpacity: 1,
+    shadowRadius: 0,
+    shadowOffset: { width: 3, height: 3 },
     elevation: 3,
   },
 } as const;
