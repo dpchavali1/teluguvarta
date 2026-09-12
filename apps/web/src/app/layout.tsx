@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
-import { Bricolage_Grotesque, Inter_Tight, JetBrains_Mono, Noto_Sans_Telugu } from "next/font/google";
+import { Fraunces, Inter_Tight, JetBrains_Mono, Noto_Sans_Telugu, Peddana } from "next/font/google";
 
 import { SiteFooter } from "@/components/SiteFooter";
 import { SiteHeader } from "@/components/SiteHeader";
@@ -10,15 +10,23 @@ import { siteUrl } from "@/lib/api";
 
 import "./globals.css";
 
-// Type pairing: a wide, slightly wonky grotesque for display (Bricolage
-// Grotesque) against a tight neo-grotesque for running text (Inter Tight),
-// with a mono for all micro-labels. Telugu rides on Noto Sans Telugu at both
-// text and display weights so the bilingual pairing stays in the same
-// (grotesque) voice instead of switching to a serif mid-page.
-const fontDisplay = Bricolage_Grotesque({
+// Type pairing: an editorial serif for display (Fraunces, English / Peddana,
+// Telugu — both language-native serifs from the same "characterful
+// headline" register) against a tight neo-grotesque for running text (Inter
+// Tight / Noto Sans Telugu), with a mono for all micro-labels. Headings get
+// a distinct per-language voice; body text stays on the proven, highly
+// readable sans pairing.
+const fontDisplay = Fraunces({
   subsets: ["latin"],
   variable: "--font-display",
   weight: ["500", "600", "700", "800"],
+  display: "swap",
+});
+
+const fontTeluguDisplay = Peddana({
+  subsets: ["telugu"],
+  variable: "--font-telugu-display",
+  weight: ["400"],
   display: "swap",
 });
 
@@ -57,7 +65,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html
       lang="en"
-      className={`${fontDisplay.variable} ${fontSans.variable} ${fontMono.variable} ${fontTelugu.variable}`}
+      className={`${fontDisplay.variable} ${fontSans.variable} ${fontMono.variable} ${fontTelugu.variable} ${fontTeluguDisplay.variable}`}
       // THEME_INIT_SCRIPT sets data-theme before hydration, so this attribute
       // intentionally differs from the server-rendered HTML.
       suppressHydrationWarning

@@ -64,15 +64,16 @@
   --ease-out: cubic-bezier(0.16, 0.84, 0.44, 1);
 
   /* next/font (see app/layout.tsx) injects --font-display / --font-sans /
-     --font-mono / --font-telugu on <html>. These are the composed stacks the
-     rest of the file uses; note --font-mono-stack rather than --font-mono, so
-     nothing here shadows next/font's own variable. */
+     --font-mono / --font-telugu / --font-telugu-display on <html>. These are
+     the composed stacks the rest of the file uses; note --font-mono-stack
+     rather than --font-mono, so nothing here shadows next/font's own
+     variable. */
   --font-sans-fallback: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --font-body: var(--font-sans), var(--font-sans-fallback);
   --font-heading: var(--font-display), var(--font-sans), var(--font-sans-fallback);
   --font-mono-stack: var(--font-mono), "SFMono-Regular", Consolas, monospace;
   --font-te: var(--font-telugu), var(--font-body);
-  --font-te-heading: var(--font-telugu), var(--font-heading);
+  --font-te-heading: var(--font-telugu-display), var(--font-telugu), var(--font-heading);
 }
 
 @media (prefers-color-scheme: dark) {
