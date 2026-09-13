@@ -21,7 +21,7 @@ export default function DeleteAccountPage() {
     <div className="legal">
       <h1>Delete account</h1>
       <p>
-        Telugu Global does not currently require or offer account creation on
+        TTE does not currently require or offer account creation on
         the website — every story is readable without signing in, and saved
         stories live only in this browser&rsquo;s local storage.
       </p>

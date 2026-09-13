@@ -1,84 +1,97 @@
-// Ported by hand from apps/web/src/app/globals.css's light-mode "Ink &
-// Signal" tokens, per ADR-009's sequencing note (palette first, shared
-// token source later). React Native can't consume CSS custom properties,
-// hence this JS mirror — keep values identical to web's :root block.
+// GENERATED — DO NOT EDIT. Source: packages/design-tokens/tokens.json
 export const colors = {
-  bg: "#f2f0e8",
-  surface: "#fbfaf6",
-  surfaceSunken: "#e6e3d7",
-  text: "#14140f",
-  muted: "#52504a",
-  faint: "#6e6c62",
-  // Design-review fix: web's own #d8d4c6 is ~1.4:1 against both `bg` and
-  // `surface`, below the 3:1 WCAG 1.4.11 floor for a UI-component boundary
-  // (unselected pill/langButton borders here rely on it alone). #7f7c6f
-  // clears 3:1 against both — see the matching comment in
-  // apps/admin/src/app/globals.css.
-  border: "#7f7c6f",
-  rule: "#14140f",
-
-  // Signal lime — fills and rules, never small text on paper.
-  accent: "#c8f03f",
-  accentStrong: "#b2db24",
-  accentContrast: "#14140f",
-  accentSoft: "#e9f7c0",
-  accentInk: "#4a5c08",
-
-  // Hot vermilion — corrections, retractions, alerts.
-  hot: "#c63512",
-  hotSoft: "#fbe0d8",
-  danger: "#c63512",
-  dangerSoft: "#fbe0d8",
+  bg: "#f7f8fc",
+  surface: "#ffffff",
+  surfaceSunken: "#eceff5",
+  text: "#151827",
+  muted: "#525a70",
+  faint: "#6f778d",
+  border: "#a8b0c2",
+  rule: "#151827",
+  accent: "#3657d6",
+  accentStrong: "#2748b8",
+  accentContrast: "#ffffff",
+  accentSoft: "#e7ecff",
+  accentInk: "#2343b0",
+  hot: "#b42318",
+  hotSoft: "#fde8e7",
+  focusRing: "#3657d6",
+  danger: "#b42318",
+  dangerSoft: "#fde8e7",
 } as const;
-
-export const radius = {
-  sm: 0,
-  md: 2,
-  lg: 3,
-  pill: 0,
+export const colorsDark = {
+  bg: "#10131d",
+  surface: "#181d2c",
+  surfaceSunken: "#0a0d15",
+  text: "#f4f6ff",
+  muted: "#bcc3d4",
+  faint: "#a0a9c1",
+  border: "#66708a",
+  rule: "#f4f6ff",
+  accent: "#91a6ff",
+  accentStrong: "#b2bfff",
+  accentContrast: "#11162b",
+  accentSoft: "#202958",
+  accentInk: "#c7d0ff",
+  hot: "#ff907f",
+  hotSoft: "#341411",
+  focusRing: "#91a6ff",
+  danger: "#ff907f",
+  dangerSoft: "#341411",
 } as const;
-
+export const colorSchemes = { light: colors, dark: colorsDark } as const;
+export const ui = {
+  canvas: "#f7f8fc",
+  surface: "#ffffff",
+  surfaceSubtle: "#eceff5",
+  textPrimary: "#151827",
+  textSecondary: "#525a70",
+  textTertiary: "#687086",
+  borderSubtle: "#d5dae5",
+  borderControl: "#737d94",
+  actionPrimary: "#3657d6",
+  actionPrimaryHover: "#2748b8",
+  actionPrimarySoft: "#e7ecff",
+  actionPrimaryText: "#ffffff",
+  actionText: "#2343b0",
+  success: "#147a55",
+  successSoft: "#e2f5ec",
+  warning: "#8a5200",
+  warningSoft: "#fff0ce",
+  danger: "#b42318",
+  dangerSoft: "#fde8e7",
+} as const;
+export const uiDark = {
+  canvas: "#10131d",
+  surface: "#181d2c",
+  surfaceSubtle: "#222b42",
+  textPrimary: "#f4f6ff",
+  textSecondary: "#bcc3d4",
+  textTertiary: "#a0a9c1",
+  borderSubtle: "#3e4962",
+  borderControl: "#66708a",
+  actionPrimary: "#91a6ff",
+  actionPrimaryHover: "#b2bfff",
+  actionPrimarySoft: "#202958",
+  actionPrimaryText: "#11162b",
+  actionText: "#c7d0ff",
+  success: "#62d3a5",
+  successSoft: "#153a30",
+  warning: "#f2bd61",
+  warningSoft: "#3b2b12",
+  danger: "#ff907f",
+  dangerSoft: "#341411",
+} as const;
+export const uiSchemes = { light: ui, dark: uiDark } as const;
+export const radius = { sm: 0, md: 2, lg: 3, pill: 0 } as const;
 export const spacing = {
-  xs: 4,
-  sm: 8,
-  md: 12,
-  lg: 16,
-  xl: 24,
+  "xs": 4,
+  "sm": 8,
+  "md": 12,
+  "lg": 16,
+  "xl": 24
 } as const;
-
-// Hard offset shadow instead of a soft drop shadow, matching web's
-// --shadow-hard. RN has no box-shadow-offset primitive, so this is the
-// closest approximation: a flat, non-blurred shadow with no elevation glow.
-export const shadow = {
-  card: {
-    shadowColor: "#14140f",
-    shadowOpacity: 1,
-    shadowRadius: 0,
-    shadowOffset: { width: 3, height: 3 },
-    elevation: 3,
-  },
-} as const;
-
-export const typography = {
-  headline: { fontSize: 18, fontWeight: "700" as const, letterSpacing: -0.2 },
-  body: { fontSize: 15, lineHeight: 21 },
-  meta: { fontSize: 12, fontWeight: "600" as const, letterSpacing: 0.4 },
-} as const;
-
-// Telugu-specific type. The Latin scale above is display-tuned with negative
-// tracking (-0.2), which crowds Telugu conjunct clusters, and its 1.4x body
-// leading clips the stacked vowel signs (talakattu/gunintam) that sit above
-// and below the baseline — Telugu glyphs occupy a taller box than Latin at
-// the same font size. These values mirror the [lang="te"] cascade in
-// apps/web/src/app/globals.css: near-zero tracking and 1.2x leading on
-// headings, the looser 1.55x body leading web already applies.
-export const typographyTe = {
-  headline: { fontSize: 18, fontWeight: "700" as const, letterSpacing: -0.1, lineHeight: 22 },
-  body: { fontSize: 15, lineHeight: 23 },
-  meta: { fontSize: 12, fontWeight: "600" as const, letterSpacing: 0.4 },
-} as const;
-
-/** Type scale for a story variant's language. Telugu needs its own metrics. */
-export function typographyFor(language: "en" | "te") {
-  return language === "te" ? typographyTe : typography;
-}
+export const shadow = { card: { shadowColor: colors.rule, shadowOpacity: 1, shadowRadius: 0, shadowOffset: { width: 3, height: 3 }, elevation: 3 } } as const;
+export const typography = { headline: { fontSize: 18, fontWeight: "700" as const, letterSpacing: -0.2, lineHeight: 22 }, body: { fontSize: 15, lineHeight: 23 }, meta: { fontSize: 12, fontWeight: "600" as const, letterSpacing: 0.4 } } as const;
+export const typographyTe = { headline: { ...typography.headline, letterSpacing: -0.1, lineHeight: 24 }, body: { ...typography.body, lineHeight: 24 }, meta: typography.meta } as const;
+export function typographyFor(language: "en" | "te") { return language === "te" ? typographyTe : typography; }

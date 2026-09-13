@@ -4,6 +4,7 @@ then cached — never a fresh AI-gateway call per feed request (T16/ADR-005).
 
 from __future__ import annotations
 
+import hashlib
 import uuid
 
 from sqlalchemy import select
@@ -41,12 +42,22 @@ def _prompt(en: StoryVariant, segment: str) -> str:
     )
 
 
+def get_cached_many(db: Session, story_ids: list[uuid.UUID], segment: str) -> dict[uuid.UUID, str]:
+    """Public reads never wait for generation. Misses use the approved generic text."""
+    return dict(db.execute(select(StoryWhyMattersCache.story_id, StoryWhyMattersCache.why_matters).where(
+        StoryWhyMattersCache.story_id.in_(story_ids), StoryWhyMattersCache.segment == segment,
+        StoryWhyMattersCache.story_id.in_(select(Story.id).where(Story.sensitivity == "NONE", Story.status.in_(("PUBLISHED", "UPDATED")))),
+    )).all())
+
+
 def get_or_generate(db: Session, story: Story, segment: str) -> str | None:
     """Returns the cached/generated "why this matters" for this
     (story, segment), or None if it isn't cached and generation didn't
     succeed (e.g. `UNAVAILABLE`/`HOLD`) — callers fall back to the story's
-    generic `why_matters` in that case, never blocking the response."""
+    generic `why_matters` in that case, public callers use get_cached_many and never invoke this generator."""
 
+    if story.sensitivity != "NONE" or story.status not in ("PUBLISHED", "UPDATED"):
+        return None
     if segment not in SEGMENTS:
         segment = "general"
 
@@ -64,6 +75,7 @@ def get_or_generate(db: Session, story: Story, segment: str) -> str | None:
     if en is None:
         return None
 
+    version = content_version(en)
     gateway = AiGateway(db)
     outcome = gateway.run_task(
         Task.WHY_MATTERS, _prompt(en, segment), story_id=story.id, result_model=WhyMattersResult
@@ -71,6 +83,11 @@ def get_or_generate(db: Session, story: Story, segment: str) -> str | None:
     if outcome.status != GatewayStatus.OK or outcome.result is None:
         return None
 
+    # Serialize cache publication with corrections to avoid stale derived text.
+    db.refresh(en, with_for_update=True)
+    db.refresh(story)
+    if content_version(en) != version or story.sensitivity != "NONE" or story.status not in ("PUBLISHED", "UPDATED"):
+        return None
     result: WhyMattersResult = outcome.result  # type: ignore[assignment]
     row = StoryWhyMattersCache(
         id=uuid.uuid4(), story_id=story.id, segment=segment,
@@ -79,3 +96,7 @@ def get_or_generate(db: Session, story: Story, segment: str) -> str | None:
     db.add(row)
     db.commit()
     return row.why_matters
+
+
+def content_version(en: StoryVariant) -> str:
+    return hashlib.sha256(f"{en.headline}\n{en.summary}\n{en.why_matters or ''}".encode()).hexdigest()

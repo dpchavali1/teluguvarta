@@ -2,17 +2,12 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import type { components } from "@teluguvarta/contracts";
 import { useRouter } from "next/navigation";
 
 import { apiUrl, clearSession, getToken } from "@/lib/auth";
 
-interface ReviewQueueItem {
-  id: string;
-  story_id: string;
-  reason: string;
-  status: string;
-  created_at: string;
-}
+type ReviewQueueItem = components["schemas"]["ReviewQueueItemOut"];
 
 // Reasons that map to the always-human-reviewed categories in
 // docs/NON_NEGOTIABLES.md get the danger tone so a reviewer can spot them
@@ -39,20 +34,24 @@ export default function ReviewQueuePage() {
   const [error, setError] = useState<string | null>(null);
   // Design-review fix: the queue was flat and unsorted — as volume grows,
   // there was no way to surface always-human-reviewed categories first.
+  const [filterReady, setFilterReady] = useState(false);
+  const [revision, setRevision] = useState(0);
   const [dangerOnly, setDangerOnly] = useState(false);
 
   // Design-review fix: this reset to false on every page load, undercutting
   // a queue whose whole point is surfacing highest-stakes items first — a
   // reviewer who filtered yesterday saw the unfiltered list again today.
   useEffect(() => {
-    setDangerOnly(window.localStorage.getItem("tg-admin-review-danger-only") === "1");
+    try { setDangerOnly(window.localStorage.getItem("tg-admin-review-danger-only") === "1"); } catch { /* Storage is optional. */ }
+    setFilterReady(true);
   }, []);
 
   useEffect(() => {
-    window.localStorage.setItem("tg-admin-review-danger-only", dangerOnly ? "1" : "0");
-  }, [dangerOnly]);
+    if (filterReady) { try { window.localStorage.setItem("tg-admin-review-danger-only", dangerOnly ? "1" : "0"); } catch { /* Storage is optional. */ } }
+  }, [dangerOnly, filterReady]);
 
   useEffect(() => {
+    setError(null);
     const token = getToken();
     if (!token) {
       router.replace("/login");
@@ -73,7 +72,7 @@ export default function ReviewQueuePage() {
       })
       .then((body: ReviewQueueItem[]) => setItems(body))
       .catch((err) => setError(err instanceof Error ? err.message : "Failed to load review queue"));
-  }, [router]);
+  }, [router, revision]);
 
   // Danger-tone (always-human-reviewed) rows first, otherwise oldest first
   // (queue order) — a reviewer scanning top-to-bottom sees the
@@ -92,16 +91,16 @@ export default function ReviewQueuePage() {
   return (
     <main>
       <h1>Review queue</h1>
-      {error ? <p role="alert">{error}</p> : null}
+      {error ? <div role="alert"><p>{error}</p><button onClick={() => setRevision((value) => value + 1)}>Try again</button></div> : null}
       {items !== null && items.length > 0 && (
         <label>
           <input type="checkbox" checked={dangerOnly} onChange={(event) => setDangerOnly(event.target.checked)} />
           Show only always-human-reviewed categories
         </label>
       )}
-      {items === null ? (
+      {items === null && !error ? (
         <p className="state-note">Loading…</p>
-      ) : items.length === 0 ? (
+      ) : items?.length === 0 ? (
         <p className="state-note">Nothing pending review.</p>
       ) : visibleItems && visibleItems.length === 0 ? (
         <p className="state-note">No items match this filter.</p>
@@ -109,6 +108,8 @@ export default function ReviewQueuePage() {
         <table>
           <thead>
             <tr>
+              <th>Story</th>
+              <th>Sources</th>
               <th>Reason</th>
               <th>Status</th>
               <th>Created</th>
@@ -118,6 +119,8 @@ export default function ReviewQueuePage() {
           <tbody>
             {(visibleItems ?? []).map((item) => (
               <tr key={item.id}>
+                <td><Link href={`/review/${item.story_id}`}>{item.headline ?? "Draft headline pending"}</Link></td>
+                <td>{item.source_names?.join(", ") || "No source linked"}</td>
                 <td>
                   {/* `reason` is a comma-joined list when a story trips more
                       than one gate (see jobs/generate.py). */}
@@ -137,7 +140,7 @@ export default function ReviewQueuePage() {
                 </td>
                 <td>{new Date(item.created_at).toLocaleString()}</td>
                 <td>
-                  <Link href={`/review/${item.story_id}`}>Open</Link>
+                  <Link href={`/review/${item.story_id}`} aria-label={`Review: ${item.headline ?? item.story_id}`}>Review</Link>
                 </td>
               </tr>
             ))}

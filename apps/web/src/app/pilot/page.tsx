@@ -6,6 +6,9 @@ import { getHomeFor } from "@/lib/api";
 
 export const metadata: Metadata = { title: "Join the pilot" };
 export const revalidate = 60;
+// Preview feeds depend on the live ranking API. Rendering them on request
+// keeps a disconnected API from making a web deployment fail at build time.
+export const dynamic = "force-dynamic";
 
 // T20 pre-build validation gate (docs/BUILD_ORDER.md): the "landing page +
 // 3 example personalized feeds" this page exists to run the gate with.
@@ -48,7 +51,7 @@ export default async function PilotLandingPage() {
       <section className="pilot-landing__hero">
         <h1>A Telugu news feed built for life in the US</h1>
         <p>
-          Telugu Global is a bilingual (English/Telugu) briefing for the US Telugu NRI
+          TTE is a bilingual (English/Telugu) briefing for the US Telugu NRI
           community — immigration, jobs, money, and news from Andhra Pradesh and
           Telangana, personalized to your situation. We&rsquo;re running a small pilot
           before opening this up publicly. Pick the example below closest to you, see

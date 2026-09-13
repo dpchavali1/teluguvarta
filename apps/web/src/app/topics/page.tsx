@@ -4,10 +4,11 @@ import Link from "next/link";
 import { getConfig } from "@/lib/api";
 
 export const revalidate = 3600;
+export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "Topics",
-  description: "Browse every topic on Telugu Global.",
+  description: "Browse every topic on TTE — The Telugu Edit.",
 };
 
 // Design-review fix: topic browsing previously had no entry point outside

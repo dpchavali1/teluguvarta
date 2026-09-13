@@ -1,6 +1,6 @@
 # ADR-009: Single design-token source, generated per surface
 
-- **Status**: proposed
+- **Status**: accepted
 - **Date**: 2026-09-10
 - **Ticket**: T22 (proposed follow-up to T21)
 

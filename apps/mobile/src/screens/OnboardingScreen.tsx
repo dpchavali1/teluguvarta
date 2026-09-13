@@ -17,6 +17,7 @@ import {
   type NotificationPreferences,
   type OnboardingProfile,
 } from "../lib/storage";
+import { ui } from "../theme/tokens";
 
 // §3.1: every step skippable, "continue without login" always available and
 // never blocking browsing. The step index and draft answers are local
@@ -87,7 +88,7 @@ export function OnboardingScreen() {
 
       <ScrollView contentContainerStyle={styles.content}>
         {step === 0 && (
-          <StepShell title="Welcome to Telugu Global">
+          <StepShell title="Welcome to TTE">
             <Text style={styles.body}>
               News for the Telugu diaspora, in English and Telugu. Browsing never requires an
               account. A few optional questions help personalize your feed — skip any of them at
@@ -339,18 +340,18 @@ function LanguageChoice({
 const styles = StyleSheet.create({
   container: { flex: 1 },
   skipAll: { alignSelf: "flex-end", minHeight: 44, justifyContent: "center", paddingHorizontal: 16 },
-  skipAllText: { color: "#0645ad" },
+  skipAllText: { color: ui.actionText },
   content: { padding: 16, flexGrow: 1 },
   step: { gap: 12 },
   stepTitle: { fontSize: 20, fontWeight: "700" },
-  body: { fontSize: 15, color: "#444" },
-  hint: { fontSize: 13, color: "#666" },
+  body: { fontSize: 15, color: ui.textSecondary },
+  hint: { fontSize: 13, color: ui.textTertiary },
   input: {
     minHeight: 44,
     paddingHorizontal: 12,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: "#ccc",
+    borderColor: ui.borderControl,
   },
   optionRow: {
     minHeight: 44,
@@ -358,9 +359,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: "#ccc",
+    borderColor: ui.borderControl,
   },
-  optionRowActive: { backgroundColor: "#f0f6ff", borderColor: "#0645ad" },
+  optionRowActive: { backgroundColor: ui.actionPrimarySoft, borderColor: ui.actionPrimary },
   chipWrap: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   chip: {
     minHeight: 44,
@@ -368,9 +369,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: "#ccc",
+    borderColor: ui.borderControl,
   },
-  chipActive: { backgroundColor: "#f0f6ff", borderColor: "#0645ad" },
+  chipActive: { backgroundColor: ui.actionPrimarySoft, borderColor: ui.actionPrimary },
   row: { flexDirection: "row", alignItems: "center", gap: 12 },
   footer: {
     flexDirection: "row",
@@ -378,7 +379,7 @@ const styles = StyleSheet.create({
     gap: 12,
     padding: 16,
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderColor: "#ddd",
+    borderColor: ui.borderSubtle,
   },
   footerButton: {
     minHeight: 44,
@@ -387,8 +388,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: "#ccc",
+    borderColor: ui.borderControl,
   },
-  footerButtonPrimary: { backgroundColor: "#0645ad", borderColor: "#0645ad" },
-  footerButtonPrimaryText: { color: "#fff", fontWeight: "600" },
+  footerButtonPrimary: { backgroundColor: ui.actionPrimary, borderColor: ui.actionPrimary },
+  footerButtonPrimaryText: { color: ui.actionPrimaryText, fontWeight: "600" },
 });

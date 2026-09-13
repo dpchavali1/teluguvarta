@@ -1,6 +1,6 @@
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
-import React, { useCallback, useEffect, useState } from "react";
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import { ActivityIndicator, Button, Pressable, StyleSheet, Text, View } from "react-native";
 
 import { StoryList } from "../components/StoryList";
 import { ApiNetworkError, getTopic, type StoryOut } from "../lib/api";
@@ -12,20 +12,29 @@ type Props = NativeStackScreenProps<RootStackParamList, "Topic">;
 
 export function TopicScreen({ route }: Props) {
   const { slug } = route.params;
-  const cache = useStoryCache();
+  const { put } = useStoryCache();
+  const requestId = useRef(0);
+  const [cursor, setCursor] = useState<string | null>(null);
+  const [moreLoading, setMoreLoading] = useState(false);
+  const [moreError, setMoreError] = useState(false);
   const [stories, setStories] = useState<StoryOut[]>([]);
   const [loading, setLoading] = useState(true);
+  const [retryKey, setRetryKey] = useState(0);
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(() => {
     let cancelled = false;
+    requestId.current += 1;
+    setMoreError(false);
+    setMoreLoading(false);
     setLoading(true);
     setError(null);
     getTopic(slug)
       .then((result) => {
         if (cancelled) return;
         setStories(result.stories);
-        cache.put(result.stories);
+        setCursor(result.next_cursor ?? null);
+        put(result.stories);
       })
       .catch((err) => {
         if (cancelled) return;
@@ -36,10 +45,26 @@ export function TopicScreen({ route }: Props) {
       });
     return () => {
       cancelled = true;
+      requestId.current += 1;
     };
-  }, [slug, cache]);
+  }, [slug, put]);
 
-  useEffect(() => load(), [load]);
+  useEffect(() => load(), [load, retryKey]);
+
+  async function loadMore() {
+    if (!cursor || moreLoading) return;
+    const current = requestId.current;
+    setMoreLoading(true);
+    setMoreError(false);
+    try {
+      const page = await getTopic(slug, cursor);
+      if (current !== requestId.current) return;
+      setStories((items) => [...new Map([...items, ...page.stories].map((story) => [story.id, story])).values()]);
+      setCursor(page.next_cursor ?? null);
+      put(page.stories);
+    } catch { if (current === requestId.current) setMoreError(true); }
+    finally { if (current === requestId.current) setMoreLoading(false); }
+  }
 
   if (loading) {
     return (
@@ -53,14 +78,14 @@ export function TopicScreen({ route }: Props) {
     return (
       <View style={styles.center}>
         <Text>{error}</Text>
-        <Pressable onPress={load} accessibilityRole="button" accessibilityLabel="Retry" style={styles.retryButton}>
+        <Pressable onPress={() => setRetryKey((key) => key + 1)} accessibilityRole="button" accessibilityLabel="Retry" style={styles.retryButton}>
           <Text style={styles.retryButtonText}>Retry</Text>
         </Pressable>
       </View>
     );
   }
 
-  return <StoryList stories={stories} emptyLabel="No stories in this topic yet." />;
+  return <StoryList stories={stories} emptyLabel="No stories in this topic yet." footer={<View style={{ padding: 16 }}>{moreError && <Text>Couldn’t load older stories. Try again.</Text>}{cursor && <Button title={moreLoading ? "Loading…" : "Older stories"} disabled={moreLoading} onPress={() => void loadMore()} />}</View>} />;
 }
 
 const styles = StyleSheet.create({

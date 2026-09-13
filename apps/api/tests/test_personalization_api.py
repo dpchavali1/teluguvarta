@@ -17,6 +17,7 @@ from app.ai import gateway as gateway_module
 from app.ai.providers.base import ProviderResponse
 from app.models import (
     AiCallLog,
+    Job,
     Source,
     SourceItem,
     Story,
@@ -163,6 +164,15 @@ def test_why_matters_generated_once_and_cached(client, db_session, monkeypatch):
     assert first.status_code == 200
     assert second.status_code == 200
 
+    # A public read queues work but never performs provider I/O.
+    assert first.json()["top_stories"][0]["personalization"]["why_matters"] is None
+    from app.jobs.why_matters import run_why_matters
+    job = db_session.scalar(select(Job).where(Job.type == "ai_summarize"))
+    assert job is not None
+    run_why_matters(db_session, job)
+    run_why_matters(db_session, job)  # job retries use the existing cached output
+    first = client.get("/v1/home", params={"residence_country": "US", "segment": "international_student"})
+    second = client.get("/v1/home", params={"residence_country": "US", "segment": "international_student"})
     first_why = first.json()["top_stories"][0]["personalization"]["why_matters"]
     second_why = second.json()["top_stories"][0]["personalization"]["why_matters"]
     assert first_why == "Because it affects US immigrants."

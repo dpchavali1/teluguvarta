@@ -79,7 +79,7 @@ afterEach(() => {
 });
 
 async function skipOnboarding() {
-  const view = render(<App />);
+  const view = await render(<App />);
   await waitFor(() => expect(mockEvent("app_open")).toBe(true));
   fireEvent.press(await screen.findByLabelText("Continue without login"));
   await waitFor(() => expect(mockEvent("onboarding_complete")).toBe(true));

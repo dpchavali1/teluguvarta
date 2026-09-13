@@ -39,7 +39,7 @@ export default function LoginPage() {
   return (
     <main className="auth-page">
       <div className="auth-card">
-      <h1>Telugu Global Admin — Sign in</h1>
+      <h1>TTE Admin — Sign in</h1>
       <form onSubmit={onSubmit}>
         <div>
           <label htmlFor="email">Email</label>

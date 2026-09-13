@@ -44,7 +44,7 @@ export default function Home() {
 
   return (
     <main>
-      <h1>Telugu Global Admin</h1>
+      <h1>TTE Admin</h1>
       <section>
         <p>
           Signed in as <strong>{role}</strong>.

@@ -1,3 +1,4 @@
+import { countryCode } from "@teluguvarta/domain";
 import type { components } from "@teluguvarta/contracts";
 
 export type StoryVariantOut = components["schemas"]["StoryVariantOut"];
@@ -29,7 +30,7 @@ function normalizeStory(raw: RawStoryOut): StoryOut {
 
 export type HomeResponse = { top_stories: StoryOut[]; topics: TopicOut[] };
 export type StoriesListResponse = { items: StoryOut[]; next_cursor: string | null | undefined };
-export type TopicDetailResponse = { topic: TopicOut; stories: StoryOut[] };
+export type TopicDetailResponse = { topic: TopicOut; stories: StoryOut[]; next_cursor?: string | null };
 export type SearchResponse = { query: string; items: StoryOut[] };
 export type ConfigResponse = components["schemas"]["ConfigResponse"] & { topics: TopicOut[] };
 
@@ -62,8 +63,12 @@ async function apiGet<T>(path: string, params?: Record<string, string | undefine
 
 export { ApiNotFoundError };
 
-export async function getHome(): Promise<HomeResponse> {
-  const raw = await apiGet<components["schemas"]["HomeResponse"]>("/v1/home");
+export type HomeParams = { residenceCountry?: string; homeState?: string; homeCity?: string; topics?: string[]; segment?: string };
+export async function getHome(params: HomeParams = {}): Promise<HomeResponse> {
+  const raw = await apiGet<components["schemas"]["HomeResponse"]>("/v1/home", {
+    residence_country: countryCode(params.residenceCountry), home_state: params.homeState,
+    home_city: params.homeCity, topics: params.topics?.join(","), segment: params.segment,
+  });
   return { top_stories: (raw.top_stories ?? []).map(normalizeStory), topics: raw.topics ?? [] };
 }
 
@@ -93,7 +98,7 @@ export async function getStudentBriefing(params: {
   const url = new URL("/v1/home", apiUrl());
   url.searchParams.set("student_briefing", "true");
   url.searchParams.set("segment", params.segment);
-  if (params.residenceCountry) url.searchParams.set("residence_country", params.residenceCountry);
+  if (params.residenceCountry) url.searchParams.set("residence_country", countryCode(params.residenceCountry)!);
   if (params.homeState) url.searchParams.set("home_state", params.homeState);
   if (params.homeCity) url.searchParams.set("home_city", params.homeCity);
   const response = await fetch(url);
@@ -103,7 +108,7 @@ export async function getStudentBriefing(params: {
 }
 
 export async function listStories(
-  params: { topic?: string; country?: string; cursor?: string } = {}
+  params: { topic?: string; country?: string; cursor?: string; ids?: string; limit?: string } = {}
 ): Promise<StoriesListResponse> {
   const raw = await apiGet<components["schemas"]["StoriesListResponse"]>("/v1/stories", params);
   return { items: raw.items.map(normalizeStory), next_cursor: raw.next_cursor };
@@ -118,9 +123,9 @@ export function getShareMeta(slug: string): Promise<ShareMetaResponse> {
   return apiGet<ShareMetaResponse>(`/v1/stories/${encodeURIComponent(slug)}/share-meta`);
 }
 
-export async function getTopic(slug: string): Promise<TopicDetailResponse> {
-  const raw = await apiGet<components["schemas"]["TopicDetailResponse"]>(`/v1/topics/${encodeURIComponent(slug)}`);
-  return { topic: raw.topic, stories: (raw.stories ?? []).map(normalizeStory) };
+export async function getTopic(slug: string, cursor?: string): Promise<TopicDetailResponse> {
+  const raw = await apiGet<components["schemas"]["TopicDetailResponse"]>(`/v1/topics/${encodeURIComponent(slug)}`, { cursor });
+  return { topic: raw.topic, stories: (raw.stories ?? []).map(normalizeStory), next_cursor: raw.next_cursor };
 }
 
 export async function search(q: string): Promise<SearchResponse> {
@@ -149,4 +154,24 @@ export async function submitPilotSignup(body: {
     const errorBody = (await response.json().catch(() => null)) as { error?: { message?: string } } | null;
     throw new Error(errorBody?.error?.message ?? "Signup failed");
   }
+}
+
+// Exact bounded lookup preserves existing ID-only bookmarks across app restarts.
+export async function getSavedStories(ids: string[]): Promise<StoryOut[]> {
+  const unique = [...new Set(ids)];
+  const found = new Map<string, StoryOut>();
+  for (let offset = 0; offset < unique.length; offset += 100) {
+    const page = await listStories({ ids: unique.slice(offset, offset + 100).join(","), limit: "100" });
+    for (const story of page.items) found.set(story.id, story);
+  }
+  return unique.map((id) => found.get(id)).filter((story): story is StoryOut => Boolean(story));
+}
+
+export async function reportIssue(storyId: string, description = ""): Promise<void> {
+  const response = await fetch(new URL("/v1/events", apiUrl()).toString(), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ event: "report_issue", properties: { story_id: storyId, description } }),
+  });
+  if (!response.ok) throw new Error("Couldn't send your report. Please try again.");
 }

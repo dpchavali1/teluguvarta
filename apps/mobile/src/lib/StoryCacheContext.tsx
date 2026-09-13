@@ -3,15 +3,10 @@ import React, { createContext, useCallback, useContext, useEffect, useMemo, useR
 import type { StoryOut } from "./api";
 import { getSavedIds, toggleSaved as toggleSavedStorage } from "./storage";
 
-// No `/v1/stories?ids=` bulk-lookup endpoint exists (out of scope for T15 —
-// the public API surface is T14's, unchanged here), so the Saved screen
-// can't ask the server "give me these N saved stories" directly. Instead,
-// every screen that fetches stories (home, topic, search, story detail)
-// feeds them into this in-memory cache; Saved then renders whichever saved
-// ids happen to be cached. A saved story the user hasn't recently viewed
-// elsewhere in the session simply won't render until it's seen again —
-// documented as a known limitation in PROGRESS.md, not silently swallowed.
+// Cached content accelerates reading; Saved always resolves current data from the API.
 type StoryCacheContextValue = {
+  savedIds: string[];
+  savedReady: boolean;
   get: (id: string) => StoryOut | undefined;
   put: (stories: StoryOut[]) => void;
   all: () => StoryOut[];
@@ -29,12 +24,15 @@ const StoryCacheContext = createContext<StoryCacheContextValue | null>(null);
 export function StoryCacheProvider({ children }: { children: React.ReactNode }) {
   const mapRef = useRef(new Map<string, StoryOut>());
   const savedIdsRef = useRef<Set<string>>(new Set());
+  const [savedIds, setSavedIds] = useState<string[]>([]);
+  const [savedReady, setSavedReady] = useState(false);
   const [version, setVersion] = useState(0);
 
   useEffect(() => {
     getSavedIds().then((ids) => {
       savedIdsRef.current = new Set(ids);
-      setVersion((v) => v + 1);
+      setSavedIds(ids);
+      setSavedReady(true);
     });
   }, []);
 
@@ -54,7 +52,7 @@ export function StoryCacheProvider({ children }: { children: React.ReactNode }) 
     const next = await toggleSavedStorage(id);
     if (next) savedIdsRef.current.add(id);
     else savedIdsRef.current.delete(id);
-    setVersion((v) => v + 1);
+    setSavedIds([...savedIdsRef.current]);
     return next;
   }, []);
 
@@ -64,9 +62,9 @@ export function StoryCacheProvider({ children }: { children: React.ReactNode }) 
   // propagation would never notify subscribers (e.g. StoryCard's `saved`
   // read) that the underlying ref data changed.
   const value = useMemo(
-    () => ({ get, put, all, isSaved, toggleSaved }),
+    () => ({ get, put, all, isSaved, toggleSaved, savedIds, savedReady }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [get, put, all, isSaved, toggleSaved, version]
+    [get, put, all, isSaved, toggleSaved, version, savedIds, savedReady]
   );
 
   return <StoryCacheContext.Provider value={value}>{children}</StoryCacheContext.Provider>;

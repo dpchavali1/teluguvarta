@@ -202,7 +202,7 @@ def _sent_today_count(db: Session, user_id, now: datetime) -> int:
 
 def _push_copy(notification: Notification) -> tuple[str, str]:
     if notification.type == "DAILY_BRIEFING":
-        return "Your Telugu Global briefing", "Today's top stories are ready."
+        return "Your TTE briefing", "Today's top stories are ready."
     if notification.type == "BREAKING_ALERT":
         return "Breaking", "A breaking story just published."
     return "New story in a topic you follow", "Open to read the full story."

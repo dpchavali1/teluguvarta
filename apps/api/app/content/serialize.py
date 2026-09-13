@@ -13,6 +13,10 @@ scope, not blocking T14's acceptance criteria).
 
 from __future__ import annotations
 
+from collections import defaultdict
+from dataclasses import dataclass, field
+from uuid import UUID
+
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -36,6 +40,33 @@ from app.schemas import Language, StoryOut, StorySourceOut, StoryVariantOut, Top
 PUBLIC_STATUSES = ("PUBLISHED", "UPDATED", "RETRACTED", "CORRECTION_PENDING")
 
 
+@dataclass
+class StoryRelations:
+    variants: dict = field(default_factory=lambda: defaultdict(list))
+    links: dict = field(default_factory=lambda: defaultdict(list))
+    topics: dict = field(default_factory=lambda: defaultdict(list))
+    items: dict = field(default_factory=dict)
+    sources: dict = field(default_factory=dict)
+
+
+def load_story_relations(db: Session, ids: list[UUID]) -> StoryRelations:
+    """Load a bounded page's associations in five queries, not per story."""
+    loaded = StoryRelations()
+    if not ids:
+        return loaded
+    for variant in db.scalars(select(StoryVariant).where(StoryVariant.story_id.in_(ids))):
+        loaded.variants[variant.story_id].append(variant)
+    for link in db.scalars(select(StorySource).where(StorySource.story_id.in_(ids)).order_by(StorySource.evidence_rank)):
+        loaded.links[link.story_id].append(link)
+    item_ids = [link.source_item_id for links in loaded.links.values() for link in links]
+    loaded.items = {item.id: item for item in db.scalars(select(SourceItem).where(SourceItem.id.in_(item_ids)))}
+    source_ids = {item.source_id for item in loaded.items.values()}
+    loaded.sources = {source.id: source for source in db.scalars(select(Source).where(Source.id.in_(source_ids)))}
+    for story_id, slug in db.execute(select(StoryTopic.story_id, Topic.slug).join(Topic, Topic.id == StoryTopic.topic_id).where(StoryTopic.story_id.in_(ids))):
+        loaded.topics[story_id].append(slug)
+    return loaded
+
+
 def _variant_out(v: StoryVariant) -> StoryVariantOut:
     return StoryVariantOut(
         language=v.language, headline=v.headline, summary=v.summary,
@@ -43,8 +74,9 @@ def _variant_out(v: StoryVariant) -> StoryVariantOut:
     )
 
 
-def story_to_out(db: Session, story: Story) -> StoryOut:
-    variants = db.scalars(select(StoryVariant).where(StoryVariant.story_id == story.id)).all()
+def story_to_out(db: Session, story: Story, loaded: StoryRelations | None = None) -> StoryOut:
+    loaded = loaded or load_story_relations(db, [story.id])
+    variants = loaded.variants[story.id]
     variants_by_lang = {v.language: v for v in variants}
 
     # Only expose variants a client may actually display: `en` always (when
@@ -56,24 +88,19 @@ def story_to_out(db: Session, story: Story) -> StoryOut:
         if resolved is not None and not resolved.fallback:
             out_variants[lang] = _variant_out(resolved.variant)  # type: ignore[arg-type]
 
-    links = db.scalars(
-        select(StorySource).where(StorySource.story_id == story.id).order_by(StorySource.evidence_rank)
-    ).all()
+    links = loaded.links[story.id]
     sources_out: list[StorySourceOut] = []
     countries: list[str] = []
     for link in links:
-        item = db.get(SourceItem, link.source_item_id)
+        item = loaded.items.get(link.source_item_id)
         if item is None:
             continue
         sources_out.append(StorySourceOut(url=item.url, title=item.title, published_at=item.published_at))
-        source = db.get(Source, item.source_id)
+        source = loaded.sources.get(item.source_id)
         if source and source.country and source.country not in countries:
             countries.append(source.country)
 
-    topic_rows = db.execute(
-        select(Topic.slug).join(StoryTopic, StoryTopic.topic_id == Topic.id).where(StoryTopic.story_id == story.id)
-    ).all()
-    topics = [row[0] for row in topic_rows]
+    topics = loaded.topics[story.id]
 
     # Every publicly-listed status (see PUBLIC_STATUSES) is post-first-publish,
     # so `published_at` is always set by the time a story reaches here.
@@ -98,25 +125,22 @@ def topic_out(topic: Topic) -> TopicOut:
     return TopicOut(slug=topic.slug, name=topic.name, active=topic.active)
 
 
-def story_to_rankable(db: Session, story: Story) -> RankableStory:
+def story_to_rankable(db: Session, story: Story, loaded: StoryRelations | None = None) -> RankableStory:
     """T16: the same topics/countries derivation as `story_to_out`, plus the
     §8.2 `source_quality` input (average `quality_score` of every linked
     source) — kept separate from `StoryOut` since ranking inputs aren't part
     of the public response shape."""
 
-    topic_rows = db.execute(
-        select(Topic.slug).join(StoryTopic, StoryTopic.topic_id == Topic.id).where(StoryTopic.story_id == story.id)
-    ).all()
-    topics = tuple(row[0] for row in topic_rows)
-
-    links = db.scalars(select(StorySource).where(StorySource.story_id == story.id)).all()
+    loaded = loaded or load_story_relations(db, [story.id])
+    topics = tuple(loaded.topics[story.id])
+    links = loaded.links[story.id]
     countries: list[str] = []
     quality_scores: list[float] = []
     for link in links:
-        item = db.get(SourceItem, link.source_item_id)
+        item = loaded.items.get(link.source_item_id)
         if item is None:
             continue
-        source = db.get(Source, item.source_id)
+        source = loaded.sources.get(item.source_id)
         if source is None:
             continue
         if source.country and source.country not in countries:

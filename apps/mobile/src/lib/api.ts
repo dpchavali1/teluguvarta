@@ -1,3 +1,4 @@
+import { countryCode } from "@teluguvarta/domain";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import type { components } from "@teluguvarta/contracts";
 
@@ -35,7 +36,7 @@ function normalizeStory(raw: RawStoryOut): StoryOut {
 
 export type HomeResponse = { top_stories: StoryOut[]; topics: TopicOut[] };
 export type StoriesListResponse = { items: StoryOut[]; next_cursor: string | null | undefined };
-export type TopicDetailResponse = { topic: TopicOut; stories: StoryOut[] };
+export type TopicDetailResponse = { topic: TopicOut; stories: StoryOut[]; next_cursor?: string | null };
 export type SearchResponse = { query: string; items: StoryOut[] };
 export type ConfigResponse = components["schemas"]["ConfigResponse"] & { topics: TopicOut[] };
 
@@ -97,7 +98,7 @@ export type HomeParams = {
 // never a separate content pipeline.
 export async function getHome(params: HomeParams = {}): Promise<HomeResponse> {
   const raw = await apiGet<components["schemas"]["HomeResponse"]>("/v1/home", {
-    residence_country: params.residenceCountry,
+    residence_country: countryCode(params.residenceCountry),
     home_state: params.homeRegion,
     home_city: params.homeCity,
     topics: params.topics && params.topics.length > 0 ? params.topics.join(",") : undefined,
@@ -108,7 +109,7 @@ export async function getHome(params: HomeParams = {}): Promise<HomeResponse> {
 }
 
 export async function listStories(
-  params: { topic?: string; country?: string; cursor?: string } = {}
+  params: { topic?: string; country?: string; cursor?: string; ids?: string; limit?: string } = {}
 ): Promise<StoriesListResponse> {
   const raw = await apiGet<components["schemas"]["StoriesListResponse"]>("/v1/stories", params);
   return { items: raw.items.map(normalizeStory), next_cursor: raw.next_cursor };
@@ -123,9 +124,9 @@ export function getShareMeta(slug: string): Promise<ShareMetaResponse> {
   return apiGet<ShareMetaResponse>(`/v1/stories/${encodeURIComponent(slug)}/share-meta`);
 }
 
-export async function getTopic(slug: string): Promise<TopicDetailResponse> {
-  const raw = await apiGet<components["schemas"]["TopicDetailResponse"]>(`/v1/topics/${encodeURIComponent(slug)}`);
-  return { topic: raw.topic, stories: (raw.stories ?? []).map(normalizeStory) };
+export async function getTopic(slug: string, cursor?: string): Promise<TopicDetailResponse> {
+  const raw = await apiGet<components["schemas"]["TopicDetailResponse"]>(`/v1/topics/${encodeURIComponent(slug)}`, { cursor });
+  return { topic: raw.topic, stories: (raw.stories ?? []).map(normalizeStory), next_cursor: raw.next_cursor };
 }
 
 export async function search(q: string): Promise<SearchResponse> {
@@ -227,4 +228,24 @@ export async function trackEvent(event: AnalyticsEventName, properties: Record<s
     // Best-effort — a dropped analytics event must never break the flow
     // that triggered it (opening a story, sharing, etc).
   }
+}
+
+// Exact bounded lookup preserves existing ID-only bookmarks across app restarts.
+export async function getSavedStories(ids: string[]): Promise<StoryOut[]> {
+  const unique = [...new Set(ids)];
+  const found = new Map<string, StoryOut>();
+  for (let offset = 0; offset < unique.length; offset += 100) {
+    const page = await listStories({ ids: unique.slice(offset, offset + 100).join(","), limit: "100" });
+    for (const story of page.items) found.set(story.id, story);
+  }
+  return unique.map((id) => found.get(id)).filter((story): story is StoryOut => Boolean(story));
+}
+
+export async function reportIssue(storyId: string, description = ""): Promise<void> {
+  const response = await fetch(new URL("/v1/events", apiUrl()).toString(), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ event: "report_issue", properties: { story_id: storyId, description } }),
+  });
+  if (!response.ok) throw new Error("Couldn't send your report. Please try again.");
 }

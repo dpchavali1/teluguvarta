@@ -4,6 +4,7 @@ import React from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import type { RootStackParamList } from "../navigation/types";
+import { ui } from "../theme/tokens";
 
 export function SettingsScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
@@ -44,8 +45,8 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     paddingHorizontal: 16,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderColor: "#ddd",
+    borderColor: ui.borderSubtle,
   },
   rowLabel: { fontSize: 16 },
-  chevron: { fontSize: 18, color: "#999" },
+  chevron: { fontSize: 18, color: ui.textTertiary },
 });

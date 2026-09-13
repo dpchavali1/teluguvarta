@@ -1,7 +1,7 @@
 [project]
 name = "teluguvarta-api"
 version = "0.0.1"
-description = "Telugu Global API (FastAPI) — foundation only, full surface in T04+"
+description = "TTE — The Telugu Edit API (FastAPI)"
 requires-python = ">=3.11"
 dependencies = [
     "fastapi>=0.115.0",

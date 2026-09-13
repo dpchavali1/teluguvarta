@@ -1,3 +1,4 @@
+import Link from "next/link";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
@@ -5,25 +6,26 @@ import { StoryCard } from "@/components/StoryCard";
 import { ApiNotFoundError, getTopic } from "@/lib/api";
 
 export const revalidate = 60;
+export const dynamic = "force-dynamic";
 
-type Props = { params: Promise<{ slug: string }> };
+type Props = { params: Promise<{ slug: string }>; searchParams: Promise<{ cursor?: string }> };
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
   try {
     const { topic } = await getTopic(slug);
-    return { title: topic.name, description: `Latest ${topic.name} stories on Telugu Global.` };
+    return { title: topic.name, description: `Latest ${topic.name} stories on TTE.` };
   } catch (err) {
     if (err instanceof ApiNotFoundError) return {};
     throw err;
   }
 }
 
-export default async function TopicPage({ params }: Props) {
+export default async function TopicPage({ params, searchParams }: Props) {
   const { slug } = await params;
   let data;
   try {
-    data = await getTopic(slug);
+    data = await getTopic(slug, (await searchParams).cursor);
   } catch (err) {
     if (err instanceof ApiNotFoundError) notFound();
     throw err;
@@ -43,6 +45,8 @@ export default async function TopicPage({ params }: Props) {
           ))}
         </ul>
       )}
+      <nav className="pagination" aria-label="Story pages">{data.next_cursor && <Link href={`/topic/${slug}?cursor=${encodeURIComponent(data.next_cursor)}`}>Older stories →</Link>}
+        {(await searchParams).cursor && <Link href={`/topic/${slug}`}>Latest in this topic</Link>}</nav>
     </>
   );
 }

@@ -29,7 +29,7 @@ export default function AdminNav() {
     <nav className="admin-nav" aria-label="Admin">
       <div className="admin-nav__inner">
         <Link href="/" className="admin-nav__brand">
-          Telugu Global Admin
+          TTE Admin
         </Link>
         <div className="admin-nav__links">
           {LINKS.map((link) => (

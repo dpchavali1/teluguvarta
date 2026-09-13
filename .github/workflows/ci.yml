@@ -17,6 +17,10 @@ jobs:
           node-version: 20
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - run: pnpm run tokens:generate
+      - run: pnpm run tokens:contrast
+      - name: Fail if generated design tokens are stale
+        run: git diff --exit-code -- apps/web/src/app/tokens.css apps/admin/src/app/tokens.css apps/mobile/src/theme/tokens.ts
       - run: pnpm run lint
       - run: pnpm run typecheck
       - run: pnpm --filter @teluguvarta/mobile run test

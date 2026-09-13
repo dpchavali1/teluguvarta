@@ -17,13 +17,11 @@ function readAll(): string[] {
   }
 }
 
+export const SAVED_CHANGE_EVENT = "tg:saved-change";
+
 function writeAll(ids: string[]): void {
-  try {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(ids));
-  } catch {
-    // Private browsing / storage disabled — saving silently no-ops rather
-    // than breaking the page.
-  }
+  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(ids));
+  window.dispatchEvent(new Event(SAVED_CHANGE_EVENT));
 }
 
 export function isSaved(storyId: string): boolean {

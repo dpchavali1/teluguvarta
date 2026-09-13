@@ -5,9 +5,9 @@ export const metadata: Metadata = { title: "About" };
 export default function AboutPage() {
   return (
     <div className="legal">
-      <h1>About Telugu Global</h1>
+      <h1>About TTE</h1>
       <p>
-        Telugu Global is a bilingual (English/Telugu) news product for the global
+        TTE — The Telugu Edit is a bilingual (English/Telugu) news product for the global
         Telugu diaspora, covering immigration, money, jobs, community, and news
         from Andhra Pradesh and Telangana.
       </p>
@@ -19,7 +19,7 @@ export default function AboutPage() {
         <a href="/ai-disclosure">AI disclosure</a> for details on how stories are
         produced and reviewed.
       </p>
-      <p>Browsing Telugu Global never requires an account.</p>
+      <p>Browsing TTE never requires an account.</p>
     </div>
   );
 }

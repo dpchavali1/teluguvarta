@@ -1,0 +1,10 @@
+{
+  "name": "@teluguvarta/design-tokens",
+  "private": true,
+  "version": "0.0.0",
+  "scripts": {
+    "generate": "node build.mjs",
+    "check": "node build.mjs --check",
+    "contrast:check": "node check-contrast.mjs"
+  }
+}

@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { getProfile, setLanguage, type OnboardingProfile } from "../lib/storage";
-import { colors, spacing } from "../theme/tokens";
+import { colors, spacing, ui } from "../theme/tokens";
 
 // Design-review fix: on web this is a one-tap, persistent header control.
 // On mobile it was two taps deep in Settings, the biggest cross-surface IA
@@ -49,7 +49,7 @@ const styles = StyleSheet.create({
   group: {
     flexDirection: "row",
     borderWidth: 1,
-    borderColor: colors.rule,
+    borderColor: ui.borderControl,
     marginRight: spacing.md,
   },
   button: {
@@ -59,9 +59,9 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-  buttonRight: { borderLeftWidth: 1, borderLeftColor: colors.rule },
+  buttonRight: { borderLeftWidth: 1, borderLeftColor: ui.borderControl },
   // Matches web's toggle "pressed" convention: accent fill, ink text.
-  buttonActive: { backgroundColor: colors.accent },
+  buttonActive: { backgroundColor: ui.actionPrimarySoft },
   buttonText: { fontSize: 13, fontWeight: "600", color: colors.text },
-  buttonTextActive: { color: colors.accentContrast },
+  buttonTextActive: { color: ui.actionText },
 });

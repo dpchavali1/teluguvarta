@@ -1,54 +1,46 @@
 import Link from "next/link";
-import type { CSSProperties } from "react";
+
 
 import { OnboardingCta } from "@/components/OnboardingCta";
-import { StoryCard } from "@/components/StoryCard";
+import { HomeFeed } from "@/components/HomeFeed";
 import { StudentBriefing } from "@/components/StudentBriefing";
-import { TrackEvent } from "@/components/TrackEvent";
+
 import { getHome } from "@/lib/api";
 
 export const revalidate = 60;
+export const dynamic = "force-dynamic";
 
 export default async function HomePage() {
   const { top_stories: topStories, topics } = await getHome();
 
   return (
     <>
-      <TrackEvent event="feed_view" properties={{ story_count: topStories.length }} />
-      <section className="page-hero">
-        <div className="page-hero__glow" aria-hidden="true" />
-        <h1>Telugu Global</h1>
-        <p>The latest stories for the global Telugu diaspora — original summaries, always linked to the source.</p>
+      <section className="briefing-header" aria-labelledby="briefing-title">
+        <div>
+          <p className="briefing-kicker">TTE · THE TELUGU EDIT</p>
+          <h1 id="briefing-title">Today’s briefing</h1>
+          <p>Clear updates for life here and back home.</p>
+        </div>
         <OnboardingCta />
       </section>
-
-      <StudentBriefing />
 
       {topics.length > 0 && (
         <nav aria-label="Topics" className="topic-rail">
           <ul className="topic-rail__list">
-            {topics.map((topic) => (
+            {topics.slice(0, 5).map((topic) => (
               <li key={topic.slug}>
                 <Link className="pill pill--topic" href={`/topic/${topic.slug}`}>
                   {topic.name}
                 </Link>
               </li>
             ))}
+            <li><Link className="pill pill--topic" href="/topics">All topics →</Link></li>
           </ul>
         </nav>
       )}
 
-      {topStories.length === 0 ? (
-        <p className="empty-state">No stories have been published yet — check back soon.</p>
-      ) : (
-        <ul className="story-list">
-          {topStories.map((story, i) => (
-            <li key={story.id} style={{ "--i": i } as CSSProperties}>
-              <StoryCard story={story} />
-            </li>
-          ))}
-        </ul>
-      )}
+      <HomeFeed initialStories={topStories} />
+      <StudentBriefing />
     </>
   );
 }

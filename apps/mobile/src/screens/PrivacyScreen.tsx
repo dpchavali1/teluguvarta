@@ -4,6 +4,7 @@ import { Pressable, ScrollView, StyleSheet, Text } from "react-native";
 
 import { deleteAccount, trackEvent } from "../lib/api";
 import { resetClientToken } from "../lib/identity";
+import { ui } from "../theme/tokens";
 
 // T19 §16/§5.5: "delete account" now does two things — deletes the
 // server-side `users` row this device's identity created since T17 (real
@@ -39,7 +40,7 @@ export function PrivacyScreen() {
     <ScrollView contentContainerStyle={styles.container}>
       <Text style={styles.title}>Privacy & delete account</Text>
       <Text style={styles.body}>
-        Telugu Global does not require signing in — every story is readable without an account.
+        TTE does not require signing in — every story is readable without an account.
         This app does keep a device-scoped identity for notification preferences and push
         delivery, and your onboarding preferences and saved stories live on this device.
       </Text>
@@ -68,7 +69,7 @@ export function PrivacyScreen() {
 const styles = StyleSheet.create({
   container: { padding: 16, gap: 12 },
   title: { fontSize: 18, fontWeight: "700" },
-  body: { fontSize: 15, color: "#444" },
+  body: { fontSize: 15, color: ui.textSecondary },
   button: {
     minHeight: 44,
     justifyContent: "center",
@@ -76,8 +77,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: "#ccc",
+    borderColor: ui.danger,
     alignSelf: "flex-start",
   },
-  status: { color: "#0a0" },
+  status: { color: ui.success },
 });

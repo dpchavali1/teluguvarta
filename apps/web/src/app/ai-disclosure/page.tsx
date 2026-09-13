@@ -8,7 +8,7 @@ export default function AiDisclosurePage() {
       <h1>AI disclosure</h1>
       <p>
         Story headlines, summaries, and &ldquo;why this matters&rdquo; sections on
-        Telugu Global are drafted by AI language models from linked source
+        TTE summaries are drafted by AI language models from linked source
         articles, then validated against automated checks before publication.
       </p>
       <ul>

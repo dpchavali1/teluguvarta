@@ -237,6 +237,24 @@ export interface paths {
         patch: operations["update_source_v1_admin_sources__source_id__patch"];
         trace?: never;
     };
+    "/v1/admin/sources/{source_id}/x-account": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create X Account */
+        post: operations["create_x_account_v1_admin_sources__source_id__x_account_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update X Account */
+        patch: operations["update_x_account_v1_admin_sources__source_id__x_account_patch"];
+        trace?: never;
+    };
     "/v1/admin/stories/{story_id}": {
         parameters: {
             query?: never;
@@ -341,6 +359,23 @@ export interface paths {
         put?: never;
         /** Retract Story */
         post: operations["retract_story_v1_admin_stories__story_id__retract_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/admin/x-accounts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List X Accounts */
+        get: operations["list_x_accounts_v1_admin_x_accounts_get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -934,6 +969,81 @@ export interface components {
             /** Url */
             url: string;
         };
+        /** AdminXAccountCreate */
+        AdminXAccountCreate: {
+            /** Budget Class */
+            budget_class?: string | null;
+            /** Handle */
+            handle: string;
+            /** Polling Cadence */
+            polling_cadence?: number | null;
+            /**
+             * Priority
+             * @default 0
+             */
+            priority: number;
+            /** X User Id */
+            x_user_id: string;
+        };
+        /** AdminXAccountOut */
+        AdminXAccountOut: {
+            /** Active */
+            active: boolean;
+            /** Budget Class */
+            budget_class?: string | null;
+            /** Budget Paused */
+            budget_paused: boolean;
+            /** Circuit Breaker Tripped */
+            circuit_breaker_tripped: boolean;
+            /** Fail Count */
+            fail_count: number;
+            /** Handle */
+            handle: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Last Error At */
+            last_error_at?: string | null;
+            /** Last Success At */
+            last_success_at?: string | null;
+            /** Month To Date Cost Usd */
+            month_to_date_cost_usd: number;
+            /** Polling Cadence */
+            polling_cadence?: number | null;
+            /** Priority */
+            priority: number;
+            /** Recent Error Count 24H */
+            recent_error_count_24h: number;
+            /**
+             * Rights Status
+             * @enum {string}
+             */
+            rights_status: "DISABLED" | "LINK_ONLY" | "LICENSED_METADATA" | "LICENSED_REPURPOSE";
+            /** Since Id */
+            since_id?: string | null;
+            /**
+             * Source Id
+             * Format: uuid
+             */
+            source_id: string;
+            /** X User Id */
+            x_user_id: string;
+        };
+        /** AdminXAccountUpdate */
+        AdminXAccountUpdate: {
+            /** Budget Class */
+            budget_class?: string | null;
+            /** Handle */
+            handle?: string | null;
+            /** Polling Cadence */
+            polling_cadence?: number | null;
+            /** Priority */
+            priority?: number | null;
+            /** Since Id */
+            since_id?: string | null;
+        };
         /** AiCostRowOut */
         AiCostRowOut: {
             /** Cost Usd */
@@ -1108,6 +1218,7 @@ export interface components {
             /** Ingestion Health */
             ingestion_health: components["schemas"]["SourceIngestionHealthOut"][];
             job_queue: components["schemas"]["JobQueueHealthOut"];
+            x_cost: components["schemas"]["XCostSummaryOut"];
         };
         /**
          * PersonalizationOut
@@ -1238,6 +1349,8 @@ export interface components {
             created_at: string;
             /** Decision */
             decision?: string | null;
+            /** Headline */
+            headline?: string | null;
             /**
              * Id
              * Format: uuid
@@ -1245,6 +1358,8 @@ export interface components {
             id: string;
             /** Reason */
             reason: string;
+            /** Source Names */
+            source_names?: string[];
             /**
              * Status
              * @enum {string}
@@ -1411,6 +1526,8 @@ export interface components {
         };
         /** TopicDetailResponse */
         TopicDetailResponse: {
+            /** Next Cursor */
+            next_cursor?: string | null;
             /** Stories */
             stories?: components["schemas"]["StoryOut"][];
             topic: components["schemas"]["TopicOut"];
@@ -1439,6 +1556,24 @@ export interface components {
             msg: string;
             /** Error Type */
             type: string;
+        };
+        /**
+         * XCostSummaryOut
+         * @description X4 §19: same shape as `AiCostSummaryOut` but scoped to X API spend,
+         *     plus how many low-priority accounts the budget guard is currently
+         *     pausing as a result.
+         */
+        XCostSummaryOut: {
+            /** Low Priority Accounts Paused */
+            low_priority_accounts_paused: number;
+            /** Month To Date Cost Usd */
+            month_to_date_cost_usd: number;
+            /** Monthly Budget Remaining Usd */
+            monthly_budget_remaining_usd?: number | null;
+            /** Monthly Budget Usd */
+            monthly_budget_usd?: number | null;
+            /** Over Monthly Budget */
+            over_monthly_budget: boolean;
         };
     };
     responses: never;
@@ -1925,6 +2060,80 @@ export interface operations {
             };
         };
     };
+    create_x_account_v1_admin_sources__source_id__x_account_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                source_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminXAccountCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminXAccountOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_x_account_v1_admin_sources__source_id__x_account_patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                source_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminXAccountUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminXAccountOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     get_story_detail_v1_admin_stories__story_id__get: {
         parameters: {
             query?: never;
@@ -2130,6 +2339,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AdminActionResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_x_accounts_v1_admin_x_accounts_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminXAccountOut"][];
                 };
             };
             /** @description Validation Error */
@@ -2534,6 +2774,7 @@ export interface operations {
                 country?: string | null;
                 limit?: number;
                 cursor?: string | null;
+                ids?: string | null;
             };
             header?: never;
             path?: never;
@@ -2625,7 +2866,9 @@ export interface operations {
     };
     get_topic_v1_topics__slug__get: {
         parameters: {
-            query?: never;
+            query?: {
+                cursor?: string | null;
+            };
             header?: never;
             path: {
                 slug: string;

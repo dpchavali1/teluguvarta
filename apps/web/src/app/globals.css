@@ -1,8 +1,8 @@
 /* ============================================================================
-   Telugu Global — "Ink & Signal"
+   TTE — The Telugu Edit — "Ink & Signal"
 
    Direction: high-contrast editorial press. Warm bone paper, near-black ink,
-   one electric signal-lime accent and a hot vermilion for warnings. Hard
+   one calm indigo accent and a hot vermilion for warnings. Hard
    edges (2px radius, hairline rules, offset shadows) instead of soft floating
    cards; the feed reads as a numbered ledger of dispatches, not a card grid.
    Display type is a wide grotesque set very large with negative tracking;
@@ -21,109 +21,11 @@
     10. Motion preferences + narrow viewports
    ========================================================================== */
 
-/* ---------------------------------------------------------------- 1. Tokens */
+@import "./tokens.css";
 
 :root {
-  color-scheme: light;
-
-  /* Bone paper / ink */
-  --color-bg: #f2f0e8;
-  --color-surface: #fbfaf6;
-  --color-surface-sunken: #e6e3d7;
-  --color-text: #14140f;
-  --color-muted: #52504a;
-  --color-faint: #6e6c62;
-  --color-border: #d8d4c6;
-  --color-rule: #14140f;
-
-  /* Signal lime — fills and rules, never small text on paper */
-  --color-accent: #c8f03f;
-  --color-accent-strong: #b2db24;
-  --color-accent-contrast: #14140f;
-  --color-accent-soft: #e9f7c0;
-  --color-accent-ink: #4a5c08;
-
-  /* Hot vermilion — corrections, retractions, alerts */
-  --color-hot: #c63512;
-  --color-hot-soft: #fbe0d8;
-  --color-danger: var(--color-hot);
-  --color-danger-soft: var(--color-hot-soft);
-
-  --focus-ring: #14140f;
-
-  /* Hard offset shadow instead of a soft drop shadow */
-  --shadow-hard: 4px 4px 0 var(--color-rule);
-  --shadow-hard-sm: 3px 3px 0 var(--color-rule);
-
-  --radius-md: 2px;
-  --radius-lg: 3px;
-
   --page-max: 70rem;
   --measure: 46rem;
-
-  --ease-out: cubic-bezier(0.16, 0.84, 0.44, 1);
-
-  /* next/font (see app/layout.tsx) injects --font-display / --font-sans /
-     --font-mono / --font-telugu / --font-telugu-display on <html>. These are
-     the composed stacks the rest of the file uses; note --font-mono-stack
-     rather than --font-mono, so nothing here shadows next/font's own
-     variable. */
-  --font-sans-fallback: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  --font-body: var(--font-sans), var(--font-sans-fallback);
-  --font-heading: var(--font-display), var(--font-sans), var(--font-sans-fallback);
-  --font-mono-stack: var(--font-mono), "SFMono-Regular", Consolas, monospace;
-  --font-te: var(--font-telugu), var(--font-body);
-  --font-te-heading: var(--font-telugu-display), var(--font-telugu), var(--font-heading);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    color-scheme: dark;
-
-    --color-bg: #0c0c0a;
-    --color-surface: #151512;
-    --color-surface-sunken: #070706;
-    --color-text: #f3f1e8;
-    --color-muted: #a6a399;
-    --color-faint: #86837a;
-    --color-border: #292924;
-    --color-rule: #f3f1e8;
-
-    --color-accent: #c8f03f;
-    --color-accent-strong: #d7f76e;
-    --color-accent-contrast: #0c0c0a;
-    --color-accent-soft: #1e2409;
-    --color-accent-ink: #d7f76e;
-
-    --color-hot: #ff7a55;
-    --color-hot-soft: #2b1108;
-
-    --focus-ring: #c8f03f;
-  }
-}
-
-:root[data-theme="dark"] {
-  color-scheme: dark;
-
-  --color-bg: #0c0c0a;
-  --color-surface: #151512;
-  --color-surface-sunken: #070706;
-  --color-text: #f3f1e8;
-  --color-muted: #a6a399;
-  --color-faint: #86837a;
-  --color-border: #292924;
-  --color-rule: #f3f1e8;
-
-  --color-accent: #c8f03f;
-  --color-accent-strong: #d7f76e;
-  --color-accent-contrast: #0c0c0a;
-  --color-accent-soft: #1e2409;
-  --color-accent-ink: #d7f76e;
-
-  --color-hot: #ff7a55;
-  --color-hot-soft: #2b1108;
-
-  --focus-ring: #c8f03f;
 }
 
 /* -------------------------------------------------------- 2. Base + a11y */
@@ -258,9 +160,9 @@ button {
    under. Its foreground tokens are scoped locally so the theme toggle and
    focus rings stay legible against it in light mode too. */
 .site-header {
-  --mh-bg: #0c0c0a;
-  --mh-fg: #f3f1e8;
-  --mh-muted: #a6a399;
+  --mh-bg: #11162b;
+  --mh-fg: #f4f6ff;
+  --mh-muted: #bcc3d4;
 
   position: sticky;
   top: 0;
@@ -398,7 +300,7 @@ button {
 
 .theme-toggle button[aria-pressed="true"] {
   background: var(--color-accent);
-  color: #0c0c0a;
+  color: var(--color-accent-contrast);
 }
 
 .theme-toggle button:hover:not([aria-pressed="true"]) {
@@ -441,7 +343,7 @@ button {
 
 .language-toggle button[aria-pressed="true"] {
   background: var(--color-accent);
-  color: #0c0c0a;
+  color: var(--color-accent-contrast);
 }
 
 .language-toggle button:hover:not([aria-pressed="true"]) {
@@ -1430,4 +1332,229 @@ main button:disabled {
     border-left: 0;
     border-top: 2px solid var(--color-rule);
   }
+}
+
+/* Reading-first home: the opening screen should contain useful news. */
+.page-hero--briefing { padding: 1.4rem 0 1rem; }
+.page-hero--briefing::before, .page-hero--briefing .page-hero__glow { display: none; }
+.page-hero--briefing h1 { font-size: clamp(1.8rem, 5vw, 2.8rem); margin: 0 0 0.4rem; }
+.page-hero--briefing p { max-width: 65ch; font-size: 1rem; margin: 0.35rem 0; }
+.page-hero--briefing p + p { margin-top: 0.6rem; }
+.page-hero--briefing .page-hero__cta { padding: 0.3rem 0; background: transparent; box-shadow: none; border: 0; color: var(--color-text); }
+.topic-rail { padding: 0.6rem 0; margin-bottom: 0.5rem; }
+.topic-rail::before { display: none; }
+.story-card__date, .story-card__recommendation { font-size: 0.85rem; color: var(--color-muted); }
+.site-nav a[aria-current="page"] { text-decoration: underline; text-underline-offset: 0.4rem; }
+.pagination { display: flex; flex-wrap: wrap; gap: 1.5rem; margin-block: 2rem; }
+@media (max-width: 560px) {
+  .site-header__inner { gap: 0.6rem; }
+  .site-header__right { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+  .site-nav { flex-basis: 100%; }
+  .page-hero--briefing { padding: 1rem 0 0.5rem; }
+  .story-card { padding-inline: 0; }
+  .site-nav a, .language-toggle button, .theme-toggle button { min-height: 44px; display: inline-flex; align-items: center; }
+}
+
+/* ---------------------------------------------------------------- 11. Daily briefing refresh
+   A softer, reader-first treatment for the highest-traffic screen. It keeps
+   the evidence-first product behavior while making the first visit easier to
+   understand for readers who do not think in "topics" or "feeds". */
+.page-hero--briefing {
+  margin: 0 0 1.5rem;
+  padding: clamp(1.5rem, 4vw, 3.25rem);
+  border: 1px solid var(--color-rule);
+  border-radius: 1.5rem;
+  background: var(--color-text);
+  color: var(--color-bg);
+  box-shadow: 6px 6px 0 var(--color-accent);
+}
+.page-hero--briefing h1 {
+  max-width: 12ch;
+  color: var(--color-bg);
+  font-size: clamp(2.4rem, 6vw, 4.75rem);
+  line-height: .95;
+  letter-spacing: -.05em;
+  text-transform: none;
+}
+.page-hero--briefing p { color: color-mix(in srgb, var(--color-bg) 78%, transparent); max-width: 38ch; }
+.briefing-kicker { color: var(--color-accent) !important; font-family: var(--font-mono-stack); font-size: .7rem !important; font-weight: 700; letter-spacing: .13em; text-transform: uppercase; }
+.briefing-trust { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: 1.4rem; }
+.briefing-trust span { border: 1px solid color-mix(in srgb, var(--color-bg) 35%, transparent); border-radius: 999px; color: var(--color-bg); font-family: var(--font-mono-stack); font-size: .65rem; letter-spacing: .05em; padding: .38rem .65rem; }
+.page-hero--briefing .page-hero__cta { background: var(--color-accent); border-radius: 999px; box-shadow: none; margin-top: .4rem; }
+.topic-rail { margin-bottom: 1.5rem; }
+.topic-rail__list { border: 0; gap: .55rem; }
+.topic-rail__list li + li .pill--topic { border-left: 0; }
+.pill--topic { border: 1px solid var(--color-border); border-radius: 999px; padding: .58rem .9rem; text-transform: none; letter-spacing: 0; font-family: var(--font-body); font-size: .88rem; }
+.story-list { border-top: 0; display: grid; gap: 1rem; }
+.story-list > li { border: 0; }
+.story-card, .story-list .story-card { padding: 1.35rem; border: 1px solid var(--color-border); border-radius: 1.25rem; background: var(--color-surface); box-shadow: none; }
+.story-list .story-card { padding-left: 1.35rem; }
+.story-list .story-card::before { display: none; }
+.story-list > li:first-child .story-card { border-color: var(--color-rule); background: var(--color-text); }
+.story-list > li:first-child .story-card__headline a, .story-list > li:first-child .story-card > p, .story-list > li:first-child .story-card__date { color: var(--color-bg); }
+.story-list > li:first-child .story-card__why { border-color: var(--color-accent); color: var(--color-bg); }
+.story-list > li:first-child .story-card__why strong { color: var(--color-accent); }
+.story-list > li:first-child .story-card .pill { border-color: color-mix(in srgb, var(--color-bg) 40%, transparent); color: var(--color-bg); }
+.story-list > li:first-child .story-card__source-link { color: var(--color-accent); }
+.story-card__headline { font-size: clamp(1.35rem, 2.2vw, 1.75rem); }
+.story-list > li:first-child .story-card__headline { font-size: clamp(2rem, 4vw, 3rem); }
+.story-card__actions button { border-radius: 999px; padding-inline: .85rem; }
+@media (max-width: 560px) {
+  .page-hero--briefing { border-radius: 1.15rem; box-shadow: 4px 4px 0 var(--color-accent); }
+  .story-card, .story-list .story-card { padding: 1.1rem; }
+}
+
+/* ---------------------------------------------------------------- 12. Semantic color roles
+   Navigation, selection, utility actions, and editorial status deliberately
+   use different roles. This prevents a reader from interpreting every blue
+   or filled chip as equally important. */
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+[tabindex]:focus-visible {
+  outline: 3px solid var(--action-primary);
+  outline-offset: 2px;
+}
+
+.pill,
+.pill--topic {
+  border-color: var(--border-control);
+  background: var(--surface);
+  color: var(--text-primary);
+}
+
+.pill--topic:hover,
+.pill--topic:focus-visible,
+a.pill:hover,
+a.pill:focus-visible {
+  border-color: var(--action-primary);
+  background: var(--surface-subtle);
+  color: var(--text-primary);
+}
+
+.story-card__actions button,
+.story-card__actions [role="group"] {
+  border-color: var(--border-control);
+  background: var(--surface);
+  color: var(--text-secondary);
+}
+
+.story-card__actions button:hover {
+  border-color: var(--action-primary);
+  background: var(--surface-subtle);
+  color: var(--text-primary);
+}
+
+.story-card__actions [role="group"] button[aria-pressed="true"] {
+  background: var(--action-primary-soft);
+  color: var(--action-text);
+}
+
+.story-card__action--save[aria-pressed="true"] {
+  background: var(--success-soft) !important;
+  border-color: var(--success) !important;
+  color: var(--success) !important;
+}
+
+.story-card__action--report {
+  border-color: var(--border-subtle) !important;
+}
+
+.story-card__notice--updated {
+  background: var(--action-primary-soft);
+  color: var(--action-text);
+}
+
+.story-card__reviewed {
+  background: var(--success-soft);
+  border-color: var(--success);
+  color: var(--success);
+}
+
+.story-card__notice--retracted,
+.story-card__report [role="alert"] {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+.story-detail {
+  width: min(100%, 52rem);
+  margin: 0 auto;
+}
+.story-detail .story-card {
+  padding: clamp(1.5rem, 4vw, 3rem) clamp(1.25rem, 5vw, 3.5rem) 2.5rem;
+  border: 1px solid var(--border-subtle);
+  border-top: 4px solid var(--action-primary);
+  border-radius: 1.25rem;
+  background: var(--surface);
+  box-shadow: 0 12px 32px color-mix(in srgb, var(--text-primary) 9%, transparent);
+}
+.story-detail .story-card__headline {
+  max-width: 18ch;
+  font-size: clamp(2.25rem, 6vw, 4.75rem);
+  line-height: 1;
+}
+.story-detail .story-card__date {
+  margin-bottom: .85rem;
+  color: var(--text-secondary);
+  font-family: var(--font-mono-stack);
+  font-size: .78rem;
+  letter-spacing: .04em;
+}
+.story-detail .story-card > p:not([class]) {
+  max-width: 62ch;
+  font-size: clamp(1.08rem, 1.8vw, 1.28rem);
+  line-height: 1.65;
+}
+
+/* ---------------------------------------------------------------- 13. Newsroom shell
+   The first viewport is for news, not a marketing hero. The lead story gets
+   emphasis through scale and an indigo rule while all reading surfaces stay
+   on the same light/dark hierarchy. */
+.briefing-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1.5rem;
+  margin: 0 0 1.5rem;
+  padding: 1.15rem 0 1.35rem;
+  border-bottom: 1px solid var(--border-subtle);
+}
+.briefing-header h1 {
+  margin: 0.1rem 0 0.25rem;
+  max-width: none;
+  font-size: clamp(2rem, 4vw, 3.2rem);
+  line-height: 1;
+  letter-spacing: -0.045em;
+  text-transform: none;
+}
+.briefing-header h1::after { display: none; }
+.briefing-header > div > p:last-child { margin: 0; color: var(--text-secondary); }
+.briefing-kicker { margin: 0; color: var(--action-text); font-family: var(--font-mono-stack); font-size: .68rem; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; }
+.briefing-header .page-hero__cta { flex: none; }
+.home-lead {
+  margin-bottom: 1.5rem;
+  border-top: 4px solid var(--action-primary);
+  border-radius: 1.1rem;
+  background: var(--surface);
+  box-shadow: 0 12px 32px color-mix(in srgb, var(--text-primary) 10%, transparent);
+}
+.home-lead .story-card { padding: clamp(1.25rem, 3vw, 2.5rem); }
+.home-lead .story-card__headline { max-width: 20ch; font-size: clamp(2rem, 5vw, 4.25rem); line-height: .98; }
+.home-lead .story-card__headline a { background: none; }
+.home-lead .story-card__headline a:hover,
+.home-lead .story-card__headline a:focus-visible { color: var(--action-text); }
+.home-lead .story-card__why { max-width: 55ch; }
+.story-list > li:first-child .story-card { background: var(--surface); border-color: var(--border-subtle); }
+.story-list > li:first-child .story-card__headline a,
+.story-list > li:first-child .story-card > p,
+.story-list > li:first-child .story-card__date { color: inherit; }
+.story-list > li:first-child .story-card__source-link { color: var(--action-text); }
+.story-list > li:first-child .story-card .pill { border-color: var(--border-control); color: var(--text-primary); }
+.story-list > li:first-child .story-card__why { border-color: var(--border-control); color: var(--text-primary); }
+.story-list > li:first-child .story-card__why strong { color: var(--text-tertiary); }
+@media (max-width: 640px) {
+  .briefing-header { align-items: flex-start; flex-direction: column; gap: .75rem; }
+  .briefing-header .page-hero__cta { align-self: flex-start; }
+  .home-lead .story-card__headline { font-size: clamp(1.9rem, 9vw, 2.75rem); }
 }

@@ -1,11 +1,12 @@
+import { topicLabel } from "@teluguvarta/domain";
 import React, { useEffect, useState } from "react";
 import { Alert, AccessibilityInfo, DeviceEventEmitter, Pressable, StyleSheet, Text, View } from "react-native";
 
-import { trackEvent, type Language, type StoryOut } from "../lib/api";
+import { reportIssue, trackEvent, type Language, type StoryOut } from "../lib/api";
 import { shareStory } from "../lib/share";
 import { getProfile, setLanguage as persistLanguage, LANGUAGE_CHANGE_EVENT } from "../lib/storage";
 import { useStoryCache } from "../lib/StoryCacheContext";
-import { colors, radius, shadow, spacing, typography, typographyFor } from "../theme/tokens";
+import { colors, radius, shadow, spacing, typography, typographyFor, ui } from "../theme/tokens";
 
 const STATUS_LABEL: Record<string, string | undefined> = {
   RETRACTED: "Retracted",
@@ -35,6 +36,8 @@ export function StoryCard({
 }) {
   const cache = useStoryCache();
   const [language, setLanguage] = useState<Language>("en");
+  const [actionStatus, setActionStatus] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
   const hasTelugu = Boolean(story.variants.te);
   const isHumanReviewed = REVIEWED_SENSITIVITIES.has(story.sensitivity);
   const saved = cache.isSaved(story.id);
@@ -66,6 +69,7 @@ export function StoryCard({
   // follow the glyphs actually on screen.
   const renderedLanguage: Language = story.variants[language] ? language : "en";
   const type = typographyFor(renderedLanguage);
+  const whyMatters = renderedLanguage === "en" ? story.personalization?.why_matters ?? variant.why_matters : variant.why_matters;
 
   const statusNotice = STATUS_LABEL[story.status];
   const primarySource = story.sources[0];
@@ -76,9 +80,15 @@ export function StoryCard({
   }
 
   async function handleSaveToggle() {
-    const next = await cache.toggleSaved(story.id);
-    if (next) trackEvent("story_save", { story_id: story.id });
-    AccessibilityInfo.announceForAccessibility(next ? "Saved" : "Removed from saved");
+    if (saving) return;
+    setSaving(true);
+    try {
+      const next = await cache.toggleSaved(story.id);
+      if (next) trackEvent("story_save", { story_id: story.id });
+      setActionStatus(next ? "Saved" : "Removed from saved");
+      AccessibilityInfo.announceForAccessibility(next ? "Saved" : "Removed from saved");
+    } catch { setActionStatus("Couldn't save this change on your device. Please try again."); }
+    finally { setSaving(false); }
   }
 
   function handleLanguageSwitch(next: Language) {
@@ -90,20 +100,26 @@ export function StoryCard({
   function handleReportIssue() {
     Alert.alert("Report an issue", "Let us know this story has a problem?", [
       { text: "Cancel", style: "cancel" },
-      { text: "Report", onPress: () => trackEvent("report_issue", { story_id: story.id }) },
+      { text: "Report", onPress: async () => {
+        try { await reportIssue(story.id); setActionStatus("Report received. Thank you."); }
+        catch { setActionStatus("Couldn’t send your report. Tap Report to try again."); }
+      } },
     ]);
   }
 
   return (
     <View style={styles.card} accessible={false}>
       <View style={styles.labels}>
-        {[...story.countries, ...story.topics].map((label) => (
+        {[...story.countries, ...story.topics.map(topicLabel)].map((label) => (
           <View key={label} style={styles.pill}>
             <Text style={styles.pillText}>{label}</Text>
           </View>
         ))}
       </View>
 
+      {story.published_at && <Text style={styles.date}>{new Date(story.published_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</Text>}
+      {language !== renderedLanguage && <Text>Telugu translation isn’t available yet. Showing English.</Text>}
+      {story.personalization?.explanation && <Text style={styles.date}>{story.personalization.explanation}</Text>}
       {isHumanReviewed && (
         <View style={styles.reviewedBadge}>
           <Text style={styles.reviewedBadgeText}>✓ Human-reviewed</Text>
@@ -132,9 +148,9 @@ export function StoryCard({
       )}
 
       <Text style={[styles.body, type.body]}>{variant.summary}</Text>
-      {variant.why_matters ? (
+      {whyMatters ? (
         <Text style={[styles.why, renderedLanguage === "te" && styles.whyTe]}>
-          Why this matters: {variant.why_matters}
+          Why this matters: {whyMatters}
         </Text>
       ) : null}
 
@@ -151,6 +167,7 @@ export function StoryCard({
         </Pressable>
       )}
 
+      {actionStatus && <Text accessibilityLiveRegion="polite">{actionStatus}</Text>}
       <View style={styles.actions}>
         {hasTelugu && (
           <View accessibilityRole="radiogroup" accessibilityLabel="Language" style={styles.langGroup}>
@@ -178,16 +195,17 @@ export function StoryCard({
           onPress={handleShare}
           accessibilityRole="button"
           accessibilityLabel={`Share: ${variant.headline}`}
-          style={styles.actionButton}
+          style={[styles.actionButton, styles.actionButtonShare]}
         >
           <Text style={styles.actionButtonText}>⤴ Share</Text>
         </Pressable>
         <Pressable
           onPress={handleSaveToggle}
+          disabled={saving}
           accessibilityRole="button"
           accessibilityState={{ selected: saved }}
           accessibilityLabel={saved ? `Unsave: ${variant.headline}` : `Save: ${variant.headline}`}
-          style={[styles.actionButton, saved && styles.actionButtonActive]}
+          style={[styles.actionButton, saved && styles.actionButtonSaved]}
         >
           <Text style={[styles.actionButtonText, saved && styles.actionButtonTextActive]}>
             {saved ? "🔖 Saved" : "🔖 Save"}
@@ -197,7 +215,7 @@ export function StoryCard({
           onPress={handleReportIssue}
           accessibilityRole="button"
           accessibilityLabel={`Report an issue: ${variant.headline}`}
-          style={styles.actionButton}
+          style={[styles.actionButton, styles.actionButtonReport]}
         >
           <Text style={styles.actionButtonText}>⚑ Report</Text>
         </Pressable>
@@ -213,23 +231,26 @@ const styles = StyleSheet.create({
     margin: spacing.md,
     marginBottom: 0,
     backgroundColor: colors.surface,
-    borderRadius: radius.lg,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: ui.borderControl,
     gap: spacing.sm,
     ...shadow.card,
   },
+  date: { color: colors.muted, fontSize: 13 },
   labels: { flexDirection: "row", flexWrap: "wrap", gap: spacing.xs },
   // Matches web's plain .pill: a neutral outlined tag, not a colored fill —
   // Ink & Signal has one accent color and one danger color, no third family.
   pill: {
     backgroundColor: "transparent",
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: ui.borderControl,
     borderRadius: radius.sm,
     paddingHorizontal: spacing.sm,
     paddingVertical: 3,
   },
   pillText: { ...typography.meta, color: colors.faint, textTransform: "uppercase" },
-  notice: { color: colors.danger, fontWeight: "600" },
+  notice: { color: ui.danger, fontWeight: "600" },
   // Matches web's .story-card__reviewed: ink outline, transparent fill.
   reviewedBadge: {
     alignSelf: "flex-start",
@@ -245,8 +266,8 @@ const styles = StyleSheet.create({
   body: { ...typography.body, color: colors.muted },
   why: {
     fontSize: 14,
-    color: colors.accentInk,
-    backgroundColor: colors.accentSoft,
+    color: ui.actionText,
+    backgroundColor: ui.actionPrimarySoft,
     borderRadius: radius.sm,
     borderLeftWidth: 3,
     // Raw `accent` (signal-lime) on `accentSoft` is ~1.2:1 contrast — the
@@ -262,33 +283,35 @@ const styles = StyleSheet.create({
   actions: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: spacing.sm, marginTop: spacing.xs },
   langGroup: { flexDirection: "row", gap: spacing.xs },
   langButton: {
-    minHeight: 40,
+    minHeight: 44,
     minWidth: 44,
     justifyContent: "center",
     alignItems: "center",
     paddingHorizontal: spacing.sm,
     borderRadius: radius.pill,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: ui.borderControl,
   },
   // Matches web's toggle "pressed" convention: accent fill, ink text.
-  langButtonActive: { backgroundColor: colors.accent, borderColor: colors.rule },
+  langButtonActive: { backgroundColor: ui.actionPrimarySoft, borderColor: ui.actionPrimary },
   langButtonText: { fontSize: 13, fontWeight: "600", color: colors.muted },
-  langButtonTextActive: { color: colors.accentContrast },
+  langButtonTextActive: { color: ui.actionText },
   actionButton: {
     flexDirection: "row",
     alignItems: "center",
     gap: 5,
-    minHeight: 40,
+    minHeight: 44,
     minWidth: 44,
     justifyContent: "center",
     paddingHorizontal: spacing.md,
     borderRadius: radius.pill,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: ui.borderControl,
     backgroundColor: colors.surface,
   },
-  actionButtonActive: { backgroundColor: colors.accent, borderColor: colors.rule },
+  actionButtonShare: { backgroundColor: colors.surface },
+  actionButtonSaved: { backgroundColor: ui.successSoft, borderColor: ui.success },
+  actionButtonReport: { borderColor: ui.borderSubtle },
   actionButtonText: { fontSize: 13, fontWeight: "600", color: colors.muted },
-  actionButtonTextActive: { color: colors.accentContrast },
+  actionButtonTextActive: { color: ui.success },
 });

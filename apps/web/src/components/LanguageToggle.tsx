@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 
-import { getPreferredLanguage, setPreferredLanguage, type Language } from "@/lib/onboarding";
+import { LANGUAGE_CHANGE_EVENT, getPreferredLanguage, setPreferredLanguage, type Language } from "@/lib/onboarding";
 
 // Design-review fix: web previously had no site-wide language preference —
 // every StoryCard reset to English on every reload. This toggle sets the
@@ -12,7 +12,11 @@ export function LanguageToggle() {
   const [language, setLanguage] = useState<Language>("en");
 
   useEffect(() => {
-    setLanguage(getPreferredLanguage());
+    const sync = () => setLanguage(getPreferredLanguage());
+    sync();
+    window.addEventListener(LANGUAGE_CHANGE_EVENT, sync);
+    window.addEventListener("storage", sync);
+    return () => { window.removeEventListener(LANGUAGE_CHANGE_EVENT, sync); window.removeEventListener("storage", sync); };
   }, []);
 
   function choose(next: Language) {
@@ -21,7 +25,7 @@ export function LanguageToggle() {
   }
 
   return (
-    <div className="language-toggle" role="group" aria-label="Site language">
+    <div className="language-toggle" role="group" aria-label="Story language">
       <button type="button" aria-pressed={language === "en"} onClick={() => choose("en")}>
         EN
       </button>

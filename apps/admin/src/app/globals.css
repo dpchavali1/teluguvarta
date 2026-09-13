@@ -1,52 +1,4 @@
-:root {
-  color-scheme: light;
-
-  /* "Ink & Signal" — ported by hand from apps/web/src/app/globals.css
-     per ADR-009's sequencing note (palette first, shared token source
-     later). Keep these values identical to web's light-mode tokens. */
-  --color-bg: #f2f0e8;
-  --color-surface: #fbfaf6;
-  --color-surface-sunken: #e6e3d7;
-  --color-text: #14140f;
-  --color-muted: #52504a;
-  --color-faint: #6e6c62;
-  /* Design-review fix: web's own --color-border (#d8d4c6) is ~1.4:1 against
-     both --color-bg and --color-surface, below the 3:1 WCAG 1.4.11 floor
-     for a UI-component boundary (input/table/pill borders here rely on it
-     alone, with no shadow backing it up the way web's cards do). #7f7c6f
-     clears 3:1 against both. Intentionally diverges from web's identical
-     token for this one value — revisit when ADR-009's shared source lands,
-     since web carries the same underlying defect unaddressed. */
-  --color-border: #7f7c6f;
-  --color-rule: #14140f;
-
-  /* Signal lime — fills and rules, never small text on paper */
-  --color-accent: #c8f03f;
-  --color-accent-strong: #b2db24;
-  --color-accent-contrast: #14140f;
-  --color-accent-soft: #e9f7c0;
-  --color-accent-ink: #4a5c08;
-
-  /* Hot vermilion — corrections, retractions, alerts */
-  --color-hot: #c63512;
-  --color-hot-soft: #fbe0d8;
-  --color-danger: var(--color-hot);
-  --color-danger-soft: var(--color-hot-soft);
-
-  --focus-ring: #14140f;
-
-  --shadow-hard: 4px 4px 0 var(--color-rule);
-  --shadow-hard-sm: 3px 3px 0 var(--color-rule);
-  --radius-md: 2px;
-  --radius-lg: 3px;
-
-  --font-sans-fallback: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  --font-body: var(--font-sans), var(--font-sans-fallback);
-  --font-heading: var(--font-display), var(--font-sans), var(--font-sans-fallback);
-  --font-mono-stack: var(--font-mono), "SFMono-Regular", Consolas, monospace;
-  --font-te: var(--font-telugu), var(--font-body);
-  --font-te-heading: var(--font-telugu), var(--font-heading);
-}
+@import "./tokens.css";
 
 * {
   box-sizing: border-box;
@@ -332,19 +284,21 @@ td button {
 /* No third color family per Ink & Signal (one accent, one danger) — a
    routine/"ok" state is a neutral outlined tag, not a colored fill. */
 .status-pill--ok {
-  background: transparent;
-  color: var(--color-muted);
-  border: 1px solid var(--color-border);
+  background: var(--success-soft);
+  color: var(--success);
+  border: 1px solid var(--success);
 }
 
 .status-pill--warn {
-  background: var(--color-accent-soft);
-  color: var(--color-accent-ink);
+  background: var(--warning-soft);
+  color: var(--warning);
+  border-color: var(--warning);
 }
 
 .status-pill--danger {
-  background: var(--color-danger-soft);
-  color: var(--color-danger);
+  background: var(--danger-soft);
+  color: var(--danger);
+  border-color: var(--danger);
 }
 
 /* A cell can hold several pills when a story trips more than one gate. */

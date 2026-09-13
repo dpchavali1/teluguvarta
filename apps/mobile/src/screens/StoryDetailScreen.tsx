@@ -1,6 +1,6 @@
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import React, { useCallback, useEffect, useState } from "react";
-import { ActivityIndicator, Linking, Pressable, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, ScrollView, Linking, Pressable, StyleSheet, Text, View } from "react-native";
 
 import { StoryCard } from "../components/StoryCard";
 import { ApiNetworkError, getStory, trackEvent, type StoryOut } from "../lib/api";
@@ -12,7 +12,7 @@ type Props = NativeStackScreenProps<RootStackParamList, "StoryDetail">;
 
 export function StoryDetailScreen({ route }: Props) {
   const { slug } = route.params;
-  const cache = useStoryCache();
+  const { put } = useStoryCache();
   const [story, setStory] = useState<StoryOut | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [retryKey, setRetryKey] = useState(0);
@@ -20,11 +20,12 @@ export function StoryDetailScreen({ route }: Props) {
   const load = useCallback(() => {
     let cancelled = false;
     setError(null);
+    setStory(null);
     getStory(slug)
       .then((result) => {
         if (cancelled) return;
         setStory(result);
-        cache.put([result]);
+        put([result]);
         trackEvent("story_open", { story_id: result.id });
       })
       .catch((err) => {
@@ -34,7 +35,7 @@ export function StoryDetailScreen({ route }: Props) {
     return () => {
       cancelled = true;
     };
-  }, [slug, cache]);
+  }, [slug, put]);
 
   useEffect(() => load(), [load, retryKey]);
 
@@ -63,9 +64,9 @@ export function StoryDetailScreen({ route }: Props) {
   }
 
   return (
-    <View style={styles.container}>
+    <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: spacing.xl }} contentInsetAdjustmentBehavior="automatic" accessibilityLabel="Story content">
       <StoryCard story={story} onOpenSource={(url) => Linking.openURL(url)} />
-    </View>
+    </ScrollView>
   );
 }
 

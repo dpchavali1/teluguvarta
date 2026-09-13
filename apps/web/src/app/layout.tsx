@@ -57,8 +57,8 @@ const THEME_INIT_SCRIPT = `(function(){try{var t=localStorage.getItem("tg-theme"
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl()),
-  title: { default: "Telugu Global", template: "%s · Telugu Global" },
-  description: "Global Telugu identity, local information.",
+  title: { default: "TTE — The Telugu Edit", template: "%s · TTE" },
+  description: "The Telugu world, thoughtfully edited.",
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {

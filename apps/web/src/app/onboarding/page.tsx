@@ -3,6 +3,8 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
+import { countryCode } from "@teluguvarta/domain";
+import { getConfig, type TopicOut } from "@/lib/api";
 import { track } from "@/lib/analytics";
 import { LIFE_STAGES, getOnboardingProfile, setOnboardingProfile, type LifeStage } from "@/lib/onboarding";
 
@@ -14,6 +16,9 @@ import { LIFE_STAGES, getOnboardingProfile, setOnboardingProfile, type LifeStage
 // acceptance criteria.
 export default function OnboardingPage() {
   const router = useRouter();
+  const [topics, setTopics] = useState<TopicOut[]>([]);
+  const [selectedTopics, setSelectedTopics] = useState<string[]>([]);
+  const [topicsError, setTopicsError] = useState(false);
   const [lifeStages, setLifeStages] = useState<LifeStage[]>([]);
   const [residenceCountry, setResidenceCountry] = useState("");
   const [homeState, setHomeState] = useState("");
@@ -25,6 +30,8 @@ export default function OnboardingPage() {
   useEffect(() => {
     const existing = getOnboardingProfile();
     setLifeStages(existing.lifeStages);
+    setSelectedTopics(existing.topics ?? []);
+    getConfig().then((config) => setTopics(config.topics)).catch(() => setTopicsError(true));
     setResidenceCountry(existing.residenceCountry ?? "");
     setHomeState(existing.homeState ?? "");
     setHomeCity(existing.homeCity ?? "");
@@ -40,7 +47,8 @@ export default function OnboardingPage() {
     setOnboardingProfile({
       ...getOnboardingProfile(),
       lifeStages: finalLifeStages,
-      residenceCountry: residenceCountry.trim() || undefined,
+      residenceCountry: countryCode(residenceCountry),
+      topics: selectedTopics,
       homeState: homeState.trim() || undefined,
       homeCity: homeCity.trim() || undefined,
     });
@@ -59,7 +67,7 @@ export default function OnboardingPage() {
       <h1>Tell us about yourself</h1>
       <p>
         This personalizes your feed and, for students, adds a Student Briefing section. Every
-        question here is optional — Telugu Global works fully without answering any of them.
+        question here is optional — TTE works fully without answering any of them.
       </p>
 
       <fieldset className="onboarding__fieldset">
@@ -112,6 +120,10 @@ export default function OnboardingPage() {
         />
       </div>
 
+      <fieldset className="onboarding__fieldset"><legend>Topics you follow (optional)</legend>
+        {topicsError && <p>Topics couldn’t load. You can continue and choose them later.</p>}
+        {topics.map((topic) => <label key={topic.slug} className="onboarding__radio"><input type="checkbox" checked={selectedTopics.includes(topic.slug)} onChange={() => setSelectedTopics((current) => current.includes(topic.slug) ? current.filter((slug) => slug !== topic.slug) : [...current, topic.slug])} />{topic.name}</label>)}
+      </fieldset>
       <div className="onboarding__actions">
         <button type="button" onClick={() => save(lifeStages)}>
           Save and continue

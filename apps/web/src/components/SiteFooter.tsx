@@ -14,7 +14,7 @@ export function SiteFooter() {
     <footer className="site-footer">
       <div className="site-footer__inner">
         <p>
-          Telugu Global publishes original AI-drafted summaries with links to the
+          TTE publishes original AI-drafted summaries with links to the
           source article — never reproduced headlines, article text, or images.
         </p>
         <nav aria-label="Legal">

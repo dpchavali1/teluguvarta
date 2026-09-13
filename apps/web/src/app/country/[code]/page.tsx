@@ -1,20 +1,22 @@
+import Link from "next/link";
 import type { Metadata } from "next";
 
 import { StoryCard } from "@/components/StoryCard";
 import { listStories } from "@/lib/api";
 
 export const revalidate = 60;
+export const dynamic = "force-dynamic";
 
-type Props = { params: Promise<{ code: string }> };
+type Props = { params: Promise<{ code: string }>; searchParams: Promise<{ cursor?: string }> };
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const code = (await params).code.toUpperCase();
-  return { title: `${code} news`, description: `Latest stories about ${code} on Telugu Global.` };
+  return { title: `${code} news`, description: `Latest stories about ${code} on TTE.` };
 }
 
-export default async function CountryPage({ params }: Props) {
+export default async function CountryPage({ params, searchParams }: Props) {
   const code = (await params).code.toUpperCase();
-  const { items } = await listStories({ country: code });
+  const { items, next_cursor } = await listStories({ country: code, cursor: (await searchParams).cursor });
 
   return (
     <>
@@ -30,6 +32,8 @@ export default async function CountryPage({ params }: Props) {
           ))}
         </ul>
       )}
+      <nav className="pagination" aria-label="Story pages">{next_cursor && <Link href={`/country/${code}?cursor=${encodeURIComponent(next_cursor)}`}>Older stories →</Link>}
+        {(await searchParams).cursor && <Link href={`/country/${code}`}>Latest in this country</Link>}</nav>
     </>
   );
 }

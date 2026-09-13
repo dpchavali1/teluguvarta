@@ -83,7 +83,7 @@ def record_login_attempt(db: Session, email: str, ip: str | None, success: bool)
 # authenticator app actually has it (see app/routers/admin_auth.py), to
 # avoid a half-configured admin locking themselves out on next login.
 
-MFA_ISSUER = "Telugu Global Admin"
+MFA_ISSUER = "TTE Admin"
 
 
 def generate_mfa_secret() -> str:

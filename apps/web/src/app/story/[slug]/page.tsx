@@ -6,6 +6,7 @@ import { TrackEvent } from "@/components/TrackEvent";
 import { ApiNotFoundError, getShareMeta, getStory } from "@/lib/api";
 
 export const revalidate = 60;
+export const dynamic = "force-dynamic";
 
 type Props = { params: Promise<{ slug: string }> };
 
@@ -46,9 +47,6 @@ export default async function StoryPage({ params }: Props) {
   return (
     <div className="story-detail">
       <TrackEvent event="story_open" properties={{ story_id: story.id }} />
-      <p className="story-detail__meta">
-        Published {story.published_at ? new Date(story.published_at).toLocaleDateString() : "—"}
-      </p>
       <StoryCard story={story} headingLevel="h1" />
     </div>
   );

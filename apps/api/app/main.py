@@ -6,7 +6,7 @@ from app.routers import admin, admin_auth, me, public
 
 configure_logging()
 
-app = FastAPI(title="Telugu Global API")
+app = FastAPI(title="TTE — The Telugu Edit API")
 app.add_middleware(RequestIDMiddleware)
 register_error_handlers(app)
 

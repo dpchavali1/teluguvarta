@@ -4,12 +4,12 @@ import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 
 import { StoryList } from "../components/StoryList";
 import { ApiNetworkError, search, trackEvent, type StoryOut } from "../lib/api";
 import { useStoryCache } from "../lib/StoryCacheContext";
-import { colors, radius, spacing } from "../theme/tokens";
+import { colors, radius, spacing, ui } from "../theme/tokens";
 
 const DEBOUNCE_MS = 350;
 
 export function SearchScreen() {
-  const cache = useStoryCache();
+  const { put } = useStoryCache();
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<StoryOut[]>([]);
   const [loading, setLoading] = useState(false);
@@ -17,11 +17,16 @@ export function SearchScreen() {
   const [error, setError] = useState<string | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  const requestId = useRef(0);
+
   const runSearch = useCallback(
     async (q: string) => {
+      const current = ++requestId.current;
+      if (debounceRef.current) clearTimeout(debounceRef.current);
       if (q.trim().length === 0) {
         setResults([]);
         setSearched(false);
+        setLoading(false);
         setError(null);
         return;
       }
@@ -29,30 +34,35 @@ export function SearchScreen() {
       setError(null);
       try {
         const result = await search(q.trim());
+        if (current !== requestId.current) return;
         setResults(result.items);
-        cache.put(result.items);
+        put(result.items);
         trackEvent("search", { query: q.trim(), result_count: result.items.length });
       } catch (err) {
+        if (current !== requestId.current) return;
         setResults([]);
         setError(err instanceof ApiNetworkError ? "You're offline. Check your connection." : "Search failed.");
       } finally {
-        setLoading(false);
-        setSearched(true);
+        if (current === requestId.current) {
+          setLoading(false);
+          setSearched(true);
+        }
       }
     },
-    [cache]
+    [put]
   );
 
   function onChangeText(q: string) {
     setQuery(q);
+    requestId.current += 1;
     if (debounceRef.current) clearTimeout(debounceRef.current);
-    // Design-review fix: previously fired a network request on every
-    // keystroke with no debounce.
+    if (!q.trim()) { void runSearch(q); return; }
     debounceRef.current = setTimeout(() => runSearch(q), DEBOUNCE_MS);
   }
 
   useEffect(() => {
     return () => {
+      requestId.current += 1;
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
   }, []);
@@ -68,6 +78,7 @@ export function SearchScreen() {
         style={styles.input}
         autoCorrect={false}
         returnKeyType="search"
+        onSubmitEditing={() => void runSearch(query)}
       />
       {loading ? (
         <View style={styles.center}>
@@ -103,7 +114,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: "#ccc",
+    borderColor: ui.borderControl,
   },
   center: { flex: 1, alignItems: "center", justifyContent: "center", gap: spacing.md },
   // Ink-filled button, matching apps/web's main button.

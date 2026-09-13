@@ -24,6 +24,7 @@ export type Language = "en" | "te";
 
 export type OnboardingProfile = {
   lifeStages: LifeStage[];
+  topics: string[];
   residenceCountry?: string;
   homeState?: string;
   homeCity?: string;
@@ -33,7 +34,7 @@ export type OnboardingProfile = {
   language: Language;
 };
 
-const EMPTY_PROFILE: OnboardingProfile = { lifeStages: [], language: "en" };
+const EMPTY_PROFILE: OnboardingProfile = { lifeStages: [], topics: [], language: "en" };
 
 export const LANGUAGE_CHANGE_EVENT = "tg:language-change";
 

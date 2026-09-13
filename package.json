@@ -10,6 +10,9 @@
     "typecheck": "pnpm -r --if-present run typecheck",
     "test": "pnpm -r --if-present run test",
     "build": "pnpm -r --if-present run build",
+    "tokens:generate": "pnpm --filter @teluguvarta/design-tokens run generate",
+    "tokens:check": "pnpm --filter @teluguvarta/design-tokens run check",
+    "tokens:contrast": "pnpm --filter @teluguvarta/design-tokens run contrast:check",
     "migrate": "bash infra/scripts/migrate.sh",
     "seed": "apps/api/.venv/bin/python infra/scripts/seed.py",
     "contracts:generate": "bash infra/scripts/generate_contracts.sh"

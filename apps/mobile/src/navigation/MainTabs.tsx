@@ -26,9 +26,9 @@ const Tab = createBottomTabNavigator<MainTabParamList>();
 const TAB_GLYPHS: Record<keyof MainTabParamList, string> = {
   Home: "⌂",
   Search: "⌕",
-  Saved: "🔖",
-  Notifications: "🔔",
-  Settings: "⚙",
+  Saved: "♡",
+  Notifications: "◉",
+  Settings: "☰",
 };
 
 export function MainTabs() {

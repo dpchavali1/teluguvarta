@@ -21,6 +21,7 @@ from app.jobs.publish import run_publish_scheduler, schedule_publish_scheduler
 from app.jobs.queue import claim_job, complete_job, fail_job
 from app.jobs.source_fetch import run_source_fetch, schedule_due_source_fetches
 from app.jobs.translate import run_ai_translate, schedule_ai_translate
+from app.jobs.why_matters import run_why_matters
 from app.jobs.x_fetch import run_x_official_account_fetch, schedule_due_x_fetches
 from app.observability.error_tracking import capture_exception
 from app.observability.logging import configure_logging, get_logger, job_context
@@ -39,6 +40,7 @@ JOB_HANDLERS = {
     "story_cluster": run_dedup_cluster,
     "ai_classify": run_ai_classify,
     "ai_translate": run_ai_translate,
+    "ai_summarize": run_why_matters,
     "publish_scheduler": run_publish_scheduler,
     "notification_dispatch": run_notification_dispatch,
 }

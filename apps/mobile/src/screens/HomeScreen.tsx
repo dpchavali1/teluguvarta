@@ -1,13 +1,12 @@
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
   Linking,
   Pressable,
   RefreshControl,
-  ScrollView,
   StyleSheet,
   Text,
   View,
@@ -17,12 +16,12 @@ import { StoryCard } from "../components/StoryCard";
 import { ApiNetworkError, getHome, trackEvent, type StoryOut, type TopicOut } from "../lib/api";
 import { getProfile, isStudentSegment, primaryLifeStageSegment } from "../lib/storage";
 import { useStoryCache } from "../lib/StoryCacheContext";
-import { colors, radius, spacing } from "../theme/tokens";
+import { colors, radius, spacing, ui } from "../theme/tokens";
 import type { RootStackParamList } from "../navigation/types";
 
 export function HomeScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const cache = useStoryCache();
+  const { put } = useStoryCache();
   const [stories, setStories] = useState<StoryOut[]>([]);
   const [topics, setTopics] = useState<TopicOut[]>([]);
   const [briefingStories, setBriefingStories] = useState<StoryOut[]>([]);
@@ -30,7 +29,10 @@ export function HomeScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const requestId = useRef(0);
+
   const load = useCallback(async () => {
+    const current = ++requestId.current;
     setLoading(true);
     setError(null);
     try {
@@ -43,9 +45,10 @@ export function HomeScreen() {
         segment: primaryLifeStageSegment(profile.lifeStages),
       };
       const home = await getHome(homeParams);
+      if (current !== requestId.current) return;
       setStories(home.top_stories);
       setTopics(home.topics);
-      cache.put(home.top_stories);
+      put(home.top_stories);
       trackEvent("feed_view", { story_count: home.top_stories.length });
 
       // S1: "Student Briefing" — explicit-preference-only (never inferred
@@ -55,24 +58,27 @@ export function HomeScreen() {
       // endpoint, `student_briefing` composes the topic filter server-side.
       if (isStudentSegment(profile.lifeStages)) {
         const briefing = await getHome({ ...homeParams, studentBriefing: true });
+        if (current !== requestId.current) return;
         setBriefingStories(briefing.top_stories);
-        cache.put(briefing.top_stories);
+        put(briefing.top_stories);
       } else {
         setBriefingStories([]);
       }
     } catch (err) {
+      if (current !== requestId.current) return;
       setError(
         err instanceof ApiNetworkError
           ? "You're offline. Pull down to try again once you're back online."
           : "Couldn't load the feed. Pull down to try again."
       );
     } finally {
-      setLoading(false);
+      if (current === requestId.current) setLoading(false);
     }
-  }, [cache]);
+  }, [put]);
 
   useEffect(() => {
-    load();
+    void load();
+    return () => { requestId.current += 1; };
   }, [load]);
 
   // The error copy tells the user to pull down to retry, so that gesture has
@@ -124,8 +130,19 @@ export function HomeScreen() {
           accessibilityLabel="Refresh the feed"
         />
       }
+      ListEmptyComponent={!loading && !error ? <Text style={styles.error}>No stories yet. Browse topics or pull down to refresh.</Text> : null}
       ListHeaderComponent={
         <>
+          <View style={styles.welcome} accessibilityLabel="Your daily briefing">
+            <Text style={styles.welcomeEyebrow}>TTE · THE TELUGU EDIT</Text>
+            <Text style={styles.welcomeTitle}>Your daily briefing</Text>
+            <Text style={styles.welcomeCopy}>Clear updates for life here and back home.</Text>
+            <View style={styles.trustRow}>
+              <Text style={styles.trustItem}>Original summaries</Text>
+              <Text style={styles.trustItem}>Source-linked</Text>
+              <Text style={styles.trustItem}>English + తెలుగు</Text>
+            </View>
+          </View>
           {error && <Text style={styles.error}>{error}</Text>}
           {topics.length > 0 && (
             <FlatList
@@ -172,7 +189,21 @@ const styles = StyleSheet.create({
   list: { backgroundColor: colors.bg },
   container: { paddingBottom: 24, backgroundColor: colors.bg },
   center: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: colors.bg },
-  error: { color: colors.danger, padding: spacing.lg },
+  error: { color: ui.danger, padding: spacing.lg },
+  welcome: {
+    margin: spacing.md,
+    marginBottom: spacing.sm,
+    padding: spacing.lg,
+    backgroundColor: colors.text,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: ui.borderControl,
+  },
+  welcomeEyebrow: { color: ui.actionPrimary, fontSize: 11, fontWeight: "700", letterSpacing: 1.1 },
+  welcomeTitle: { color: colors.bg, fontSize: 28, fontWeight: "800", letterSpacing: -0.7, marginTop: spacing.xs },
+  welcomeCopy: { color: colors.muted, fontSize: 15, lineHeight: 22, marginTop: spacing.xs },
+  trustRow: { flexDirection: "row", flexWrap: "wrap", gap: spacing.xs, marginTop: spacing.md },
+  trustItem: { color: colors.bg, fontSize: 11, borderWidth: 1, borderColor: ui.borderControl, borderRadius: 99, paddingHorizontal: spacing.sm, paddingVertical: 4 },
   topicRow: { paddingVertical: spacing.sm, paddingHorizontal: spacing.md },
   // Matches web's .pill--topic: transparent, ink text, no fill at rest.
   topicChip: {
@@ -183,7 +214,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.pill,
     backgroundColor: "transparent",
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: ui.borderControl,
   },
   topicChipText: { color: colors.text, fontWeight: "600", fontSize: 13 },
   briefing: {

@@ -1,12 +1,12 @@
 {
   "expo": {
-    "name": "Telugu Global",
-    "slug": "telugu-global",
+    "name": "TTE: The Telugu Edit",
+    "slug": "tte",
     "version": "0.0.1",
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
-    "scheme": "teluguglobal",
+    "scheme": "tte",
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "org.teluguglobal.app"

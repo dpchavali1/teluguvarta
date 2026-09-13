@@ -70,11 +70,75 @@ Mirrors `docs/adr/README.md` — keep both in sync.
 | ADR-006 Account/privacy architecture | **proposed** |
 | ADR-007 Production hosting/cost limits | not started |
 | ADR-008 Visual design refresh (no new UI framework) | **accepted** |
-| ADR-009 Single design-token source, generated per surface | **proposed** |
+| ADR-009 Single design-token source, generated per surface | **accepted** |
 
 ## Changelog
 
 (newest first — one line per ticket completion)
+
+- 2026-09-12: Rebranded the public product to **TTE — The Telugu Edit**.
+  Added the canonical brand document at `docs/brand/TTE-BRAND.md` and updated
+  web/mobile/admin/API copy, metadata, notifications, OpenAPI title, and the
+  new `tte` mobile deep-link scheme while retaining legacy identifiers for
+  install and link continuity.
+
+- 2026-09-12: UX reliability follow-up completed at product owner request;
+  fixed repeated mobile feed/detail/topic requests, durable current-state
+  saved-story retrieval, profile-backed web ranking, QA-gated Telugu search,
+  language fallback/synchronization, scrollable mobile detail, stale mobile
+  searches, source/topic/date discovery, bounded public queries/paging,
+  background-only segment explanations, honest report/save failures, and
+  review-queue story/source context. Added regression coverage: mobile Jest
+  **19 passed** and API Postgres suite **35 passed**. Web/admin lint, all
+  three app typechecks, and both web/admin production builds pass. The
+  browser-only jsdom axe check remains unverified because localhost socket
+  access is blocked; running-browser review passed. The planned modern design
+  rollout is
+  `docs/runbooks/modern-design-plan-2026-09-12.md`.
+
+- 2026-09-12: Modern design foundation implemented at product owner request.
+  ADR-009 is accepted; `packages/design-tokens/tokens.json` is now the single
+  Ink & Signal source for light/dark color, spacing, radius, motion, and
+  English/Telugu type metrics. A zero-dependency generator emits web/admin
+  CSS and typed React Native values; CI regenerates and rejects output drift.
+
+- 2026-09-12: Reworked the primary public experience into a reader-first
+  daily briefing at product owner request. Web now opens with an explicit
+  trust/orientation panel, friendly topic chips, a clearly promoted lead
+  story, and rounded reading surfaces. Mobile gains the same daily-briefing
+  orientation and touch-friendly story cards. Web/mobile typechecks and the
+  mobile Jest suite (19 tests) pass.
+
+- 2026-09-12: Replaced the low-contrast neon-lime visual signal with an
+  accessible indigo palette across web, mobile, and admin. The shared token
+  source now provides a readable primary action/focus color on light surfaces
+  and a matched dark-mode value; generation and all three app typechecks pass.
+
+- 2026-09-12: Audited the revised palette at product owner request and wrote
+  `docs/runbooks/news-color-system-plan-2026-09-12.md`. The audit found the
+  remaining issue is semantic overloading rather than the indigo hue itself:
+  topic, action, selected, focus, and status controls still share generic
+  accent tokens. It also identified a 2.18:1 light control border and a 4.47:1
+  faint-text pair for correction in the planned semantic-token migration.
+
+- 2026-09-12: Implemented the semantic news color system. Shared tokens now
+  distinguish canvas/surface/text/borders, interaction, success, warning, and
+  danger roles; generated web/mobile outputs and CI include a contrast gate.
+  Topic, language, Share, Save, Report, review, updated, and retracted states
+  now use their assigned meanings. All mobile raw color literals outside the
+  generated token output were removed.
+
+- 2026-09-12: Implemented the first complete world-class reading slice from
+  the website/app redesign plan. The web home now places a compact briefing
+  header and real lead story in the first viewport, supporting stories follow
+  in a calmer feed, and story detail uses a focused reading column. Mobile
+  navigation uses consistent monochrome glyphs and the same content hierarchy.
+  Web/admin production builds and web/mobile typechecks pass.
+
+- 2026-09-12: Corrected story-detail alignment after visual review. Removed
+  the duplicated outer publication date and added a single padded reading
+  surface so labels, headline, summary, source, and actions share one aligned
+  content edge on desktop and mobile web.
 
 - 2026-09-10: Acted on every finding in `docs/runbooks/design-review-2026-09-10.md`
   (the 3-agent UI/UX/accessibility review), ad hoc per explicit request

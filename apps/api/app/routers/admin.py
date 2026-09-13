@@ -22,7 +22,7 @@ from typing import Any
 from uuid import UUID
 
 from fastapi import APIRouter, Depends
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
 
 from app.ai.budget import (
@@ -32,6 +32,7 @@ from app.ai.budget import (
     today_cost_usd,
 )
 from app.auth import AdminPrincipal, current_admin
+from app.content.serialize import load_story_relations
 from app.db import get_db
 from app.errors import APIError
 from app.jobs.source_fetch import CIRCUIT_BREAKER_THRESHOLD
@@ -46,6 +47,7 @@ from app.models import (
     Story,
     StorySource,
     StoryVariant,
+    StoryWhyMattersCache,
     XAccount,
 )
 from app.rate_limit import rate_limit_admin
@@ -338,7 +340,21 @@ def get_review_queue(db: Session = Depends(get_db)) -> list[ReviewQueueItemOut]:
     tasks = db.scalars(
         select(ReviewTask).where(ReviewTask.status == "PENDING").order_by(ReviewTask.created_at)
     ).all()
-    return [_review_task_out(task) for task in tasks]
+    loaded = load_story_relations(db, [task.story_id for task in tasks])
+    output = []
+    for task in tasks:
+        item = _review_task_out(task)
+        en = next((v for v in loaded.variants[task.story_id] if v.language == "en"), None)
+        item.headline = en.headline if en is not None else None
+        names = []
+        for link in loaded.links[task.story_id]:
+            source_item = loaded.items.get(link.source_item_id)
+            source = loaded.sources.get(source_item.source_id) if source_item else None
+            if source is not None and source.name not in names:
+                names.append(source.name)
+        item.source_names = names
+        output.append(item)
+    return output
 
 
 @router.get("/stories/{story_id}")
@@ -501,6 +517,8 @@ def correct_story(
     if body.why_matters is not None:
         variant.why_matters = body.why_matters
     variant.qa_status = "PENDING"
+    variant.generated_at = datetime.now(UTC)
+    db.execute(delete(StoryWhyMattersCache).where(StoryWhyMattersCache.story_id == story.id))
     db.flush()
     new_hash = _story_text_hash(variant)
 

@@ -38,7 +38,7 @@ const fontTelugu = Noto_Sans_Telugu({
 });
 
 export const metadata = {
-  title: "Telugu Global Admin",
+  title: "TTE Admin",
   description: "Internal admin console."
 };
 

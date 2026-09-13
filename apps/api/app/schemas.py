@@ -90,6 +90,7 @@ class HomeResponse(BaseModel):
 
 
 class TopicDetailResponse(BaseModel):
+    next_cursor: str | None = None
     topic: TopicOut
     stories: list[StoryOut] = Field(default_factory=list)
 
@@ -345,6 +346,8 @@ class AdminXAccountUpdate(BaseModel):
 
 
 class ReviewQueueItemOut(BaseModel):
+    headline: str | None = None
+    source_names: list[str] = Field(default_factory=list)
     id: UUID
     story_id: UUID
     reason: str

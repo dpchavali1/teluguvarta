@@ -12,11 +12,13 @@ export function StoryList({
   emptyLabel = "No stories yet.",
   onRefresh,
   refreshing,
+  footer,
 }: {
   stories: StoryOut[];
   emptyLabel?: string;
   onRefresh?: () => void;
   refreshing?: boolean;
+  footer?: React.ReactElement;
 }) {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
 
@@ -33,6 +35,7 @@ export function StoryList({
       )}
       onRefresh={onRefresh}
       refreshing={refreshing ?? false}
+      ListFooterComponent={footer}
       ListEmptyComponent={
         <View style={styles.empty}>
           <Text>{emptyLabel}</Text>

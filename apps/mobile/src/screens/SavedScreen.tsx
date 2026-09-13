@@ -1,35 +1,37 @@
 import { useFocusEffect } from "@react-navigation/native";
 import React, { useCallback, useState } from "react";
-
+import { ActivityIndicator, Button, Text, View } from "react-native";
 import { StoryList } from "../components/StoryList";
-import type { StoryOut } from "../lib/api";
+import { getSavedStories, type StoryOut } from "../lib/api";
 import { useStoryCache } from "../lib/StoryCacheContext";
-import { getSavedIds } from "../lib/storage";
 
 export function SavedScreen() {
-  const cache = useStoryCache();
-  const [savedStories, setSavedStories] = useState<StoryOut[]>([]);
+  const { put, savedIds, savedReady } = useStoryCache();
+  const [stories, setStories] = useState<StoryOut[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [missing, setMissing] = useState(0);
+  const [revision, setRevision] = useState(0);
+  useFocusEffect(useCallback(() => {
+    let cancelled = false;
+    if (!savedReady) return;
+    setLoading(true);
+    setError(null);
+    getSavedStories(savedIds).then((items) => {
+      if (cancelled) return;
+      setStories(items);
+      setMissing(savedIds.length - items.length);
+      put(items);
+    }).catch(() => {
+      if (!cancelled) setError("Couldn't load saved stories. Your bookmarks are still saved.");
+    }).finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, [put, savedIds, savedReady, revision]));
 
-  // Refresh on focus (not just mount) so a save/unsave made on another
-  // screen is reflected immediately when the user switches to this tab.
-  useFocusEffect(
-    useCallback(() => {
-      let cancelled = false;
-      getSavedIds().then((ids) => {
-        if (cancelled) return;
-        const stories = ids.map((id) => cache.get(id)).filter((s): s is StoryOut => Boolean(s));
-        setSavedStories(stories);
-      });
-      return () => {
-        cancelled = true;
-      };
-    }, [cache])
-  );
-
-  return (
-    <StoryList
-      stories={savedStories}
-      emptyLabel="Nothing saved yet. Save a story from the feed to find it here."
-    />
-  );
+  if (loading) return <ActivityIndicator accessibilityLabel="Loading saved stories" />;
+  if (error) return <View style={{ padding: 24 }}><Text accessibilityRole="alert">{error}</Text><Button title="Try again" onPress={() => setRevision((value) => value + 1)} /></View>;
+  return <View style={{ flex: 1 }}>
+    {missing > 0 && <Text style={{ padding: 16 }}>{missing} saved stories are currently unavailable. Your bookmarks have been kept.</Text>}
+    <StoryList stories={stories} emptyLabel="No saved stories to show. Save a story from the feed to find it here." onRefresh={() => setRevision((value) => value + 1)} refreshing={loading} />
+  </View>;
 }

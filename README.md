@@ -1,4 +1,4 @@
-# Telugu Global
+# TTE — The Telugu Edit
 
 Free, English-first information platform for Telugu people worldwide —
 global Telugu identity plus practical information about where the user

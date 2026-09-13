@@ -38,7 +38,7 @@ export function OnboardingCta() {
   return (
     <p>
       <Link className="page-hero__cta page-hero__cta--edit" href="/onboarding">
-        Feed personalized for {labels.join(", ")} — edit →
+        Your preferences: {labels.join(", ")} — edit →
       </Link>
     </p>
   );

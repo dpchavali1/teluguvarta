@@ -47,3 +47,21 @@ export const STUDENT_TOPIC_SLUGS = [
   "student-community",
   "international-student-jobs",
 ] as const;
+
+export function topicLabel(slug: string): string {
+  const labels: Record<string, string> = { f1: "F-1", cpt: "CPT", opt: "OPT", "stem-opt": "STEM OPT", "h1b-transition": "H-1B transition" };
+  return labels[slug] ?? slug.replace(/[-_]/g, " ").replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
+// Normalize legacy free-text country preferences at the API boundary.
+export function countryCode(value?: string): string | undefined {
+  const normalized = value?.trim();
+  if (!normalized) return undefined;
+  const aliases: Record<string, string> = {
+    "united states": "US", "united states of america": "US", usa: "US", us: "US",
+    india: "IN", in: "IN", canada: "CA", ca: "CA", "united kingdom": "GB", uk: "GB", gb: "GB",
+    australia: "AU", au: "AU", "united arab emirates": "AE", uae: "AE", ae: "AE",
+    singapore: "SG", sg: "SG", "new zealand": "NZ", nz: "NZ", germany: "DE", de: "DE",
+  };
+  return aliases[normalized.toLowerCase()] ?? normalized.toUpperCase();
+}

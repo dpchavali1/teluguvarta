@@ -35,7 +35,7 @@ const navigationRef = createNavigationContainerRef<RootStackParamList>();
 // Design-review fix: sharing a story produced a plain https:// URL that
 // couldn't reopen the app even when installed — no scheme/linking config
 // existed at all. This wires path -> screen mapping for both the custom
-// `teluguglobal://` scheme (works today) and the web origin (works once
+// `tte://` scheme (plus the legacy teluguglobal scheme) and the web origin (works once
 // iOS associatedDomains / Android intentFilters + the corresponding
 // apple-app-site-association / assetlinks.json are added — that needs the
 // real Apple Team ID and Android signing-cert fingerprint, which don't
@@ -44,7 +44,7 @@ const navigationRef = createNavigationContainerRef<RootStackParamList>();
 // (storyUrl/getTopic), so the same shared link resolves the same way on
 // both surfaces.
 const linking: LinkingOptions<RootStackParamList> = {
-  prefixes: ["teluguglobal://", siteUrl()],
+  prefixes: ["tte://", "teluguglobal://", siteUrl()],
   config: {
     screens: {
       Main: {

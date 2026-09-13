@@ -184,7 +184,7 @@ async function readSavedIds(): Promise<string[]> {
 }
 
 async function writeSavedIds(ids: string[]): Promise<void> {
-  await writeJson(KEYS.savedStories, ids);
+  await AsyncStorage.setItem(KEYS.savedStories, JSON.stringify(ids));
 }
 
 export async function getSavedIds(): Promise<string[]> {
@@ -195,7 +195,7 @@ export async function isSaved(storyId: string): Promise<boolean> {
   return (await readSavedIds()).includes(storyId);
 }
 
-export async function toggleSaved(storyId: string): Promise<boolean> {
+async function updateSaved(storyId: string): Promise<boolean> {
   const ids = await readSavedIds();
   const index = ids.indexOf(storyId);
   if (index === -1) {
@@ -206,4 +206,12 @@ export async function toggleSaved(storyId: string): Promise<boolean> {
   ids.splice(index, 1);
   await writeSavedIds(ids);
   return false;
+}
+
+// Serialize read/modify/write so rapid saves on different cards cannot lose IDs.
+let savedWrite: Promise<unknown> = Promise.resolve();
+export function toggleSaved(storyId: string): Promise<boolean> {
+  const next = savedWrite.then(() => updateSaved(storyId));
+  savedWrite = next.catch(() => undefined);
+  return next;
 }

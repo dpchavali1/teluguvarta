@@ -17,6 +17,8 @@
     "react-dom": "^18.3.1"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.13.0",
+    "@playwright/test": "^1.63.0",
     "@teluguvarta/config": "workspace:*",
     "@teluguvarta/contracts": "workspace:*",
     "@types/jsdom": "^30.0.0",

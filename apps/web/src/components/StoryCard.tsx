@@ -1,10 +1,11 @@
 "use client";
 
 import Link from "next/link";
+import { topicLabel } from "@teluguvarta/domain";
 import { useEffect, useState, type FormEvent } from "react";
 
-import { storyUrl, type Language, type StoryOut } from "@/lib/api";
-import { isSaved, toggleSaved } from "@/lib/saved";
+import { reportIssue, storyUrl, type Language, type StoryOut } from "@/lib/api";
+import { SAVED_CHANGE_EVENT, isSaved, toggleSaved } from "@/lib/saved";
 import { track } from "@/lib/analytics";
 import { getPreferredLanguage, LANGUAGE_CHANGE_EVENT, setPreferredLanguage } from "@/lib/onboarding";
 
@@ -27,11 +28,17 @@ export function StoryCard({ story, headingLevel = "h2" }: { story: StoryOut; hea
   const [reportOpen, setReportOpen] = useState(false);
   const [reportText, setReportText] = useState("");
   const [reportStatus, setReportStatus] = useState<string | null>(null);
+  const [reportBusy, setReportBusy] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const hasTelugu = Boolean(story.variants.te);
   const isHumanReviewed = REVIEWED_SENSITIVITIES.has(story.sensitivity);
 
   useEffect(() => {
-    setSaved(isSaved(story.id));
+    const sync = () => setSaved(isSaved(story.id));
+    sync();
+    window.addEventListener(SAVED_CHANGE_EVENT, sync);
+    window.addEventListener("storage", sync);
+    return () => { window.removeEventListener(SAVED_CHANGE_EVENT, sync); window.removeEventListener("storage", sync); };
   }, [story.id]);
 
   useEffect(() => {
@@ -47,6 +54,8 @@ export function StoryCard({ story, headingLevel = "h2" }: { story: StoryOut; hea
   const variant = story.variants[language] ?? story.variants.en;
   if (!variant) return null;
 
+  const renderedLanguage: Language = story.variants[language] ? language : "en";
+  const whyMatters = renderedLanguage === "en" ? story.personalization?.why_matters ?? variant.why_matters : variant.why_matters;
   const url = storyUrl(story.canonical_slug);
   const statusNotice = STATUS_LABEL[story.status];
   const primarySource = story.sources[0];
@@ -59,8 +68,8 @@ export function StoryCard({ story, headingLevel = "h2" }: { story: StoryOut; hea
       try {
         await navigator.share(shareData);
         return;
-      } catch {
-        // user cancelled or share failed — fall through to copy-link
+      } catch (error) {
+        if (error instanceof Error && error.name === "AbortError") return;
       }
     }
     try {
@@ -72,9 +81,12 @@ export function StoryCard({ story, headingLevel = "h2" }: { story: StoryOut; hea
   }
 
   function handleSaveToggle() {
-    const nowSaved = toggleSaved(story.id);
-    setSaved(nowSaved);
-    if (nowSaved) track("story_save", { story_id: story.id });
+    try {
+      const nowSaved = toggleSaved(story.id);
+      setSaved(nowSaved);
+      setSaveError(null);
+      if (nowSaved) track("story_save", { story_id: story.id });
+    } catch { setSaveError("Couldn’t save this change on your device. Please try again."); }
   }
 
   function handleLanguageSwitch(next: Language) {
@@ -83,12 +95,18 @@ export function StoryCard({ story, headingLevel = "h2" }: { story: StoryOut; hea
     setPreferredLanguage(next);
   }
 
-  function handleReportSubmit(event: FormEvent) {
+  async function handleReportSubmit(event: FormEvent) {
     event.preventDefault();
-    track("report_issue", { story_id: story.id, description: reportText });
-    setReportOpen(false);
-    setReportText("");
-    setReportStatus("Thanks — we've logged this for review.");
+    if (reportBusy) return;
+    setReportBusy(true);
+    setReportStatus(null);
+    try {
+      await reportIssue(story.id, reportText.trim());
+      setReportOpen(false);
+      setReportText("");
+      setReportStatus("Report received. Thank you.");
+    } catch { setReportStatus("Couldn't send your report. Your description is still here; please try again."); }
+    finally { setReportBusy(false); }
   }
 
   return (
@@ -98,10 +116,13 @@ export function StoryCard({ story, headingLevel = "h2" }: { story: StoryOut; hea
           <span className="pill" key={c}>{c}</span>
         ))}
         {story.topics.map((t) => (
-          <span className="pill" key={t}>{t}</span>
+          <Link className="pill" key={t} href={`/topic/${t}`}>{topicLabel(t)}</Link>
         ))}
       </div>
 
+      {story.published_at && <p className="story-card__date"><time dateTime={story.published_at}>{new Date(story.published_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" })}</time>{story.status === "UPDATED" && story.updated_at && <> · Updated <time dateTime={story.updated_at}>{new Date(story.updated_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" })}</time></>}</p>}
+      {language !== renderedLanguage && <p role="status">Telugu translation isn’t available yet. Showing English.</p>}
+      {story.personalization?.explanation && <p className="story-card__recommendation" lang="en">{story.personalization.explanation}</p>}
       {isHumanReviewed && (
         <p className="story-card__reviewed">
           <span aria-hidden="true">✓</span> Human-reviewed
@@ -114,14 +135,14 @@ export function StoryCard({ story, headingLevel = "h2" }: { story: StoryOut; hea
         </p>
       )}
 
-      <Heading className="story-card__headline" id={`story-${story.id}-headline`} lang={language}>
+      <Heading className="story-card__headline" id={`story-${story.id}-headline`} lang={renderedLanguage}>
         <Link href={`/story/${story.canonical_slug}`}>{variant.headline}</Link>
       </Heading>
 
-      <p lang={language}>{variant.summary}</p>
-      {variant.why_matters && (
-        <p className="story-card__why" lang={language}>
-          <strong>Why this matters:</strong> {variant.why_matters}
+      <p lang={renderedLanguage}>{variant.summary}</p>
+      {whyMatters && (
+        <p className="story-card__why" lang={renderedLanguage}>
+          <strong lang="en">Why this matters:</strong> {whyMatters}
         </p>
       )}
 
@@ -158,10 +179,11 @@ export function StoryCard({ story, headingLevel = "h2" }: { story: StoryOut; hea
             </button>
           </div>
         )}
-        <button type="button" onClick={handleShare} aria-label={`Share: ${variant.headline}`}>
+        <button className="story-card__action story-card__action--share" type="button" onClick={handleShare} aria-label={`Share: ${variant.headline}`}>
           Share
         </button>
         <button
+          className="story-card__action story-card__action--save"
           type="button"
           onClick={handleSaveToggle}
           aria-pressed={saved}
@@ -170,6 +192,7 @@ export function StoryCard({ story, headingLevel = "h2" }: { story: StoryOut; hea
           {saved ? "Saved" : "Save"}
         </button>
         <button
+          className="story-card__action story-card__action--report"
           type="button"
           onClick={() => setReportOpen((open) => !open)}
           aria-expanded={reportOpen}
@@ -179,6 +202,7 @@ export function StoryCard({ story, headingLevel = "h2" }: { story: StoryOut; hea
         </button>
       </div>
 
+      {saveError && <p role="alert">{saveError}</p>}
       {shareStatus && (
         <p className="story-card__inline-status" role="status">
           {shareStatus}
@@ -193,9 +217,12 @@ export function StoryCard({ story, headingLevel = "h2" }: { story: StoryOut; hea
             value={reportText}
             onChange={(event) => setReportText(event.target.value)}
             rows={2}
+            maxLength={2000}
+            required
+            disabled={reportBusy}
           />
           <div className="story-card__report-actions">
-            <button type="submit">Submit</button>
+            <button type="submit" disabled={reportBusy || !reportText.trim()}>{reportBusy ? "Sending…" : "Submit"}</button>
             <button type="button" onClick={() => setReportOpen(false)}>
               Cancel
             </button>

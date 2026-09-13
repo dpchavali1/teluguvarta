@@ -8,23 +8,26 @@ REVIEW_REQUIRED/APPROVED/SCHEDULED/ARCHIVED stories stay internal.
 import base64
 import os
 import re
+from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query
-from sqlalchemy import select
+from sqlalchemy import and_, or_, select
 from sqlalchemy.orm import Session
 
 from app import analytics
 from app.content.ranking import Preferences, rank_stories
 from app.content.serialize import (
     PUBLIC_STATUSES,
+    load_story_relations,
     story_to_out,
     story_to_rankable,
     topic_out,
 )
 from app.content.variants import resolve_display_variant
-from app.content.why_matters import get_or_generate as get_or_generate_why_matters
+from app.content.why_matters import get_cached_many
 from app.db import get_db
 from app.errors import APIError
+from app.jobs.why_matters import enqueue_why_matters
 from app.models import (
     PilotSignup,
     Source,
@@ -99,31 +102,33 @@ def _encode_cursor(offset: int) -> str:
     return base64.urlsafe_b64encode(str(offset).encode()).decode()
 
 
-def _published_story_ids(
-    db: Session, *, topic_slug: str | None = None, country: str | None = None
-) -> list:
-    stmt = select(Story.id).where(Story.status.in_(PUBLIC_STATUSES))
+def _published_query(*, topic_slug: str | None = None, country: str | None = None):
+    stmt = select(Story).where(Story.status.in_(PUBLIC_STATUSES))
     if topic_slug is not None:
-        stmt = stmt.join(StoryTopic, StoryTopic.story_id == Story.id).join(
-            Topic, Topic.id == StoryTopic.topic_id
-        ).where(Topic.slug == topic_slug)
+        stmt = stmt.where(Story.id.in_(
+            select(StoryTopic.story_id).join(Topic, Topic.id == StoryTopic.topic_id).where(Topic.slug == topic_slug)
+        ))
     if country is not None:
-        stmt = stmt.join(StorySource, StorySource.story_id == Story.id).join(
-            SourceItem, SourceItem.id == StorySource.source_item_id
-        ).join(Source, Source.id == SourceItem.source_id).where(Source.country == country)
-    stmt = stmt.order_by(Story.published_at.desc().nulls_last(), Story.id)
-    return list(db.scalars(stmt).unique().all())
+        stmt = stmt.where(Story.id.in_(
+            select(StorySource.story_id).join(SourceItem, SourceItem.id == StorySource.source_item_id)
+            .join(Source, Source.id == SourceItem.source_id).where(Source.country == country)
+        ))
+    return stmt.order_by(Story.published_at.desc().nulls_last(), Story.id)
 
 
 def _list_page(
-    db: Session, *, topic_slug: str | None, country: str | None, limit: int, cursor: str | None
+    db: Session, *, topic_slug: str | None, country: str | None, limit: int, cursor: str | None,
+    ids: list[UUID] | None = None,
 ) -> StoriesListResponse:
     offset = _decode_cursor(cursor)
-    ids = _published_story_ids(db, topic_slug=topic_slug, country=country)
-    page_ids = ids[offset : offset + limit]
-    stories = [db.get(Story, sid) for sid in page_ids]
-    items = [story_to_out(db, s) for s in stories if s is not None]
-    next_cursor = _encode_cursor(offset + limit) if offset + limit < len(ids) else None
+    stmt = _published_query(topic_slug=topic_slug, country=country)
+    if ids is not None:
+        stmt = stmt.where(Story.id.in_(ids))
+    rows = list(db.scalars(stmt.offset(offset).limit(limit + 1)))
+    stories = rows[:limit]
+    loaded = load_story_relations(db, [story.id for story in stories])
+    items = [story_to_out(db, story, loaded) for story in stories]
+    next_cursor = _encode_cursor(offset + limit) if len(rows) > limit else None
     return StoriesListResponse(items=items, next_cursor=next_cursor)
 
 
@@ -169,25 +174,30 @@ def get_home(
         # T16/ADR-005: personalization is additive — no preferences supplied
         # (the common case for an anonymous, no-account-yet visitor per
         # NON_NEGOTIABLES #9) means the existing T14 chronological feed.
-        ids = _published_story_ids(db)[:HOME_PAGE_SIZE]
-        stories = [db.get(Story, sid) for sid in ids]
-        top_stories = [story_to_out(db, s) for s in stories if s is not None]
+        stories = list(db.scalars(_published_query().limit(HOME_PAGE_SIZE)))
+        loaded = load_story_relations(db, [s.id for s in stories])
+        top_stories = [story_to_out(db, s, loaded) for s in stories]
     else:
-        candidate_ids = _published_story_ids(db)[:HOME_CANDIDATE_POOL]
-        candidate_rows = [db.get(Story, sid) for sid in candidate_ids]
-        candidates: list[Story] = [s for s in candidate_rows if s is not None]
-        rankable = [story_to_rankable(db, s) for s in candidates]
+        candidates = list(db.scalars(_published_query().limit(HOME_CANDIDATE_POOL)))
+        loaded = load_story_relations(db, [s.id for s in candidates])
+        rankable = [story_to_rankable(db, s, loaded) for s in candidates]
         ranked = rank_stories(rankable, prefs)[:HOME_PAGE_SIZE]
         stories_by_id = {str(s.id): s for s in candidates}
+        cached_why = get_cached_many(db, [s.id for s in candidates], segment)
         top_stories = []
         for scored in ranked:
             story = stories_by_id[scored.story_id]
-            out = story_to_out(db, story)
-            why_matters = get_or_generate_why_matters(db, story, segment)
+            out = story_to_out(db, story, loaded)
+            why_matters = cached_why.get(story.id)
+            if why_matters is None:
+                en = next((v for v in loaded.variants[story.id] if v.language == "en"), None)
+                if en is not None:
+                    enqueue_why_matters(db, story, en, segment)
             out.personalization = PersonalizationOut(
                 score=scored.score, explanation=scored.explanation, why_matters=why_matters,
             )
             top_stories.append(out)
+        db.commit()
 
     topics = db.scalars(select(Topic).where(Topic.active.is_(True)).order_by(Topic.name)).all()
     return HomeResponse(top_stories=top_stories, topics=[topic_out(t) for t in topics])
@@ -199,9 +209,18 @@ def list_stories(
     country: str | None = Query(default=None),
     limit: int = Query(default=DEFAULT_PAGE_SIZE, ge=1, le=100),
     cursor: str | None = Query(default=None),
+    ids: str | None = Query(default=None, max_length=3700),
     db: Session = Depends(get_db),
 ) -> StoriesListResponse:
-    return _list_page(db, topic_slug=topic, country=country, limit=limit, cursor=cursor)
+    selected_ids = None
+    if ids is not None:
+        try:
+            selected_ids = list(dict.fromkeys(UUID(value.strip()) for value in ids.split(",")))
+        except ValueError as err:
+            raise APIError(422, "INVALID_STORY_IDS", "Story ids must be comma-separated UUIDs") from err
+        if len(selected_ids) > 100:
+            raise APIError(422, "TOO_MANY_STORY_IDS", "Request at most 100 saved stories at a time")
+    return _list_page(db, topic_slug=topic, country=country, limit=limit, cursor=cursor, ids=selected_ids)
 
 
 @router.get("/stories/{slug}")
@@ -227,12 +246,12 @@ def get_story_share_meta(slug: str, db: Session = Depends(get_db)) -> ShareMetaR
 
 
 @router.get("/topics/{slug}")
-def get_topic(slug: str, db: Session = Depends(get_db)) -> TopicDetailResponse:
+def get_topic(slug: str, cursor: str | None = Query(default=None), db: Session = Depends(get_db)) -> TopicDetailResponse:
     topic = db.scalars(select(Topic).where(Topic.slug == slug)).first()
     if topic is None:
         raise APIError(404, "TOPIC_NOT_FOUND", f"No topic with slug '{slug}'")
-    page = _list_page(db, topic_slug=slug, country=None, limit=50, cursor=None)
-    return TopicDetailResponse(topic=topic_out(topic), stories=page.items)
+    page = _list_page(db, topic_slug=slug, country=None, limit=DEFAULT_PAGE_SIZE, cursor=cursor)
+    return TopicDetailResponse(topic=topic_out(topic), stories=page.items, next_cursor=page.next_cursor)
 
 
 @router.get("/search", dependencies=[Depends(rate_limit_search)])
@@ -240,25 +259,15 @@ def search(
     q: str = Query(min_length=1), limit: int = Query(default=DEFAULT_PAGE_SIZE, ge=1, le=100),
     db: Session = Depends(get_db),
 ) -> SearchResponse:
-    # Postgres FTS/pg_trgm per NON_NEGOTIABLES #1 — `ILIKE` against the
-    # already-`pg_trgm`-indexed `story_variants.headline`/`summary` (T03) is
-    # the minimal correct query here; a ranked full-text query is future
-    # scope once relevance tuning is actually measured, not before.
-    pattern = f"%{q}%"
-    story_ids = db.scalars(
-        select(StoryVariant.story_id)
-        .join(Story, Story.id == StoryVariant.story_id)
-        .where(
-            Story.status.in_(PUBLIC_STATUSES),
-            StoryVariant.language == "en",
-            (StoryVariant.headline.ilike(pattern) | StoryVariant.summary.ilike(pattern)),
-        )
-        .order_by(Story.published_at.desc().nulls_last())
-        .limit(limit)
-    ).unique().all()
-    stories = [db.get(Story, sid) for sid in story_ids]
-    items = [story_to_out(db, s) for s in stories if s is not None]
-    return SearchResponse(query=q, items=items)
+    # Search only displayable variants, preserving the English fallback gate.
+    pattern = "%" + q.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%"
+    matching = select(StoryVariant.story_id).where(
+        or_(StoryVariant.language == "en", and_(StoryVariant.language == "te", StoryVariant.qa_status == "PASSED")),
+        or_(StoryVariant.headline.ilike(pattern, escape="\\"), StoryVariant.summary.ilike(pattern, escape="\\")),
+    )
+    stories = list(db.scalars(_published_query().where(Story.id.in_(matching)).limit(limit)))
+    loaded = load_story_relations(db, [s.id for s in stories])
+    return SearchResponse(query=q, items=[story_to_out(db, s, loaded) for s in stories])
 
 
 @router.get("/config")

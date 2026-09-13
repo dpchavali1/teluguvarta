@@ -15,7 +15,7 @@ in `docs/NON_NEGOTIABLES.md` or make a decision the spec leaves open.
 | ADR-006 | Account/privacy architecture | T05 | **proposed** — see [ADR-006](ADR-006-account-privacy-architecture.md) |
 | ADR-007 | Production hosting/cost limits | T19 | **accepted** — see [ADR-007](ADR-007-production-hosting-cost-limits.md) |
 | ADR-008 | Visual design refresh (no new UI framework) | T21 | **accepted** — see [ADR-008](ADR-008-visual-design-refresh.md) |
-| ADR-009 | Single design-token source, generated per surface | T22 | **proposed** — see [ADR-009](ADR-009-single-token-source.md) |
+| ADR-009 | Single design-token source, generated per surface | T22 | **accepted** — see [ADR-009](ADR-009-single-token-source.md) |
 
 Update the Status column when an ADR file is created, and again when it's
 accepted. Add ad-hoc ADRs below this table as they're written.

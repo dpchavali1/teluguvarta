@@ -4,6 +4,7 @@ import { StyleSheet, Switch, Text, TextInput, View } from "react-native";
 
 import { getConfig, type TopicOut } from "../lib/api";
 import type { NotificationPreferences } from "../lib/storage";
+import { ui } from "../theme/tokens";
 
 // §3.1/§9.2: independent per-topic toggles, quiet hours, max alert
 // frequency, and disable-all-without-losing-news-access. `disableAll` only
@@ -183,7 +184,7 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
   },
   rowLabel: { fontSize: 16, flexShrink: 1, paddingRight: 12 },
-  hint: { fontSize: 13, color: "#666", marginBottom: 8 },
+  hint: { fontSize: 13, color: ui.textTertiary, marginBottom: 8 },
   section: { marginTop: 16 },
   sectionTitle: { fontSize: 15, fontWeight: "700", marginBottom: 4 },
   timeRow: { flexDirection: "row", alignItems: "center", gap: 8 },
@@ -193,7 +194,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: "#ccc",
+    borderColor: ui.borderControl,
   },
   numberInput: {
     minHeight: 44,
@@ -201,6 +202,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: "#ccc",
+    borderColor: ui.borderControl,
   },
 });

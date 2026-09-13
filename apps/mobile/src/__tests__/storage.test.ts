@@ -1,3 +1,5 @@
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { toggleSaved, getSavedIds } from "../lib/storage";
 import {
   DEFAULT_NOTIFICATION_PREFERENCES,
   getNotificationPreferences,
@@ -84,4 +86,15 @@ test("isStudentSegment is true if any selected life stage is International Stude
   expect(isStudentSegment(["OTHER"])).toBe(false);
   expect(isStudentSegment([])).toBe(false);
   expect(isStudentSegment(["PROFESSIONAL", "GRADUATE_OPT"])).toBe(true);
+});
+
+// Failed writes must never be reported as successful saves.
+test("saved writes reject on full storage and concurrent saves preserve both IDs", async () => {
+  await AsyncStorage.removeItem("tg_saved_stories_v1");
+  jest.spyOn(AsyncStorage, "setItem").mockRejectedValueOnce(new Error("full"));
+  await expect(toggleSaved("first")).rejects.toThrow("full");
+  expect(await getSavedIds()).toEqual([]);
+  await Promise.all([toggleSaved("first"), toggleSaved("second")]);
+  expect(await getSavedIds()).toEqual(["first", "second"]);
+  jest.restoreAllMocks();
 });

@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { EMPTY_PROFILE, getProfile, setLanguage, type OnboardingProfile } from "../lib/storage";
+import { ui } from "../theme/tokens";
 
 const OPTIONS: { value: OnboardingProfile["language"]; label: string }[] = [
   { value: "en", label: "English" },
@@ -48,8 +49,8 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     paddingHorizontal: 16,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderColor: "#ddd",
+    borderColor: ui.borderSubtle,
   },
-  rowActive: { backgroundColor: "#f0f6ff" },
+  rowActive: { backgroundColor: ui.actionPrimarySoft },
   label: { fontSize: 16 },
 });
