@@ -5,7 +5,7 @@ export const colors = {
   surfaceSunken: "#eceff5",
   text: "#151827",
   muted: "#525a70",
-  faint: "#6f778d",
+  faint: "#5f6780",
   border: "#a8b0c2",
   rule: "#151827",
   accent: "#3657d6",

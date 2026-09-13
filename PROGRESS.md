@@ -76,6 +76,52 @@ Mirrors `docs/adr/README.md` — keep both in sync.
 
 (newest first — one line per ticket completion)
 
+- 2026-09-13: Live-browser design/accessibility pass (T21/T19 follow-up, ad
+  hoc per explicit request — the "re-run live before treating any WCAG
+  conformance claim as settled" caveat from prior entries). The Claude in
+  Chrome extension wasn't available (no Chrome installed), so used
+  Playwright's headless Chromium + axe-core directly instead — a real
+  browser, not jsdom, so it enforces actual CORS and CSS layout/contrast for
+  the first time in this project's verification history. Found and fixed
+  two real bugs neither curl, pytest, nor the jsdom-based `a11y-check.mjs`
+  could ever catch: **(1) the API had no CORS middleware at all**
+  (`apps/api/app/main.py`) — admin login was completely non-functional in a
+  real cross-origin browser (blocked at preflight, silently stuck on
+  `/login`), and web's client-side analytics (`/v1/events`) and onboarding's
+  `/v1/config` fetch failed the same way. Added `CORSMiddleware` gated by a
+  new `CORS_ALLOWED_ORIGINS` env var (`.env.example`, defaults to
+  `localhost:3000,localhost:3001` for dev); no `allow_credentials` needed
+  since auth is Bearer-token-via-localStorage, not cookies. **(2)** a real
+  (not jsdom-only) contrast failure: `--color-faint` (`#6f778d` on white,
+  ~4.47:1, just under the 4.5:1 AA floor — the same marginal pair flagged
+  but not fixed in the 2026-09-12 semantic-token audit) darkened to
+  `#5f6780` (~5.6:1) in `packages/design-tokens/tokens.json` (single source
+  per ADR-009) and regenerated into `apps/web/src/app/tokens.css` +
+  `apps/mobile/src/theme/tokens.ts`; admin inherits via its `@import` of
+  web's generated tokens.css, so no admin-specific edit was needed. Also
+  investigated and found genuinely dead CSS: `apps/web/src/app/globals.css`
+  lines ~1393-1398 (an earlier "ink card" lead-story treatment) are fully
+  shadowed by a later same-specificity block (~1548-1555) and never render
+  — left as-is (not asked, and correctly identifying dead CSS from cascade
+  order alone risks a wrong call without more investigation) but flagged
+  for a future cleanup pass. **Verified**: re-ran the real-browser axe pass
+  after both fixes — 0 violations across all 13 web pages, the actual admin
+  login flow completes and reaches the real `/review`, `/observability`,
+  `/sources` pages (previously silently 0-violation-because-still-on-
+  `/login`), 0 violations there too. `apps/api` `ruff check` clean, `pytest`
+  515/515 passing standalone (1 pre-existing full-suite-only teardown flake,
+  confirmed unrelated by running it in isolation). `apps/web` `next lint`
+  and `next build` both clean. Mobile: no browser/web target exists
+  (Expo iOS/Android only, no `react-native-web`), so booted the actual iOS
+  Simulator via Expo Go instead — app loads and looks correct on visual
+  inspection (user-confirmed). **Not done**: mobile wasn't walked
+  screen-by-screen for axe-equivalent accessibility issues (no automated
+  a11y tool exists for React Native in this repo); dark-mode contrast for
+  the same `--color-faint` pair wasn't checked (axe only ran against the
+  default light-theme render); the Chrome-extension-based flow this session
+  started with is still unverified end-to-end since no Chrome is installed
+  on this machine — Playwright/Chromium was the substitute, not Chrome
+  itself.
 - 2026-09-12: Rebranded the public product to **TTE — The Telugu Edit**.
   Added the canonical brand document at `docs/brand/TTE-BRAND.md` and updated
   web/mobile/admin/API copy, metadata, notifications, OpenAPI title, and the
