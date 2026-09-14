@@ -44,6 +44,20 @@ remaining risks. If something is ambiguous or requires a legal/architecture
 assumption, stop and write an ADR (`docs/adr/TEMPLATE.md`) instead of
 guessing.
 
+## Agent skills
+
+`.claude/skills/` has two skills installed via `npx skills` (vercel-labs/agent-skills),
+tracked by `skills-lock.json`:
+
+- `vercel-react-native-skills` — bundled RN/Expo performance rules (lists,
+  Reanimated, Expo Image, etc.); triggers automatically on `apps/mobile` work.
+- `web-design-guidelines` — on-demand WCAG/UI review for `apps/web` and
+  `apps/admin`; fetches the upstream Web Interface Guidelines at review time
+  rather than bundling them, so its ruleset can change upstream.
+
+Run `npx skills update` to refresh them; re-review before updating since they
+run with full agent permissions.
+
 ## Token discipline for this repo specifically
 
 - Ticket files are written to be self-contained — loading one plus
