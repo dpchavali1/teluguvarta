@@ -21,7 +21,7 @@ const STATUS_LABEL: Record<string, { text: string; className: string } | undefin
 // not a claim we have to separately track.
 const REVIEWED_SENSITIVITIES = new Set(["IMMIGRATION", "LEGAL", "FINANCIAL", "BREAKING", "OBITUARY_ACCUSATION"]);
 
-export function StoryCard({ story, headingLevel = "h2" }: { story: StoryOut; headingLevel?: "h1" | "h2" }) {
+export function StoryCard({ story, headingLevel = "h2", display = "default" }: { story: StoryOut; headingLevel?: "h1" | "h2"; display?: "default" | "lead" | "brief" }) {
   const [language, setLanguage] = useState<Language>("en");
   const [saved, setSaved] = useState(false);
   const [shareStatus, setShareStatus] = useState<string | null>(null);
@@ -109,8 +109,10 @@ export function StoryCard({ story, headingLevel = "h2" }: { story: StoryOut; hea
     finally { setReportBusy(false); }
   }
 
+  const variantClass = display === "lead" ? " story-card--lead" : display === "brief" ? " story-card--brief" : "";
+
   return (
-    <article className="story-card" aria-labelledby={`story-${story.id}-headline`}>
+    <article className={`story-card${variantClass}`} aria-labelledby={`story-${story.id}-headline`}>
       <div className="story-card__labels">
         {story.countries.map((c) => (
           <span className="pill" key={c}>{c}</span>

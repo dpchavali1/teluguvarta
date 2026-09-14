@@ -58,6 +58,21 @@ main {
   padding: 2rem 1.5rem 4rem;
 }
 
+/* ---------- Sidebar shell (admin is a dense workbench, not a reader page) ---------- */
+
+.admin-shell {
+  display: flex;
+  align-items: flex-start;
+  min-height: 100vh;
+}
+
+.admin-shell > main {
+  flex: 1;
+  min-width: 0;
+  max-width: 78rem;
+  margin: 0;
+}
+
 p[role="alert"] {
   background: var(--color-danger-soft);
   color: var(--color-danger);
@@ -108,7 +123,7 @@ button {
   border-radius: 0;
   padding: 0.6rem 1.1rem;
   box-shadow: var(--shadow-hard-sm);
-  transition: transform 0.12s var(--ease-out, ease), box-shadow 0.12s var(--ease-out, ease);
+  transition: transform var(--duration-fast) var(--ease-out, ease), box-shadow var(--duration-fast) var(--ease-out, ease);
 }
 
 button:hover:not(:disabled) {
@@ -127,13 +142,21 @@ button:disabled {
 
 /* ---------- Layout shell ---------- */
 
+/* Rule-line divider, not box chrome — a dense workbench reads sections as
+   strata in one column, not a stack of separately-framed cards. */
 section {
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-hard);
-  padding: 1.5rem 1.75rem;
-  margin-bottom: 1.5rem;
+  background: transparent;
+  border: none;
+  border-top: 1px solid var(--color-border);
+  border-radius: 0;
+  box-shadow: none;
+  padding: 1.5rem 0;
+  margin-bottom: 0;
+}
+
+section:first-of-type {
+  border-top: none;
+  padding-top: 0;
 }
 
 /* ---------- Tables ---------- */
@@ -141,23 +164,31 @@ section {
 table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 0.92rem;
+  font-size: 0.86rem;
+  font-variant-numeric: tabular-nums;
+}
+
+thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--color-bg);
 }
 
 th {
   text-align: left;
   font-family: var(--font-mono-stack);
-  font-size: 0.68rem;
+  font-size: 0.66rem;
   text-transform: uppercase;
   letter-spacing: 0.08em;
   color: var(--color-faint);
   font-weight: 600;
-  padding: 0.5rem 0.6rem;
+  padding: 0.4rem 0.5rem;
   border-bottom: 2px solid var(--color-rule);
 }
 
 td {
-  padding: 0.65rem 0.6rem;
+  padding: 0.45rem 0.5rem;
   border-bottom: 1px solid var(--color-border);
   vertical-align: middle;
 }
@@ -171,60 +202,100 @@ td button {
   font-size: 0.82rem;
 }
 
-/* ---------- Admin top nav ---------- */
+/* ---------- Admin sidebar rail ---------- */
 
 .admin-nav {
   position: sticky;
   top: 0;
-  z-index: 10;
-  background: var(--color-surface);
-  border-bottom: 1px solid var(--color-border);
-}
-
-.admin-nav__inner {
-  max-width: 68rem;
-  margin: 0 auto;
-  padding: 0.9rem 1.5rem;
+  align-self: flex-start;
+  flex: 0 0 216px;
+  width: 216px;
+  height: 100vh;
   display: flex;
-  align-items: center;
-  gap: 1.5rem;
-  flex-wrap: wrap;
+  flex-direction: column;
+  background: var(--color-surface);
+  border-right: 1px solid var(--color-border);
+  padding: 1.5rem 1.1rem;
 }
 
 .admin-nav__brand {
-  font-weight: 700;
   text-decoration: none;
   color: var(--color-text);
-  font-size: 1.05rem;
+  font-family: var(--font-heading);
+  font-weight: 800;
+  font-size: 1.2rem;
+  letter-spacing: -0.01em;
+  margin-bottom: 2rem;
+}
+
+.admin-nav__brand span {
+  display: block;
+  font-family: var(--font-mono-stack);
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--color-faint);
+  margin-top: 0.2rem;
 }
 
 .admin-nav__links {
   display: flex;
-  gap: 1.25rem;
+  flex-direction: column;
+  gap: 0.1rem;
   flex: 1;
-  flex-wrap: wrap;
 }
 
 .admin-nav__links a {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
   text-decoration: none;
   color: var(--color-muted);
-  font-size: 0.9rem;
+  font-size: 0.86rem;
   font-weight: 500;
-  padding: 0.3rem 0;
-  border-bottom: 2px solid transparent;
+  padding: 0.6rem 0.55rem;
+  border-left: 3px solid transparent;
+  margin-left: -1.1rem;
+  padding-left: calc(1.1rem - 3px);
+}
+
+.admin-nav__dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.5;
+  flex: none;
 }
 
 .admin-nav__links a.is-active {
   color: var(--color-text);
-  border-bottom-color: var(--color-accent);
+  border-left-color: var(--color-accent);
+  background: var(--color-surface-sunken);
+  font-weight: 600;
+}
+
+.admin-nav__links a.is-active .admin-nav__dot {
+  background: var(--color-accent);
+  opacity: 1;
 }
 
 .admin-nav__links a:hover {
   color: var(--color-text);
+  background: var(--color-surface-sunken);
+}
+
+.admin-nav__footer {
+  border-top: 1px solid var(--color-border);
+  padding-top: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
 }
 
 .admin-nav__role {
-  font-size: 0.8rem;
+  font-size: 0.78rem;
   color: var(--color-faint);
   font-family: var(--font-mono-stack);
 }
@@ -234,8 +305,9 @@ td button {
   background: transparent;
   border: 1px solid var(--color-border);
   color: var(--color-muted);
-  padding: 0.4rem 0.85rem;
-  font-size: 0.75rem;
+  padding: 0.45rem 0.85rem;
+  font-size: 0.72rem;
+  width: 100%;
 }
 
 .admin-nav button:hover {
@@ -243,10 +315,61 @@ td button {
   transform: none;
 }
 
+@media (max-width: 720px) {
+  .admin-shell {
+    flex-direction: column;
+  }
+
+  .admin-nav {
+    position: static;
+    width: 100%;
+    height: auto;
+    flex-direction: row;
+    align-items: center;
+    border-right: none;
+    border-bottom: 1px solid var(--color-border);
+    padding: 0.75rem 1rem;
+    gap: 1rem;
+    overflow-x: auto;
+  }
+
+  .admin-nav__brand {
+    margin-bottom: 0;
+  }
+
+  .admin-nav__links {
+    flex-direction: row;
+    flex: none;
+  }
+
+  .admin-nav__links a {
+    border-left: none;
+    border-bottom: 3px solid transparent;
+    margin-left: 0;
+    padding-left: 0.55rem;
+    white-space: nowrap;
+  }
+
+  .admin-nav__links a.is-active {
+    border-left-color: transparent;
+    border-bottom-color: var(--color-accent);
+  }
+
+  .admin-nav__footer {
+    flex-direction: row;
+    border-top: none;
+    padding-top: 0;
+  }
+
+  .admin-shell > main {
+    max-width: none;
+  }
+}
+
 /* ---------- Login card ---------- */
 
 .auth-page {
-  min-height: calc(100vh - 4rem);
+  min-height: 100vh;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -265,6 +388,34 @@ td button {
 .auth-card button {
   width: 100%;
   padding: 0.7rem;
+}
+
+/* ---------- Dashboard rule-separated stat/info row ---------- */
+
+.dashboard-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2rem;
+}
+
+.dashboard-summary > div {
+  padding-right: 2rem;
+  border-right: 1px solid var(--color-border);
+}
+
+.dashboard-summary > div:last-child {
+  border-right: none;
+}
+
+.dashboard-summary__label {
+  display: block;
+  font-family: var(--font-mono-stack);
+  font-size: 0.66rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-faint);
+  margin-bottom: 0.3rem;
 }
 
 /* ---------- Status pills ---------- */

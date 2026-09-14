@@ -17,8 +17,8 @@ ${cssSemantic("light")}
   --color-danger: var(--color-hot);
   --color-danger-soft: var(--color-hot-soft);
   --focus-ring: var(--color-focus-ring);
-  --shadow-hard: 4px 4px 0 var(--color-rule);
-  --shadow-hard-sm: 3px 3px 0 var(--color-rule);
+  --shadow-hard: ${tokens.shadow.md}px ${tokens.shadow.md}px 0 var(--color-rule);
+  --shadow-hard-sm: ${tokens.shadow.sm}px ${tokens.shadow.sm}px 0 var(--color-rule);
   --radius-md: ${tokens.radius.md}px;
   --radius-lg: ${tokens.radius.lg}px;
   --space-xs: ${tokens.spacing.xs}px;
@@ -27,6 +27,8 @@ ${cssSemantic("light")}
   --space-lg: ${tokens.spacing.lg}px;
   --space-xl: ${tokens.spacing.xl}px;
   --ease-out: ${tokens.motion.easeOut};
+  --duration-fast: ${tokens.motion.duration.fast}ms;
+  --duration-base: ${tokens.motion.duration.base}ms;
   --font-sans-fallback: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --font-body: var(--font-sans), var(--font-sans-fallback);
   --font-heading: var(--font-display), var(--font-sans), var(--font-sans-fallback);
@@ -56,9 +58,13 @@ export const uiDark = {\n${rnSemantic("dark")}\n} as const;
 export const uiSchemes = { light: ui, dark: uiDark } as const;
 export const radius = { sm: 0, md: ${tokens.radius.md}, lg: ${tokens.radius.lg}, pill: 0 } as const;
 export const spacing = ${JSON.stringify(tokens.spacing, null, 2)} as const;
-export const shadow = { card: { shadowColor: colors.rule, shadowOpacity: 1, shadowRadius: 0, shadowOffset: { width: 3, height: 3 }, elevation: 3 } } as const;
-export const typography = { headline: { fontSize: ${tokens.typography.headline.fontSize}, fontWeight: "700" as const, letterSpacing: ${tokens.typography.headline.letterSpacing}, lineHeight: ${tokens.typography.headline.lineHeight} }, body: { fontSize: ${tokens.typography.body.fontSize}, lineHeight: ${tokens.typography.body.lineHeight} }, meta: { fontSize: ${tokens.typography.meta.fontSize}, fontWeight: "600" as const, letterSpacing: ${tokens.typography.meta.letterSpacing} } } as const;
-export const typographyTe = { headline: { ...typography.headline, letterSpacing: ${tokens.typography.telugu.headlineLetterSpacing}, lineHeight: ${tokens.typography.telugu.headlineLineHeight} }, body: { ...typography.body, lineHeight: ${tokens.typography.telugu.bodyLineHeight} }, meta: typography.meta } as const;
+export const shadow = {
+  sm: { shadowColor: colors.rule, shadowOpacity: 1, shadowRadius: 0, shadowOffset: { width: ${tokens.shadow.sm}, height: ${tokens.shadow.sm} }, elevation: ${tokens.shadow.sm}, boxShadow: \`${tokens.shadow.sm}px ${tokens.shadow.sm}px 0 \${colors.rule}\` },
+  card: { shadowColor: colors.rule, shadowOpacity: 1, shadowRadius: 0, shadowOffset: { width: ${tokens.shadow.md}, height: ${tokens.shadow.md} }, elevation: ${tokens.shadow.md}, boxShadow: \`${tokens.shadow.md}px ${tokens.shadow.md}px 0 \${colors.rule}\` },
+} as const;
+export const duration = { fast: ${tokens.motion.duration.fast}, base: ${tokens.motion.duration.base} } as const;
+export const typography = { display: { fontSize: ${tokens.typography.display.fontSize}, fontWeight: "700" as const, letterSpacing: ${tokens.typography.display.letterSpacing}, lineHeight: ${tokens.typography.display.lineHeight} }, headline: { fontSize: ${tokens.typography.headline.fontSize}, fontWeight: "700" as const, letterSpacing: ${tokens.typography.headline.letterSpacing}, lineHeight: ${tokens.typography.headline.lineHeight} }, body: { fontSize: ${tokens.typography.body.fontSize}, lineHeight: ${tokens.typography.body.lineHeight} }, meta: { fontSize: ${tokens.typography.meta.fontSize}, fontWeight: "600" as const, letterSpacing: ${tokens.typography.meta.letterSpacing} } } as const;
+export const typographyTe = { display: { ...typography.display, lineHeight: ${tokens.typography.telugu.displayLineHeight} }, headline: { ...typography.headline, letterSpacing: ${tokens.typography.telugu.headlineLetterSpacing}, lineHeight: ${tokens.typography.telugu.headlineLineHeight} }, body: { ...typography.body, lineHeight: ${tokens.typography.telugu.bodyLineHeight} }, meta: typography.meta } as const;
 export function typographyFor(language: "en" | "te") { return language === "te" ? typographyTe : typography; }
 `;
 const outputs = [

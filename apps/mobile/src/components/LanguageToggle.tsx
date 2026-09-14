@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { getProfile, setLanguage, type OnboardingProfile } from "../lib/storage";
-import { colors, spacing, ui } from "../theme/tokens";
+import { colors, spacing, typography, ui } from "../theme/tokens";
 
 // Design-review fix: on web this is a one-tap, persistent header control.
 // On mobile it was two taps deep in Settings, the biggest cross-surface IA
@@ -53,8 +53,10 @@ const styles = StyleSheet.create({
     marginRight: spacing.md,
   },
   button: {
-    minHeight: 32,
-    minWidth: 36,
+    // 44x44 matches the touch-target minimum used everywhere else in the
+    // app (StoryCard, forms, screens) — this was the one outlier at 32x36.
+    minHeight: 44,
+    minWidth: 44,
     paddingHorizontal: spacing.xs,
     justifyContent: "center",
     alignItems: "center",
@@ -62,6 +64,6 @@ const styles = StyleSheet.create({
   buttonRight: { borderLeftWidth: 1, borderLeftColor: ui.borderControl },
   // Matches web's toggle "pressed" convention: accent fill, ink text.
   buttonActive: { backgroundColor: ui.actionPrimarySoft },
-  buttonText: { fontSize: 13, fontWeight: "600", color: colors.text },
+  buttonText: { ...typography.meta, textTransform: "none", color: colors.text },
   buttonTextActive: { color: ui.actionText },
 });

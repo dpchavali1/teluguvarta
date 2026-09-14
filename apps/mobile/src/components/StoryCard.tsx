@@ -6,7 +6,7 @@ import { reportIssue, trackEvent, type Language, type StoryOut } from "../lib/ap
 import { shareStory } from "../lib/share";
 import { getProfile, setLanguage as persistLanguage, LANGUAGE_CHANGE_EVENT } from "../lib/storage";
 import { useStoryCache } from "../lib/StoryCacheContext";
-import { colors, radius, shadow, spacing, typography, typographyFor, ui } from "../theme/tokens";
+import { colors, radius, spacing, typography, typographyFor, typographyTe, ui } from "../theme/tokens";
 
 const STATUS_LABEL: Record<string, string | undefined> = {
   RETRACTED: "Retracted",
@@ -27,13 +27,20 @@ export function StoryCard({
   story,
   onOpen,
   onOpenSource,
+  layout = "compact",
 }: {
   story: StoryOut;
   // Optional: the detail screen renders this card for a story already
   // open, so the headline shouldn't be a dead tap target pointing nowhere.
   onOpen?: () => void;
   onOpenSource: (url: string) => void;
+  // "hero": the lead story on Home — bigger display-scale headline, no box
+  // chrome, a rule line instead of a border. "compact": every other list
+  // row (Search/Saved/Topic/StoryList, and the default for back-compat) —
+  // same content, a slim accent bar instead of a full card border.
+  layout?: "hero" | "compact";
 }) {
+  const isHero = layout === "hero";
   const cache = useStoryCache();
   const [language, setLanguage] = useState<Language>("en");
   const [actionStatus, setActionStatus] = useState<string | null>(null);
@@ -108,117 +115,120 @@ export function StoryCard({
   }
 
   return (
-    <View style={styles.card} accessible={false}>
-      <View style={styles.labels}>
-        {[...story.countries, ...story.topics.map(topicLabel)].map((label) => (
-          <View key={label} style={styles.pill}>
-            <Text style={styles.pillText}>{label}</Text>
-          </View>
-        ))}
-      </View>
-
-      {story.published_at && <Text style={styles.date}>{new Date(story.published_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</Text>}
-      {language !== renderedLanguage && <Text>Telugu translation isn’t available yet. Showing English.</Text>}
-      {story.personalization?.explanation && <Text style={styles.date}>{story.personalization.explanation}</Text>}
-      {isHumanReviewed && (
-        <View style={styles.reviewedBadge}>
-          <Text style={styles.reviewedBadgeText}>✓ Human-reviewed</Text>
+    <View style={[styles.card, isHero ? styles.cardHero : styles.cardCompact]} accessible={false}>
+      {!isHero && <View style={styles.accentBar} />}
+      <View style={isHero ? styles.heroContent : styles.compactContent}>
+        <View style={styles.labels}>
+          {[...story.countries, ...story.topics.map(topicLabel)].map((label) => (
+            <View key={label} style={styles.pill}>
+              <Text style={styles.pillText}>{label}</Text>
+            </View>
+          ))}
         </View>
-      )}
 
-      {statusNotice && (
-        <Text style={styles.notice} accessibilityLiveRegion="polite">
-          {statusNotice}
-        </Text>
-      )}
-
-      {onOpen ? (
-        <Pressable
-          onPress={onOpen}
-          accessibilityRole="link"
-          accessibilityLabel={`Open story: ${variant.headline}`}
-          style={styles.touchTarget}
-        >
-          <Text style={[styles.headline, type.headline]}>{variant.headline}</Text>
-        </Pressable>
-      ) : (
-        <Text style={[styles.headline, type.headline]} accessibilityRole="header">
-          {variant.headline}
-        </Text>
-      )}
-
-      <Text style={[styles.body, type.body]}>{variant.summary}</Text>
-      {whyMatters ? (
-        <Text style={[styles.why, renderedLanguage === "te" && styles.whyTe]}>
-          Why this matters: {whyMatters}
-        </Text>
-      ) : null}
-
-      {primarySource && (
-        <Pressable
-          onPress={() => onOpenSource(primarySource.url)}
-          accessibilityRole="link"
-          accessibilityLabel={`Read the original source${primarySource.title ? `: ${primarySource.title}` : ""}`}
-          style={styles.touchTarget}
-        >
-          <Text style={styles.sourceLink}>
-            Read the original source{primarySource.title ? `: ${primarySource.title}` : ""} ↗
-          </Text>
-        </Pressable>
-      )}
-
-      {actionStatus && <Text accessibilityLiveRegion="polite">{actionStatus}</Text>}
-      <View style={styles.actions}>
-        {hasTelugu && (
-          <View accessibilityRole="radiogroup" accessibilityLabel="Language" style={styles.langGroup}>
-            <Pressable
-              onPress={() => handleLanguageSwitch("en")}
-              accessibilityRole="radio"
-              accessibilityState={{ selected: language === "en" }}
-              accessibilityLabel="English"
-              style={[styles.langButton, language === "en" && styles.langButtonActive]}
-            >
-              <Text style={[styles.langButtonText, language === "en" && styles.langButtonTextActive]}>English</Text>
-            </Pressable>
-            <Pressable
-              onPress={() => handleLanguageSwitch("te")}
-              accessibilityRole="radio"
-              accessibilityState={{ selected: language === "te" }}
-              accessibilityLabel="Telugu"
-              style={[styles.langButton, language === "te" && styles.langButtonActive]}
-            >
-              <Text style={[styles.langButtonText, language === "te" && styles.langButtonTextActive]}>తెలుగు</Text>
-            </Pressable>
+        {story.published_at && <Text style={styles.date}>{new Date(story.published_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</Text>}
+        {language !== renderedLanguage && <Text>Telugu translation isn’t available yet. Showing English.</Text>}
+        {story.personalization?.explanation && <Text style={styles.date}>{story.personalization.explanation}</Text>}
+        {isHumanReviewed && (
+          <View style={styles.reviewedBadge}>
+            <Text style={styles.reviewedBadgeText}>✓ Human-reviewed</Text>
           </View>
         )}
-        <Pressable
-          onPress={handleShare}
-          accessibilityRole="button"
-          accessibilityLabel={`Share: ${variant.headline}`}
-          style={[styles.actionButton, styles.actionButtonShare]}
-        >
-          <Text style={styles.actionButtonText}>⤴ Share</Text>
-        </Pressable>
-        <Pressable
-          onPress={handleSaveToggle}
-          disabled={saving}
-          accessibilityRole="button"
-          accessibilityState={{ selected: saved }}
-          accessibilityLabel={saved ? `Unsave: ${variant.headline}` : `Save: ${variant.headline}`}
-          style={[styles.actionButton, saved && styles.actionButtonSaved]}
-        >
-          <Text style={[styles.actionButtonText, saved && styles.actionButtonTextActive]}>
-            {saved ? "🔖 Saved" : "🔖 Save"}
+
+        {statusNotice && (
+          <Text style={styles.notice} accessibilityLiveRegion="polite">
+            {statusNotice}
           </Text>
-        </Pressable>
-        <Pressable
-          onPress={handleReportIssue}
-          accessibilityRole="button"
-          accessibilityLabel={`Report an issue: ${variant.headline}`}
-          style={[styles.actionButton, styles.actionButtonReport]}
-        >
-          <Text style={styles.actionButtonText}>⚑ Report</Text>
-        </Pressable>
+        )}
+
+        {onOpen ? (
+          <Pressable
+            onPress={onOpen}
+            accessibilityRole="link"
+            accessibilityLabel={`Open story: ${variant.headline}`}
+            style={styles.touchTarget}
+          >
+            <Text style={[styles.headline, isHero ? type.display : type.headline]}>{variant.headline}</Text>
+          </Pressable>
+        ) : (
+          <Text style={[styles.headline, isHero ? type.display : type.headline]} accessibilityRole="header">
+            {variant.headline}
+          </Text>
+        )}
+
+        <Text style={[styles.body, type.body]}>{variant.summary}</Text>
+        {whyMatters ? (
+          <Text style={[styles.why, isHero && styles.whyHero, renderedLanguage === "te" && styles.whyTe]}>
+            Why this matters: {whyMatters}
+          </Text>
+        ) : null}
+
+        {primarySource && (
+          <Pressable
+            onPress={() => onOpenSource(primarySource.url)}
+            accessibilityRole="link"
+            accessibilityLabel={`Read the original source${primarySource.title ? `: ${primarySource.title}` : ""}`}
+            style={styles.touchTarget}
+          >
+            <Text style={styles.sourceLink}>
+              Read the original source{primarySource.title ? `: ${primarySource.title}` : ""} ↗
+            </Text>
+          </Pressable>
+        )}
+
+        {actionStatus && <Text accessibilityLiveRegion="polite">{actionStatus}</Text>}
+        <View style={styles.actions}>
+          {hasTelugu && (
+            <View accessibilityRole="radiogroup" accessibilityLabel="Language" style={styles.langGroup}>
+              <Pressable
+                onPress={() => handleLanguageSwitch("en")}
+                accessibilityRole="radio"
+                accessibilityState={{ selected: language === "en" }}
+                accessibilityLabel="English"
+                style={[styles.langButton, language === "en" && styles.langButtonActive]}
+              >
+                <Text style={[styles.langButtonText, language === "en" && styles.langButtonTextActive]}>English</Text>
+              </Pressable>
+              <Pressable
+                onPress={() => handleLanguageSwitch("te")}
+                accessibilityRole="radio"
+                accessibilityState={{ selected: language === "te" }}
+                accessibilityLabel="Telugu"
+                style={[styles.langButton, language === "te" && styles.langButtonActive]}
+              >
+                <Text style={[styles.langButtonText, language === "te" && styles.langButtonTextActive]}>తెలుగు</Text>
+              </Pressable>
+            </View>
+          )}
+          <Pressable
+            onPress={handleShare}
+            accessibilityRole="button"
+            accessibilityLabel={`Share: ${variant.headline}`}
+            style={[styles.actionButton, styles.actionButtonShare]}
+          >
+            <Text style={styles.actionButtonText}>⤴ Share</Text>
+          </Pressable>
+          <Pressable
+            onPress={handleSaveToggle}
+            disabled={saving}
+            accessibilityRole="button"
+            accessibilityState={{ selected: saved }}
+            accessibilityLabel={saved ? `Unsave: ${variant.headline}` : `Save: ${variant.headline}`}
+            style={[styles.actionButton, saved && styles.actionButtonSaved]}
+          >
+            <Text style={[styles.actionButtonText, saved && styles.actionButtonTextActive]}>
+              {saved ? "🔖 Saved" : "🔖 Save"}
+            </Text>
+          </Pressable>
+          <Pressable
+            onPress={handleReportIssue}
+            accessibilityRole="button"
+            accessibilityLabel={`Report an issue: ${variant.headline}`}
+            style={[styles.actionButton, styles.actionButtonReport]}
+          >
+            <Text style={styles.actionButtonText}>⚑ Report</Text>
+          </Pressable>
+        </View>
       </View>
     </View>
   );
@@ -226,26 +236,40 @@ export function StoryCard({
 
 // §9.2 accessibility: every interactive element has a >=44pt touch target.
 const styles = StyleSheet.create({
-  card: {
-    padding: spacing.lg,
+  card: { backgroundColor: colors.surface },
+  // Hero: the lead story — no box chrome, a rule line below instead of a
+  // border, more breathing room. Reads as a lead newspaper story, not a
+  // bordered card.
+  cardHero: {
     margin: spacing.md,
-    marginBottom: 0,
-    backgroundColor: colors.surface,
-    borderRadius: 18,
-    borderWidth: 1,
-    borderColor: ui.borderControl,
-    gap: spacing.sm,
-    ...shadow.card,
+    marginBottom: spacing.md,
+    paddingBottom: spacing.lg,
+    borderBottomWidth: 2,
+    borderBottomColor: colors.rule,
   },
-  date: { color: colors.muted, fontSize: 13 },
+  heroContent: { gap: spacing.sm },
+  // Compact: every other list row — a slim accent bar instead of a full
+  // border/shadow card, tighter padding, a hairline divider below.
+  cardCompact: {
+    flexDirection: "row",
+    marginHorizontal: spacing.md,
+    paddingVertical: spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: ui.borderSubtle,
+    gap: spacing.sm,
+  },
+  accentBar: { width: 3, borderRadius: 2, borderCurve: "continuous", backgroundColor: colors.hot, alignSelf: "stretch" },
+  compactContent: { flex: 1, gap: spacing.xs },
+  date: { ...typography.meta, color: colors.muted, textTransform: "none" },
   labels: { flexDirection: "row", flexWrap: "wrap", gap: spacing.xs },
   // Matches web's plain .pill: a neutral outlined tag, not a colored fill —
-  // Ink & Signal has one accent color and one danger color, no third family.
+  // Folio has one accent color and one danger color, no third family.
   pill: {
     backgroundColor: "transparent",
     borderWidth: 1,
     borderColor: ui.borderControl,
     borderRadius: radius.sm,
+    borderCurve: "continuous",
     paddingHorizontal: spacing.sm,
     paddingVertical: 3,
   },
@@ -257,6 +281,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.rule,
     borderRadius: radius.sm,
+    borderCurve: "continuous",
     paddingHorizontal: spacing.sm,
     paddingVertical: 2,
   },
@@ -265,20 +290,33 @@ const styles = StyleSheet.create({
   headline: { ...typography.headline, color: colors.text },
   body: { ...typography.body, color: colors.muted },
   why: {
-    fontSize: 14,
+    ...typography.body,
+    fontWeight: "600",
     color: ui.actionText,
     backgroundColor: ui.actionPrimarySoft,
     borderRadius: radius.sm,
+    borderCurve: "continuous",
     borderLeftWidth: 3,
-    // Raw `accent` (signal-lime) on `accentSoft` is ~1.2:1 contrast — the
-    // border would be nearly invisible. Use ink instead (see design-review
-    // finding #4, same defect as apps/web/src/app/globals.css:896).
+    // Raw `accent` on `accentSoft` is low contrast — the border would be
+    // nearly invisible. Use ink instead (see design-review finding #4, same
+    // defect as apps/web/src/app/globals.css:896).
     borderLeftColor: colors.rule,
     padding: spacing.sm,
   },
   // Telugu glyphs are taller than Latin at the same size; without explicit
   // leading this block sets solid and the vowel signs collide.
-  whyTe: { lineHeight: 22 },
+  whyTe: { lineHeight: typographyTe.body.lineHeight },
+  // Hero pull-quote: wider, a thick rust rule instead of the compact card's
+  // thin ink border — the same "why this matters" emphasis treatment web's
+  // hero story gets in parallel.
+  whyHero: {
+    backgroundColor: "transparent",
+    borderRadius: 0,
+    borderLeftWidth: 4,
+    borderLeftColor: colors.hot,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+  },
   sourceLink: { color: colors.text, fontWeight: "600", textDecorationLine: "underline" },
   actions: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: spacing.sm, marginTop: spacing.xs },
   langGroup: { flexDirection: "row", gap: spacing.xs },
@@ -289,12 +327,13 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingHorizontal: spacing.sm,
     borderRadius: radius.pill,
+    borderCurve: "continuous",
     borderWidth: 1,
     borderColor: ui.borderControl,
   },
   // Matches web's toggle "pressed" convention: accent fill, ink text.
   langButtonActive: { backgroundColor: ui.actionPrimarySoft, borderColor: ui.actionPrimary },
-  langButtonText: { fontSize: 13, fontWeight: "600", color: colors.muted },
+  langButtonText: { ...typography.meta, textTransform: "none", color: colors.muted },
   langButtonTextActive: { color: ui.actionText },
   actionButton: {
     flexDirection: "row",
@@ -305,6 +344,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     paddingHorizontal: spacing.md,
     borderRadius: radius.pill,
+    borderCurve: "continuous",
     borderWidth: 1,
     borderColor: ui.borderControl,
     backgroundColor: colors.surface,
@@ -312,6 +352,6 @@ const styles = StyleSheet.create({
   actionButtonShare: { backgroundColor: colors.surface },
   actionButtonSaved: { backgroundColor: ui.successSoft, borderColor: ui.success },
   actionButtonReport: { borderColor: ui.borderSubtle },
-  actionButtonText: { fontSize: 13, fontWeight: "600", color: colors.muted },
+  actionButtonText: { ...typography.meta, textTransform: "none", color: colors.muted },
   actionButtonTextActive: { color: ui.success },
 });

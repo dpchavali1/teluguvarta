@@ -22,5 +22,8 @@ accepted. Add ad-hoc ADRs below this table as they're written.
 
 ## Ad-hoc ADRs
 
-(none yet — ADR-002 above was written ahead of T06 per an explicit product
-decision to launch on `LINK_ONLY` sources only; see the ADR for context)
+- ADR-002 above was written ahead of T06 per an explicit product decision
+  to launch on `LINK_ONLY` sources only; see the ADR for context.
+- ADR-010 | Folio visual redesign (supersedes ADR-008's palette) |
+  ad hoc, user-requested | **accepted** — see
+  [ADR-010](ADR-010-folio-visual-redesign.md)

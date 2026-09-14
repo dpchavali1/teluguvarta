@@ -4,7 +4,7 @@ import React from "react";
 import { Pressable, ScrollView, StyleSheet, Text } from "react-native";
 
 import type { RootStackParamList } from "../navigation/types";
-import { ui } from "../theme/tokens";
+import { spacing, typography, ui } from "../theme/tokens";
 
 // Push delivery itself is T17 (not started) — this is the inbox shell the
 // spec's §9.2 screen list calls for, with nothing to deliver into it yet.
@@ -33,15 +33,16 @@ export function NotificationsScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { padding: 16, gap: 12 },
-  title: { fontSize: 18, fontWeight: "700" },
-  body: { fontSize: 15, color: ui.textSecondary },
+  container: { padding: spacing.lg, gap: spacing.md },
+  title: { ...typography.headline },
+  body: { ...typography.body, color: ui.textSecondary },
   button: {
     minHeight: 44,
     justifyContent: "center",
     alignItems: "center",
     paddingHorizontal: 16,
     borderRadius: 8,
+    borderCurve: "continuous",
     borderWidth: 1,
     borderColor: ui.borderControl,
     alignSelf: "flex-start",

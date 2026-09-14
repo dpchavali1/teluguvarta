@@ -4,7 +4,7 @@ import { Pressable, ScrollView, StyleSheet, Text } from "react-native";
 
 import { deleteAccount, trackEvent } from "../lib/api";
 import { resetClientToken } from "../lib/identity";
-import { ui } from "../theme/tokens";
+import { spacing, typography, ui } from "../theme/tokens";
 
 // T19 §16/§5.5: "delete account" now does two things — deletes the
 // server-side `users` row this device's identity created since T17 (real
@@ -67,15 +67,16 @@ export function PrivacyScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { padding: 16, gap: 12 },
-  title: { fontSize: 18, fontWeight: "700" },
-  body: { fontSize: 15, color: ui.textSecondary },
+  container: { padding: spacing.lg, gap: spacing.md },
+  title: { ...typography.headline },
+  body: { ...typography.body, color: ui.textSecondary },
   button: {
     minHeight: 44,
     justifyContent: "center",
     alignItems: "center",
     paddingHorizontal: 16,
     borderRadius: 8,
+    borderCurve: "continuous",
     borderWidth: 1,
     borderColor: ui.danger,
     alignSelf: "flex-start",

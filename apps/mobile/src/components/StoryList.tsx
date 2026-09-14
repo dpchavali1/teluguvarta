@@ -5,6 +5,7 @@ import { FlatList, Linking, StyleSheet, Text, View } from "react-native";
 
 import type { StoryOut } from "../lib/api";
 import type { RootStackParamList } from "../navigation/types";
+import { spacing } from "../theme/tokens";
 import { StoryCard } from "./StoryCard";
 
 export function StoryList({
@@ -29,6 +30,7 @@ export function StoryList({
       renderItem={({ item }) => (
         <StoryCard
           story={item}
+          layout="compact"
           onOpen={() => navigation.navigate("StoryDetail", { slug: item.canonical_slug })}
           onOpenSource={(url) => Linking.openURL(url)}
         />
@@ -46,5 +48,5 @@ export function StoryList({
 }
 
 const styles = StyleSheet.create({
-  empty: { padding: 24, alignItems: "center" },
+  empty: { padding: spacing.xl, alignItems: "center" },
 });

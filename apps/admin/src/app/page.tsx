@@ -45,13 +45,15 @@ export default function Home() {
   return (
     <main>
       <h1>TTE Admin</h1>
-      <section>
-        <p>
-          Signed in as <strong>{role}</strong>.
-        </p>
-        <p>
+      <section className="dashboard-summary">
+        <div>
+          <span className="dashboard-summary__label">Signed in as</span>
+          <strong>{role}</strong>
+        </div>
+        <div>
+          <span className="dashboard-summary__label">Go to</span>
           <Link href="/review">Review queue</Link> · <Link href="/observability">Observability</Link>
-        </p>
+        </div>
       </section>
       {process.env.NODE_ENV !== "production" ? (
         <section>

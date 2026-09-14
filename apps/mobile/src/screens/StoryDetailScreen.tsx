@@ -81,6 +81,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     borderRadius: radius.pill,
+    borderCurve: "continuous",
     backgroundColor: colors.text,
   },
   retryButtonText: { color: colors.bg, fontWeight: "600" },

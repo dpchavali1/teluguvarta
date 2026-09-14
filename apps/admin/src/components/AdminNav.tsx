@@ -27,17 +27,18 @@ export default function AdminNav() {
 
   return (
     <nav className="admin-nav" aria-label="Admin">
-      <div className="admin-nav__inner">
-        <Link href="/" className="admin-nav__brand">
-          TTE Admin
-        </Link>
-        <div className="admin-nav__links">
-          {LINKS.map((link) => (
-            <Link key={link.href} href={link.href} className={pathname === link.href ? "is-active" : ""}>
-              {link.label}
-            </Link>
-          ))}
-        </div>
+      <Link href="/" className="admin-nav__brand">
+        TTE<span>Admin</span>
+      </Link>
+      <div className="admin-nav__links">
+        {LINKS.map((link) => (
+          <Link key={link.href} href={link.href} className={pathname === link.href ? "is-active" : ""}>
+            <span className="admin-nav__dot" aria-hidden="true" />
+            {link.label}
+          </Link>
+        ))}
+      </div>
+      <div className="admin-nav__footer">
         {role ? <span className="admin-nav__role">{role}</span> : null}
         <button
           type="button"

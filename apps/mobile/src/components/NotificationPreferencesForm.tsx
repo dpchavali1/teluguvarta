@@ -4,7 +4,7 @@ import { StyleSheet, Switch, Text, TextInput, View } from "react-native";
 
 import { getConfig, type TopicOut } from "../lib/api";
 import type { NotificationPreferences } from "../lib/storage";
-import { ui } from "../theme/tokens";
+import { colors, radius, spacing, typography, ui } from "../theme/tokens";
 
 // §3.1/§9.2: independent per-topic toggles, quiet hours, max alert
 // frequency, and disable-all-without-losing-news-access. `disableAll` only
@@ -43,25 +43,27 @@ export function NotificationPreferencesForm({
 
   return (
     <View style={styles.container}>
-      <Row label="Enable notifications" accessibilityLabel="Enable notifications, does not affect browsing the feed">
-        <Switch
-          value={!value.disableAll}
-          onValueChange={(enabled) => set("disableAll", !enabled)}
-        />
-      </Row>
+      <Text style={styles.groupLabel}>ALERTS</Text>
+      <View style={styles.group}>
+        <Row label="Enable notifications" accessibilityLabel="Enable notifications, does not affect browsing the feed" divider>
+          <Switch
+            value={!value.disableAll}
+            onValueChange={(enabled) => set("disableAll", !enabled)}
+          />
+        </Row>
+        <Row label="Breaking news alerts" divider>
+          <Switch value={value.breakingEnabled} onValueChange={(v) => set("breakingEnabled", v)} />
+        </Row>
+        <Row label="Daily briefing">
+          <Switch
+            value={value.dailyBriefingEnabled}
+            onValueChange={(v) => set("dailyBriefingEnabled", v)}
+          />
+        </Row>
+      </View>
       <Text style={styles.hint}>
-        Turning this off stops all alerts. You can keep reading the feed either way.
+        Turning notifications off stops all alerts. You can keep reading the feed either way.
       </Text>
-
-      <Row label="Breaking news alerts">
-        <Switch value={value.breakingEnabled} onValueChange={(v) => set("breakingEnabled", v)} />
-      </Row>
-      <Row label="Daily briefing">
-        <Switch
-          value={value.dailyBriefingEnabled}
-          onValueChange={(v) => set("dailyBriefingEnabled", v)}
-        />
-      </Row>
 
       {topics.length > 0 && (
         <TopicSection
@@ -85,8 +87,9 @@ export function NotificationPreferencesForm({
         />
       )}
 
-      <View style={styles.section}>
-        <Row label="Quiet hours">
+      <Text style={styles.groupLabel}>TIMING</Text>
+      <View style={styles.group}>
+        <Row label="Quiet hours" divider={value.quietHoursEnabled}>
           <Switch
             value={value.quietHoursEnabled}
             onValueChange={(v) => set("quietHoursEnabled", v)}
@@ -111,20 +114,20 @@ export function NotificationPreferencesForm({
             />
           </View>
         )}
-      </View>
-
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Max alerts per day</Text>
-        <TextInput
-          value={String(value.maxPerDay)}
-          onChangeText={(text) => {
-            const n = Number.parseInt(text, 10);
-            set("maxPerDay", Number.isFinite(n) && n >= 0 ? n : 0);
-          }}
-          keyboardType="number-pad"
-          accessibilityLabel="Maximum alerts per day"
-          style={styles.numberInput}
-        />
+        <View style={styles.rowDivider} />
+        <View style={styles.timeRow}>
+          <Text style={styles.rowLabel}>Max alerts per day</Text>
+          <TextInput
+            value={String(value.maxPerDay)}
+            onChangeText={(text) => {
+              const n = Number.parseInt(text, 10);
+              set("maxPerDay", Number.isFinite(n) && n >= 0 ? n : 0);
+            }}
+            keyboardType="number-pad"
+            accessibilityLabel="Maximum alerts per day"
+            style={styles.numberInput}
+          />
+        </View>
       </View>
     </View>
   );
@@ -143,31 +146,35 @@ function TopicSection({
 }) {
   if (topics.length === 0) return null;
   return (
-    <View style={styles.section}>
-      <Text style={styles.sectionTitle}>{title}</Text>
-      {topics.map((topic) => (
-        <Row key={topic.slug} label={topic.name}>
-          <Switch
-            value={value.topics[topic.slug] ?? true}
-            onValueChange={(v) => onToggle(topic.slug, v)}
-          />
-        </Row>
-      ))}
-    </View>
+    <>
+      <Text style={styles.groupLabel}>{title.toUpperCase()}</Text>
+      <View style={styles.group}>
+        {topics.map((topic, index) => (
+          <Row key={topic.slug} label={topic.name} divider={index < topics.length - 1}>
+            <Switch
+              value={value.topics[topic.slug] ?? true}
+              onValueChange={(v) => onToggle(topic.slug, v)}
+            />
+          </Row>
+        ))}
+      </View>
+    </>
   );
 }
 
 function Row({
   label,
   accessibilityLabel,
+  divider,
   children,
 }: {
   label: string;
   accessibilityLabel?: string;
+  divider?: boolean;
   children: React.ReactNode;
 }) {
   return (
-    <View style={styles.row} accessible accessibilityLabel={accessibilityLabel ?? label}>
+    <View style={[styles.row, divider && styles.rowDivider]} accessible accessibilityLabel={accessibilityLabel ?? label}>
       <Text style={styles.rowLabel}>{label}</Text>
       {children}
     </View>
@@ -175,24 +182,43 @@ function Row({
 }
 
 const styles = StyleSheet.create({
-  container: { gap: 8 },
+  container: { gap: spacing.md },
+  // Grouped-list pattern: a rounded, bordered container per group with
+  // hairline dividers between rows, matching Settings/Language screens.
+  groupLabel: {
+    ...typography.meta,
+    textTransform: "uppercase",
+    letterSpacing: 1.2,
+    color: colors.faint,
+    paddingHorizontal: spacing.sm,
+    paddingBottom: spacing.xs,
+  },
+  group: {
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    borderCurve: "continuous",
+    borderWidth: 1,
+    borderColor: ui.borderSubtle,
+    overflow: "hidden",
+    paddingHorizontal: spacing.md,
+  },
   row: {
     minHeight: 44,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingVertical: 6,
+    paddingVertical: spacing.sm,
   },
-  rowLabel: { fontSize: 16, flexShrink: 1, paddingRight: 12 },
-  hint: { fontSize: 13, color: ui.textTertiary, marginBottom: 8 },
-  section: { marginTop: 16 },
-  sectionTitle: { fontSize: 15, fontWeight: "700", marginBottom: 4 },
-  timeRow: { flexDirection: "row", alignItems: "center", gap: 8 },
+  rowDivider: { borderBottomWidth: StyleSheet.hairlineWidth, borderColor: ui.borderSubtle },
+  rowLabel: { ...typography.body, flexShrink: 1, paddingRight: 12 },
+  hint: { ...typography.meta, textTransform: "none", color: ui.textTertiary, paddingHorizontal: spacing.sm },
+  timeRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8, paddingVertical: spacing.sm },
   timeInput: {
     minHeight: 44,
     minWidth: 80,
     paddingHorizontal: 8,
     borderRadius: 8,
+    borderCurve: "continuous",
     borderWidth: 1,
     borderColor: ui.borderControl,
   },
@@ -201,6 +227,7 @@ const styles = StyleSheet.create({
     width: 80,
     paddingHorizontal: 8,
     borderRadius: 8,
+    borderCurve: "continuous",
     borderWidth: 1,
     borderColor: ui.borderControl,
   },

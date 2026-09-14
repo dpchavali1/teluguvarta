@@ -30,8 +30,11 @@ export function HomeFeed({ initialStories }: { initialStories: StoryOut[] }) {
     {error && <p role="status">Your preferences couldn’t be applied. Showing the latest stories. <button onClick={() => setRevision((value) => value + 1)}>Try again</button></p>}
     {!lead ? <p className="empty-state">No stories published yet. <Link href="/topics">Browse topics</Link> or check back soon.</p>
       : <>
-        <div className="home-lead"><StoryCard story={lead} headingLevel="h2" /></div>
-        {supporting.length > 0 && <ul className="story-list">{supporting.map((story) => <li key={story.id}><StoryCard story={story} /></li>)}</ul>}
+        <div className="story-hero"><StoryCard story={lead} headingLevel="h2" display="lead" /></div>
+        {supporting.length > 0 && <>
+          <div className="section-rule"><span>More stories</span></div>
+          <ul className="story-grid">{supporting.map((story) => <li key={story.id}><StoryCard story={story} display="brief" /></li>)}</ul>
+        </>}
       </>}
     <p><Link href="/latest">Browse all stories →</Link></p>
   </section>;

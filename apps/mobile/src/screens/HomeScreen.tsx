@@ -16,7 +16,7 @@ import { StoryCard } from "../components/StoryCard";
 import { ApiNetworkError, getHome, trackEvent, type StoryOut, type TopicOut } from "../lib/api";
 import { getProfile, isStudentSegment, primaryLifeStageSegment } from "../lib/storage";
 import { useStoryCache } from "../lib/StoryCacheContext";
-import { colors, radius, spacing, ui } from "../theme/tokens";
+import { colors, radius, spacing, typography, ui } from "../theme/tokens";
 import type { RootStackParamList } from "../navigation/types";
 
 export function HomeScreen() {
@@ -114,12 +114,16 @@ export function HomeScreen() {
       accessibilityLabel="Home feed"
       data={stories}
       keyExtractor={(story) => story.id}
-      renderItem={({ item }) => (
-        <StoryCard
-          story={item}
-          onOpen={() => navigation.navigate("StoryDetail", { slug: item.canonical_slug })}
-          onOpenSource={(url) => Linking.openURL(url)}
-        />
+      renderItem={({ item, index }) => (
+        <>
+          {index === 1 && <Text style={styles.sectionLabel}>MORE STORIES</Text>}
+          <StoryCard
+            story={item}
+            layout={index === 0 ? "hero" : "compact"}
+            onOpen={() => navigation.navigate("StoryDetail", { slug: item.canonical_slug })}
+            onOpenSource={(url) => Linking.openURL(url)}
+          />
+        </>
       )}
       refreshControl={
         <RefreshControl
@@ -196,14 +200,15 @@ const styles = StyleSheet.create({
     padding: spacing.lg,
     backgroundColor: colors.text,
     borderRadius: 18,
+    borderCurve: "continuous",
     borderWidth: 1,
     borderColor: ui.borderControl,
   },
-  welcomeEyebrow: { color: ui.actionPrimary, fontSize: 11, fontWeight: "700", letterSpacing: 1.1 },
-  welcomeTitle: { color: colors.bg, fontSize: 28, fontWeight: "800", letterSpacing: -0.7, marginTop: spacing.xs },
-  welcomeCopy: { color: colors.muted, fontSize: 15, lineHeight: 22, marginTop: spacing.xs },
+  welcomeEyebrow: { ...typography.meta, color: ui.actionPrimary, textTransform: "uppercase" },
+  welcomeTitle: { ...typography.display, color: colors.bg, marginTop: spacing.xs },
+  welcomeCopy: { ...typography.body, color: colors.muted, marginTop: spacing.xs },
   trustRow: { flexDirection: "row", flexWrap: "wrap", gap: spacing.xs, marginTop: spacing.md },
-  trustItem: { color: colors.bg, fontSize: 11, borderWidth: 1, borderColor: ui.borderControl, borderRadius: 99, paddingHorizontal: spacing.sm, paddingVertical: 4 },
+  trustItem: { ...typography.meta, textTransform: "none", color: colors.bg, borderWidth: 1, borderColor: ui.borderControl, borderRadius: 99, borderCurve: "continuous", paddingHorizontal: spacing.sm, paddingVertical: 4 },
   topicRow: { paddingVertical: spacing.sm, paddingHorizontal: spacing.md },
   // Matches web's .pill--topic: transparent, ink text, no fill at rest.
   topicChip: {
@@ -212,11 +217,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     marginRight: spacing.sm,
     borderRadius: radius.pill,
+    borderCurve: "continuous",
     backgroundColor: "transparent",
     borderWidth: 1,
     borderColor: ui.borderControl,
   },
-  topicChipText: { color: colors.text, fontWeight: "600", fontSize: 13 },
+  topicChipText: { ...typography.meta, textTransform: "none", color: colors.text },
   briefing: {
     marginBottom: spacing.md,
     paddingBottom: spacing.sm,
@@ -224,16 +230,30 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.border,
   },
   briefingTitle: {
-    fontSize: 18,
-    fontWeight: "700",
+    ...typography.headline,
     color: colors.text,
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.sm,
   },
   briefingSubtitle: {
-    fontSize: 13,
+    ...typography.meta,
+    textTransform: "none",
     color: colors.muted,
     paddingHorizontal: spacing.lg,
     paddingBottom: spacing.sm,
+  },
+  // Section rhythm: a thin rule + tracked small-caps label ahead of the
+  // "briefs" grid, mirroring the same lead+briefs split on web/admin.
+  sectionLabel: {
+    ...typography.meta,
+    textTransform: "uppercase",
+    letterSpacing: 1.2,
+    color: colors.faint,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    marginHorizontal: spacing.md,
+    marginTop: spacing.sm,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.xs,
   },
 });

@@ -4,7 +4,7 @@ import React, { useCallback, useEffect, useState } from "react";
 import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from "react-native";
 
 import { ApiNetworkError, getConfig, type TopicOut } from "../lib/api";
-import { colors, radius, spacing } from "../theme/tokens";
+import { colors, radius, spacing, typography } from "../theme/tokens";
 import type { RootStackParamList } from "../navigation/types";
 
 // Design-review fix: topic browsing previously had no entry point outside
@@ -93,7 +93,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderColor: colors.border,
   },
-  rowLabel: { fontSize: 16, color: colors.text },
+  rowLabel: { ...typography.body, color: colors.text },
   chevron: { fontSize: 18, color: colors.faint },
   // Ink-filled button, matching apps/web's main button.
   retryButton: {
@@ -103,6 +103,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     borderRadius: radius.pill,
+    borderCurve: "continuous",
     backgroundColor: colors.text,
   },
   retryButtonText: { color: colors.bg, fontWeight: "600" },

@@ -17,7 +17,7 @@ import {
   type NotificationPreferences,
   type OnboardingProfile,
 } from "../lib/storage";
-import { ui } from "../theme/tokens";
+import { typography, ui } from "../theme/tokens";
 
 // §3.1: every step skippable, "continue without login" always available and
 // never blocking browsing. The step index and draft answers are local
@@ -343,13 +343,14 @@ const styles = StyleSheet.create({
   skipAllText: { color: ui.actionText },
   content: { padding: 16, flexGrow: 1 },
   step: { gap: 12 },
-  stepTitle: { fontSize: 20, fontWeight: "700" },
-  body: { fontSize: 15, color: ui.textSecondary },
-  hint: { fontSize: 13, color: ui.textTertiary },
+  stepTitle: { ...typography.headline },
+  body: { ...typography.body, color: ui.textSecondary },
+  hint: { ...typography.meta, textTransform: "none", color: ui.textTertiary },
   input: {
     minHeight: 44,
     paddingHorizontal: 12,
     borderRadius: 8,
+    borderCurve: "continuous",
     borderWidth: 1,
     borderColor: ui.borderControl,
   },
@@ -358,6 +359,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     paddingHorizontal: 12,
     borderRadius: 8,
+    borderCurve: "continuous",
     borderWidth: 1,
     borderColor: ui.borderControl,
   },
@@ -368,6 +370,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     paddingHorizontal: 14,
     borderRadius: 16,
+    borderCurve: "continuous",
     borderWidth: 1,
     borderColor: ui.borderControl,
   },
@@ -387,6 +390,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingHorizontal: 16,
     borderRadius: 8,
+    borderCurve: "continuous",
     borderWidth: 1,
     borderColor: ui.borderControl,
   },

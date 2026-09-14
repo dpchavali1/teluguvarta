@@ -50,8 +50,10 @@ export default function RootLayout({ children }: { children: ReactNode }) {
     >
       <body>
         <ErrorTrackingBoot />
-        <AdminNav />
-        {children}
+        <div className="admin-shell">
+          <AdminNav />
+          {children}
+        </div>
       </body>
     </html>
   );

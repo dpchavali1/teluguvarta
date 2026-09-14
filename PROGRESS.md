@@ -37,7 +37,7 @@ straight to closing out T19 hardening and standing up real production infra
 | T18 Observability | **done** | Structured JSON logging + request/job context; Sentry-equivalent error tracking (plain HTTP envelope, no SDK) in all 4 apps; `/v1/admin/observability` (ingestion health/job queue/AI cost) + admin dashboard page; alert-dispatch module wired to worker loop; §17 analytics events routed through `POST /v1/events` (T17's endpoint) into `app/analytics.py`, forwarded to PostHog when configured |
 | T19 Hardening | **partial — see changelog** | Real: MFA on admin login, cross-system account deletion, search/admin rate limiting, dependency scanning (pip-audit clean)/SAST (bandit clean, one real XXE finding fixed), budget-breach auto-publish gate wired, backup/restore scripts + one real local restore test passed, WCAG 2.2 AA axe pass across 12 pages, local load test within §16 targets, ADR-007 accepted, app-store readiness doc. **P0 RCE gap now fixed** (see 2026-09-09 entry below) — `next@14.2.35` upgraded to `15.5.25` in both apps. **Golden AI eval set now 300 items** (§18's ≥300 met by count — see 2026-09-09 entry below), but only the original 30 are human-reviewed; the other 270 are AI-generated/unreviewed, flagged in `eval/README.md`/`golden_set.json._meta`. Still open: MFA/rate-limiting/backups not exercised against real managed infra (local-only, per ADR-007); no live-provider run against the golden set (same no-network-access gap as every AI ticket since T10); the 270 AI-generated eval items need native-Telugu-speaker spot-check before being trusted as real ground truth. |
 | T20 Pilot | **blocked — NO-GO, see report** | `docs/runbooks/pilot-report.md`. Engineering side of the pre-build validation gate now shipped: `/pilot` landing page (3 example personalized feeds using real T16 `/v1/home` ranking for professional/international_student/family_parent segments) + email signup capture (`POST /v1/pilot-signups`, dedupes by email, rate-limited; `GET /v1/admin/pilot-signups` for the opt-in count/roster) — see 2026-09-09 changelog entry. **Still blocks GO**: recruiting the actual 50-100 users and running the 14-day measurement window is a product/ops action, not something further engineering closes. Verified §17 analytics are real, not assumed: all 12 core events implemented server-side (`app/analytics.py`) and actually emitted client-side in both `apps/web` and `apps/mobile` (grepped call sites, not inferred). Walked the full §26 checklist item-by-item against what's built; S1/S2 (student) and X1-X4 (X adapter) rows marked not-applicable since those parallel tickets haven't started. |
-| T21 Visual design refresh | **done — palette ported by hand** | All three surfaces now share the "Ink & Signal" palette/shape tokens (admin/mobile ported by hand per ADR-009's sequencing note, not yet via a shared token source). Full design review at `docs/runbooks/design-review-2026-09-10.md`; all 8 findings addressed, see 2026-09-10 changelog entry. Verification was static-source only (no live browser/axe/keyboard pass — the claude-in-chrome extension wasn't connected) — re-run live before treating any WCAG conformance claim as settled. ADR-009 (shared token source, to prevent this divergence recurring) is still proposed/unimplemented. |
+| T21 Visual design refresh | **done — superseded by ADR-010** | Original "Ink & Signal" palette (2026-09-10) drifted through two undesigned revisions (2026-09-12 "modern design foundation", 2026-09-13 contrast fix) before being replaced outright by the "Folio" palette — see ADR-010 and the 2026-09-13 (Folio redesign) changelog entry. ADR-009's single-token-source mechanism (`packages/design-tokens/tokens.json` → generated per surface, CI-enforced) is accepted and live, not proposed. |
 
 ## X adapter
 
@@ -71,10 +71,84 @@ Mirrors `docs/adr/README.md` — keep both in sync.
 | ADR-007 Production hosting/cost limits | not started |
 | ADR-008 Visual design refresh (no new UI framework) | **accepted** |
 | ADR-009 Single design-token source, generated per surface | **accepted** |
+| ADR-010 Folio visual redesign (supersedes ADR-008's palette) | **accepted** |
 
 ## Changelog
 
 (newest first — one line per ticket completion)
+
+- 2026-09-13: Folio redesign mobile a11y follow-up (continuation of the
+  2026-09-13 Folio entry below, at explicit request). No automated RN a11y
+  tool exists in this repo, so did a code-level audit of every
+  `apps/mobile/src/{screens,components}` `Pressable` for
+  `accessibilityLabel`/`accessibilityRole` (all present — an earlier naive
+  grep pass falsely flagged several, including `LanguageToggle`, because
+  its regex mis-parsed multi-line JSX tags containing `=>` arrows; a
+  brace/quote-aware parser found the real set is clean) and for touch
+  target size (44x44 iOS HIG minimum). Found and fixed one real outlier:
+  `LanguageToggle`'s EN/తె buttons were 32x36, the only touch target in the
+  app below 44x44 — notable because this component is mounted in every
+  screen's header (T21's "language one tap from every main tab" fix), so
+  it's the most-exposed small target in the app. Bumped to `minHeight: 44,
+  minWidth: 44` to match every other button in the app
+  (`StoryCard`/forms/screens already used 44 consistently). Also booted the
+  iOS Simulator (Expo Go, real seeded Postgres + FastAPI backend, not
+  mocked) and screenshotted the live Home screen to confirm the Folio
+  palette actually renders correctly end-to-end (warm paper background,
+  indigo accent, rust "why matters" emphasis) — it does. Verified the
+  `--color-faint` pair's dark-mode contrast, flagged as unchecked in the
+  entry below: 7.94:1 (on `bg`) / 7.26:1 (on `surface`), both comfortably
+  above the 4.5:1 AA floor — no fix needed. **Noted, not a redesign bug**:
+  a floating blue gear button visible in every screenshot over the
+  header's language toggle is Expo Go's own dev-menu affordance (persisted
+  identically across an unrelated hot-reload, and traced — the app's own
+  header only renders `LanguageToggle`, no gear icon anywhere in
+  `MainTabs.tsx`); won't exist in a real build. **Not done**: couldn't tap
+  through Search/Saved/Notifications/Settings/Story-detail live in the
+  simulator — `osascript`/System Events can query the Simulator window but
+  every synthetic click into it timed out (`-1712`), which looks like
+  Simulator ignoring synthetic CGEvents rather than a missing permission
+  (clicking Terminal's own window from the same script worked
+  immediately); no `cliclick`/`idb` installed as a fallback. Screen-by-screen
+  live interaction still needs either those tools installed or a manual
+  walk-through. `apps/mobile` typecheck clean, Jest 19/19 passed after the
+  fix.
+- 2026-09-13: "Folio" visual redesign (ADR-010, ad hoc per explicit
+  request, done with the two Vercel design skills installed the prior
+  session). Replaced the drifted blue-SaaS palette with a warm-paper /
+  indigo-accent / rust-emphasis system: new color values in
+  `packages/design-tokens/tokens.json` (light/dark, both semantic and raw
+  roles), a collapsed 4-step type scale (`display`/`headline`/`body`/
+  `meta` — hierarchy now via weight/color, not more sizes, applying the
+  RN skill's rule system-wide), a `shadow` token block that ADR-009 had
+  specified but `build.mjs` never actually implemented (was hardcoded
+  4px/3px offsets; now reads `tokens.shadow.sm`/`md`), and new
+  `motion.duration.fast`/`base` (120ms/200ms) tokens so transition
+  durations aren't hardcoded per component. `pnpm run tokens:generate` +
+  `contrast:check` both clean. Web/admin: only `globals.css` in each app
+  needed edits (every component is class-driven off generated CSS vars,
+  no hardcoded colors in `.tsx`) — retuned two hand-coded masthead/toggle
+  color pairs that weren't token-driven, consolidated ~12 ad-hoc
+  transition durations onto the new duration tokens, added
+  `tabular-nums` to admin's table rule (a real Web Interface Guidelines
+  gap); everything else on that checklist (focus rings, reduced-motion,
+  text-wrap balance) was already compliant. `pnpm --filter web/admin
+  lint` + `build` both clean; the jsdom a11y script still needs a live
+  Postgres+API it doesn't have in this environment, so it went unrun
+  (pre-existing gap, not a regression — a real live-browser pass is still
+  owed per the 2026-09-13 entry below). Mobile: token values flowed
+  through automatically (also fully token-driven, no hardcoded colors);
+  added `borderCurve: 'continuous'` everywhere `borderRadius` is set and
+  collapsed remaining ad-hoc font sizes onto the 4-step scale per the RN
+  skill; `TouchableOpacity`/hand-rolled shadows were already absent, so
+  those specific RN-skill rules needed no fix. `pnpm --filter mobile
+  typecheck` clean, existing Jest+RNTL suite (19 tests) passed.
+  **Deliberately not done**: the RN skill's dependency-adding rules
+  (`expo-image`, `FlashList`/`LegendList`, `react-native-bottom-tabs`,
+  `zeego`, `galeria`) — real value, but new native dependencies are a
+  separate, higher-risk decision; flagged as a follow-up needing its own
+  go-ahead, not bundled into a restyle-only pass. No new dependencies
+  added anywhere; no markup/IA/route changes in any of the three apps.
 
 - 2026-09-13: Live-browser design/accessibility pass (T21/T19 follow-up, ad
   hoc per explicit request — the "re-run live before treating any WCAG
