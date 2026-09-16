@@ -6,9 +6,6 @@ retracted/corrected indicator via `status`.
 
 import uuid
 
-import pytest
-from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 
 from app.models import (
@@ -23,24 +20,6 @@ from app.models import (
 from tests.conftest import requires_postgres
 
 pytestmark = requires_postgres
-
-
-@pytest.fixture
-def client(migrated_database):
-    from app.db import _engine_for
-    from app.main import app
-
-    _engine_for.cache_clear()
-    yield TestClient(app)
-    _engine_for.cache_clear()
-
-
-@pytest.fixture
-def db_session(migrated_database):
-    engine = create_engine(migrated_database)
-    with Session(engine) as session:
-        yield session
-    engine.dispose()
 
 
 def _seed_published_story(

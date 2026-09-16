@@ -6,8 +6,6 @@ from sqlalchemy import event, select
 from app.models import Job, Story, StoryVariant, StoryWhyMattersCache
 from tests.conftest import requires_postgres
 from tests.test_public_web import _seed_published_story
-from tests.test_public_web import client  # noqa: F401 -- shared pytest fixture
-from tests.test_public_web import db_session  # noqa: F401 -- shared pytest fixture
 
 pytestmark = requires_postgres
 

@@ -33,7 +33,7 @@ straight to closing out T19 hardening and standing up real production infra
 | T14 Web MVP | **done** | Public `/v1` endpoints wired to real Postgres data (`app/content/serialize.py`); `apps/web` is a real Next.js SSR/ISR site over `@teluguvarta/contracts` types covering every §9.1 page; axe-core a11y check passes on home + story pages |
 | T15 Mobile MVP | **done** | Expo/React Navigation app over the same `@teluguvarta/contracts` public API as T14; onboarding (fully skippable, "continue without login"), home/topic/search/saved/story-detail/notifications/settings/language/privacy screens; onboarding + notification prefs + saved stories are on-device (AsyncStorage) since no account backend exists yet (ADR-006 still proposed); native OS share sheet using the same canonical `PUBLIC_WEB_URL`/story-slug URL as web; Jest+RNTL smoke test covers onboarding-skip→home→open→save→share |
 | T16 Personalization | **done** | Deterministic §8.2 ranking (`app/content/ranking.py`), no ML; `GET /v1/home` personalizes when preferences are supplied as query params (no accepted account backend yet — see ADR-005); `Task.WHY_MATTERS` now actually invoked, cached per `(story_id, segment)` in new `story_why_matters_cache`; ADR-005 accepted |
-| T17 Push notifications | **done** | Real anonymous identity (ADR-006 resolved), persisted preferences/push tokens, `notification_dispatch` job with dedupe/quiet-hours/daily-cap/breaking-approval gate |
+| T17 Push notifications | **done** | Real anonymous identity (satisfies ADR-006, which remains formally **proposed**, not accepted), persisted preferences/push tokens, `notification_dispatch` job with dedupe/quiet-hours/daily-cap/breaking-approval gate |
 | T18 Observability | **done** | Structured JSON logging + request/job context; Sentry-equivalent error tracking (plain HTTP envelope, no SDK) in all 4 apps; `/v1/admin/observability` (ingestion health/job queue/AI cost) + admin dashboard page; alert-dispatch module wired to worker loop; §17 analytics events routed through `POST /v1/events` (T17's endpoint) into `app/analytics.py`, forwarded to PostHog when configured |
 | T19 Hardening | **partial — see changelog** | Real: MFA on admin login, cross-system account deletion, search/admin rate limiting, dependency scanning (pip-audit clean)/SAST (bandit clean, one real XXE finding fixed), budget-breach auto-publish gate wired, backup/restore scripts + one real local restore test passed, WCAG 2.2 AA axe pass across 12 pages, local load test within §16 targets, ADR-007 accepted, app-store readiness doc. **P0 RCE gap now fixed** (see 2026-09-09 entry below) — `next@14.2.35` upgraded to `15.5.25` in both apps. **Golden AI eval set now 300 items** (§18's ≥300 met by count — see 2026-09-09 entry below), but only the original 30 are human-reviewed; the other 270 are AI-generated/unreviewed, flagged in `eval/README.md`/`golden_set.json._meta`. Still open: MFA/rate-limiting/backups not exercised against real managed infra (local-only, per ADR-007); no live-provider run against the golden set (same no-network-access gap as every AI ticket since T10); the 270 AI-generated eval items need native-Telugu-speaker spot-check before being trusted as real ground truth. |
 | T20 Pilot | **blocked — NO-GO, see report** | `docs/runbooks/pilot-report.md`. Engineering side of the pre-build validation gate now shipped: `/pilot` landing page (3 example personalized feeds using real T16 `/v1/home` ranking for professional/international_student/family_parent segments) + email signup capture (`POST /v1/pilot-signups`, dedupes by email, rate-limited; `GET /v1/admin/pilot-signups` for the opt-in count/roster) — see 2026-09-09 changelog entry. **Still blocks GO**: recruiting the actual 50-100 users and running the 14-day measurement window is a product/ops action, not something further engineering closes. Verified §17 analytics are real, not assumed: all 12 core events implemented server-side (`app/analytics.py`) and actually emitted client-side in both `apps/web` and `apps/mobile` (grepped call sites, not inferred). Walked the full §26 checklist item-by-item against what's built; S1/S2 (student) and X1-X4 (X adapter) rows marked not-applicable since those parallel tickets haven't started. |
@@ -47,7 +47,6 @@ straight to closing out T19 hardening and standing up real production infra
 | X2 Incremental X fetch | **done** | New `x_official_account_fetch` job (`app/jobs/x_fetch.py`) reusing T07's exact adapter contract (`app/adapters/x.py::XAdapter`) and T08's job-queue retry/backoff (`app/jobs/queue.py`) — a 429 or any other fetch failure just raises and lets the existing bounded exponential backoff handle it, no bespoke retry loop. `app/x/client.py::XApiClient` calls only the official `GET /2/users/{id}/tweets` (bounded to 10 pages/run); a 429 raises `XRateLimitedError` rather than retrying itself; no code path ever touches x.com's public site. Incremental via each `x_accounts.since_id`, advanced to the max post id seen per run — never a full timeline re-fetch. Scheduling (`schedule_due_x_fetches`) mirrors `schedule_due_source_fetches`: only `active`+`LINK_ONLY`-source, cadence-configured, non-circuit-broken accounts are enqueued. Cost telemetry lands in a new `x_api_call_log` table (migration `b2c3d4e5f6a7`, mirrors T10's `ai_call_log`) via `app/x/budget.py` (`record_call`/`month_to_date_cost_usd`/`is_over_monthly_budget`/`budget_remaining_usd`) — `posts_read`/`cost_usd`/`status` ('OK'/'RATE_LIMITED'/'ERROR') per run; `X_API_COST_PER_POST_USD` env optionally prices `cost_usd`. New env vars in `.env.example`: `X_API_BEARER_TOKEN` (required to fetch at all — unset fails closed via the normal circuit-breaker path, never a scraping fallback), `X_API_COST_PER_POST_USD`, `MONTHLY_X_API_BUDGET_USD`. Verified: `alembic upgrade head`/`downgrade -1`/`upgrade head` round-trip clean; `ruff check .` clean; new `tests/test_x_adapter.py` + `tests/test_x_fetch_job.py` (13 tests: pagination/since_id/429/rights-gate/idempotency/scheduling/budget-gate/telemetry) plus full `pytest` (233 passed) all green against a real local Postgres. **Note**: the original "skips every account for the cycle when over budget" behavior described here was superseded by X4 — see below. |
 | X4 X monitoring and budget guard | **done** | Budget guard behavior changed from "skip every X account when over `MONTHLY_X_API_BUDGET_USD`" to "skip only `budget_class='LOW'` accounts" (`app/jobs/x_fetch.py::schedule_due_x_fetches`, `app/x/budget.py::is_low_priority`) — a `STANDARD`/`HIGH`/unset-class account keeps polling past the threshold, and the guard never touches other ingestion sources since it only filters the X-account query. `GET /v1/admin/x-accounts` now also returns `fail_count`/`circuit_breaker_tripped`/`recent_error_count_24h` (from `x_api_call_log`, last 24h)/`month_to_date_cost_usd` (per account)/`budget_paused` (true iff over budget AND `budget_class='LOW'`) alongside X1's existing `since_id`/`active`/health fields — an admin never has to read logs. Manual pause/resume reuses T06's existing per-source `active` kill switch (`PATCH /v1/admin/sources/{id}`) rather than a parallel per-account switch: each X account is already 1:1 with its own `Source` row, so pausing one never touches another account's polling — verified by explicit test rather than assumed. `GET /v1/admin/observability` gained an `x_cost` block (mirrors T18's `ai_cost` shape: MTD spend/budget/remaining/over-budget flag, plus `low_priority_accounts_paused` count). `apps/admin`'s `/observability` page (T18) gets a new "X account health & budget" section: per-account table (handle/rights status/active/budget class/budget-paused/since_id/fail count/24h errors/MTD cost/last success/last error) with a Pause/Resume button per account. Verified: `ruff check` clean; full `pytest` (240 passed, up from 233) including 3 new X4 acceptance tests (`test_schedule_pauses_only_low_priority_accounts_when_over_monthly_budget`, `test_budget_guard_pauses_only_low_priority_x_accounts`, `test_manual_pause_of_one_x_account_does_not_affect_another`) against real local Postgres; `apps/admin` `tsc --noEmit`, `eslint`, and `next build` all clean. |
 | X3 X post to story pipeline | **done** | See 2026-09-09 changelog entry |
-| X4 X monitoring/budget guard | not started | |
 
 ## Student experience
 
@@ -68,7 +67,7 @@ Mirrors `docs/adr/README.md` — keep both in sync.
 | ADR-004 Bilingual content lifecycle | **accepted** |
 | ADR-005 Personalization model | **accepted** |
 | ADR-006 Account/privacy architecture | **proposed** |
-| ADR-007 Production hosting/cost limits | not started |
+| ADR-007 Production hosting/cost limits | **accepted** |
 | ADR-008 Visual design refresh (no new UI framework) | **accepted** |
 | ADR-009 Single design-token source, generated per surface | **accepted** |
 | ADR-010 Folio visual redesign (supersedes ADR-008's palette) | **accepted** |
@@ -76,6 +75,43 @@ Mirrors `docs/adr/README.md` — keep both in sync.
 ## Changelog
 
 (newest first — one line per ticket completion)
+
+- 2026-09-16: Pre-development hygiene pass, ad hoc per explicit request
+  ("proceed with development, make sure we have all good practices in place
+  before starting") before picking up any new work. Audited PROGRESS.md
+  against the actual ADR files/git history rather than trusting its own
+  prose (three real contradictions found, all fixed):
+  (1) T17's row falsely claimed "ADR-006 resolved" — the ADR file's own
+  `Status:` field is still `proposed` (confirmed via git log: only one
+  ADR-006 commit exists, from T05, never updated) — reworded to say the
+  anonymous-identity model satisfies ADR-006's intent without the ADR
+  itself being formally accepted, so it no longer contradicts the ADR
+  status table.
+  (2) The ADR status table said "ADR-007 not started" while T19's own row
+  and `docs/adr/README.md` both correctly said "accepted" (confirmed
+  accepted in the ADR file's header, dated 2026-09-09) — table corrected.
+  (3) The X adapter table had X4 listed twice — once "done" with a full
+  writeup, once a stray duplicate row saying "not started" — deleted the
+  duplicate; X4 is done (see its existing entry).
+  Also found and fixed a real `ruff` regression that several past
+  changelog entries had claimed was clean but wasn't:
+  `apps/api/tests/test_ux_reliability.py` re-imported the `client`/
+  `db_session` pytest fixtures from `test_public_web.py` with `# noqa:
+  F401` to silence the unused-import warning, but ruff still flagged
+  every test function's same-named parameter as F811 ("redefinition of
+  unused import") — a noqa on the wrong rule. Fixed at the root instead of
+  re-suppressing: moved both fixtures into `tests/conftest.py` (the
+  pytest-idiomatic place for fixtures shared across test modules, where
+  every other cross-file fixture in this suite already lives) and dropped
+  the cross-module import entirely. Verified: `ruff check .` — all checks
+  passed (was 11 errors); `pytest -q` — 515 passed (unchanged count, same
+  as before the fixture move, confirming no behavior change). Working tree
+  was otherwise clean and matched PROGRESS.md's last entries; no new
+  BUILD_ORDER ticket is actually open right now — T01-T21/X1-X4/S1-S2 are
+  all done or blocked on external factors (T19's remaining gaps need real
+  managed infra/live AI-provider access; T20 is explicitly product-waived),
+  so this pass is the concrete "good practices" work available before any
+  further ticket work resumes.
 
 - 2026-09-13: Folio redesign mobile a11y follow-up (continuation of the
   2026-09-13 Folio entry below, at explicit request). No automated RN a11y

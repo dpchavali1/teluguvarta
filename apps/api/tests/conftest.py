@@ -14,7 +14,10 @@ from pathlib import Path
 import psycopg
 import pytest
 from dotenv import load_dotenv
+from fastapi.testclient import TestClient
+from sqlalchemy import create_engine
 from sqlalchemy.engine import make_url
+from sqlalchemy.orm import Session
 
 load_dotenv(Path(__file__).resolve().parents[3] / ".env")
 
@@ -85,3 +88,21 @@ def migrated_database(scratch_database, monkeypatch):
     cfg = Config(str(Path(__file__).resolve().parents[1] / "alembic.ini"))
     command.upgrade(cfg, "head")
     yield scratch_database
+
+
+@pytest.fixture
+def client(migrated_database):
+    from app.db import _engine_for
+    from app.main import app
+
+    _engine_for.cache_clear()
+    yield TestClient(app)
+    _engine_for.cache_clear()
+
+
+@pytest.fixture
+def db_session(migrated_database):
+    engine = create_engine(migrated_database)
+    with Session(engine) as session:
+        yield session
+    engine.dispose()
