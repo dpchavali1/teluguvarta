@@ -60,12 +60,34 @@ def _resolve_provider(name: str | None) -> Provider:
     return NullProvider()
 
 
-def _remove_unsupported_claims(result: GenerationResult) -> tuple[GenerationResult, list[str]]:
-    kept = [claim for claim in result.claims if claim.source_refs]
-    removed = [claim.text for claim in result.claims if not claim.source_refs]
-    if removed:
+def _check_claims(
+    result: GenerationResult, evidence_item_ids: frozenset[str] | None
+) -> tuple[GenerationResult, list[str], bool]:
+    """P0-1: a claim with no `source_refs` is stripped silently, same as
+    before — the model gave no evidence, which is honest. A claim whose
+    `source_refs` name something other than a real evidence item in this
+    cluster is a *fabrication* — a crafted feed title injecting a fake
+    `source_ref=` line, or the model hallucinating one — and must never be
+    silently stripped-and-published; the caller HOLDs the whole result.
+    `evidence_item_ids` is the caller's set of real item ids for this call;
+    `None` means the caller didn't supply one (no `SourceItem` cluster to
+    check against), in which case membership can't be checked and only the
+    empty-refs strip applies, same as before P0-1.
+    """
+    kept = []
+    removed: list[str] = []
+    fabricated = False
+    for claim in result.claims:
+        if not claim.source_refs:
+            removed.append(claim.text)
+            continue
+        if evidence_item_ids is not None and any(ref not in evidence_item_ids for ref in claim.source_refs):
+            fabricated = True
+            continue
+        kept.append(claim)
+    if removed or fabricated:
         result = result.model_copy(update={"claims": kept})
-    return result, removed
+    return result, removed, fabricated
 
 
 class AiGateway:
@@ -79,6 +101,7 @@ class AiGateway:
         *,
         story_id: uuid.UUID | None = None,
         result_model: type[BaseModel] = GenerationResult,
+        evidence_item_ids: frozenset[str] | None = None,
     ) -> GatewayOutcome:
         route = ROUTING[task]
 
@@ -140,7 +163,13 @@ class AiGateway:
             if result.confidence < CONFIDENCE_REVIEW_THRESHOLD:
                 return GatewayOutcome(status=GatewayStatus.REVIEW_QUEUE, result=result)
 
-            result, removed = _remove_unsupported_claims(result)
+            result, removed, fabricated = _check_claims(result, evidence_item_ids)
+            if fabricated:
+                # A claim cited a source_ref that names no real evidence
+                # item — a fabrication, not an honest "no evidence given."
+                # Never silently strip and publish on this; hold the whole
+                # result for retry/investigation instead (P0-1).
+                return GatewayOutcome(status=GatewayStatus.HOLD, removed_claims=removed)
             if removed and not result.claims:
                 # Every claim was unsupported — nothing left to publish on.
                 return GatewayOutcome(status=GatewayStatus.HOLD, removed_claims=removed)

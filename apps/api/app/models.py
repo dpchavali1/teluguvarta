@@ -354,6 +354,29 @@ class StorySource(Base):
     evidence_rank: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
 
+class StoryClaim(Base):
+    """P0-1 audit trail: every factual claim a `SUMMARY` generation call
+    returned, and what the gateway did with it, persisted so the
+    ref-membership/strip decision (`app/ai/gateway.py::_check_claims`) is
+    auditable after the fact instead of vanishing with `GatewayOutcome`.
+    """
+
+    __tablename__ = "story_claims"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    story_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("stories.id", ondelete="CASCADE"), nullable=False)
+    text: Mapped[str] = mapped_column(Text, nullable=False)
+    source_refs: Mapped[list] = mapped_column(JSONB, nullable=False, default=list)
+    # 'KEPT' | 'REMOVED_NO_REF' per `ck_story_claims_status`. Only these two
+    # exist until ADR-011 decides the corroboration/title-match sufficiency
+    # rule (docs/plans/gemini-hetzner-telugu-plan.md P0-1) — a claim citing a
+    # real source_ref is KEPT as-is for now, same trust level as before P0-1,
+    # minus the fabricated-ref case, which HOLDs the whole story instead of
+    # ever reaching this table.
+    status: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+
+
 class Job(Base):
     __tablename__ = "jobs"
 

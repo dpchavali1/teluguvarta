@@ -170,7 +170,9 @@ def test_unsupported_claim_is_removed_but_story_still_publishes(migrated_databas
             ]
         )
         _use_fake_provider(monkeypatch, [payload])
-        outcome = AiGateway(db).run_task(Task.SUMMARY, "summarize this")
+        outcome = AiGateway(db).run_task(
+            Task.SUMMARY, "summarize this", evidence_item_ids=frozenset({"src-1"})
+        )
 
         assert outcome.status == GatewayStatus.OK
         assert outcome.removed_claims == ["unsupported claim"]
@@ -183,10 +185,48 @@ def test_story_held_when_every_claim_is_unsupported(migrated_database, monkeypat
     with Session(engine) as db:
         payload = _valid_payload(claims=[{"text": "unsupported claim", "source_refs": []}])
         _use_fake_provider(monkeypatch, [payload])
-        outcome = AiGateway(db).run_task(Task.SUMMARY, "summarize this")
+        outcome = AiGateway(db).run_task(
+            Task.SUMMARY, "summarize this", evidence_item_ids=frozenset({"src-1"})
+        )
 
         assert outcome.status == GatewayStatus.HOLD
         assert outcome.removed_claims == ["unsupported claim"]
+
+
+@requires_postgres
+def test_fabricated_source_ref_holds_the_whole_result(migrated_database, monkeypatch):
+    """P0-1: a claim citing a source_ref that names no real evidence item —
+    e.g. one injected via an unescaped prompt field — must never be silently
+    stripped and published. The whole result HOLDs instead."""
+    engine = create_engine(migrated_database)
+    with Session(engine) as db:
+        payload = _valid_payload(
+            claims=[
+                {"text": "real claim", "source_refs": ["src-1"]},
+                {"text": "fabricated claim", "source_refs": ["injected-fake-id"]},
+            ]
+        )
+        _use_fake_provider(monkeypatch, [payload])
+        outcome = AiGateway(db).run_task(
+            Task.SUMMARY, "summarize this", evidence_item_ids=frozenset({"src-1"})
+        )
+
+        assert outcome.status == GatewayStatus.HOLD
+        assert outcome.result is None
+
+
+@requires_postgres
+def test_no_evidence_item_ids_skips_membership_check(migrated_database, monkeypatch):
+    """Callers that don't supply `evidence_item_ids` (no SourceItem cluster
+    to check against) get the pre-P0-1 behavior: any non-empty source_refs
+    is accepted. Only real callers with a cluster (T11's `generate.py`) get
+    the fabrication check."""
+    engine = create_engine(migrated_database)
+    with Session(engine) as db:
+        _use_fake_provider(monkeypatch, [_valid_payload()])
+        outcome = AiGateway(db).run_task(Task.SUMMARY, "summarize this")
+
+        assert outcome.status == GatewayStatus.OK
 
 
 @requires_postgres

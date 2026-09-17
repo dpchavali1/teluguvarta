@@ -13,6 +13,58 @@ signup capture) has been deleted, including its `pilot_signups` DB table
 the full list of removed files. `docs/BUILD_ORDER.md`'s pre-build validation
 gate section is gone; do not reintroduce a pilot gate on any future ticket.
 
+**Gemini/Hetzner/Telugu-first plan saved, not started (2026-09-16)**: a large
+pre-implementation plan — swap AI providers to Gemini's free tier, self-host
+on Hetzner (superseding ADR-007), add Telugu-first sourcing (superseding
+`NON_NEGOTIABLES.md` #7), semantic search, and grounded Q&A — is saved at
+`docs/plans/gemini-hetzner-telugu-plan.md` (revision 6). **Nothing in it is
+implemented**: confirmed no `ADR-011`–`ADR-016`, no `T22`–`T28` ticket files,
+no "gemini"/"hetzner" references anywhere in `apps/` or `docs/`, and no
+Dockerfiles in the repo. Per the plan's own Phase 0 sequencing and
+`NON_NEGOTIABLES.md` #11, work must start with **P0-1 through P0-4** (four
+pre-existing vulnerabilities independent of the rest of the plan — prompt
+injection into the publish gate, an unencrypted-backup MFA bypass, an
+MFA-enforcement design that would lock out every admin, and an unguarded
+`restore.sh` DB-drop), then Spikes 1–3, then ADR-011–016 acceptance, before
+any `T22`–`T28` ticket work begins. Do not start T22+ work until those ADRs
+are accepted.
+
+**P0-1 fixed (2026-09-16): prompt injection into publishing decisions.**
+Both halves of the actual exploit are closed:
+- `jobs/generate.py`'s `_classify_prompt`/`_generate_prompt` and
+  `jobs/translate.py`'s `_translate_prompt` now JSON-encode untrusted
+  fields (feed title/url, and the EN variant text) inside a per-call random
+  boundary instead of splicing raw text into a quoted `field="..."` slot —
+  a crafted feed title can no longer close the field and inject fake
+  instructions or `source_ref=` lines.
+- `AiGateway.run_task` takes an `evidence_item_ids` param; `_check_claims`
+  (was `_remove_unsupported_claims`) now HOLDs the whole result — never
+  silently strips and publishes — if any claim cites a `source_ref` that
+  isn't a real `SourceItem` id in the cluster. `generate.py` passes the
+  real cluster's item ids on both the classify and generate gateway calls.
+  A claim with genuinely no `source_refs` still strips silently, unchanged
+  from before.
+- New `story_claims` table (migration `d4a7c1e2f6b9`) persists every kept
+  and no-ref-removed claim per story — the decision trail P0-1's own report
+  noted didn't exist. `status` is `KEPT` | `REMOVED_NO_REF` only.
+
+**What P0-1 did not do**: the plan's corroboration/title-match sufficiency
+check (is a ref-membership-valid claim's *content* actually supported?) is
+a separate, unmade judgment call with real product consequences (it would
+send most single-source stories to review) — recorded as **ADR-011
+(proposed, not accepted)** rather than implemented against a guess. Ref-
+membership alone (this fix) is strictly safer than pre-P0-1 behavior but
+is not the plan's full protection; T22+ work assumes ADR-011 is accepted
+first. Tests: `apps/api/tests/test_ai_gateway.py` (fabricated-ref HOLD,
+membership-skipped-when-no-cluster) and `test_generate.py`
+(claim-persistence, fabricated-ref-holds-the-story) cover this; full suite
+green (513 passed; one pre-existing, unrelated `test_notifications.py`
+teardown flake — `psycopg.errors.InsufficientPrivilege` dropping a scratch
+DB, not caused by this change).
+
+Next session: P0-2 (backup/MFA-secret encryption) per
+`docs/plans/gemini-hetzner-telugu-plan.md`.
+
 ## Main spine
 
 | Ticket | Status | Notes |
