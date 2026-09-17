@@ -13,6 +13,14 @@ repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 dump_file="${1:?Usage: restore.sh <dump-file> <target-db-name>}"
 target_db="${2:?Usage: restore.sh <dump-file> <target-db-name>}"
 
+# P0-4: a wrong argument here runs DROP DATABASE ... WITH (FORCE) on whatever
+# DATABASE_URL points at. Require an unmistakable restore-test name so a typo
+# can't silently resolve to the real database.
+if [[ "$target_db" != restore_* ]]; then
+  echo "Refusing: target db '$target_db' must start with 'restore_' (restore.sh only ever targets disposable restore-test databases)" >&2
+  exit 1
+fi
+
 if [ -z "${DATABASE_URL:-}" ]; then
   # shellcheck disable=SC1091
   [ -f "$repo_root/.env" ] && source "$repo_root/.env"
@@ -43,6 +51,15 @@ target_url="$base_url/$target_db"
 # migrate.sh runs Alembic via SQLAlchemy, which needs the "+psycopg" scheme
 # back — pg_restore/psql above need the plain one.
 sqlalchemy_target_url="${target_url/postgresql:/postgresql+psycopg:}"
+
+# The db DATABASE_URL itself points at (strip any "?query" suffix) — the
+# thing this script must never DROP, restore_ prefix notwithstanding.
+source_db="${libpq_url##*/}"
+source_db="${source_db%%\?*}"
+if [ "$target_db" = "$source_db" ]; then
+  echo "Refusing: target db '$target_db' is the database DATABASE_URL points at — restore.sh must never target it" >&2
+  exit 1
+fi
 
 psql "$server_url" -v ON_ERROR_STOP=1 -c "DROP DATABASE IF EXISTS \"$target_db\" WITH (FORCE)"
 psql "$server_url" -v ON_ERROR_STOP=1 -c "CREATE DATABASE \"$target_db\""

@@ -124,10 +124,35 @@ enrollment (the UI change itself is not part of this ticket).
 
 **What P0-3 did not do**: the admin frontend (if any exists yet) is not
 updated to handle `mfa_enrollment_required` — out of scope for this API-only
-ticket. P0-4 (`restore.sh`'s unguarded `DROP DATABASE`) is untouched.
+ticket.
 
-Next session: P0-4 (`restore.sh:47` DROP DATABASE guard) per
-`docs/plans/gemini-hetzner-telugu-plan.md`.
+**P0-4 fixed (2026-09-16): unguarded `restore.sh` DB-drop.**
+`infra/scripts/restore.sh` ran `DROP DATABASE IF EXISTS ... WITH (FORCE)`
+against whatever `<target-db-name>` argument it was given, on the server
+`DATABASE_URL` points at — a wrong argument on the VPS destroys the real
+database. Two guards added, both before the `DROP DATABASE` call: (1)
+`target_db` must start with `restore_`, checked immediately after argument
+parsing, before `DATABASE_URL`/`.env` are even read; (2) `target_db` must
+not equal the database name parsed out of `DATABASE_URL` (path segment,
+`?query` suffix stripped) — catches a `restore_`-prefixed name that still
+happens to match a real db. Both exit 1 with a message naming the reason,
+no DB connection attempted. Manually verified (no live Postgres available
+in this environment) with `DATABASE_URL` set and no real dump file: a
+non-`restore_`-prefixed target is rejected, and a `restore_`-prefixed
+target equal to the source db (including with a `?sslmode=` suffix on the
+URL) is rejected — both exit before any `psql`/`pg_restore` call.
+`bash -n` syntax-checks clean. No shellcheck available in this environment.
+
+**What P0-4 did not do**: no automated test harness exists for this script
+(no Postgres fixture in CI for shell scripts) — verification was manual,
+per above. Sanitizing `target_db` against arbitrary shell/SQL metacharacters
+beyond the prefix check was not added; out of scope per the plan's stated
+fix (equality + prefix guard only).
+
+All four P0 tickets (P0-1 through P0-4) are now fixed. Per the plan's Phase 0
+sequencing, next session should move to Spikes 1–3
+(`docs/plans/gemini-hetzner-telugu-plan.md`) before any ADR-011–016
+acceptance or `T22`+ ticket work.
 
 ## Main spine
 
