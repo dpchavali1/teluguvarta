@@ -225,6 +225,10 @@ class AdminLoginResponse(BaseModel):
     token_type: Literal["bearer"] = "bearer"
     expires_in: int
     role: Literal["EDITOR", "ADMIN"]
+    # ADR-012: true when access_token is a restricted mfa_enrollment-scope
+    # token (no mfa_secret set yet) — only /mfa/setup and /mfa/enroll accept
+    # it. The admin UI must route straight to enrollment, not a normal session.
+    mfa_enrollment_required: bool = False
 
 
 class MfaSetupResponse(BaseModel):

@@ -27,3 +27,8 @@ accepted. Add ad-hoc ADRs below this table as they're written.
 - ADR-010 | Folio visual redesign (supersedes ADR-008's palette) |
   ad hoc, user-requested | **accepted** — see
   [ADR-010](ADR-010-folio-visual-redesign.md)
+- ADR-011 | Claim evidence sufficiency for unattended publish | P0-1
+  follow-up | **proposed** — see
+  [ADR-011](ADR-011-claim-evidence-sufficiency.md)
+- ADR-012 | First-login MFA enrollment flow | P0-3 | **accepted** — see
+  [ADR-012](ADR-012-mfa-enrollment-flow.md)

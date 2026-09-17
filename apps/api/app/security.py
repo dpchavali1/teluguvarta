@@ -21,6 +21,11 @@ from app.models import AdminLoginAttempt
 ADMIN_JWT_ALGORITHM = "HS256"
 ADMIN_JWT_EXPIRE_MINUTES = int(os.environ.get("ADMIN_JWT_EXPIRE_MINUTES", "30"))
 
+# ADR-012: a login for an account with no mfa_secret gets this restricted
+# scope instead of a full session — just enough time to scan a QR code and
+# enter one TOTP code, not a standing credential.
+MFA_ENROLLMENT_TOKEN_EXPIRE_MINUTES = 5
+
 # Rate limit: at most this many login attempts (success or failure) per email
 # within the window, before further attempts are rejected outright.
 LOGIN_RATE_LIMIT_MAX_ATTEMPTS = 5
@@ -49,6 +54,25 @@ def create_admin_access_token(user_id: UUID, email: str, role: str) -> tuple[str
         "sub": str(user_id),
         "email": email,
         "role": role,
+        "scope": "full",
+        "iat": now,
+        "exp": now + timedelta(seconds=expires_in),
+    }
+    token = jwt.encode(payload, _jwt_secret(), algorithm=ADMIN_JWT_ALGORITHM)
+    return token, expires_in
+
+
+def create_admin_enrollment_token(user_id: UUID, email: str, role: str) -> tuple[str, int]:
+    """ADR-012: issued instead of a full session token when an EDITOR/ADMIN
+    account with no `mfa_secret` logs in. Only `current_admin_for_enrollment`
+    (guarding `/mfa/setup` and `/mfa/enroll`) accepts this scope."""
+    expires_in = MFA_ENROLLMENT_TOKEN_EXPIRE_MINUTES * 60
+    now = datetime.now(UTC)
+    payload = {
+        "sub": str(user_id),
+        "email": email,
+        "role": role,
+        "scope": "mfa_enrollment",
         "iat": now,
         "exp": now + timedelta(seconds=expires_in),
     }

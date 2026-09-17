@@ -346,7 +346,10 @@ def test_daily_cap_suppresses_and_emits_analytics_event(db_session, caplog):
 
 
 def test_breaking_alert_requires_admin_approval_endpoint(client, db_session, monkeypatch):
-    from app.security import hash_password
+    # Mints a full-session token directly rather than via /login: this test
+    # exercises the breaking-alert approval endpoint, not P0-3/ADR-012's
+    # MFA-enrollment gate.
+    from app.security import create_admin_access_token, hash_password
 
     monkeypatch.setenv("ADMIN_JWT_SECRET", "test-secret")
     admin = User(id=uuid.uuid4(), email="admin@example.com", role="ADMIN", password_hash=hash_password("pw"))
@@ -355,8 +358,7 @@ def test_breaking_alert_requires_admin_approval_endpoint(client, db_session, mon
     db_session.add(story)
     db_session.commit()
 
-    login = client.post("/v1/admin/auth/login", json={"email": "admin@example.com", "password": "pw"})
-    token = login.json()["access_token"]
+    token, _ = create_admin_access_token(admin.id, admin.email, admin.role)
 
     response = client.post(
         f"/v1/admin/stories/{story.id}/approve-breaking-alert",

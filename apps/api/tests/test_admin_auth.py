@@ -53,12 +53,25 @@ def _seed_admin(db_session, *, email=ADMIN_EMAIL, password=ADMIN_PASSWORD, role=
 
 
 def test_login_succeeds_and_token_grants_admin_access(client, db_session):
-    _seed_admin(db_session)
+    # ADR-012: an account with mfa_secret already set gets a full session
+    # token immediately — the no-MFA-yet case is covered separately below.
+    import pyotp
 
-    response = client.post("/v1/admin/auth/login", json={"email": ADMIN_EMAIL, "password": ADMIN_PASSWORD})
+    from app.security import encrypt_mfa_secret, generate_mfa_secret
+
+    secret = generate_mfa_secret()
+    user = _seed_admin(db_session)
+    user.mfa_secret = encrypt_mfa_secret(secret)
+    db_session.commit()
+
+    response = client.post(
+        "/v1/admin/auth/login",
+        json={"email": ADMIN_EMAIL, "password": ADMIN_PASSWORD, "mfa_code": pyotp.TOTP(secret).now()},
+    )
     assert response.status_code == 200
     body = response.json()
     assert body["role"] == "ADMIN"
+    assert body["mfa_enrollment_required"] is False
     token = body["access_token"]
 
     admin_response = client.get("/v1/admin/sources", headers={"Authorization": f"Bearer {token}"})
@@ -166,6 +179,54 @@ def test_login_without_mfa_enrolled_ignores_mfa_code_field(client, db_session):
     assert response.status_code == 200
 
 
+# --- P0-3 / ADR-012: first-login MFA enrollment flow ---
+
+
+def test_login_without_mfa_secret_issues_enrollment_scoped_token(client, db_session):
+    _seed_admin(db_session)
+
+    response = _login(client)
+    assert response.status_code == 200
+    body = response.json()
+    assert body["mfa_enrollment_required"] is True
+    token = body["access_token"]
+
+    # The enrollment token can reach the enrollment endpoints...
+    setup = client.post("/v1/admin/auth/mfa/setup", headers={"Authorization": f"Bearer {token}"})
+    assert setup.status_code == 200
+
+    # ...but not any other admin route, and not even MFA status/disable.
+    sources = client.get("/v1/admin/sources", headers={"Authorization": f"Bearer {token}"})
+    assert sources.status_code == 403
+    assert sources.json()["error"]["code"] == "MFA_ENROLLMENT_REQUIRED"
+
+    status = client.get("/v1/admin/auth/mfa", headers={"Authorization": f"Bearer {token}"})
+    assert status.status_code == 403
+    assert status.json()["error"]["code"] == "MFA_ENROLLMENT_REQUIRED"
+
+
+def test_completed_enrollment_yields_full_session_on_next_login(client, db_session):
+    import pyotp
+
+    _seed_admin(db_session)
+    enrollment_token = _login(client).json()["access_token"]
+    headers = {"Authorization": f"Bearer {enrollment_token}"}
+
+    secret = client.post("/v1/admin/auth/mfa/setup", headers=headers).json()["secret"]
+    good_code = pyotp.TOTP(secret).now()
+    client.post("/v1/admin/auth/mfa/enroll", json={"secret": secret, "code": good_code}, headers=headers)
+
+    login_response = _login(client, mfa_code=pyotp.TOTP(secret).now())
+    assert login_response.status_code == 200
+    body = login_response.json()
+    assert body["mfa_enrollment_required"] is False
+
+    admin_response = client.get(
+        "/v1/admin/sources", headers={"Authorization": f"Bearer {body['access_token']}"}
+    )
+    assert admin_response.status_code == 200
+
+
 def test_mfa_enroll_requires_valid_code_then_login_requires_it(client, db_session):
     import pyotp
 
@@ -186,7 +247,11 @@ def test_mfa_enroll_requires_valid_code_then_login_requires_it(client, db_sessio
     assert enroll.status_code == 200
     assert enroll.json()["enabled"] is True
 
-    status = client.get("/v1/admin/auth/mfa", headers=headers)
+    # The enrollment-scoped token still can't reach /mfa status (ADR-012) —
+    # a fresh, MFA-verified login is required for a full session.
+    full_token = _login(client, mfa_code=pyotp.TOTP(secret).now()).json()["access_token"]
+    full_headers = {"Authorization": f"Bearer {full_token}"}
+    status = client.get("/v1/admin/auth/mfa", headers=full_headers)
     assert status.json()["enabled"] is True
 
     # Password alone is no longer enough.

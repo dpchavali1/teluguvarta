@@ -96,8 +96,38 @@ the plan's fix are in:
 (`restore.sh`'s unguarded `DROP DATABASE`) are separate, not touched here —
 per the plan's own sequencing, next session should pick up P0-3.
 
-Next session: P0-3 (MFA-enforcement design — first-login enrollment flow)
-per `docs/plans/gemini-hetzner-telugu-plan.md`.
+**P0-3 fixed (2026-09-16): MFA-enforcement lockout design, per accepted
+ADR-012.** `admin_auth.py`'s `login` no longer issues a full session token to
+an EDITOR/ADMIN account with no `mfa_secret` — it issues a restricted,
+5-minute `scope: mfa_enrollment` JWT (`security.py`'s
+`create_admin_enrollment_token`) that a new `current_admin_for_enrollment`
+dependency accepts only on `POST /mfa/setup` and `POST /mfa/enroll`; every
+other route (including `GET /mfa` and `DELETE /mfa`) still requires
+`current_admin`, which now rejects the enrollment scope with 403
+`MFA_ENROLLMENT_REQUIRED`. An account with `mfa_secret` already set is
+unchanged — TOTP code required before any token issues. `AdminLoginResponse`
+gained `mfa_enrollment_required: bool` so the admin UI can route straight to
+enrollment (the UI change itself is not part of this ticket).
+- Tests: `apps/api/tests/test_admin_auth.py` — two new tests
+  (`test_login_without_mfa_secret_issues_enrollment_scoped_token`,
+  `test_completed_enrollment_yields_full_session_on_next_login`); existing
+  MFA-enroll test updated to re-login for a full token before checking
+  status, since the enrollment token can't reach it. Four other test files
+  (`test_admin_sources.py`, `test_editorial_workflow.py`,
+  `test_admin_x_accounts.py`, `test_observability.py`, `test_notifications.py`)
+  had `_token`/inline helpers that minted admin sessions via `/login` for an
+  admin with no `mfa_secret` — switched to minting `create_admin_access_token`
+  directly, since those tests exercise unrelated endpoints, not the login/MFA
+  flow itself. Verified: `ruff check .` clean; full `pytest` — 516 passed (up
+  from 514), same pre-existing `test_notifications.py` teardown flake as
+  P0-1/P0-2 (`psycopg.errors.InsufficientPrivilege`, passes in isolation).
+
+**What P0-3 did not do**: the admin frontend (if any exists yet) is not
+updated to handle `mfa_enrollment_required` — out of scope for this API-only
+ticket. P0-4 (`restore.sh`'s unguarded `DROP DATABASE`) is untouched.
+
+Next session: P0-4 (`restore.sh:47` DROP DATABASE guard) per
+`docs/plans/gemini-hetzner-telugu-plan.md`.
 
 ## Main spine
 

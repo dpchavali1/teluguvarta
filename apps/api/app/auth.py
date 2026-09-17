@@ -14,6 +14,11 @@ request-scoped like T16's query-param preferences.
 `current_admin` does real verification as of T05: a signed, short-lived JWT
 (see app/security.py) issued by `POST /v1/admin/auth/login`, carrying a
 `role` claim that must be `EDITOR` or `ADMIN`.
+
+Per ADR-012, a login for an account with no `mfa_secret` yet gets a
+`scope: mfa_enrollment` token instead of `scope: full`. `current_admin`
+rejects the enrollment scope outright; `current_admin_for_enrollment`
+(used only by `/mfa/setup` and `/mfa/enroll`) accepts either.
 """
 
 import uuid
@@ -71,17 +76,35 @@ def current_user(
     return Principal(user_id=user.id, token=token)
 
 
-def current_admin(request: Request, authorization: str | None = Header(default=None)) -> AdminPrincipal:
+def _decode_bearer_admin_token(authorization: str | None) -> dict:
     if not authorization or not authorization.startswith("Bearer "):
         raise APIError(401, "UNAUTHENTICATED", "Missing or invalid bearer token")
     token = authorization.removeprefix("Bearer ")
     try:
-        claims = decode_admin_access_token(token)
+        return decode_admin_access_token(token)
     except PyJWTError:
         raise APIError(401, "UNAUTHENTICATED", "Invalid or expired token")
+
+
+def _admin_principal_from_claims(request: Request, claims: dict) -> AdminPrincipal:
     role = claims.get("role")
     if role not in ADMIN_ROLES:
         raise APIError(403, "FORBIDDEN", "This account does not have admin access")
     request.state.actor = claims["email"]
     set_actor(claims["email"])
     return AdminPrincipal(user_id=claims["sub"], email=claims["email"], role=role)
+
+
+def current_admin(request: Request, authorization: str | None = Header(default=None)) -> AdminPrincipal:
+    claims = _decode_bearer_admin_token(authorization)
+    if claims.get("scope") == "mfa_enrollment":
+        raise APIError(403, "MFA_ENROLLMENT_REQUIRED", "Complete MFA enrollment before using this endpoint")
+    return _admin_principal_from_claims(request, claims)
+
+
+def current_admin_for_enrollment(request: Request, authorization: str | None = Header(default=None)) -> AdminPrincipal:
+    """ADR-012: accepts a full session token or a restricted `mfa_enrollment`
+    token — used only by `/mfa/setup` and `/mfa/enroll` so a privileged user
+    with no `mfa_secret` can reach the endpoints that let them set one up."""
+    claims = _decode_bearer_admin_token(authorization)
+    return _admin_principal_from_claims(request, claims)

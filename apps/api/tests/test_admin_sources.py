@@ -41,16 +41,17 @@ def db_session(migrated_database):
 
 
 def _token(client, db_session, *, role="ADMIN", email=ADMIN_EMAIL):
+    # Mints a full-session token directly rather than via /login: these tests
+    # exercise source admin endpoints, not P0-3/ADR-012's MFA-enrollment gate.
     from app.models import User
-    from app.security import hash_password
+    from app.security import create_admin_access_token, hash_password
 
     user = User(id=uuid.uuid4(), email=email, role=role, password_hash=hash_password(PASSWORD))
     db_session.add(user)
     db_session.commit()
 
-    response = client.post("/v1/admin/auth/login", json={"email": email, "password": PASSWORD})
-    assert response.status_code == 200
-    return response.json()["access_token"]
+    token, _ = create_admin_access_token(user.id, user.email, role)
+    return token
 
 
 def _auth(token):
