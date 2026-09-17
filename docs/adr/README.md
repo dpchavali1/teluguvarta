@@ -32,3 +32,6 @@ accepted. Add ad-hoc ADRs below this table as they're written.
   [ADR-011](ADR-011-claim-evidence-sufficiency.md)
 - ADR-012 | First-login MFA enrollment flow | P0-3 | **accepted** — see
   [ADR-012](ADR-012-mfa-enrollment-flow.md)
+- ADR-013 | Golden eval set trust tier (shrink to reviewed 30) | Spike 2 |
+  **proposed** — see
+  [ADR-013](ADR-013-golden-eval-set-trust-tier.md)

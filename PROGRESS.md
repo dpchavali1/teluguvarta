@@ -154,6 +154,54 @@ sequencing, next session should move to Spikes 1–3
 (`docs/plans/gemini-hetzner-telugu-plan.md`) before any ADR-011–016
 acceptance or `T22`+ ticket work.
 
+**Spikes 1–3 attempted (2026-09-16): only Spike 2 could actually run.**
+Confirmed with the user before proceeding (see the two questions/answers
+below) rather than faking results for the two that are blocked on resources
+this session doesn't have:
+- **Spike 1 (Telugu quality via Gemini) — blocked, not attempted.** No
+  `GOOGLE_API_KEY`/`GEMINI_API_KEY` anywhere (`.env`, `.env.example`, shell
+  env — confirmed empty) and no native Telugu speaker available to grade
+  the 20 sampled outputs the spike requires. User chose "skip for now" over
+  either supplying a key or having me write the harness blind. **Still
+  fully blocked** — needs both a real Gemini API key and human grading
+  capacity before it can run.
+- **Spike 2 (golden eval set trust) — done.** Validating the 270
+  AI-generated items needs the same native-Telugu-speaker resource Spike 1
+  is blocked on, so the only executable option was the plan's other named
+  path: shrink to the 30 human-reviewed items and stop claiming §18's
+  "≥300". Since that contradicts `docs/SPEC.md` §18's explicit "≥300"
+  text, this is recorded as **ADR-013 (proposed, not accepted)** rather
+  than silently edited — `docs/adr/ADR-013-golden-eval-set-trust-tier.md`,
+  indexed in `docs/adr/README.md`. **Nothing in `golden_set.json` or
+  `eval/README.md` has been changed yet**; ADR-013 spells out the exact
+  edit (drop the 270 unreviewed items, reword the SPEC threshold and the
+  README's two-tier language) to make once accepted. This mirrors how
+  ADR-006/ADR-011 stay proposed rather than being enacted in the same
+  session that finds the gap.
+- **Spike 3 (local-inference hardware measurement) — harness written, not
+  run.** No inference stack installed here (`ollama`/`llama-server`/
+  `docker` all absent) and running it means multi-GB model downloads plus
+  compile time on a machine that isn't the actual Hetzner target — user
+  chose "prepare scripts only, don't install anything" over running it on
+  this dev machine. `infra/scripts/spike3_inference_benchmark.py` (new,
+  self-contained, no project import dependency so it can be copied onto a
+  real candidate box) measures query-embedding p95, Q&A generation p95,
+  and API p95 degradation under concurrent inference load, against the
+  plan's own stated placeholder gates (300ms/3s/20%), and prints a
+  Scope A vs Scope B verdict plus writes a JSON result file. `python3 -m
+  py_compile` clean; not executed (no model weights present, and running
+  it would trigger the same install/download the user declined to do
+  automatically).
+
+**What this means for sequencing**: none of ADR-011–016 acceptance or
+`T22`+ ticket work can start yet — Spike 1 needs a Gemini key + a native
+speaker, Spike 3 needs either this machine provisioned with the inference
+stack or an actual Hetzner box to run the new harness on, and ADR-013
+(Spike 2's output) needs product-owner acceptance before `golden_set.json`
+is actually edited. Next session should get whichever of those three
+inputs (API key, reviewer, hardware access) becomes available first,
+rather than re-attempting all three blind.
+
 ## Main spine
 
 | Ticket | Status | Notes |
