@@ -17,7 +17,7 @@
      6. Topic rail
      7. Story ledger + story card
      8. Forms, buttons, empty states
-     9. Pilot, student briefing, onboarding, legal
+     9. Student briefing, onboarding, legal
     10. Motion preferences + narrow viewports
    ========================================================================== */
 
@@ -952,9 +952,7 @@ main button:hover:not(:disabled) {
 
 /* Without this a disabled button keeps the full ink fill, the hard shadow and
    the press-shift on hover, so it reads as clickable. Colour is not the sole
-   signal: the shadow drops and the cursor changes too. `.pilot-signup-form`
-   keeps its own `cursor: progress` override below, since there the disable is
-   a pending submit rather than an unavailable action. */
+   signal: the shadow drops and the cursor changes too. */
 main button:disabled {
   background: var(--color-surface-sunken);
   color: var(--color-faint);
@@ -988,8 +986,7 @@ main button:disabled {
   outline-offset: -3px;
 }
 
-.search-form button,
-.pilot-signup-form button {
+.search-form button {
   border: 0;
   border-left: 2px solid var(--color-rule);
   background: var(--color-accent);
@@ -1006,23 +1003,15 @@ main button:disabled {
   transition: background var(--duration-fast) var(--ease-out);
 }
 
-.search-form button:hover,
-.pilot-signup-form button:hover {
+.search-form button:hover {
   transform: none;
   box-shadow: none;
   background: var(--color-text);
   color: var(--color-bg);
 }
 
-.search-form button:focus-visible,
-.pilot-signup-form button:focus-visible {
+.search-form button:focus-visible {
   outline-offset: -3px;
-}
-
-.pilot-signup-form button[disabled] {
-  background: var(--color-surface-sunken);
-  color: var(--color-faint);
-  cursor: progress;
 }
 
 .empty-state {
@@ -1035,82 +1024,7 @@ main button:disabled {
   border-bottom: 1px solid var(--color-border);
 }
 
-/* --------------- 9. Pilot, student briefing, onboarding, legal */
-
-.pilot-landing__hero {
-  position: relative;
-  margin-bottom: 3.5rem;
-  padding: 2.75rem 2.25rem 3rem;
-  border-radius: 0;
-  border: 2px solid var(--color-rule);
-  background: var(--color-surface);
-  box-shadow: var(--shadow-hard);
-}
-
-.pilot-landing__hero h1 {
-  font-size: clamp(2.2rem, 5.5vw, 3.5rem);
-  text-transform: uppercase;
-  letter-spacing: -0.04em;
-  line-height: 0.94;
-  max-width: 20ch;
-  margin: 0 0 1.5rem;
-}
-
-.pilot-landing__hero p {
-  max-width: 58ch;
-  color: var(--color-muted);
-  font-size: 1.05rem;
-  margin: 0;
-}
-
-.pilot-landing__feed {
-  margin-bottom: 3.5rem;
-  padding-bottom: 2.5rem;
-  border-bottom: 2px solid var(--color-rule);
-}
-
-.pilot-landing__feed h2 {
-  font-size: clamp(1.4rem, 3vw, 2rem);
-  text-transform: uppercase;
-  margin: 0 0 0.5rem;
-}
-
-.pilot-landing__feed > p {
-  max-width: 54ch;
-  color: var(--color-muted);
-  margin: 0 0 1.75rem;
-}
-
-.pilot-signup-form {
-  display: flex;
-  gap: 0;
-  margin-top: 1.5rem;
-  max-width: 30rem;
-  border: 2px solid var(--color-rule);
-}
-
-.pilot-signup-form input[type="email"] {
-  flex: 1;
-  min-width: 0;
-  padding: 0.85rem 1rem;
-  border: 0;
-  border-radius: 0;
-  font-family: var(--font-body);
-  font-size: 1rem;
-  background: var(--color-surface);
-  color: var(--color-text);
-}
-
-.pilot-signup-form input[type="email"]:focus-visible {
-  outline-offset: -3px;
-}
-
-.pilot-signup-form + p[role="alert"],
-.pilot-landing__feed p[role="status"] {
-  font-family: var(--font-mono-stack);
-  font-size: 0.8rem;
-  letter-spacing: 0.04em;
-}
+/* --------------- 9. Student briefing, onboarding, legal */
 
 /* Student briefing: a flagged band above the main ledger. Design-review
    fix: this was --color-accent (signal-lime) at ~1.15:1 against the
@@ -1318,11 +1232,6 @@ main button:disabled {
     display: none;
   }
 
-  .pilot-landing__hero {
-    padding: 1.75rem 1.35rem 2rem;
-    box-shadow: var(--shadow-hard-sm);
-  }
-
   .onboarding__fieldset {
     padding: 1.1rem;
   }
@@ -1338,13 +1247,11 @@ main button:disabled {
     gap: 0.5rem;
   }
 
-  .search-form,
-  .pilot-signup-form {
+  .search-form {
     flex-wrap: wrap;
   }
 
-  .search-form button,
-  .pilot-signup-form button {
+  .search-form button {
     flex: 1;
     border-left: 0;
     border-top: 2px solid var(--color-rule);

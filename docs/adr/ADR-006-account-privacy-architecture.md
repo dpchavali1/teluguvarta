@@ -70,11 +70,12 @@ analytics consent" language.
 - Harder later: adding real accounts is additive (new `auth_provider`
   values, a login endpoint analogous to admin's) but migrating *existing*
   anonymous users' data to a new account requires a linking flow this ADR
-  doesn't design — revisit when there's an actual product need (e.g.
-  multi-device sync requests at the T20 pilot).
-- Revisit this ADR if the pilot (T20) shows a strong need for cross-device
+  doesn't design — revisit when there's an actual product need (e.g. real
+  users requesting multi-device sync).
+- Revisit this ADR if real usage shows a strong need for cross-device
   continuity before public launch — don't quietly bolt on login without a
-  superseding decision.
+  superseding decision. (There is no recruited-user pilot to gate this on —
+  see `PROGRESS.md`'s 2026-09-16 pilot-removal entry.)
 
 ## Alternatives considered
 

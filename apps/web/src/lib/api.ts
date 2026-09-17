@@ -138,24 +138,6 @@ export async function getConfig(): Promise<ConfigResponse> {
   return { ...raw, topics: raw.topics ?? [] };
 }
 
-// T20 pre-build validation gate: landing-page signup, called from the
-// browser (a mutation, not the SSR fetch path above).
-export async function submitPilotSignup(body: {
-  email: string;
-  segment?: string;
-  example_feed?: string;
-}): Promise<void> {
-  const response = await fetch(new URL("/v1/pilot-signups", apiUrl()), {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
-  if (!response.ok) {
-    const errorBody = (await response.json().catch(() => null)) as { error?: { message?: string } } | null;
-    throw new Error(errorBody?.error?.message ?? "Signup failed");
-  }
-}
-
 // Exact bounded lookup preserves existing ID-only bookmarks across app restarts.
 export async function getSavedStories(ids: string[]): Promise<StoryOut[]> {
   const unique = [...new Set(ids)];

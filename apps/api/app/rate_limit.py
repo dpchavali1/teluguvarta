@@ -30,12 +30,6 @@ SEARCH_WINDOW_SECONDS = 60.0
 ADMIN_MAX_REQUESTS = 120
 ADMIN_WINDOW_SECONDS = 60.0
 
-# T20: the pilot-signup form is a public write (not a read like search), so
-# it's throttled much tighter — a handful of real signups per visitor, not
-# a search-volume ceiling.
-SIGNUP_MAX_REQUESTS = 5
-SIGNUP_WINDOW_SECONDS = 300.0
-
 
 def _check(key: str, *, max_requests: int, window_seconds: float) -> None:
     now = time.monotonic()
@@ -58,10 +52,6 @@ def rate_limit_search(request: Request) -> None:
 
 def rate_limit_admin(request: Request) -> None:
     _check(f"admin:{_client_ip(request)}", max_requests=ADMIN_MAX_REQUESTS, window_seconds=ADMIN_WINDOW_SECONDS)
-
-
-def rate_limit_signup(request: Request) -> None:
-    _check(f"signup:{_client_ip(request)}", max_requests=SIGNUP_MAX_REQUESTS, window_seconds=SIGNUP_WINDOW_SECONDS)
 
 
 def reset() -> None:

@@ -3,7 +3,7 @@
 Maps what the mobile app (`apps/mobile`) actually collects at runtime, as
 of T19, to Apple's App Privacy ("nutrition label") and Google Play's Data
 Safety disclosures — so those store listings can be filled in accurately
-rather than guessed at when T20's pilot actually submits the app. This
+rather than guessed at when the app is actually submitted. This
 document does not submit anything; there is no App Store Connect / Play
 Console account in this sandbox to submit to.
 
@@ -65,7 +65,7 @@ deletion" disclosure question can point directly at
 **Gap**: neither store's submission form is satisfied by "an about page" —
 both expect a distinct support contact (an email address or a dedicated
 support URL). No support email/page exists yet; this needs a real decision
-(which inbox, monitored by whom) before T20 submits to either store, not
+(which inbox, monitored by whom) before submitting to either store, not
 something to invent here.
 
 ## Store metadata / screenshots
@@ -73,8 +73,7 @@ something to invent here.
 Not produced in this sandbox — screenshots require a running
 simulator/device build (same limitation T15 documented: no
 Xcode/Android Studio/physical device available here) and store copy is a
-product/marketing decision, not an engineering one. Tracked as T20 pilot
-work, not this ticket's.
+product/marketing decision, not an engineering one. Not this ticket's work.
 
 ## What this document is not
 

@@ -40,10 +40,6 @@ EVENT_NAMES = frozenset(
         "notification_skipped_due_to_quiet_hours",
         "notification_suppressed_by_daily_cap",
         "notification_failed",
-        # T20 pre-build validation gate: landing-page opt-in, tracked
-        # separately from the §17 in-product events above since it happens
-        # before there's a product session at all.
-        "pilot_signup_created",
     }
 )
 

@@ -7,7 +7,6 @@ REVIEW_REQUIRED/APPROVED/SCHEDULED/ARCHIVED stories stay internal.
 
 import base64
 import os
-import re
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query
@@ -29,7 +28,6 @@ from app.db import get_db
 from app.errors import APIError
 from app.jobs.why_matters import enqueue_why_matters
 from app.models import (
-    PilotSignup,
     Source,
     SourceItem,
     Story,
@@ -38,15 +36,13 @@ from app.models import (
     StoryVariant,
     Topic,
 )
-from app.rate_limit import rate_limit_search, rate_limit_signup
+from app.rate_limit import rate_limit_search
 from app.schemas import (
     AnalyticsEventIn,
     AnalyticsEventResponse,
     ConfigResponse,
     HomeResponse,
     PersonalizationOut,
-    PilotSignupIn,
-    PilotSignupOut,
     SearchResponse,
     Segment,
     ShareMetaResponse,
@@ -293,41 +289,3 @@ def track_event(body: AnalyticsEventIn) -> AnalyticsEventResponse:
 
     analytics.track(body.event, body.properties)
     return AnalyticsEventResponse()
-
-
-_EMAIL_PATTERN = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
-
-
-@router.post("/pilot-signups", status_code=201, dependencies=[Depends(rate_limit_signup)])
-def create_pilot_signup(body: PilotSignupIn, db: Session = Depends(get_db)) -> PilotSignupOut:
-    """T20 pre-build validation gate: capture a landing-page opt-in. Public,
-    no auth (NON_NEGOTIABLES #9) — same-day-repeatable, tightly rate-limited
-    since it's a write. Re-signup with the same email updates which example
-    feed/segment drew them back rather than erroring, so a visitor who
-    revisits and picks a different example feed still counts once.
-    """
-    email = body.email.strip().lower()
-    if not _EMAIL_PATTERN.match(email):
-        raise APIError(422, "INVALID_EMAIL", "Enter a valid email address")
-
-    existing = db.scalars(select(PilotSignup).where(PilotSignup.email == email)).first()
-    if existing is not None:
-        existing.segment = body.segment or existing.segment
-        existing.example_feed = body.example_feed or existing.example_feed
-        if body.recommend_willingness is not None:
-            existing.recommend_willingness = body.recommend_willingness
-        db.commit()
-        db.refresh(existing)
-        return PilotSignupOut(id=existing.id, created_at=existing.created_at)
-
-    signup = PilotSignup(
-        email=email,
-        segment=body.segment,
-        example_feed=body.example_feed,
-        recommend_willingness=body.recommend_willingness,
-    )
-    db.add(signup)
-    db.commit()
-    db.refresh(signup)
-    analytics.track("pilot_signup_created", {"segment": body.segment, "example_feed": body.example_feed})
-    return PilotSignupOut(id=signup.id, created_at=signup.created_at)

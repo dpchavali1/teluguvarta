@@ -22,12 +22,11 @@ and the specific `docs/tickets/Txx.md` file over re-reading this whole document.
   info, AP/Telangana, family/parents, community events, entertainment). Content
   model stays geography-agnostic so Canada/Australia/UK/Middle East/India can be
   added later without a rewrite.
-- **Validation gate before full build**: landing page with 3 example
-  personalized feeds → recruit 50-100 target users (USA Telugu NRIs) → 14-day
-  manual/semi-automated digest pilot on a tiny permitted source set → measure
-  daily opens, digest open rate, story clicks, saves, notification opt-in,
-  willingness to recommend → only proceed to full V1 build if repeat weekly
-  usage + qualitative utility evidence appears.
+- **No pilot**: the original PDF spec's recruited-user validation pilot
+  (landing page → recruit 50-100 users → 14-day measured digest → go/no-go)
+  is a product decision this repo explicitly does not implement — see
+  `PROGRESS.md`'s 2026-09-16 pilot-removal entry. Ship on engineering/
+  editorial judgment instead.
 
 ## 2. V1 scope
 
@@ -113,7 +112,7 @@ breaking stories, unreviewed scraping or article republishing.
   Telugu spelling; store translation model/version + QA status per variant;
   run automated checks for omitted numbers/dates/entities/currency/negation/
   URLs; human-review a sample of political/legal/financial Telugu
-  translations during the pilot.
+  translations during the early-launch phase.
 
 ## 5. Legal, rights & trust by design
 
@@ -529,7 +528,6 @@ generation if the QA failure rate spikes.
 8. Mobile app consumes same API
 9. Personalization + push
 10. Hardening, observability, load/accessibility/security tests
-11. Pilot launch
 
 **Vertical slice definition**: one permitted source produces a
 rights-approved story, passes relevance/validation, creates EN+Telugu
@@ -581,7 +579,7 @@ Moved to their own files so a working session only loads what it needs:
 
 ## 26. Launch checklist (acceptance criteria highlights)
 
-See `docs/tickets/T20.md` for the pilot ticket and `docs/NON_NEGOTIABLES.md`
+See `docs/NON_NEGOTIABLES.md`
 for the full release-gate list, including: native share with Copy Link
 fallback everywhere; shared URLs resolve to the canonical page with correct
 social metadata (no preview image if rights aren't established); priority

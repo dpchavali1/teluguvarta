@@ -38,10 +38,10 @@ from app.models import Job, ReviewTask, Story, StoryVariant
 
 TRANSLATE_INTERVAL_MINUTES = 2
 
-# §4.3: during the pilot phase, sample a percentage of political/legal/
-# financial Telugu translations into the review queue even when QA passes —
-# these categories carry more risk from a subtle mistranslation than a
-# generic story does.
+# §4.3: during the early-launch phase, sample a percentage of political/
+# legal/financial Telugu translations into the review queue even when QA
+# passes — these categories carry more risk from a subtle mistranslation
+# than a generic story does.
 SAMPLED_SENSITIVITIES = frozenset({"IMMIGRATION", "LEGAL", "FINANCIAL"})
 SAMPLE_RATE_ENV_VAR = "TELUGU_REVIEW_SAMPLE_RATE"
 DEFAULT_SAMPLE_RATE = 0.2

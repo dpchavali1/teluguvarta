@@ -25,8 +25,7 @@ cross-dependency) marked done in `PROGRESS.md`. Each ticket file lives at
 | 17 | T17 | T16 | Push notifications |
 | 18 | T18 | T08..T17 | Observability: logging/metrics/alerts/AI cost dashboard |
 | 19 | T19 | T18 | Hardening: security, accessibility, performance, deletion, app-store readiness |
-| 20 | T20 | T19 | Pilot: 50-100 users, collect data, go/no-go for public launch |
-| 21 | T21 | T14, T15, T18 | Visual design refresh: shared design tokens + restyle web/mobile/admin for a trendier, easier-to-use UI (no IA/content changes) — see ADR-008 |
+| 20 | T21 | T14, T15, T18 | Visual design refresh: shared design tokens + restyle web/mobile/admin for a trendier, easier-to-use UI (no IA/content changes) — see ADR-008 |
 
 **Parallel/insertable tickets** (not in the strict spine, but gated by the
 step named in "insert after"):
@@ -48,11 +47,10 @@ web feed, and can be opened/saved/attributed/corrected/retracted — all with
 audit events. Don't add a second source or a new feature surface until this
 slice works end-to-end.
 
-## Pre-build validation gate (before T01, product-owner responsibility)
+## Pilot removed (2026-09-16)
 
-Not a Claude Code ticket — a product decision gate: landing page + 3 example
-personalized feeds → recruit 50-100 target USA Telugu NRI users → 14-day
-manual/semi-automated digest pilot → measure opens/clicks/saves/opt-in/
-recommend-willingness → only proceed to full V1 build (T01+) if repeat
-weekly usage and qualitative utility are shown. If this hasn't happened yet,
-flag it — don't silently skip it.
+There is no pre-build validation pilot and no post-hardening pilot ticket.
+Product owner decided the product ships on engineering/editorial judgment
+without a recruited-user validation phase — see `PROGRESS.md`'s 2026-09-16
+pilot-removal entry. T20 (pilot) no longer exists; do not reintroduce it or
+gate any ticket on pilot data.

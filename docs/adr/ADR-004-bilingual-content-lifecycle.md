@@ -67,7 +67,7 @@ deleted is, by construction, back in that set on the very next sweep. This
 mirrors T09's "don't invent a state for something a query can already
 express" precedent (no `DEDUPED` status; no `te` status column here either).
 
-**Pilot review sampling**: `SAMPLED_SENSITIVITIES` (`IMMIGRATION`, `LEGAL`,
+**Early-launch review sampling**: `SAMPLED_SENSITIVITIES` (`IMMIGRATION`, `LEGAL`,
 `FINANCIAL`) plus a `TELUGU_REVIEW_SAMPLE_RATE` env flag (default `0.2`)
 routes a random subset of QA-passed translations in those categories into
 the existing `review_tasks` queue — reusing T11/T12's `ReviewTask` model

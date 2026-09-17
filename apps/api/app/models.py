@@ -420,24 +420,6 @@ class AuditEvent(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
 
 
-class PilotSignup(Base):
-    """T20 pre-build validation gate: an email opt-in from the landing page,
-    optionally tagged with which of the 3 example feeds drew interest and a
-    0-10 recommend-willingness score — the gate's own opt-in/recommend
-    metrics, not part of the product's account model."""
-
-    __tablename__ = "pilot_signups"
-
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    email: Mapped[str] = mapped_column(Text, nullable=False, unique=True)
-    # 'general' | 'international_student' | 'graduate_opt' | 'professional' |
-    # 'family_parent' | 'other' per `ck_pilot_signups_segment`.
-    segment: Mapped[str | None] = mapped_column(Text, nullable=True)
-    example_feed: Mapped[str | None] = mapped_column(Text, nullable=True)
-    recommend_willingness: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
-
-
 class AdminLoginAttempt(Base):
     __tablename__ = "admin_login_attempts"
 

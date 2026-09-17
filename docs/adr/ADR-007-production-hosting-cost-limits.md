@@ -12,17 +12,18 @@ open which managed platforms actually run it in production, and what the
 concrete `MONTHLY_AI_BUDGET_USD` / `MONTHLY_INFRA_BUDGET_USD` /
 `DAILY_AI_ALERT_USD` numbers in `.env.example` should be — every ticket
 through T18 left those blank. T19 is the trigger ticket for this ADR per
-`docs/NON_NEGOTIABLES.md`'s "Required ADRs" list, and the pilot (T20) cannot
-launch without real budget numbers for the auto-publish-disable-on-breach
-gate (T19, `app/jobs/publish.py`) to actually mean anything.
+`docs/NON_NEGOTIABLES.md`'s "Required ADRs" list, and launch cannot proceed
+without real budget numbers for the auto-publish-disable-on-breach gate
+(T19, `app/jobs/publish.py`) to actually mean anything.
 
 Nothing here was measured against real production traffic (T19 was built
 and load-tested only against a local single-instance Postgres — see
-`PROGRESS.md`'s T19 entry). Every choice below is therefore a *pilot-phase*
-starting point sized for the traffic this product realistically has at
-launch (§19: "keep the service free to users, minimize operator spend"),
-not a scaled-traffic architecture decision — revisit once T20's pilot
-produces real numbers.
+`PROGRESS.md`'s T19 entry). Every choice below is therefore an
+*early-launch-phase* starting point sized for the traffic this product
+realistically has at launch (§19: "keep the service free to users, minimize
+operator spend"), not a scaled-traffic architecture decision — revisit once
+real production traffic produces real numbers (there is no recruited-user
+pilot to gate this on — see `PROGRESS.md`'s 2026-09-16 pilot-removal entry).
 
 ## Decision
 
@@ -41,8 +42,8 @@ produces real numbers.
 | Error tracking | Sentry (real account; `SENTRY_DSN` set) | T18 already speaks Sentry's HTTP protocol without the SDK — this ADR is only "turn a real DSN on in production," no new code |
 | Analytics | PostHog Cloud (real account; `POSTHOG_API_KEY` set) | Same story as Sentry — T18's `app/analytics.py` already forwards to PostHog's HTTP API when configured |
 
-**Cost limits** (`.env.example`, production values — pilot-phase, not a
-scaled-traffic budget):
+**Cost limits** (`.env.example`, production values — early-launch phase, not
+a scaled-traffic budget):
 
 ```
 MONTHLY_AI_BUDGET_USD=150
@@ -53,8 +54,8 @@ AUTO_PUBLISH_DISABLE_ON_BUDGET_BREACH=true
 
 Rationale for each number:
 
-- `MONTHLY_AI_BUDGET_USD=150` — sized for a pilot-scale story volume (§20's
-  "pilot launch" phase, not a public-scale launch): T10/T11's summary +
+- `MONTHLY_AI_BUDGET_USD=150` — sized for early-launch-scale story volume
+  (not a public-scale launch): T10/T11's summary +
   classify + why-matters calls plus T13's translation call, at the cheapest
   viable model tier §19 already mandates, comfortably fit dozens of stories
   a day well under this. Breaching it auto-disables auto-publish (this
@@ -66,7 +67,7 @@ Rationale for each number:
 - `MONTHLY_INFRA_BUDGET_USD=200` — approximates Vercel (hobby/pro tier) +
   Render (one web + one worker, smallest paid tier) + Supabase (smallest
   paid tier, needed for reliable backups) + Cloudflare (free tier covers
-  pilot traffic) + Expo EAS (pay-per-build, sporadic) at pilot scale. This
+  early-launch traffic) + Expo EAS (pay-per-build, sporadic) at that scale. This
   is a tracking/alerting number, not an enforced kill switch — infra spend
   isn't inside `AiGateway`'s control the way AI spend is, so there's
   nothing analogous to auto-disable; a breach is intended to prompt a human
@@ -81,7 +82,7 @@ Rationale for each number:
 - Every platform above is "managed PaaS with autoscale," matching §10's
   "no Kubernetes / no microservice fleet" constraint — deploying is `git
   push` to each platform's connected repo, no infra-as-code layer to
-  maintain for a single-region pilot.
+  maintain for a single-region early launch.
 - `app/rate_limit.py`'s in-process limiter (this ticket) is explicitly
   documented as needing a shared store once the API worker/web service is
   ever scaled to more than one instance on Render — Cloudflare's
@@ -89,7 +90,7 @@ Rationale for each number:
   answer, not adding Redis.
 - Nothing here is exercised against real traffic — the budget numbers, the
   platform choices, and the rate-limiter's single-instance assumption
-  should all be revisited with T20's actual pilot numbers in hand. This ADR
+  should all be revisited once real production traffic numbers exist. This ADR
   intentionally does not promise the reliability targets in §16
   (99.5% availability, P95 latency) are met on these platforms at scale —
   only that the local-Postgres, single-instance load test this ticket ran

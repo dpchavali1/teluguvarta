@@ -40,7 +40,6 @@ from app.models import (
     AuditEvent,
     Correction,
     Job,
-    PilotSignup,
     ReviewTask,
     Source,
     SourceItem,
@@ -58,8 +57,6 @@ from app.schemas import (
     AdminCorrectionOut,
     AdminCorrectionRequest,
     AdminJobOut,
-    AdminPilotSignupOut,
-    AdminPilotSignupsResponse,
     AdminRejectRequest,
     AdminSourceCreate,
     AdminSourceOut,
@@ -652,28 +649,6 @@ def get_observability(db: Session = Depends(get_db)) -> ObservabilityOut:
     )
 
     return ObservabilityOut(ingestion_health=ingestion_health, job_queue=job_queue, ai_cost=ai_cost, x_cost=x_cost)
-
-
-@router.get("/pilot-signups")
-def list_pilot_signups(db: Session = Depends(get_db)) -> AdminPilotSignupsResponse:
-    """T20 pre-build validation gate: the opt-in count and roster behind the
-    landing page's 3 example feeds — this table is the whole measurement of
-    the gate's "opt-in" metric, see `docs/BUILD_ORDER.md`."""
-    signups = db.scalars(select(PilotSignup).order_by(PilotSignup.created_at.desc())).all()
-    return AdminPilotSignupsResponse(
-        total=len(signups),
-        items=[
-            AdminPilotSignupOut(
-                id=s.id,
-                email=s.email,
-                segment=s.segment,
-                example_feed=s.example_feed,
-                recommend_willingness=s.recommend_willingness,
-                created_at=s.created_at,
-            )
-            for s in signups
-        ],
-    )
 
 
 @router.get("/_debug/throw", include_in_schema=False)

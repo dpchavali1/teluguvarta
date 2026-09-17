@@ -80,7 +80,7 @@ model, account/privacy architecture, production hosting/cost limits. Use
 ## Per-ticket workflow
 
 1. Read `PROGRESS.md` to confirm the ticket's dependencies are actually
-   done — don't skip ahead in the T01→T20 order (see `docs/BUILD_ORDER.md`).
+   done — don't skip ahead in the T01→T19/T21 order (see `docs/BUILD_ORDER.md`).
 2. Read only the target `docs/tickets/Txx.md` (plus this file). Do not
    re-read `docs/SPEC.md` unless the ticket file tells you to or you hit a
    genuine gap.

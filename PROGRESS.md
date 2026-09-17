@@ -4,14 +4,14 @@ Update this file at the end of every ticket. This is the source of truth for
 "what's actually done" — trust it over assumptions, git log archaeology, or
 prior conversation history.
 
-**Pre-build validation gate** (product decision, not a ticket — see
-`docs/BUILD_ORDER.md`): engineering deliverable shipped 2026-09-09 — the
-landing page (`/pilot`) + 3 example personalized feeds + signup capture (see
-2026-09-09 changelog entry below). **2026-09-09: product owner decided the
-pilot (50-100 users, 14-day measurement window) is not required before
-proceeding** — T20 is explicitly waived, not blocked. Development continues
-straight to closing out T19 hardening and standing up real production infra
-(ADR-006/ADR-007).
+**Pilot removed (2026-09-16)**: product owner decided there is no
+recruited-user validation pilot at all, before or after build — not waived,
+removed. T20 no longer exists as a ticket. The engineering deliverable built
+for it on 2026-09-09 (landing page, 3 example personalized feeds, email
+signup capture) has been deleted, including its `pilot_signups` DB table
+(migration `c3d4e5f6a7b8`) — see the 2026-09-16 changelog entry below for
+the full list of removed files. `docs/BUILD_ORDER.md`'s pre-build validation
+gate section is gone; do not reintroduce a pilot gate on any future ticket.
 
 ## Main spine
 
@@ -36,7 +36,7 @@ straight to closing out T19 hardening and standing up real production infra
 | T17 Push notifications | **done** | Real anonymous identity (satisfies ADR-006, which remains formally **proposed**, not accepted), persisted preferences/push tokens, `notification_dispatch` job with dedupe/quiet-hours/daily-cap/breaking-approval gate |
 | T18 Observability | **done** | Structured JSON logging + request/job context; Sentry-equivalent error tracking (plain HTTP envelope, no SDK) in all 4 apps; `/v1/admin/observability` (ingestion health/job queue/AI cost) + admin dashboard page; alert-dispatch module wired to worker loop; §17 analytics events routed through `POST /v1/events` (T17's endpoint) into `app/analytics.py`, forwarded to PostHog when configured |
 | T19 Hardening | **partial — see changelog** | Real: MFA on admin login, cross-system account deletion, search/admin rate limiting, dependency scanning (pip-audit clean)/SAST (bandit clean, one real XXE finding fixed), budget-breach auto-publish gate wired, backup/restore scripts + one real local restore test passed, WCAG 2.2 AA axe pass across 12 pages, local load test within §16 targets, ADR-007 accepted, app-store readiness doc. **P0 RCE gap now fixed** (see 2026-09-09 entry below) — `next@14.2.35` upgraded to `15.5.25` in both apps. **Golden AI eval set now 300 items** (§18's ≥300 met by count — see 2026-09-09 entry below), but only the original 30 are human-reviewed; the other 270 are AI-generated/unreviewed, flagged in `eval/README.md`/`golden_set.json._meta`. Still open: MFA/rate-limiting/backups not exercised against real managed infra (local-only, per ADR-007); no live-provider run against the golden set (same no-network-access gap as every AI ticket since T10); the 270 AI-generated eval items need native-Telugu-speaker spot-check before being trusted as real ground truth. |
-| T20 Pilot | **blocked — NO-GO, see report** | `docs/runbooks/pilot-report.md`. Engineering side of the pre-build validation gate now shipped: `/pilot` landing page (3 example personalized feeds using real T16 `/v1/home` ranking for professional/international_student/family_parent segments) + email signup capture (`POST /v1/pilot-signups`, dedupes by email, rate-limited; `GET /v1/admin/pilot-signups` for the opt-in count/roster) — see 2026-09-09 changelog entry. **Still blocks GO**: recruiting the actual 50-100 users and running the 14-day measurement window is a product/ops action, not something further engineering closes. Verified §17 analytics are real, not assumed: all 12 core events implemented server-side (`app/analytics.py`) and actually emitted client-side in both `apps/web` and `apps/mobile` (grepped call sites, not inferred). Walked the full §26 checklist item-by-item against what's built; S1/S2 (student) and X1-X4 (X adapter) rows marked not-applicable since those parallel tickets haven't started. |
+| ~~T20 Pilot~~ | **removed 2026-09-16** | No longer a ticket — product owner removed the pilot concept entirely, not just waived it. The `/pilot` landing page, signup form, `POST /v1/pilot-signups`/`GET /v1/admin/pilot-signups` endpoints, `PilotSignup` model, and `pilot_signups` table (dropped via migration `c3d4e5f6a7b8`) are all deleted. `docs/runbooks/pilot-report.md` deleted along with it. See the 2026-09-16 changelog entry for the full file list. |
 | T21 Visual design refresh | **done — superseded by ADR-010** | Original "Ink & Signal" palette (2026-09-10) drifted through two undesigned revisions (2026-09-12 "modern design foundation", 2026-09-13 contrast fix) before being replaced outright by the "Folio" palette — see ADR-010 and the 2026-09-13 (Folio redesign) changelog entry. ADR-009's single-token-source mechanism (`packages/design-tokens/tokens.json` → generated per surface, CI-enforced) is accepted and live, not proposed. |
 
 ## X adapter
@@ -75,6 +75,72 @@ Mirrors `docs/adr/README.md` — keep both in sync.
 ## Changelog
 
 (newest first — one line per ticket completion)
+
+- 2026-09-16: Removed the pilot concept entirely, ad hoc per explicit product
+  request ("remove pilot dependency .. i do not want any pilot"). Not a
+  waiver (that already happened 2026-09-09) — this deletes both the T20
+  ticket and the feature code built for it, plus a real DB migration to
+  drop the table it created. Confirmed scope with the user first (docs-only
+  vs. docs+code) since dropping a table and deleting an endpoint is harder
+  to reverse than a doc edit; user chose docs+code.
+  **Docs**: `docs/BUILD_ORDER.md` (T20 row removed, "pre-build validation
+  gate" section replaced with a "pilot removed" note), `docs/tickets/T20.md`
+  and `docs/runbooks/pilot-report.md` deleted, `docs/tickets/README.md`
+  (dead T20 link removed), `docs/SPEC.md` (§1 validation-gate paragraph and
+  §11 "Pilot launch" milestone removed, §26 pilot-ticket cross-reference
+  dropped), `docs/NON_NEGOTIABLES.md` (T01→T20 range corrected to
+  T01→T19/T21), `docs/APP_STORE_READINESS.md` (three T20-submission
+  references reworded to not assume a pilot gates submission), ADR-006
+  (revisit-trigger reworded from "the pilot (T20)" to "real usage"), ADR-007
+  (five T20/"pilot-phase" references reworded to "early-launch phase" /
+  "real production traffic" — the cost-sizing rationale itself is
+  unchanged, only the label). Two unrelated uses of "pilot" describing an
+  ongoing §4.3 early-launch Telugu-translation review-sampling policy
+  (`apps/api/app/jobs/translate.py`, `docs/tickets/T13.md`, ADR-004) were
+  reworded to "early-launch phase" for clarity but left functionally
+  intact — that sampling mechanism (`SAMPLED_SENSITIVITIES`,
+  `TELUGU_REVIEW_SAMPLE_RATE`) is a real, unrelated ongoing feature, not
+  the removed recruited-user pilot.
+  **Code deleted**: `apps/web/src/app/pilot/page.tsx`,
+  `apps/web/src/components/PilotSignupForm.tsx`,
+  `apps/api/tests/test_pilot_signups.py`; `submitPilotSignup` removed from
+  `apps/web/src/lib/api.ts`; `/pilot` removed from
+  `apps/web/scripts/a11y-check.mjs`'s page list; all `.pilot-landing__*`/
+  `.pilot-signup-form` rules removed from `apps/web/src/app/globals.css`
+  (including the two responsive-breakpoint blocks and the shared
+  `.search-form`/`.pilot-signup-form` combinator selectors, un-combined
+  back to `.search-form`-only).
+  **API**: `PilotSignup` model removed (`apps/api/app/models.py`);
+  `PilotSignupIn`/`PilotSignupOut`/`AdminPilotSignupOut`/
+  `AdminPilotSignupsResponse` removed (`apps/api/app/schemas.py`, `Segment`
+  itself kept — still used by `/v1/home`'s real personalization);
+  `POST /v1/pilot-signups` removed (`apps/api/app/routers/public.py`, along
+  with the now-unused `_EMAIL_PATTERN`/`re` import); `GET
+  /v1/admin/pilot-signups` removed (`apps/api/app/routers/admin.py`);
+  `rate_limit_signup`/`SIGNUP_MAX_REQUESTS`/`SIGNUP_WINDOW_SECONDS` removed
+  (`apps/api/app/rate_limit.py`, was only ever used by the deleted
+  endpoint); `"pilot_signup_created"` removed from
+  `apps/api/app/analytics.py`'s allowed-event set. New migration
+  `c3d4e5f6a7b8_drop_pilot_signups.py` (head, on top of `b2c3d4e5f6a7`)
+  drops the `pilot_signups` table — added a new migration rather than
+  deleting/relinking the original `8c4f2a1e9d03_pilot_signups.py`, since
+  `a1b2c3d4e5f6_x_accounts.py` depends on it mid-chain and rewriting alembic
+  history is riskier than a straightforward drop-table migration.
+  Regenerated `packages/contracts/{openapi.json,types.gen.ts}` from the
+  live (pilot-free) FastAPI schema via `infra/scripts/generate_contracts.sh`
+  — this is the T04 CI-enforced drift check, so it would have failed the
+  build if skipped.
+  **Verified**: local Postgres was reachable, so this was actually run, not
+  just written and assumed. `pnpm run migrate` — the new
+  `c3d4e5f6a7b8_drop_pilot_signups` migration applies cleanly on top of the
+  existing head, `pilot_signups` table confirmed dropped. `apps/api`
+  `ruff check .` clean; `pytest` — 509/510 passed, one error
+  (`test_unsubscribing_student_topic_leaves_general_topic_subscription_untouched`)
+  that passes standalone in isolation, confirming it's the same
+  pre-existing full-suite-only teardown flake already noted in earlier
+  changelog entries, not a regression from this change. `pnpm --filter web
+  build`/`lint` and `pnpm --filter admin build` both clean, including the
+  full page list — `/pilot` no longer appears among web's generated routes.
 
 - 2026-09-16: Pre-development hygiene pass, ad hoc per explicit request
   ("proceed with development, make sure we have all good practices in place
