@@ -24,6 +24,7 @@ ADMIN_PASSWORD = "correct horse battery staple"
 @pytest.fixture
 def client(migrated_database, monkeypatch):
     monkeypatch.setenv("ADMIN_JWT_SECRET", "test-secret")
+    monkeypatch.setenv("MFA_SECRET_ENCRYPTION_KEY", "sAIUJOCgoJ0pmobLNaO-_x_0R49CtpXyRDJ0iemFN9g=")
 
     from app.db import _engine_for
     from app.main import app
@@ -201,14 +202,34 @@ def test_mfa_enroll_requires_valid_code_then_login_requires_it(client, db_sessio
     assert right_code.status_code == 200
 
 
+def test_mfa_secret_is_encrypted_at_rest(client, db_session):
+    import pyotp
+
+    from app.models import User
+    from app.security import decrypt_mfa_secret
+
+    _seed_admin(db_session)
+    token = _login(client).json()["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+
+    secret = client.post("/v1/admin/auth/mfa/setup", headers=headers).json()["secret"]
+    good_code = pyotp.TOTP(secret).now()
+    client.post("/v1/admin/auth/mfa/enroll", json={"secret": secret, "code": good_code}, headers=headers)
+
+    db_session.expire_all()
+    stored = db_session.query(User).filter_by(email=ADMIN_EMAIL).one().mfa_secret
+    assert stored != secret
+    assert decrypt_mfa_secret(stored) == secret
+
+
 def test_mfa_disable_requires_current_code(client, db_session):
     import pyotp
 
-    from app.security import generate_mfa_secret
+    from app.security import encrypt_mfa_secret, generate_mfa_secret
 
     secret = generate_mfa_secret()
     user = _seed_admin(db_session)
-    user.mfa_secret = secret
+    user.mfa_secret = encrypt_mfa_secret(secret)
     db_session.commit()
 
     token = _login(client, mfa_code=pyotp.TOTP(secret).now()).json()["access_token"]

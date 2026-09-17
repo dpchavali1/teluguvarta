@@ -23,6 +23,8 @@ from app.schemas import (
 )
 from app.security import (
     create_admin_access_token,
+    decrypt_mfa_secret,
+    encrypt_mfa_secret,
     generate_mfa_secret,
     is_login_rate_limited,
     mfa_provisioning_uri,
@@ -53,7 +55,7 @@ def login(body: AdminLoginRequest, request: Request, db: Session = Depends(get_d
         if not body.mfa_code:
             record_login_attempt(db, email, client_ip, success=False)
             raise APIError(401, "MFA_REQUIRED", "Enter your authenticator app code")
-        if not verify_mfa_code(user.mfa_secret, body.mfa_code):
+        if not verify_mfa_code(decrypt_mfa_secret(user.mfa_secret), body.mfa_code):
             record_login_attempt(db, email, client_ip, success=False)
             raise APIError(401, "INVALID_MFA_CODE", "Incorrect authenticator app code")
 
@@ -89,7 +91,7 @@ def mfa_enroll(
     user = db.get(User, admin.user_id)
     if user is None:
         raise APIError(404, "NOT_FOUND", "Admin user not found")
-    user.mfa_secret = body.secret
+    user.mfa_secret = encrypt_mfa_secret(body.secret)
     db.commit()
     return MfaStatusResponse(enabled=True)
 
@@ -101,7 +103,7 @@ def mfa_disable(
     user = db.get(User, admin.user_id)
     if user is None or not user.mfa_secret:
         raise APIError(409, "MFA_NOT_ENABLED", "MFA is not enabled on this account")
-    if not verify_mfa_code(user.mfa_secret, body.code):
+    if not verify_mfa_code(decrypt_mfa_secret(user.mfa_secret), body.code):
         raise APIError(401, "INVALID_MFA_CODE", "Incorrect authenticator app code")
     user.mfa_secret = None
     db.commit()

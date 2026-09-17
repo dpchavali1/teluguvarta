@@ -12,6 +12,7 @@ from uuid import UUID
 import bcrypt
 import jwt
 import pyotp
+from cryptography.fernet import Fernet, InvalidToken
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
@@ -82,6 +83,12 @@ def record_login_attempt(db: Session, email: str, ip: str | None, success: bool)
 # the secret it generates until `/mfa/enroll` proves the admin's
 # authenticator app actually has it (see app/routers/admin_auth.py), to
 # avoid a half-configured admin locking themselves out on next login.
+#
+# The column stores `encrypt_mfa_secret`'s ciphertext, never the raw TOTP
+# secret (P0-2: an unencrypted `infra/scripts/backup.sh` dump — the default
+# unless BACKUP_AGE_RECIPIENT is set — would otherwise hand out a permanent
+# MFA bypass for every admin to anyone who reads the dump file). Callers
+# decrypt with `decrypt_mfa_secret` immediately before `verify_mfa_code`.
 
 MFA_ISSUER = "TTE Admin"
 
@@ -96,3 +103,23 @@ def mfa_provisioning_uri(secret: str, email: str) -> str:
 
 def verify_mfa_code(secret: str, code: str) -> bool:
     return pyotp.TOTP(secret).verify(code, valid_window=1)
+
+
+def _mfa_encryption_key() -> bytes:
+    key = os.environ.get("MFA_SECRET_ENCRYPTION_KEY")
+    if not key:
+        raise RuntimeError("MFA_SECRET_ENCRYPTION_KEY is not set")
+    return key.encode("utf-8")
+
+
+def encrypt_mfa_secret(secret: str) -> str:
+    return Fernet(_mfa_encryption_key()).encrypt(secret.encode("utf-8")).decode("utf-8")
+
+
+def decrypt_mfa_secret(ciphertext: str) -> str:
+    try:
+        return Fernet(_mfa_encryption_key()).decrypt(ciphertext.encode("utf-8")).decode("utf-8")
+    except InvalidToken as exc:
+        raise RuntimeError(
+            "Stored MFA secret could not be decrypted — wrong or rotated MFA_SECRET_ENCRYPTION_KEY?"
+        ) from exc

@@ -62,8 +62,42 @@ green (513 passed; one pre-existing, unrelated `test_notifications.py`
 teardown flake — `psycopg.errors.InsufficientPrivilege` dropping a scratch
 DB, not caused by this change).
 
-Next session: P0-2 (backup/MFA-secret encryption) per
-`docs/plans/gemini-hetzner-telugu-plan.md`.
+**P0-2 fixed (2026-09-16): backup/MFA-secret encryption.** Both halves of
+the plan's fix are in:
+- `infra/scripts/backup.sh` now fails closed before writing anything to
+  disk when `APP_ENV=production` and `BACKUP_AGE_RECIPIENT` is unset (new
+  `APP_ENV` var, documented in `.env.example`; unset/non-production still
+  gets the old best-effort behavior). The age *identity* (private key)
+  still has to be escrowed off-box by a human — that's a process step, not
+  something a script can enforce — documented in the script's header
+  comment and `.env.example`.
+- `users.mfa_secret` is now encrypted at the app layer (`app/security.py`:
+  `encrypt_mfa_secret`/`decrypt_mfa_secret`, Fernet via the new
+  `cryptography` dependency, keyed by a new required
+  `MFA_SECRET_ENCRYPTION_KEY` env var — fails closed like `ADMIN_JWT_SECRET`
+  if unset) so a raw DB dump or an unencrypted backup no longer hands out a
+  usable TOTP seed. `app/routers/admin_auth.py`'s `mfa_enroll` encrypts
+  before persisting; `login` and `mfa_disable` decrypt immediately before
+  `verify_mfa_code`. No prior plaintext `mfa_secret` rows exist to migrate
+  (no seed data sets it, and this is pre-launch — confirmed via grep before
+  concluding no backfill migration was needed).
+- Tests: `apps/api/tests/test_admin_auth.py` — `client` fixture now sets
+  `MFA_SECRET_ENCRYPTION_KEY`; the existing manual-seed MFA test now stores
+  an encrypted secret (would otherwise break under the new decrypt-before-
+  verify path); new `test_mfa_secret_is_encrypted_at_rest` asserts the
+  stored column value is neither the plaintext secret nor decryptable
+  without the key, and round-trips correctly with it. Verified:
+  `ruff check .` clean, `bandit -r app` clean, full `pytest` — 514 passed
+  (up from 513, no new flake). Manually exercised `backup.sh` with
+  `APP_ENV=production` and no recipient — exits 1 before `pg_dump` runs, no
+  file written.
+
+**What P0-2 did not do**: P0-3 (MFA-enforcement lockout design) and P0-4
+(`restore.sh`'s unguarded `DROP DATABASE`) are separate, not touched here —
+per the plan's own sequencing, next session should pick up P0-3.
+
+Next session: P0-3 (MFA-enforcement design — first-login enrollment flow)
+per `docs/plans/gemini-hetzner-telugu-plan.md`.
 
 ## Main spine
 
