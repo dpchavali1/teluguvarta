@@ -162,7 +162,10 @@ export function StoryCard({ story, headingLevel = "h2", display = "default" }: {
       )}
 
       <div className="story-card__actions">
-        {hasTelugu && (
+        {/* ADR-014: LanguageControl is edition-level (SiteHeader); a per-card
+            override is only offered as a story-detail exception, never on a
+            StoryBrief/StoryLead list item. */}
+        {display === "default" && hasTelugu && (
           <div role="group" aria-label="Language">
             <button
               type="button"
@@ -181,9 +184,13 @@ export function StoryCard({ story, headingLevel = "h2", display = "default" }: {
             </button>
           </div>
         )}
-        <button className="story-card__action story-card__action--share" type="button" onClick={handleShare} aria-label={`Share: ${variant.headline}`}>
-          Share
-        </button>
+        {/* ADR-014 StoryActions: full set (Share/Save/Report) on StoryLead and
+            story-detail; StoryBrief list items get Save only. */}
+        {display !== "brief" && (
+          <button className="story-card__action story-card__action--share" type="button" onClick={handleShare} aria-label={`Share: ${variant.headline}`}>
+            Share
+          </button>
+        )}
         <button
           className="story-card__action story-card__action--save"
           type="button"
@@ -193,15 +200,17 @@ export function StoryCard({ story, headingLevel = "h2", display = "default" }: {
         >
           {saved ? "Saved" : "Save"}
         </button>
-        <button
-          className="story-card__action story-card__action--report"
-          type="button"
-          onClick={() => setReportOpen((open) => !open)}
-          aria-expanded={reportOpen}
-          aria-label={`Report an issue: ${variant.headline}`}
-        >
-          Report an issue
-        </button>
+        {display !== "brief" && (
+          <button
+            className="story-card__action story-card__action--report"
+            type="button"
+            onClick={() => setReportOpen((open) => !open)}
+            aria-expanded={reportOpen}
+            aria-label={`Report an issue: ${variant.headline}`}
+          >
+            Report an issue
+          </button>
+        )}
       </div>
 
       {saveError && <p role="alert">{saveError}</p>}
@@ -211,7 +220,7 @@ export function StoryCard({ story, headingLevel = "h2", display = "default" }: {
         </p>
       )}
 
-      {reportOpen && (
+      {display !== "brief" && reportOpen && (
         <form className="story-card__report" onSubmit={handleReportSubmit}>
           <label htmlFor={`report-${story.id}`}>Describe the issue with this story</label>
           <textarea
@@ -232,7 +241,7 @@ export function StoryCard({ story, headingLevel = "h2", display = "default" }: {
         </form>
       )}
 
-      {reportStatus && (
+      {display !== "brief" && reportStatus && (
         <p className="story-card__inline-status" role="status">
           {reportStatus}
         </p>

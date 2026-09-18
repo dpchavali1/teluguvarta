@@ -1592,13 +1592,12 @@ a.pill:focus-visible {
 .story-grid .story-card__source-link { font-size: 0.72rem; }
 
 /* .story-card--brief covers every secondary/tertiary slot (front-grid rail,
-   story-grid, StudentBriefing): same information, far less chrome. Action
-   buttons drop their bordered-pill treatment for plain underlined text
-   links so a five-field card (labels, headline, dek, source, actions)
-   fits in a fraction of the vertical space the default card needs — the
-   single biggest lever for showing more stories without scrolling. Buttons
-   stay real <button> elements with full click/tap targets; only the paint
-   changes. */
+   story-grid, StudentBriefing): same information, far less chrome. Per
+   ADR-014, StoryBrief's only inline action is Save (Share/Report move to
+   story detail) — the single biggest lever for showing more stories without
+   scrolling, on top of the action itself dropping its bordered-pill
+   treatment for a plain underlined text link. Stays a real <button> element
+   with a full click/tap target; only the paint changes. */
 .story-card--brief .story-card__actions {
   gap: 0.15rem 0.9rem;
   margin-top: 0.7rem;
@@ -1619,19 +1618,6 @@ a.pill:focus-visible {
 .story-card--brief .story-card__actions button:hover {
   background: none;
   color: var(--action-text);
-  text-decoration-color: currentColor;
-}
-.story-card--brief .story-card__actions [role="group"] {
-  border: 0;
-  gap: 0.7rem;
-}
-.story-card--brief .story-card__actions [role="group"] button {
-  border: 0 !important;
-  padding: 0.2rem 0 !important;
-}
-.story-card--brief .story-card__actions [role="group"] button[aria-pressed="true"] {
-  background: none !important;
-  color: var(--action-text) !important;
   text-decoration-color: currentColor;
 }
 .story-card--brief .story-card__action--save[aria-pressed="true"] {

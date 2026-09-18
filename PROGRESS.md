@@ -295,7 +295,48 @@ Mirrors `docs/adr/README.md` — keep both in sync.
 
 (newest first — one line per ticket completion)
 
-- 2026-09-17 (NEXT SESSION START HERE): Round-3 redesign (below) got pushed
+- 2026-09-17 (NEXT SESSION START HERE): ADR-014 step 2 — web home/feed
+  rebuilt around reading priority. StoryLead-above-the-fold and StoryBrief-
+  everywhere-else layout was already in place from the round 1-3 density
+  passes (`.front-grid__lead`/`.front-grid__rail`/`.story-grid`), so the
+  actual gap against the accepted contract was `StoryCard.tsx` rendering
+  the identical full action row (per-card Language toggle + Share + Save +
+  Report) on every `display` variant regardless of list vs. detail context.
+  Fixed in `apps/web/src/components/StoryCard.tsx`: the per-card Language
+  toggle group now renders only for `display === "default"` (the
+  story-detail exception path ADR-014's LanguageControl section calls for —
+  edition-level control lives in `SiteHeader`, not repeated per card); Share
+  and the Report button/form now render only for `display !== "brief"`
+  (StoryLead and story-detail keep the full StoryActions set, StoryBrief
+  gets Save only, per the ADR's StoryActions section). Save remains inline
+  on every display mode. `apps/web/src/app/globals.css`'s
+  `.story-card--brief .story-card__actions` block had dead `[role="group"]`
+  override rules removed since brief cards no longer render that group at
+  all (button/hover/save-pressed rules kept — Save is still styled there).
+  No layout/route changes; this was a component-behavior fix on top of the
+  existing structure.
+  **Verified**: `npx tsc --noEmit` clean; `next lint --file
+  src/components/StoryCard.tsx` — no warnings/errors; `next build` clean
+  (all 15 routes generate, including `/`, `/latest`, `/story/[slug]`).
+  Live-checked against the running dev server (`localhost:3003`, real
+  Postgres+API backend, not mocked) by fetching and parsing the actual
+  rendered HTML rather than assuming from source: home page's lead card
+  (`story-card--lead`) renders Share/Save/Report with no language group;
+  all 5 rail/grid `story-card--brief` cards render Save only; `/latest`'s
+  `story-card--brief` list items render Save only; `/story/demo-h1b-visa-
+  fee-update` (`display="default"`) renders the full Share/Save/Report set
+  plus the per-story language toggle group. `/saved`, `/search`,
+  `/topic/[slug]`, `/country/[code]` all pass the same `display="brief"`
+  prop through the same `StoryCard` component, so they inherit this fix
+  without a separate check.
+  **Not done this session**: no real-browser (Claude in Chrome / Playwright)
+  visual/contrast pass — verification here is compiled markup + SSR HTML,
+  not an eyeballed screenshot, same caveat as rounds 1-3. ADR-014's
+  remaining steps (mobile nav/cards/theme parity, admin density, the
+  cross-surface visual regression pass) are untouched — next session should
+  pick up mobile per the ADR's stated implementation order.
+
+- 2026-09-17: Round-3 redesign (below) got pushed
   to `main` (commit `4e181de`), then the user delivered a full product
   review of the visual state across **all three surfaces** (web/mobile/
   admin), not just web. Findings: web still mixes visual systems (masthead
