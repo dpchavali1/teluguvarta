@@ -73,9 +73,13 @@ main {
   margin: 0;
 }
 
-p[role="alert"] {
-  background: var(--color-danger-soft);
-  color: var(--color-danger);
+/* ADR-014 color discipline: --color-danger/-soft alias to the rust
+   ("hot") token, reserved for consequential editorial emphasis, not a
+   generic error state. Admin alerts use the plain semantic red instead. */
+p[role="alert"],
+li[role="alert"] {
+  background: var(--danger-soft);
+  color: var(--danger);
   border-radius: var(--radius-md);
   padding: 0.75rem 1rem;
   font-weight: 500;
@@ -457,6 +461,28 @@ td button {
   display: inline-flex;
   flex-wrap: wrap;
   gap: 0.3rem;
+}
+
+/* ---------- EditorialStatus (ADR-014) ---------- */
+
+/* Ruled/tinted, matching the "why this matters" register (left rule +
+   inline block) rather than the boxed p[role="alert"] treatment — this is
+   a standing editorial notice, not a transient error. Semantic tokens only
+   (warn=amber, danger=red), per the ADR's color-discipline rule. */
+.editorial-status {
+  border-left: 4px solid var(--warning);
+  background: var(--warning-soft);
+  color: var(--warning);
+  padding: 0.5rem 0.9rem;
+  margin: 0 0 1rem;
+  font-size: 0.86rem;
+  font-weight: 600;
+}
+
+.editorial-status--danger {
+  border-left-color: var(--danger);
+  background: var(--danger-soft);
+  color: var(--danger);
 }
 
 /* ---------- Loading / empty states ---------- */

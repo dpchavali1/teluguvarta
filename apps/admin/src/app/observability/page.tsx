@@ -289,7 +289,13 @@ export default function ObservabilityPage() {
                   {xAccounts.map((account) => (
                     <tr key={account.id}>
                       <td>{account.handle}</td>
-                      <td>{account.rights_status}</td>
+                      <td>
+                        <span
+                          className={`status-pill status-pill--${account.rights_status === "DISABLED" ? "danger" : "ok"}`}
+                        >
+                          {account.rights_status}
+                        </span>
+                      </td>
                       <td>
                         <span className={`status-pill ${account.active ? "status-pill--ok" : "status-pill--warn"}`}>
                           {account.active ? "Active" : "Paused"}
@@ -298,7 +304,14 @@ export default function ObservabilityPage() {
                       <td>{account.budget_class ?? "—"}</td>
                       <td>{account.budget_paused ? <span className="status-pill status-pill--warn">Budget-paused</span> : "—"}</td>
                       <td>{account.since_id ?? "—"}</td>
-                      <td>{account.fail_count}{account.circuit_breaker_tripped ? " (TRIPPED)" : ""}</td>
+                      <td>
+                        {account.fail_count}
+                        {account.circuit_breaker_tripped ? (
+                          <span className="status-pill status-pill--danger" style={{ marginLeft: "0.4rem" }}>
+                            Tripped
+                          </span>
+                        ) : null}
+                      </td>
                       <td>{account.recent_error_count_24h}</td>
                       <td>${account.month_to_date_cost_usd.toFixed(2)}</td>
                       <td>{account.last_success_at ? new Date(account.last_success_at).toLocaleString() : "—"}</td>

@@ -111,7 +111,9 @@ export default function ReviewQueuePage() {
               <th>Story</th>
               <th>Sources</th>
               <th>Reason</th>
-              <th>Status</th>
+              {/* No Status column: this endpoint only ever returns
+                  ReviewTask.status === "PENDING" rows, so every cell would
+                  read the same value — dead width on a dense table. */}
               <th>Created</th>
               <th></th>
             </tr>
@@ -134,9 +136,6 @@ export default function ReviewQueuePage() {
                       </span>
                     ))}
                   </span>
-                </td>
-                <td>
-                  <span className="status-pill status-pill--warn">{humanize(item.status)}</span>
                 </td>
                 <td>{new Date(item.created_at).toLocaleString()}</td>
                 <td>

@@ -28,6 +28,18 @@ interface StorySource {
 // the reason pill a reviewer already saw on the queue.
 const ALWAYS_REVIEWED_SENSITIVITIES = new Set(["IMMIGRATION", "LEGAL", "FINANCIAL", "BREAKING", "OBITUARY_ACCUSATION"]);
 
+// ADR-014 EditorialStatus: same three states/register web's StoryCard notice
+// uses (updated/retracted/under review), so a moderator sees the identical
+// signal a reader would — tone here follows the ADR's color-discipline rule
+// (green/amber/red only) rather than web's current indigo "updated" notice,
+// which is a pre-existing drift from that rule, not a pattern to match.
+const STATUS_NOTICE: Record<string, { text: string; tone: "warn" | "danger" } | undefined> = {
+  REVIEW_REQUIRED: { text: "Under review — not visible to readers.", tone: "warn" },
+  UPDATED: { text: "Updated / corrected since first publish.", tone: "warn" },
+  CORRECTION_PENDING: { text: "Correction pending — not yet applied.", tone: "warn" },
+  RETRACTED: { text: "Retracted — no longer live.", tone: "danger" }
+};
+
 interface Correction {
   id: string;
   reason: string;
@@ -180,6 +192,7 @@ export default function StoryReviewPage() {
   const te = story.variants.te;
   const isAlwaysReviewed = ALWAYS_REVIEWED_SENSITIVITIES.has(story.sensitivity);
   const reasonRequired = isAlwaysReviewed && reason.trim().length === 0;
+  const statusNotice = STATUS_NOTICE[story.status];
 
   return (
     <main>
@@ -195,6 +208,11 @@ export default function StoryReviewPage() {
         · Importance: {story.importance.toFixed(2)}
       </p>
       {story.review_task ? <p>Review reason: {story.review_task.reason}</p> : null}
+      {statusNotice ? (
+        <p className={`editorial-status editorial-status--${statusNotice.tone}`} role="status">
+          {statusNotice.text}
+        </p>
+      ) : null}
       {error ? <p role="alert">{error}</p> : null}
 
       <section>

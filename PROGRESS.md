@@ -295,6 +295,62 @@ Mirrors `docs/adr/README.md` — keep both in sync.
 
 (newest first — one line per ticket completion)
 
+- 2026-09-17 (NEXT SESSION START HERE): ADR-014 step 4 — admin density/
+  status refinement, ad hoc per the ADR's stated implementation order (no
+  ticket file). Four changes to `apps/admin`:
+  1. **Dead column removed**: `/review`'s table had a "Status" column that
+     always read "pending" for every row, since `GET /v1/admin/review-queue`
+     (`apps/api/app/routers/admin.py`) only ever returns
+     `ReviewTask.status == "PENDING"` tasks — a column with zero
+     discriminating information on a dense workbench table. Removed the
+     `<th>`/`<td>` and the now-dead `status-pill--warn` cell; `humanize()`
+     stays (still used for the reason pills).
+  2. **Color-discipline bug fixed**: `p[role="alert"]` in
+     `apps/admin/src/app/globals.css` used `--color-danger`/
+     `--color-danger-soft`, which `apps/web/src/app/tokens.css` aliases to
+     the rust ("hot") token — reserved by ADR-014 for consequential
+     editorial emphasis, never a generic error/status color. Switched to
+     the plain semantic `--danger`/`--danger-soft` tokens (same ones
+     `.status-pill--danger` already uses) and extended the selector to
+     `li[role="alert"]`, which covers observability's budget-alert list
+     items that previously had no alert styling at all.
+  3. **EditorialStatus added to the moderation view** (`/review/[id]`):
+     ADR-014 explicitly calls for this notice "shared by web, mobile, and
+     admin's moderation views," and admin had nothing — only a raw
+     `Status: {story.status}` string. Added a `.editorial-status` block
+     (new CSS: ruled-left + tinted, matching the "why matters" register
+     per the ADR, not the boxed `p[role="alert"]` treatment) for
+     `REVIEW_REQUIRED`/`UPDATED`/`CORRECTION_PENDING` (amber) and
+     `RETRACTED` (red). Deliberately does **not** match web's current
+     `.story-card__notice--updated`, which uses an indigo/`--action-*`
+     tint (`apps/web/src/app/globals.css` "Semantic color roles" section,
+     around `.story-card__notice--updated`) — that's a pre-existing drift
+     from this same ADR's own color-discipline rule (green/amber/red only,
+     indigo reserved for navigation/primary action), not a pattern worth
+     propagating. **Flagged, not fixed here** — out of admin's scope this
+     session; belongs in the ADR's final step (cross-surface visual
+     regression pass), which is exactly the kind of drift that pass exists
+     to catch.
+  4. **Status pill consistency**: observability's X-account table rendered
+     `rights_status` as plain text while `/review/[id]` already pills the
+     same field (`source_rights_status`) — pilled it the same way
+     (danger for `DISABLED`, ok otherwise). Also pilled the inline
+     `(TRIPPED)` circuit-breaker text in that same table to match the
+     pilled circuit-breaker cell one section up (`Ingestion health`).
+  **Verified**: `pnpm --filter @teluguvarta/admin exec tsc --noEmit`,
+  `pnpm --filter @teluguvarta/admin lint`, and `pnpm --filter
+  @teluguvarta/admin build` all clean (all 7 admin routes generate).
+  **Not done**: no live-render/screenshot check against the running API —
+  the local Postgres from a prior session's Homebrew install is up
+  (`pg_isready` succeeds) but exercising the new UPDATED/RETRACTED/
+  under-review states would need seeded stories in those exact statuses,
+  which wasn't set up this session; verification here is build/typecheck/
+  lint clean, not an eyeballed screenshot, same caveat as prior ADR-014
+  steps. ADR-014's final step (cross-surface visual regression pass at
+  390px/768px/desktop, light/dark, 200% zoom, long Telugu headlines) is
+  untouched and should also pick up the web indigo-notice drift flagged
+  in point 3 above.
+
 - 2026-09-17 (NEXT SESSION START HERE): ADR-014 step 3 — mobile navigation/
   cards/theme parity, ad hoc per the ADR's stated implementation order (no
   ticket file). Three changes to `apps/mobile`:
