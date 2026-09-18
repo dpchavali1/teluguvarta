@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
-import { Fraunces, Inter_Tight, JetBrains_Mono, Noto_Sans_Telugu, Peddana } from "next/font/google";
+import { Inter_Tight, JetBrains_Mono, Noto_Sans_Telugu, Peddana } from "next/font/google";
 
 import { SiteFooter } from "@/components/SiteFooter";
 import { SiteHeader } from "@/components/SiteHeader";
@@ -10,19 +10,13 @@ import { siteUrl } from "@/lib/api";
 
 import "./globals.css";
 
-// Type pairing: an editorial serif for display (Fraunces, English / Peddana,
-// Telugu — both language-native serifs from the same "characterful
-// headline" register) against a tight neo-grotesque for running text (Inter
-// Tight / Noto Sans Telugu), with a mono for all micro-labels. Headings get
-// a distinct per-language voice; body text stays on the proven, highly
-// readable sans pairing.
-const fontDisplay = Fraunces({
-  subsets: ["latin"],
-  variable: "--font-display",
-  weight: ["500", "600", "700", "800"],
-  display: "swap",
-});
-
+// Type pairing (round 3 — "more like Axios, cleaner and modern"): English
+// headings dropped the editorial serif (Fraunces) in favor of the same
+// tight neo-grotesque used for running text (--font-heading now resolves
+// to --font-sans, see globals.css's root override), so there is no
+// fontDisplay/--font-display load left to make. Telugu keeps its own
+// language-native display serif (Peddana) — that's a separate register
+// from the English "look" and isn't what round 3 is about.
 const fontTeluguDisplay = Peddana({
   subsets: ["telugu"],
   variable: "--font-telugu-display",
@@ -65,7 +59,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html
       lang="en"
-      className={`${fontDisplay.variable} ${fontSans.variable} ${fontMono.variable} ${fontTelugu.variable} ${fontTeluguDisplay.variable}`}
+      className={`${fontSans.variable} ${fontMono.variable} ${fontTelugu.variable} ${fontTeluguDisplay.variable}`}
       // THEME_INIT_SCRIPT sets data-theme before hydration, so this attribute
       // intentionally differs from the server-rendered HTML.
       suppressHydrationWarning

@@ -20,14 +20,17 @@ export default async function CountryPage({ params, searchParams }: Props) {
 
   return (
     <>
-      <h1>{code} news</h1>
+      <header className="listing-header">
+        <p className="eyebrow">TTE · Country</p>
+        <h1>{code} news</h1>
+      </header>
       {items.length === 0 ? (
         <p className="empty-state">No published stories about {code} yet.</p>
       ) : (
-        <ul className="story-list">
+        <ul className="story-grid">
           {items.map((story) => (
             <li key={story.id}>
-              <StoryCard story={story} />
+              <StoryCard story={story} display="brief" />
             </li>
           ))}
         </ul>

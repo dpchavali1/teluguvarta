@@ -46,10 +46,10 @@ export function StudentBriefing() {
   return (
     <section className="student-briefing" aria-labelledby="student-briefing-heading">
       <h2 id="student-briefing-heading">Student Briefing</h2>
-      <ul className="story-list">
+      <ul className="story-grid">
         {stories.map((story) => (
           <li key={story.id}>
-            <StoryCard story={story} />
+            <StoryCard story={story} display="brief" />
           </li>
         ))}
       </ul>

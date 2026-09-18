@@ -33,14 +33,17 @@ export default async function TopicPage({ params, searchParams }: Props) {
 
   return (
     <>
-      <h1>{data.topic.name}</h1>
+      <header className="listing-header">
+        <p className="eyebrow">TTE · Topic</p>
+        <h1>{data.topic.name}</h1>
+      </header>
       {data.stories.length === 0 ? (
         <p className="empty-state">No published stories in this topic yet.</p>
       ) : (
-        <ul className="story-list">
+        <ul className="story-grid">
           {data.stories.map((story) => (
             <li key={story.id}>
-              <StoryCard story={story} />
+              <StoryCard story={story} display="brief" />
             </li>
           ))}
         </ul>

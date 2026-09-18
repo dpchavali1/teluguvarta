@@ -37,14 +37,17 @@ export default function SavedPage() {
   }, [revision]);
 
   return <>
-    <h1>Saved</h1>
-    <p>Your bookmarks stay on this device. Stories are checked for the latest updates when you open this page.</p>
+    <header className="listing-header">
+      <p className="eyebrow">TTE · Your library</p>
+      <h1>Saved</h1>
+      <p>Your bookmarks stay on this device. Stories are checked for the latest updates when you open this page.</p>
+    </header>
     {error ? <div role="alert"><p>{error}</p><button onClick={() => setRevision((value) => value + 1)}>Try again</button></div>
       : stories === null ? <p role="status">Loading saved stories…</p>
       : <>
         {missingCount > 0 && <p role="status">{missingCount} saved {missingCount === 1 ? "story is" : "stories are"} currently unavailable. Your bookmarks have been kept.</p>}
         {stories.length === 0 && missingCount === 0 && <p className="empty-state">No saved stories yet. <Link href="/">Find a story to save</Link>.</p>}
-        <ul className="story-list">{stories.map((story) => <li key={story.id}><StoryCard story={story} /></li>)}</ul>
+        <ul className="story-grid">{stories.map((story) => <li key={story.id}><StoryCard story={story} display="brief" /></li>)}</ul>
       </>}
   </>;
 }

@@ -24,8 +24,32 @@
 @import "./tokens.css";
 
 :root {
-  --page-max: 70rem;
+  --page-max: 76rem;
   --measure: 46rem;
+
+  /* Round 3 ("more like Axios, cleaner and modern"): local overrides on
+     top of the shared design-token pipeline, not in tokens.json/tokens.css
+     — apps/admin imports the same generated tokens.css and apps/mobile
+     consumes the same tokens.json, and this pass is web-listing-page-only,
+     so it stays scoped to this file. Light paper goes near-white; dark
+     mode (already fairly neutral/modern) is untouched via the higher-
+     specificity `:root:not([data-theme="light"])` / `:root[data-theme=
+     "dark"]` rules in tokens.css winning over this plain :root. */
+  --color-bg: #ffffff;
+  --color-surface: #ffffff;
+  --color-surface-sunken: #f4f3f0;
+  --canvas: #ffffff;
+  --surface: #ffffff;
+  --surface-subtle: #f4f3f0;
+  --shadow-soft: 0 1px 2px rgba(28, 26, 21, 0.07), 0 1px 1px rgba(28, 26, 21, 0.04);
+
+  /* English display type moves from the serif (Fraunces) to the same tight
+     grotesque used for body copy — bold sans headlines read as "clean/
+     modern" the way the serif+uppercase+hairline system reads as
+     "newspaper". Telugu headings keep their own font (--font-te-heading,
+     unchanged below) — that's a separate register, not what round 3 is
+     about. */
+  --font-heading: var(--font-sans), var(--font-sans-fallback);
 }
 
 /* -------------------------------------------------------- 2. Base + a11y */
@@ -298,7 +322,8 @@ button {
   gap: 0;
   background: transparent;
   border: 1px solid #3a362b;
-  border-radius: 0;
+  border-radius: 7px;
+  overflow: hidden;
   padding: 0;
 }
 
@@ -336,7 +361,8 @@ button {
   gap: 0;
   background: transparent;
   border: 1px solid #3a362b;
-  border-radius: 0;
+  border-radius: 7px;
+  overflow: hidden;
   padding: 0;
 }
 
@@ -385,10 +411,10 @@ main {
    country, story detail, legal, onboarding, 404, error) — oversized display
    type over a signal-lime slab rule. */
 main h1 {
-  font-size: clamp(2.4rem, 7vw, 4.25rem);
+  font-size: clamp(2.1rem, 5.5vw, 3.4rem);
   font-weight: 800;
-  letter-spacing: -0.045em;
-  text-transform: uppercase;
+  letter-spacing: -0.03em;
+  text-transform: none;
   margin: 0 0 1.75rem;
   max-width: 24ch;
 }
@@ -396,9 +422,10 @@ main h1 {
 main h1::after {
   content: "";
   display: block;
-  width: 5.5rem;
-  height: 8px;
-  margin-top: 1.1rem;
+  width: 3rem;
+  height: 4px;
+  margin-top: 1rem;
+  border-radius: 999px;
   background: var(--color-accent);
 }
 
@@ -411,6 +438,48 @@ main h1::after {
 main h2 {
   font-size: clamp(1.5rem, 3vw, 2rem);
   margin: 0 0 0.75rem;
+}
+
+/* Eyebrow: the mono-uppercase micro-label that sits above a heading to give
+   a section its "section title" (kicker). Declared in the shared mono-font
+   list already; styled here so every listing page can use it instead of
+   inventing a one-off label. */
+.eyebrow {
+  margin: 0 0 0.4rem;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--action-text);
+}
+
+/* Shared compact header for every listing route (/latest, /search, /topic,
+   /country, /saved). Same weight class as the homepage's .briefing-header,
+   deliberately far smaller than the giant `main h1` slab treatment used on
+   legal/static pages — a listing page's job is to show stories, not spend
+   a full screen on its own title. */
+.listing-header {
+  margin: 0 0 1.75rem;
+  padding: 0 0 1.1rem;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.listing-header h1 {
+  margin: 0;
+  max-width: none;
+  font-size: clamp(1.6rem, 2.8vw, 2.15rem);
+  letter-spacing: -0.03em;
+  text-transform: none;
+}
+
+.listing-header h1::after {
+  content: none;
+}
+
+.listing-header p:last-child {
+  margin: 0.5rem 0 0;
+  color: var(--text-secondary);
+  max-width: var(--measure);
 }
 
 main > p,
@@ -528,24 +597,24 @@ main > p,
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
-  padding: 0.85rem 1.5rem;
+  padding: 0.8rem 1.4rem;
   background: var(--color-accent);
   color: var(--color-accent-contrast) !important;
-  border: 2px solid var(--color-rule);
-  border-radius: 0;
+  border: 0;
+  border-radius: 999px;
   font-family: var(--font-mono-stack);
   font-size: 0.82rem;
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
   text-decoration: none !important;
-  box-shadow: var(--shadow-hard);
-  transition: transform var(--duration-fast) var(--ease-out), box-shadow var(--duration-fast) var(--ease-out);
+  box-shadow: none;
+  transition: background var(--duration-fast) var(--ease-out), transform var(--duration-fast) var(--ease-out);
 }
 
 .page-hero__cta:hover {
-  transform: translate(3px, 3px);
-  box-shadow: 1px 1px 0 var(--color-rule);
+  background: var(--color-accent-strong);
+  transform: translateY(-1px);
 }
 
 /* --------------------------------------------------------- 6. Topic rail */
@@ -570,11 +639,11 @@ main > p,
   display: flex;
   flex-wrap: nowrap;
   overflow-x: auto;
-  gap: 0;
+  gap: 0.5rem;
   list-style: none;
   margin: 0;
-  padding: 0;
-  border: 1px solid var(--color-rule);
+  padding: 0.15rem 0.1rem;
+  border: 0;
   scrollbar-width: thin;
 }
 
@@ -583,21 +652,21 @@ main > p,
 }
 
 .topic-rail__list li + li .pill--topic {
-  border-left: 1px solid var(--color-rule);
+  border-left: 0;
 }
 
 .pill--topic {
   display: block;
-  background: transparent;
+  background: var(--color-accent-soft);
   border: 0;
-  color: var(--color-text);
+  color: var(--color-accent-ink);
   font-family: var(--font-mono-stack);
   font-size: 0.72rem;
-  font-weight: 500;
-  letter-spacing: 0.1em;
+  font-weight: 600;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
-  border-radius: 0;
-  padding: 0.7rem 1.1rem;
+  border-radius: 999px;
+  padding: 0.55rem 1rem;
   white-space: nowrap;
   text-decoration: none;
   transition: background var(--duration-fast) var(--ease-out), color var(--duration-fast) var(--ease-out);
@@ -618,13 +687,13 @@ main > p,
   list-style: none;
   margin: 0 0 3rem;
   padding: 0;
-  border-top: 2px solid var(--color-rule);
+  border-top: 0;
 }
 
 .story-list > li {
   counter-increment: dispatch;
   display: block;
-  border-bottom: 1px solid var(--color-border);
+  border-bottom: 1px solid var(--border-subtle);
 }
 
 @keyframes dispatch-in {
@@ -681,20 +750,19 @@ main > p,
   display: inline-block;
   font-family: var(--font-mono-stack);
   font-size: 0.62rem;
-  font-weight: 500;
-  letter-spacing: 0.14em;
+  font-weight: 600;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
-  border: 1px solid var(--color-border);
-  border-radius: 0;
-  padding: 0.25rem 0.5rem;
-  color: var(--color-faint);
-  background: transparent;
+  border: 0;
+  border-radius: 999px;
+  padding: 0.3rem 0.65rem;
+  color: var(--color-muted);
+  background: var(--color-surface-sunken);
   text-decoration: none;
 }
 
 a.pill:hover {
   background: var(--color-accent);
-  border-color: var(--color-rule);
   color: var(--color-accent-contrast);
   text-decoration: none;
 }
@@ -706,7 +774,7 @@ a.pill:hover {
   font-weight: 700;
   letter-spacing: 0.14em;
   text-transform: uppercase;
-  border-radius: 0;
+  border-radius: 999px;
   padding: 0.3rem 0.6rem;
   margin: 0 0 1rem;
 }
@@ -728,7 +796,7 @@ a.pill:hover {
   width: 100%;
   font: inherit;
   border: 1px solid var(--color-border);
-  border-radius: 0;
+  border-radius: 8px;
   background: var(--color-surface);
   color: var(--color-text);
   padding: 0.5rem;
@@ -748,12 +816,12 @@ a.pill:hover {
   font-weight: 700;
   letter-spacing: 0.14em;
   text-transform: uppercase;
-  border: 1px solid var(--color-rule);
-  border-radius: 0;
+  border: 0;
+  border-radius: 999px;
   padding: 0.3rem 0.6rem;
   margin: 0 0 1rem;
   color: var(--color-text);
-  background: transparent;
+  background: var(--color-surface-sunken);
 }
 
 .story-card__notice--retracted {
@@ -859,39 +927,41 @@ a.pill:hover {
 
 .story-card__actions [role="group"] {
   display: inline-flex;
-  border: 1px solid var(--color-rule);
+  border: 0;
+  border-radius: 999px;
+  overflow: hidden;
+  background: var(--color-surface-sunken);
 }
 
 .story-card__actions [role="group"] button {
   border: 0;
   border-radius: 0;
+  background: transparent;
 }
 
 .story-card__actions [role="group"] button + button {
-  border-left: 1px solid var(--color-rule);
+  border-left: 1px solid var(--color-border);
 }
 
 .story-card__actions button {
-  border: 1px solid var(--color-border);
-  background: transparent;
+  border: 0;
+  background: var(--color-surface-sunken);
   color: var(--color-muted);
-  border-radius: 0;
+  border-radius: 999px;
   padding: 0.5rem 0.85rem;
   font-family: var(--font-mono-stack);
   font-size: 0.68rem;
-  font-weight: 500;
-  letter-spacing: 0.12em;
+  font-weight: 600;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
   cursor: pointer;
   min-height: 2.4rem;
   box-shadow: none;
   transform: none;
-  transition: border-color var(--duration-fast) var(--ease-out), background var(--duration-fast) var(--ease-out),
-    color var(--duration-fast) var(--ease-out);
+  transition: background var(--duration-fast) var(--ease-out), color var(--duration-fast) var(--ease-out);
 }
 
 .story-card__actions button:hover {
-  border-color: var(--color-rule);
   background: var(--color-text);
   color: var(--color-bg);
   box-shadow: none;
@@ -930,10 +1000,10 @@ a.pill:hover {
 /* Baseline button for routes with no bespoke styling (error boundary,
    account deletion). Class-scoped rules below win over this. */
 main button {
-  border: 2px solid var(--color-rule);
+  border: 0;
   background: var(--color-text);
   color: var(--color-bg);
-  border-radius: 0;
+  border-radius: 999px;
   padding: 0.7rem 1.25rem;
   font-family: var(--font-mono-stack);
   font-size: 0.78rem;
@@ -941,13 +1011,13 @@ main button {
   letter-spacing: 0.08em;
   text-transform: uppercase;
   cursor: pointer;
-  box-shadow: var(--shadow-hard-sm);
-  transition: transform var(--duration-fast) var(--ease-out), box-shadow var(--duration-fast) var(--ease-out);
+  box-shadow: none;
+  transition: opacity var(--duration-fast) var(--ease-out), transform var(--duration-fast) var(--ease-out);
 }
 
 main button:hover:not(:disabled) {
-  transform: translate(2px, 2px);
-  box-shadow: 1px 1px 0 var(--color-rule);
+  opacity: 0.85;
+  transform: translateY(-1px);
 }
 
 /* Without this a disabled button keeps the full ink fill, the hard shadow and
@@ -967,18 +1037,21 @@ main button:disabled {
   gap: 0;
   margin-bottom: 3rem;
   max-width: 34rem;
-  border: 2px solid var(--color-rule);
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  overflow: hidden;
+  background: var(--color-surface-sunken);
 }
 
 .search-form input[type="search"] {
   flex: 1;
   min-width: 0;
-  padding: 0.85rem 1rem;
+  padding: 0.85rem 0 0.85rem 1.25rem;
   border: 0;
   border-radius: 0;
   font-family: var(--font-body);
   font-size: 1rem;
-  background: var(--color-surface);
+  background: transparent;
   color: var(--color-text);
 }
 
@@ -988,11 +1061,11 @@ main button:disabled {
 
 .search-form button {
   border: 0;
-  border-left: 2px solid var(--color-rule);
   background: var(--color-accent);
   color: var(--color-accent-contrast);
-  border-radius: 0;
-  padding: 0.85rem 1.4rem;
+  border-radius: 999px;
+  margin: 0.25rem;
+  padding: 0.6rem 1.25rem;
   font-family: var(--font-mono-stack);
   font-size: 0.76rem;
   font-weight: 700;
@@ -1006,8 +1079,8 @@ main button:disabled {
 .search-form button:hover {
   transform: none;
   box-shadow: none;
-  background: var(--color-text);
-  color: var(--color-bg);
+  background: var(--color-accent-strong);
+  color: var(--color-accent-contrast);
 }
 
 .search-form button:focus-visible {
@@ -1050,9 +1123,8 @@ main button:disabled {
   margin: 0.9rem 0 1.25rem;
 }
 
-.student-briefing .story-list {
+.student-briefing .story-grid {
   margin-bottom: 0;
-  border-top-width: 1px;
 }
 
 .onboarding {
@@ -1249,12 +1321,12 @@ main button:disabled {
 
   .search-form {
     flex-wrap: wrap;
+    border-radius: 14px;
   }
 
   .search-form button {
     flex: 1;
-    border-left: 0;
-    border-top: 2px solid var(--color-rule);
+    margin: 0 0.25rem 0.25rem;
   }
 }
 
@@ -1279,33 +1351,31 @@ input:focus-visible,
   outline-offset: 2px;
 }
 
-.pill,
-.pill--topic {
-  border-color: var(--border-control);
-  background: var(--surface);
-  color: var(--text-primary);
+/* .pill and .pill--topic carry their own tinted-pill background/color
+   (declared above, section 7/6) — this block only adds the semantic hover/
+   focus state, it no longer overrides the resting paint with a bordered
+   surface (round 3: soft rounded tags, not bordered boxes). */
+.pill--topic:hover,
+.pill--topic:focus-visible {
+  background: var(--action-primary);
+  color: var(--action-primary-text);
 }
 
-.pill--topic:hover,
-.pill--topic:focus-visible,
 a.pill:hover,
 a.pill:focus-visible {
-  border-color: var(--action-primary);
-  background: var(--surface-subtle);
-  color: var(--text-primary);
+  background: var(--action-primary);
+  color: var(--action-primary-text);
 }
 
-.story-card__actions button,
-.story-card__actions [role="group"] {
-  border-color: var(--border-control);
-  background: var(--surface);
+/* Resting paint (soft rounded pill, tinted surface) lives with the base
+   rules above — this block only layers the semantic hover/press states. */
+.story-card__actions button {
   color: var(--text-secondary);
 }
 
 .story-card__actions button:hover {
-  border-color: var(--action-primary);
-  background: var(--surface-subtle);
-  color: var(--text-primary);
+  background: var(--action-primary);
+  color: var(--action-primary-text);
 }
 
 .story-card__actions [role="group"] button[aria-pressed="true"] {
@@ -1390,14 +1460,14 @@ a.pill:focus-visible {
   gap: 1.5rem;
   margin: 0 0 2rem;
   padding: 0 0 1.35rem;
-  border-bottom: 2px solid var(--color-rule);
+  border-bottom: 1px solid var(--border-subtle);
 }
 .briefing-header h1 {
   margin: 0.1rem 0 0.25rem;
   max-width: none;
-  font-size: clamp(2.25rem, 5vw, 3.75rem);
-  line-height: 0.98;
-  letter-spacing: -0.045em;
+  font-size: clamp(1.75rem, 3vw, 2.25rem);
+  line-height: 1.02;
+  letter-spacing: -0.035em;
   text-transform: none;
 }
 .briefing-header h1::after { display: none; }
@@ -1405,32 +1475,91 @@ a.pill:focus-visible {
 .briefing-kicker { margin: 0 0 .2rem; color: var(--action-text); font-family: var(--font-mono-stack); font-size: .68rem; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; }
 .briefing-header .page-hero__cta { flex: none; }
 
-.story-hero { margin-bottom: 2.5rem; }
-.story-hero .story-card { padding: 0; border: 0; background: none; box-shadow: none; align-items: stretch; }
-.story-hero .story-card__headline {
-  max-width: 22ch;
-  font-size: clamp(2.25rem, 6vw, 4.75rem);
-  line-height: 0.96;
+/* Front page: lead story + a rail of secondary stories beside it, so a wide
+   viewport shows several stories in the first screen instead of one
+   oversized headline. Caps replace the old newspaper-scale hero. */
+.front-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) minmax(17rem, 1fr);
+  gap: 0 2.75rem;
+  align-items: start;
+  margin-bottom: 2rem;
+}
+.front-grid__lead .story-card { padding: 0; border: 0; background: none; box-shadow: none; align-items: stretch; }
+.front-grid__lead .story-card__headline {
+  max-width: none;
+  font-size: clamp(1.9rem, 3.2vw, 2.75rem);
+  line-height: 1.03;
   letter-spacing: -0.03em;
 }
-.story-hero .story-card__headline a { background: none; }
-.story-hero .story-card__headline a:hover,
-.story-hero .story-card__headline a:focus-visible { color: var(--action-text); }
-.story-hero .story-card > p:not([class]) { max-width: 60ch; font-size: 1.1rem; }
-.story-hero .story-card__why {
+.front-grid__lead .story-card__headline a { background: none; }
+.front-grid__lead .story-card__headline a:hover,
+.front-grid__lead .story-card__headline a:focus-visible { color: var(--action-text); }
+.front-grid__lead .story-card > p:not([class]) {
   max-width: 55ch;
+  font-size: 1rem;
+  -webkit-line-clamp: 2;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.front-grid__lead .story-card__why {
+  max-width: 50ch;
   border-left: 5px solid var(--color-hot);
   padding: 0.2rem 0 0.2rem 1.25rem;
-  font-size: 1.02rem;
+  font-size: 0.95rem;
+  margin: 0.9rem 0 0.8rem;
 }
-.story-hero .story-card__why strong { color: var(--color-hot); }
+.front-grid__lead .story-card__why strong { color: var(--color-hot); }
+.front-grid__lead .story-card__actions { margin-top: 1rem; }
+
+/* Rail: up to five compact secondary dispatches beside the lead. Sized a
+   notch above the "more stories" grid below (it's the second-highest
+   priority slot on the page, not a tertiary one), but with every field that
+   isn't essential-at-a-glance trimmed for height: why-matters is dropped and
+   actions collapse to plain text links (.story-card--brief, below). */
+.front-grid__rail {
+  list-style: none;
+  margin: 0;
+  padding: 0 0 0 1.75rem;
+  border-left: 1px solid var(--border-subtle);
+}
+.front-grid__rail > li {
+  border-bottom: 1px solid var(--border-subtle);
+  padding: 0 0 0.9rem;
+  margin: 0 0 0.9rem;
+}
+.front-grid__rail > li:last-child { border-bottom: 0; margin-bottom: 0; padding-bottom: 0; }
+.front-grid__rail .story-card { padding: 0; }
+.front-grid__rail .story-card__labels { margin-bottom: 0.5rem; }
+.front-grid__rail .story-card__headline { font-size: clamp(1.05rem, 1.5vw, 1.3rem); max-width: none; margin-bottom: 0.4rem; }
+.front-grid__rail .story-card > p:not([class]) {
+  font-size: 0.86rem;
+  margin-bottom: 0;
+  -webkit-line-clamp: 2;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.front-grid__rail .story-card__why { display: none; }
+.front-grid__rail .story-card__source-link { font-size: 0.7rem; }
+
+@media (max-width: 900px) {
+  .front-grid { grid-template-columns: 1fr; }
+  .front-grid__rail {
+    border-left: 0;
+    border-top: 1px solid var(--border-subtle);
+    padding: 1.5rem 0 0;
+    margin-top: 0.5rem;
+  }
+}
 
 .section-rule {
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  margin: 0 0 1.5rem;
-  padding-top: 1.5rem;
+  margin: 0 0 1.25rem;
+  padding-top: 1.25rem;
   border-top: 1px solid var(--border-subtle);
 }
 .section-rule span {
@@ -1444,8 +1573,8 @@ a.pill:focus-visible {
 
 .story-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
-  gap: 0 2.5rem;
+  grid-template-columns: repeat(auto-fill, minmax(13.5rem, 1fr));
+  gap: 0 2.25rem;
   list-style: none;
   margin: 0 0 3rem;
   padding: 0;
@@ -1453,17 +1582,77 @@ a.pill:focus-visible {
 }
 .story-grid > li {
   border-bottom: 1px solid var(--border-subtle);
-  padding: 1.5rem 0;
+  padding: 1.15rem 0;
 }
 .story-grid .story-card { padding: 0; }
-.story-grid .story-card__headline { font-size: clamp(1.1rem, 1.6vw, 1.3rem); max-width: none; }
-.story-grid .story-card > p:not([class]) { font-size: 0.92rem; -webkit-line-clamp: 3; display: -webkit-box; -webkit-box-orient: vertical; overflow: hidden; }
+.story-grid .story-card__labels { margin-bottom: 0.6rem; }
+.story-grid .story-card__headline { font-size: clamp(1.05rem, 1.5vw, 1.22rem); max-width: none; margin-bottom: 0.5rem; }
+.story-grid .story-card > p:not([class]) { font-size: 0.88rem; margin-bottom: 0; -webkit-line-clamp: 2; display: -webkit-box; -webkit-box-orient: vertical; overflow: hidden; }
 .story-grid .story-card__why { display: none; }
 .story-grid .story-card__source-link { font-size: 0.72rem; }
+
+/* .story-card--brief covers every secondary/tertiary slot (front-grid rail,
+   story-grid, StudentBriefing): same information, far less chrome. Action
+   buttons drop their bordered-pill treatment for plain underlined text
+   links so a five-field card (labels, headline, dek, source, actions)
+   fits in a fraction of the vertical space the default card needs — the
+   single biggest lever for showing more stories without scrolling. Buttons
+   stay real <button> elements with full click/tap targets; only the paint
+   changes. */
+.story-card--brief .story-card__actions {
+  gap: 0.15rem 0.9rem;
+  margin-top: 0.7rem;
+}
+.story-card--brief .story-card__actions button {
+  display: inline-flex;
+  align-items: center;
+  border: 0;
+  background: none;
+  padding: 0.2rem 0;
+  min-height: 1.6rem;
+  font-size: 0.66rem;
+  letter-spacing: 0.08em;
+  text-decoration: underline;
+  text-decoration-color: transparent;
+  text-underline-offset: 3px;
+}
+.story-card--brief .story-card__actions button:hover {
+  background: none;
+  color: var(--action-text);
+  text-decoration-color: currentColor;
+}
+.story-card--brief .story-card__actions [role="group"] {
+  border: 0;
+  gap: 0.7rem;
+}
+.story-card--brief .story-card__actions [role="group"] button {
+  border: 0 !important;
+  padding: 0.2rem 0 !important;
+}
+.story-card--brief .story-card__actions [role="group"] button[aria-pressed="true"] {
+  background: none !important;
+  color: var(--action-text) !important;
+  text-decoration-color: currentColor;
+}
+.story-card--brief .story-card__action--save[aria-pressed="true"] {
+  background: none !important;
+  border-color: transparent !important;
+  color: var(--success) !important;
+  text-decoration-color: currentColor;
+}
 
 @media (max-width: 640px) {
   .briefing-header { align-items: flex-start; flex-direction: column; gap: .75rem; }
   .briefing-header .page-hero__cta { align-self: flex-start; }
-  .story-hero .story-card__headline { font-size: clamp(1.9rem, 9vw, 2.75rem); }
   .story-grid { grid-template-columns: 1fr; }
+}
+
+/* Touch targets: the compact brief actions have no visible box, but on a
+   touch-primary viewport the tap area still needs to meet 44px per WCAG
+   2.5.5 / the design system's own mobile rule for nav/toggle buttons. */
+@media (max-width: 760px) {
+  .story-card--brief .story-card__actions button {
+    min-height: 44px;
+    padding-inline: 0.15rem;
+  }
 }

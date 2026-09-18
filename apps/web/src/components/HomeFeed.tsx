@@ -26,14 +26,21 @@ export function HomeFeed({ initialStories }: { initialStories: StoryOut[] }) {
     return () => { cancelled = true; };
   }, [initialStories, revision]);
   const [lead, ...supporting] = stories;
+  const rail = supporting.slice(0, 5);
+  const rest = supporting.slice(5);
   return <section aria-label="Latest stories">
     {error && <p role="status">Your preferences couldn’t be applied. Showing the latest stories. <button onClick={() => setRevision((value) => value + 1)}>Try again</button></p>}
     {!lead ? <p className="empty-state">No stories published yet. <Link href="/topics">Browse topics</Link> or check back soon.</p>
       : <>
-        <div className="story-hero"><StoryCard story={lead} headingLevel="h2" display="lead" /></div>
-        {supporting.length > 0 && <>
+        <div className="front-grid">
+          <div className="front-grid__lead"><StoryCard story={lead} headingLevel="h2" display="lead" /></div>
+          {rail.length > 0 && (
+            <ul className="front-grid__rail">{rail.map((story) => <li key={story.id}><StoryCard story={story} display="brief" /></li>)}</ul>
+          )}
+        </div>
+        {rest.length > 0 && <>
           <div className="section-rule"><span>More stories</span></div>
-          <ul className="story-grid">{supporting.map((story) => <li key={story.id}><StoryCard story={story} display="brief" /></li>)}</ul>
+          <ul className="story-grid">{rest.map((story) => <li key={story.id}><StoryCard story={story} display="brief" /></li>)}</ul>
         </>}
       </>}
     <p><Link href="/latest">Browse all stories →</Link></p>

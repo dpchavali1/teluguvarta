@@ -15,7 +15,10 @@ export default async function SearchPage({ searchParams }: Props) {
   return (
     <>
       {results && <TrackEvent event="search" properties={{ query: q, result_count: results.items.length }} />}
-      <h1>Search</h1>
+      <header className="listing-header">
+        <p className="eyebrow">TTE · Search</p>
+        <h1>Search</h1>
+      </header>
       <form className="search-form" role="search" action="/search" method="get">
         <label className="visually-hidden" htmlFor="search-q">Search stories</label>
         <input id="search-q" type="search" name="q" defaultValue={q} placeholder="Search headlines and summaries" />
@@ -27,10 +30,10 @@ export default async function SearchPage({ searchParams }: Props) {
           {results.items.length === 0 ? (
             <p className="empty-state">No stories match &ldquo;{q}&rdquo;.</p>
           ) : (
-            <ul className="story-list">
+            <ul className="story-grid">
               {results.items.map((story) => (
                 <li key={story.id}>
-                  <StoryCard story={story} />
+                  <StoryCard story={story} display="brief" />
                 </li>
               ))}
             </ul>

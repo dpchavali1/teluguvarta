@@ -224,7 +224,7 @@ rather than re-attempting all three blind.
 | T16 Personalization | **done** | Deterministic §8.2 ranking (`app/content/ranking.py`), no ML; `GET /v1/home` personalizes when preferences are supplied as query params (no accepted account backend yet — see ADR-005); `Task.WHY_MATTERS` now actually invoked, cached per `(story_id, segment)` in new `story_why_matters_cache`; ADR-005 accepted |
 | T17 Push notifications | **done** | Real anonymous identity (satisfies ADR-006, which remains formally **proposed**, not accepted), persisted preferences/push tokens, `notification_dispatch` job with dedupe/quiet-hours/daily-cap/breaking-approval gate |
 | T18 Observability | **done** | Structured JSON logging + request/job context; Sentry-equivalent error tracking (plain HTTP envelope, no SDK) in all 4 apps; `/v1/admin/observability` (ingestion health/job queue/AI cost) + admin dashboard page; alert-dispatch module wired to worker loop; §17 analytics events routed through `POST /v1/events` (T17's endpoint) into `app/analytics.py`, forwarded to PostHog when configured |
-| T19 Hardening | **partial — see changelog** | Real: MFA on admin login, cross-system account deletion, search/admin rate limiting, dependency scanning (pip-audit clean)/SAST (bandit clean, one real XXE finding fixed), budget-breach auto-publish gate wired, backup/restore scripts + one real local restore test passed, WCAG 2.2 AA axe pass across 12 pages, local load test within §16 targets, ADR-007 accepted, app-store readiness doc. **P0 RCE gap now fixed** (see 2026-09-09 entry below) — `next@14.2.35` upgraded to `15.5.25` in both apps. **Golden AI eval set now 300 items** (§18's ≥300 met by count — see 2026-09-09 entry below), but only the original 30 are human-reviewed; the other 270 are AI-generated/unreviewed, flagged in `eval/README.md`/`golden_set.json._meta`. Still open: MFA/rate-limiting/backups not exercised against real managed infra (local-only, per ADR-007); no live-provider run against the golden set (same no-network-access gap as every AI ticket since T10); the 270 AI-generated eval items need native-Telugu-speaker spot-check before being trusted as real ground truth. |
+| T19 Hardening | **partial — see changelog** | Real: MFA on admin login, cross-system account deletion, search/admin rate limiting, dependency scanning (pip-audit clean)/SAST (bandit clean, one real XXE finding fixed), budget-breach auto-publish gate wired, backup/restore scripts + one real local restore test passed, WCAG 2.2 AA axe pass across 12 pages, local load test within §16 targets, ADR-007 accepted, app-store readiness doc. **P0 RCE gap now fixed** (see 2026-09-09 entry below) — `next@14.2.35` upgraded to `15.5.25` in both apps. **Golden AI eval set is now 30 human-reviewed items** (shrunk from 300 per accepted ADR-013 — see the 2026-09-16 ADR-013 changelog entry; §18 now reads "≥30 human-reviewed" instead of "≥300"), the 270 AI-generated/unreviewed items deleted rather than kept as unverified filler. Still open: MFA/rate-limiting/backups not exercised against real managed infra (local-only, per ADR-007); no live-provider run against the golden set (same no-network-access gap as every AI ticket since T10); growing the eval set past 30 needs native-Telugu-speaker review per item, not bulk generation. |
 | ~~T20 Pilot~~ | **removed 2026-09-16** | No longer a ticket — product owner removed the pilot concept entirely, not just waived it. The `/pilot` landing page, signup form, `POST /v1/pilot-signups`/`GET /v1/admin/pilot-signups` endpoints, `PilotSignup` model, and `pilot_signups` table (dropped via migration `c3d4e5f6a7b8`) are all deleted. `docs/runbooks/pilot-report.md` deleted along with it. See the 2026-09-16 changelog entry for the full file list. |
 | T21 Visual design refresh | **done — superseded by ADR-010** | Original "Ink & Signal" palette (2026-09-10) drifted through two undesigned revisions (2026-09-12 "modern design foundation", 2026-09-13 contrast fix) before being replaced outright by the "Folio" palette — see ADR-010 and the 2026-09-13 (Folio redesign) changelog entry. ADR-009's single-token-source mechanism (`packages/design-tokens/tokens.json` → generated per surface, CI-enforced) is accepted and live, not proposed. |
 
@@ -260,10 +260,208 @@ Mirrors `docs/adr/README.md` — keep both in sync.
 | ADR-008 Visual design refresh (no new UI framework) | **accepted** |
 | ADR-009 Single design-token source, generated per surface | **accepted** |
 | ADR-010 Folio visual redesign (supersedes ADR-008's palette) | **accepted** |
+| ADR-011 Claim evidence sufficiency for unattended publish | **proposed** |
+| ADR-012 First-login MFA enrollment flow | **accepted** |
+| ADR-013 Golden eval set trust tier (shrink to reviewed 30) | **accepted** |
+
+- 2026-09-16: **ADR-013 accepted** (product owner: "accept ADR-013 as-is,
+  shrink golden set to 30") and implemented exactly as the ADR spelled out,
+  ad hoc — not a `T22`+ ticket (still blocked; see the "What this means for
+  sequencing" note above, unchanged for Spike 1/3). `docs/SPEC.md` §18
+  reworded from "≥300 representative stories" to "≥30 human-reviewed
+  representative stories, expanded only with items that have passed the
+  same human review." `apps/api/eval/golden_set.json` shrunk from 300 items
+  to the 30 listed in `_meta.human_reviewed_ids` (3 per category × 10
+  categories) — the 270 AI-generated/unreviewed items are deleted from the
+  file, not just unmarked; `_meta.description`/`_meta.provenance` rewritten
+  to describe a single reviewed tier instead of two. `eval/README.md`'s
+  "Corpus size" section rewritten the same way, pointing at ADR-013 for the
+  removal rationale and stating the bar for growing back past 30 (native-
+  Telugu-speaker review before commit, not bulk-generate-then-review).
+  `docs/adr/ADR-013-golden-eval-set-trust-tier.md` and `docs/adr/README.md`
+  both flipped from proposed to accepted. Verified: `python3 -c "import
+  json; json.load(...)"` confirms the rewritten `golden_set.json` is valid
+  JSON; `apps/api/tests/test_golden_eval.py` — 31 passed (30
+  fixture-parametrized + the category-coverage test), same file, now
+  running against 30 items instead of 300; `ruff check .` clean; grepped
+  `run_golden_eval.py`/`test_golden_eval.py` for a hardcoded `300`/count
+  assumption before editing — none exists, so no code change was needed
+  beyond the data file itself. **What this did not do**: doesn't touch
+  Spike 1 (still needs a Gemini key + native speaker) or Spike 3 (still
+  needs an inference stack/real Hetzner box) — those remain exactly as
+  blocked as the entry above describes; ADR-011/ADR-006 remain proposed.
 
 ## Changelog
 
 (newest first — one line per ticket completion)
+
+- 2026-09-17 (NEXT SESSION START HERE): Web listing-page redesign round 3,
+  ad hoc per explicit direction **"more like Axios, cleaner and modern"**
+  (user's own reaction to round 2, quoted below). User confirmed via a
+  manual screenshot (Claude in Chrome extension is still not connected —
+  4th attempt in a row this project; a session with fresh Chrome tools
+  should verify it's actually broken, not just unlucky, before trying
+  again) that the live site at the time was running at **localhost:3003**,
+  not 3000 as earlier entries assumed — both ports were live during this
+  session (two dev server instances) and both serve the same app, so
+  either works, but don't assume 3000 is the only one.
+  Identified the actual "newspaper, not Axios" culprits by reading
+  `apps/web/src/app/globals.css` end to end: literal `border-radius: 0` on
+  20+ selectors, `--shadow-hard`/`--shadow-hard-sm` offset "sticker"
+  shadows, a cream `#f6f2e8` paper background, serif (Fraunces) display
+  type on every heading, and bordered mono-uppercase boxes for every pill/
+  tag/action-button instead of soft rounded chips.
+  **Scope decision**: `apps/web/src/app/tokens.css` is generated from
+  `packages/design-tokens/tokens.json` (`build.mjs`) and `apps/admin`
+  imports that same generated file, `apps/mobile` consumes the same
+  `tokens.json` — changing the shared token pipeline would have restyled
+  admin/mobile too, which nobody asked for. Instead every change is a
+  **local override/rule change inside `apps/web/src/app/globals.css`**
+  (a new `:root` block right after `@import "./tokens.css"` overrides
+  `--color-bg`/`--color-surface`/`--color-surface-sunken`/`--canvas`/
+  `--surface`/`--surface-subtle` to near-white and `--font-heading` to
+  the sans stack — same-specificity `:root`, later in cascade order, wins
+  for light mode; dark mode is untouched because tokens.css's dark blocks
+  use a higher-specificity selector and still win). `packages/design-
+  tokens/*` and `apps/admin/**` were not touched.
+  **Web**: `apps/web/src/app/globals.css` — root override block (bg,
+  surface, `--font-heading`); `main h1`/`main h1::after` (drop uppercase,
+  smaller slab rule); `.theme-toggle`/`.language-toggle` (rounded
+  container + `overflow:hidden`); `.page-hero__cta` (pill button, no
+  border/hard-shadow); `.topic-rail__list`/`.pill--topic` (joined bordered
+  tab strip → separate tinted rounded pills, `--color-accent-soft` bg);
+  `.pill` (story labels: bordered box → soft rounded tag);
+  `.story-card__notice`/`.story-card__reviewed` (rounded, tinted bg
+  instead of bordered); `.story-list`/`.story-list > li` (2px ink top
+  rule → none; 1px `--color-border` row divider → 1px `--border-subtle`);
+  `.story-card__actions [role="group"]`/`button` (bordered squares →
+  rounded pill group/buttons, `--color-surface-sunken` resting fill);
+  `main button` (bordered+hard-shadow → solid rounded pill, `opacity`
+  hover instead of the press-shift trick); `.search-form` (bordered box →
+  rounded pill input+button, narrow-viewport media query at the bottom of
+  the file updated to match); `.story-card__report textarea` (radius 0 →
+  8px); `.listing-header`/`.briefing-header` (2px ink bottom rule → 1px
+  `--border-subtle`); and the later "section 12 semantic color roles"
+  block, which had been re-asserting a bordered `var(--surface)` resting
+  paint on `.pill`/`.pill--topic`/`.story-card__actions button` and would
+  have silently undone all of the above — trimmed to layer only the
+  hover/focus/press states on top of the new resting styles.
+  `apps/web/src/app/layout.tsx` — dropped the `Fraunces` (`fontDisplay`/
+  `--font-display`) Google Fonts load entirely: grepped first and
+  confirmed nothing outside `tokens.css`'s now-shadowed `--font-heading`
+  definition referenced `--font-display`, so it was dead weight once
+  `--font-heading` points at the sans stack. `.story-card--brief`'s
+  round-2 compact text-link action row (the thing the "still not good
+  enough" complaint was NOT about) was left untouched, and the previous
+  `.front-grid`/`.story-grid` structural layout from round 2 is unchanged
+  — this round is paint only, no layout/structure changes.
+  **Verified**: `npx tsc --noEmit` clean; `npx next lint --file src/app/
+  layout.tsx` — "No ESLint warnings or errors"; `curl` 200 on `/`,
+  `/latest`, `/search` on both :3000 and :3003; fetched the actual
+  compiled `/_next/static/css/app/layout.css` from the running dev server
+  and grepped it (not just the source file) to confirm the new rules
+  really reached the browser: `.pill--topic` renders with `background:
+  var(--color-accent-soft)` and `border-radius: 999px`, `--color-bg:
+  #ffffff` is present, and `--font-heading` resolves to the sans stack as
+  the *second* (cascade-winning) declaration, not the tokens.css original.
+  **Not verified**: Claude in Chrome would still not connect (4th
+  consecutive attempt across rounds 1-3), so — same caveat as every prior
+  round — actual rendered spacing, contrast, and reflow at real viewport
+  widths is reasoned from CSS/box-model and the compiled stylesheet, not
+  an observed screenshot from this session. The user's own manual
+  screenshot of round 2's output was used to identify the specific
+  culprits above, but round 3's *result* has not been visually confirmed
+  by anyone yet. Dark mode was reasoned about (selector specificity keeps
+  it on the original near-black tokens) but not rendered/eyeballed either.
+  `apps/admin` and `apps/mobile` were not run or visually checked — they
+  weren't touched, but that's an assumption, not a verification.
+  Changes are unstaged, not committed.
+
+- 2026-09-17: Web listing-page redesign round 2, ad hoc per explicit product
+  feedback that the round-1 density fix below still wasn't good enough
+  ("if I am the user I will not open this website 2nd time"). Kept the
+  `.front-grid`/`.story-grid` structure from round 1 but fixed what was
+  actually eating the vertical budget: every card (including `display="brief"`
+  ones) was rendering the full bordered-pill action row (language toggle +
+  share + save + report, each a `min-height: 2.4rem` button) — that's the
+  single biggest per-card cost, repeated on every rail/grid item. Added a
+  `.story-card--brief` action treatment (the modifier class `StoryCard.tsx`
+  already emitted but no CSS ever targeted): plain underlined text links,
+  no border/box, ~40% shorter action row, same real `<button>` elements so
+  click/tap behavior, `aria-pressed`, and screen-reader labels are
+  untouched; a 760px media query restores 44px tap targets since the
+  desktop compact size is mouse-oriented. Also: bumped the homepage rail
+  from 3 to 5 secondary stories (`HomeFeed.tsx`) now that each rail item is
+  shorter; widened `--page-max` 70rem → 76rem so wide desktops actually use
+  the extra width instead of capping at ~1120px; tightened `.story-grid`
+  columns (`minmax(15rem,1fr)` → `minmax(13.5rem,1fr)`, `auto-fit` →
+  `auto-fill`) and per-card padding/line-clamps for more items per row;
+  every other listing route (`/latest`, `/search`, `/topic/[slug]`,
+  `/country/[code]`, `/saved`) got the giant `main h1` (`clamp(2.4rem,
+  7vw, 4.25rem)`, uppercase, slab rule — same treatment the original hero
+  fix removed from the homepage) replaced with a shared compact
+  `.listing-header` (kicker + `clamp(1.6rem, 2.8vw, 2.15rem)` h1), matching
+  the homepage's `.briefing-header` weight class instead of each page
+  inventing its own heading scale. Fleshed out the previously-orphaned
+  `.eyebrow` utility class (listed in the shared mono-font selector but
+  never styled) to back the new kickers.
+  **Web**: `apps/web/src/app/globals.css` (`--page-max`; new `.eyebrow` and
+  `.listing-header` rules; `.story-card--brief` action-row override + 760px
+  touch-target restore; `.front-grid`/`.front-grid__rail`/`.story-grid`
+  spacing and clamp tuning), `apps/web/src/components/HomeFeed.tsx` (rail
+  3→5), `apps/web/src/app/latest/page.tsx`, `apps/web/src/app/saved/
+  page.tsx`, `apps/web/src/app/search/page.tsx`, `apps/web/src/app/topic/
+  [slug]/page.tsx`, `apps/web/src/app/country/[code]/page.tsx` (all five
+  wrapped in `<header className="listing-header">` + `.eyebrow` kicker).
+  **Verified**: `tsc --noEmit` and `eslint` clean on all touched files;
+  `curl` 200 + SSR HTML confirmed on `/`, `/latest`, `/search`, `/topic/
+  andhra-pradesh`, `/country/US`, `/saved` — `.story-card--brief` (×5),
+  `.story-card--lead` (×1), `.front-grid`/`.front-grid__lead`/
+  `.front-grid__rail`, and `.listing-header`/`.eyebrow` all present in the
+  rendered markup as expected against the 6-story dev dataset.
+  **Not verified**: no real browser screenshot — the Claude in Chrome
+  extension reported "not connected" again this session (same as round 1).
+  Visual polish (exact spacing rhythm, dark-mode contrast at a glance,
+  actual reflow at 1440/900/375px) was reasoned from the CSS and box model,
+  not observed; user should do a visual pass before calling this settled.
+  StudentBriefing wasn't touched beyond inheriting `.story-card--brief`
+  automatically (it already passes `display="brief"`).
+
+- 2026-09-17: Web homepage density fix, ad hoc per explicit product
+  feedback (screenshot showing the hero headline filling the viewport with
+  only one story visible above the fold). Capped the oversized "newspaper
+  lead" hero (`.story-hero .story-card__headline` was `clamp(2.25rem, 6vw,
+  4.75rem)`) and replaced the single-column hero-then-grid layout with a
+  `.front-grid`: lead story + a 3-item `.front-grid__rail` beside it, so a
+  wide viewport shows several stories immediately instead of one. Also
+  swapped the numbered single-column `.story-list` for the denser
+  `.story-grid` (multi-column, 3-line-clamped summaries, no oversized
+  first-item bump) on every other story-listing surface for consistency:
+  `/latest`, `/saved`, `/topic/[slug]`, `/country/[code]`, `/search`, and
+  the homepage's `StudentBriefing` band. `docs/tickets/topics.md`'s pill
+  list (not a story listing) was left on `.story-list`.
+  **Web**: `apps/web/src/app/globals.css` (`.briefing-header h1` capped to
+  `clamp(1.75rem, 3vw, 2.25rem)`; `.story-hero` rules replaced with
+  `.front-grid`/`.front-grid__lead`/`.front-grid__rail` plus a 900px
+  stacking breakpoint; dead 640px `.story-hero` override removed;
+  `.student-briefing .story-list` → `.student-briefing .story-grid`),
+  `apps/web/src/components/HomeFeed.tsx` (splits `supporting` into a
+  3-item `rail` + `rest`, renders `front-grid`/`front-grid__rail` for the
+  first and `.story-grid` for the rest), `apps/web/src/components/
+  StudentBriefing.tsx`, `apps/web/src/app/latest/page.tsx`,
+  `apps/web/src/app/saved/page.tsx`,
+  `apps/web/src/app/topic/[slug]/page.tsx`,
+  `apps/web/src/app/country/[code]/page.tsx`,
+  `apps/web/src/app/search/page.tsx` (`.story-list` → `.story-grid`,
+  `display="brief"`).
+  **Verified**: `tsc --noEmit` and `eslint` clean on all touched files; SSR
+  HTML for `/` confirmed rendering `.front-grid`/`.front-grid__lead`.
+  **Not verified**: no visual/browser check — the Claude in Chrome
+  extension wasn't connected this session, and `apps/api` wasn't running
+  so pages beyond the (cached) homepage returned 500s on data fetch; user
+  should confirm visually before considering this done.
+  **Not done this session**: mobile app (`apps/mobile`) was explicitly
+  scoped out — user chose "web homepage + other web pages" only.
 
 - 2026-09-16: Removed the pilot concept entirely, ad hoc per explicit product
   request ("remove pilot dependency .. i do not want any pilot"). Not a
