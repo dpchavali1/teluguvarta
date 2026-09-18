@@ -1,4 +1,5 @@
 import {
+  DarkTheme,
   DefaultTheme,
   NavigationContainer,
   createNavigationContainerRef,
@@ -7,28 +8,15 @@ import {
 } from "@react-navigation/native";
 import * as Notifications from "expo-notifications";
 import { StatusBar } from "expo-status-bar";
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useMemo, useRef } from "react";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { siteUrl, trackEvent } from "./src/lib/api";
 import { registerForPushNotificationsAsync, resolveNotificationDeepLink } from "./src/lib/push";
 import { StoryCacheProvider } from "./src/lib/StoryCacheContext";
 import { RootNavigator } from "./src/navigation/RootNavigator";
-import { colors } from "./src/theme/tokens";
+import { useAppTheme } from "./src/theme/useAppTheme";
 import type { RootStackParamList } from "./src/navigation/types";
-
-const navigationTheme: Theme = {
-  ...DefaultTheme,
-  colors: {
-    ...DefaultTheme.colors,
-    primary: colors.text,
-    background: colors.bg,
-    card: colors.surface,
-    text: colors.text,
-    border: colors.border,
-    notification: colors.accent,
-  },
-};
 
 const navigationRef = createNavigationContainerRef<RootStackParamList>();
 
@@ -75,6 +63,26 @@ Notifications.setNotificationHandler({
 
 export default function App() {
   const registeredForPush = useRef(false);
+  // ADR-014: this was a static, light-only Theme, so every native-stack
+  // header/background (Topic, StoryDetail, Settings' pushed screens, etc.)
+  // ignored system dark mode — the same functional bug as MainTabs' tab
+  // bar, just for the stack chrome instead of the tab chrome.
+  const { scheme, colors } = useAppTheme();
+  const navigationTheme: Theme = useMemo(() => {
+    const base = scheme === "dark" ? DarkTheme : DefaultTheme;
+    return {
+      ...base,
+      colors: {
+        ...base.colors,
+        primary: colors.text,
+        background: colors.bg,
+        card: colors.surface,
+        text: colors.text,
+        border: colors.border,
+        notification: colors.accent,
+      },
+    };
+  }, [scheme, colors]);
 
   useEffect(() => {
     if (!registeredForPush.current) {

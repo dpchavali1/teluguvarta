@@ -1,6 +1,6 @@
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -16,11 +16,14 @@ import { StoryCard } from "../components/StoryCard";
 import { ApiNetworkError, getHome, trackEvent, type StoryOut, type TopicOut } from "../lib/api";
 import { getProfile, isStudentSegment, primaryLifeStageSegment } from "../lib/storage";
 import { useStoryCache } from "../lib/StoryCacheContext";
-import { colors, radius, spacing, typography, ui } from "../theme/tokens";
+import { radius, spacing, typography } from "../theme/tokens";
+import { useAppTheme, type AppTheme } from "../theme/useAppTheme";
 import type { RootStackParamList } from "../navigation/types";
 
 export function HomeScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const { colors, ui } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors, ui), [colors, ui]);
   const { put } = useStoryCache();
   const [stories, setStories] = useState<StoryOut[]>([]);
   const [topics, setTopics] = useState<TopicOut[]>([]);
@@ -189,7 +192,8 @@ export function HomeScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: AppTheme["colors"], ui: AppTheme["ui"]) {
+  return StyleSheet.create({
   list: { backgroundColor: colors.bg },
   container: { paddingBottom: 24, backgroundColor: colors.bg },
   center: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: colors.bg },
@@ -256,4 +260,5 @@ const styles = StyleSheet.create({
     paddingTop: spacing.md,
     paddingBottom: spacing.xs,
   },
-});
+  });
+}

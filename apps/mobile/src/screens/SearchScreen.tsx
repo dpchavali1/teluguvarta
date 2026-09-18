@@ -1,14 +1,17 @@
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 
 import { StoryList } from "../components/StoryList";
 import { ApiNetworkError, search, trackEvent, type StoryOut } from "../lib/api";
 import { useStoryCache } from "../lib/StoryCacheContext";
-import { colors, radius, spacing, ui } from "../theme/tokens";
+import { radius, spacing } from "../theme/tokens";
+import { useAppTheme, type AppTheme } from "../theme/useAppTheme";
 
 const DEBOUNCE_MS = 350;
 
 export function SearchScreen() {
+  const { colors, ui } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors, ui), [colors, ui]);
   const { put } = useStoryCache();
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<StoryOut[]>([]);
@@ -73,6 +76,7 @@ export function SearchScreen() {
         value={query}
         onChangeText={onChangeText}
         placeholder="Search stories"
+        placeholderTextColor={ui.textTertiary}
         accessibilityLabel="Search stories"
         accessibilityHint="Enter keywords to search published stories"
         style={styles.input}
@@ -106,28 +110,31 @@ export function SearchScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1 },
-  input: {
-    minHeight: 44,
-    margin: 12,
-    paddingHorizontal: 12,
-    borderRadius: 8,
-    borderCurve: "continuous",
-    borderWidth: 1,
-    borderColor: ui.borderControl,
-  },
-  center: { flex: 1, alignItems: "center", justifyContent: "center", gap: spacing.md },
-  // Ink-filled button, matching apps/web's main button.
-  retryButton: {
-    minHeight: 44,
-    minWidth: 44,
-    paddingHorizontal: spacing.lg,
-    justifyContent: "center",
-    alignItems: "center",
-    borderRadius: radius.pill,
-    borderCurve: "continuous",
-    backgroundColor: colors.text,
-  },
-  retryButtonText: { color: colors.bg, fontWeight: "600" },
-});
+function createStyles(colors: AppTheme["colors"], ui: AppTheme["ui"]) {
+  return StyleSheet.create({
+    container: { flex: 1, backgroundColor: colors.bg },
+    input: {
+      minHeight: 44,
+      margin: 12,
+      paddingHorizontal: 12,
+      borderRadius: 8,
+      borderCurve: "continuous",
+      borderWidth: 1,
+      borderColor: ui.borderControl,
+      color: colors.text,
+    },
+    center: { flex: 1, alignItems: "center", justifyContent: "center", gap: spacing.md },
+    // Ink-filled button, matching apps/web's main button.
+    retryButton: {
+      minHeight: 44,
+      minWidth: 44,
+      paddingHorizontal: spacing.lg,
+      justifyContent: "center",
+      alignItems: "center",
+      borderRadius: radius.pill,
+      borderCurve: "continuous",
+      backgroundColor: colors.text,
+    },
+    retryButtonText: { color: colors.bg, fontWeight: "600" },
+  });
+}

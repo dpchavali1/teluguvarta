@@ -1,8 +1,9 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { EMPTY_PROFILE, getProfile, setLanguage, type OnboardingProfile } from "../lib/storage";
-import { colors, radius, spacing, typography, ui } from "../theme/tokens";
+import { radius, spacing, typography } from "../theme/tokens";
+import { useAppTheme, type AppTheme } from "../theme/useAppTheme";
 
 const OPTIONS: { value: OnboardingProfile["language"]; label: string }[] = [
   { value: "en", label: "English" },
@@ -10,6 +11,8 @@ const OPTIONS: { value: OnboardingProfile["language"]; label: string }[] = [
 ];
 
 export function LanguageScreen() {
+  const { colors, ui } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors, ui), [colors, ui]);
   const [profile, setProfileState] = useState<OnboardingProfile>(EMPTY_PROFILE);
 
   useEffect(() => {
@@ -43,32 +46,34 @@ export function LanguageScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { padding: spacing.md },
-  groupLabel: {
-    ...typography.meta,
-    textTransform: "uppercase",
-    letterSpacing: 1.2,
-    color: colors.faint,
-    paddingHorizontal: spacing.sm,
-    paddingBottom: spacing.xs,
-  },
-  group: {
-    backgroundColor: colors.surface,
-    borderRadius: radius.lg,
-    borderCurve: "continuous",
-    borderWidth: 1,
-    borderColor: ui.borderSubtle,
-    overflow: "hidden",
-  },
-  row: {
-    minHeight: 44,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: spacing.md,
-  },
-  rowDivider: { borderBottomWidth: StyleSheet.hairlineWidth, borderColor: ui.borderSubtle },
-  rowActive: { backgroundColor: ui.actionPrimarySoft },
-  label: { ...typography.body },
-});
+function createStyles(colors: AppTheme["colors"], ui: AppTheme["ui"]) {
+  return StyleSheet.create({
+    container: { flex: 1, padding: spacing.md, backgroundColor: colors.bg },
+    groupLabel: {
+      ...typography.meta,
+      textTransform: "uppercase",
+      letterSpacing: 1.2,
+      color: colors.faint,
+      paddingHorizontal: spacing.sm,
+      paddingBottom: spacing.xs,
+    },
+    group: {
+      backgroundColor: colors.surface,
+      borderRadius: radius.lg,
+      borderCurve: "continuous",
+      borderWidth: 1,
+      borderColor: ui.borderSubtle,
+      overflow: "hidden",
+    },
+    row: {
+      minHeight: 44,
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      paddingHorizontal: spacing.md,
+    },
+    rowDivider: { borderBottomWidth: StyleSheet.hairlineWidth, borderColor: ui.borderSubtle },
+    rowActive: { backgroundColor: ui.actionPrimarySoft },
+    label: { ...typography.body, color: colors.text },
+  });
+}

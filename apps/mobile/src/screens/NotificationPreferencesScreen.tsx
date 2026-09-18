@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { ActivityIndicator, ScrollView, StyleSheet, View } from "react-native";
 
 import { NotificationPreferencesForm } from "../components/NotificationPreferencesForm";
@@ -9,6 +9,7 @@ import {
   setNotificationPreferences,
   type NotificationPreferences,
 } from "../lib/storage";
+import { useAppTheme, type AppTheme } from "../theme/useAppTheme";
 
 function parseHour(hhmm: string): number | null {
   const hour = Number.parseInt(hhmm.split(":")[0] ?? "", 10);
@@ -33,6 +34,8 @@ function syncToServer(prefs: NotificationPreferences): void {
 }
 
 export function NotificationPreferencesScreen() {
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [prefs, setPrefs] = useState<NotificationPreferences | null>(null);
 
   useEffect(() => {
@@ -66,7 +69,9 @@ export function NotificationPreferencesScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { padding: 16 },
-  center: { flex: 1, alignItems: "center", justifyContent: "center" },
-});
+function createStyles(colors: AppTheme["colors"]) {
+  return StyleSheet.create({
+    container: { padding: 16, backgroundColor: colors.bg },
+    center: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: colors.bg },
+  });
+}

@@ -4,11 +4,11 @@ import { Text } from "react-native";
 
 import { LanguageToggle } from "../components/LanguageToggle";
 import { HomeScreen } from "../screens/HomeScreen";
-import { NotificationsScreen } from "../screens/NotificationsScreen";
 import { SavedScreen } from "../screens/SavedScreen";
 import { SearchScreen } from "../screens/SearchScreen";
 import { SettingsScreen } from "../screens/SettingsScreen";
-import { colors } from "../theme/tokens";
+import { TopicsIndexScreen } from "../screens/TopicsIndexScreen";
+import { useAppTheme } from "../theme/useAppTheme";
 import type { MainTabParamList } from "./types";
 
 const Tab = createBottomTabNavigator<MainTabParamList>();
@@ -27,11 +27,16 @@ const TAB_GLYPHS: Record<keyof MainTabParamList, string> = {
   Home: "⌂",
   Search: "⌕",
   Saved: "♡",
-  Notifications: "◉",
+  Topics: "▤",
   Settings: "☰",
 };
 
 export function MainTabs() {
+  // ADR-014: the nav chrome (tab bar + per-tab header) previously read the
+  // static light-scheme `colors` export directly, so it never responded to
+  // system dark mode at all — a functional bug, not a styling gap.
+  const { colors } = useAppTheme();
+
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
@@ -57,9 +62,9 @@ export function MainTabs() {
       <Tab.Screen name="Search" component={SearchScreen} options={{ tabBarAccessibilityLabel: "Search" }} />
       <Tab.Screen name="Saved" component={SavedScreen} options={{ tabBarAccessibilityLabel: "Saved" }} />
       <Tab.Screen
-        name="Notifications"
-        component={NotificationsScreen}
-        options={{ tabBarAccessibilityLabel: "Notifications" }}
+        name="Topics"
+        component={TopicsIndexScreen}
+        options={{ tabBarAccessibilityLabel: "Topics" }}
       />
       <Tab.Screen name="Settings" component={SettingsScreen} options={{ tabBarAccessibilityLabel: "Settings" }} />
     </Tab.Navigator>

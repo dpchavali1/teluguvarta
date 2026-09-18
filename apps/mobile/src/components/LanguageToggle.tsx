@@ -1,8 +1,9 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { getProfile, setLanguage, type OnboardingProfile } from "../lib/storage";
-import { colors, spacing, typography, ui } from "../theme/tokens";
+import { spacing, typography } from "../theme/tokens";
+import { useAppTheme, type AppTheme } from "../theme/useAppTheme";
 
 // Design-review fix: on web this is a one-tap, persistent header control.
 // On mobile it was two taps deep in Settings, the biggest cross-surface IA
@@ -10,6 +11,8 @@ import { colors, spacing, typography, ui } from "../theme/tokens";
 // apps/web/src/components/LanguageToggle.tsx's EN/తె two-button group,
 // mounted in MainTabs' header so it's visible from every main tab.
 export function LanguageToggle() {
+  const { colors, ui } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors, ui), [colors, ui]);
   const [language, setLanguageState] = useState<OnboardingProfile["language"]>("en");
 
   useEffect(() => {
@@ -45,25 +48,27 @@ export function LanguageToggle() {
   );
 }
 
-const styles = StyleSheet.create({
-  group: {
-    flexDirection: "row",
-    borderWidth: 1,
-    borderColor: ui.borderControl,
-    marginRight: spacing.md,
-  },
-  button: {
-    // 44x44 matches the touch-target minimum used everywhere else in the
-    // app (StoryCard, forms, screens) — this was the one outlier at 32x36.
-    minHeight: 44,
-    minWidth: 44,
-    paddingHorizontal: spacing.xs,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  buttonRight: { borderLeftWidth: 1, borderLeftColor: ui.borderControl },
-  // Matches web's toggle "pressed" convention: accent fill, ink text.
-  buttonActive: { backgroundColor: ui.actionPrimarySoft },
-  buttonText: { ...typography.meta, textTransform: "none", color: colors.text },
-  buttonTextActive: { color: ui.actionText },
-});
+function createStyles(colors: AppTheme["colors"], ui: AppTheme["ui"]) {
+  return StyleSheet.create({
+    group: {
+      flexDirection: "row",
+      borderWidth: 1,
+      borderColor: ui.borderControl,
+      marginRight: spacing.md,
+    },
+    button: {
+      // 44x44 matches the touch-target minimum used everywhere else in the
+      // app (StoryCard, forms, screens) — this was the one outlier at 32x36.
+      minHeight: 44,
+      minWidth: 44,
+      paddingHorizontal: spacing.xs,
+      justifyContent: "center",
+      alignItems: "center",
+    },
+    buttonRight: { borderLeftWidth: 1, borderLeftColor: ui.borderControl },
+    // Matches web's toggle "pressed" convention: accent fill, ink text.
+    buttonActive: { backgroundColor: ui.actionPrimarySoft },
+    buttonText: { ...typography.meta, textTransform: "none", color: colors.text },
+    buttonTextActive: { color: ui.actionText },
+  });
+}

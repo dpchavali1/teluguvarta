@@ -1,10 +1,11 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text } from "react-native";
 
 import { deleteAccount, trackEvent } from "../lib/api";
 import { resetClientToken } from "../lib/identity";
-import { spacing, typography, ui } from "../theme/tokens";
+import { spacing, typography } from "../theme/tokens";
+import { useAppTheme, type AppTheme } from "../theme/useAppTheme";
 
 // T19 §16/§5.5: "delete account" now does two things — deletes the
 // server-side `users` row this device's identity created since T17 (real
@@ -16,6 +17,8 @@ import { spacing, typography, ui } from "../theme/tokens";
 // (it never sends a client token), so its account/delete page is still
 // on-device-only by design, not a gap.
 export function PrivacyScreen() {
+  const { colors, ui } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors, ui), [colors, ui]);
   const [cleared, setCleared] = useState(false);
 
   async function handleClear() {
@@ -55,7 +58,7 @@ export function PrivacyScreen() {
         accessibilityLabel="Delete account and clear all data on this device"
         style={styles.button}
       >
-        <Text>Delete account and clear data</Text>
+        <Text style={styles.buttonText}>Delete account and clear data</Text>
       </Pressable>
       {cleared && (
         <Text accessibilityLiveRegion="polite" style={styles.status}>
@@ -66,20 +69,23 @@ export function PrivacyScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { padding: spacing.lg, gap: spacing.md },
-  title: { ...typography.headline },
-  body: { ...typography.body, color: ui.textSecondary },
-  button: {
-    minHeight: 44,
-    justifyContent: "center",
-    alignItems: "center",
-    paddingHorizontal: 16,
-    borderRadius: 8,
-    borderCurve: "continuous",
-    borderWidth: 1,
-    borderColor: ui.danger,
-    alignSelf: "flex-start",
-  },
-  status: { color: ui.success },
-});
+function createStyles(colors: AppTheme["colors"], ui: AppTheme["ui"]) {
+  return StyleSheet.create({
+    container: { flexGrow: 1, padding: spacing.lg, gap: spacing.md, backgroundColor: colors.bg },
+    title: { ...typography.headline, color: colors.text },
+    body: { ...typography.body, color: ui.textSecondary },
+    button: {
+      minHeight: 44,
+      justifyContent: "center",
+      alignItems: "center",
+      paddingHorizontal: 16,
+      borderRadius: 8,
+      borderCurve: "continuous",
+      borderWidth: 1,
+      borderColor: ui.danger,
+      alignSelf: "flex-start",
+    },
+    buttonText: { color: ui.danger, fontWeight: "600" },
+    status: { color: ui.success },
+  });
+}

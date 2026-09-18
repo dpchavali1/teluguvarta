@@ -1,17 +1,20 @@
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ActivityIndicator, Button, Pressable, StyleSheet, Text, View } from "react-native";
 
 import { StoryList } from "../components/StoryList";
 import { ApiNetworkError, getTopic, type StoryOut } from "../lib/api";
 import { useStoryCache } from "../lib/StoryCacheContext";
-import { colors, radius, spacing } from "../theme/tokens";
+import { radius, spacing } from "../theme/tokens";
+import { useAppTheme, type AppTheme } from "../theme/useAppTheme";
 import type { RootStackParamList } from "../navigation/types";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Topic">;
 
 export function TopicScreen({ route }: Props) {
   const { slug } = route.params;
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { put } = useStoryCache();
   const requestId = useRef(0);
   const [cursor, setCursor] = useState<string | null>(null);
@@ -88,18 +91,20 @@ export function TopicScreen({ route }: Props) {
   return <StoryList stories={stories} emptyLabel="No stories in this topic yet." footer={<View style={{ padding: 16 }}>{moreError && <Text>Couldn’t load older stories. Try again.</Text>}{cursor && <Button title={moreLoading ? "Loading…" : "Older stories"} disabled={moreLoading} onPress={() => void loadMore()} />}</View>} />;
 }
 
-const styles = StyleSheet.create({
-  center: { flex: 1, alignItems: "center", justifyContent: "center", gap: spacing.md },
-  // Ink-filled button, matching apps/web's main button.
-  retryButton: {
-    minHeight: 44,
-    minWidth: 44,
-    paddingHorizontal: spacing.lg,
-    justifyContent: "center",
-    alignItems: "center",
-    borderRadius: radius.pill,
-    borderCurve: "continuous",
-    backgroundColor: colors.text,
-  },
-  retryButtonText: { color: colors.bg, fontWeight: "600" },
-});
+function createStyles(colors: AppTheme["colors"]) {
+  return StyleSheet.create({
+    center: { flex: 1, alignItems: "center", justifyContent: "center", gap: spacing.md },
+    // Ink-filled button, matching apps/web's main button.
+    retryButton: {
+      minHeight: 44,
+      minWidth: 44,
+      paddingHorizontal: spacing.lg,
+      justifyContent: "center",
+      alignItems: "center",
+      borderRadius: radius.pill,
+      borderCurve: "continuous",
+      backgroundColor: colors.text,
+    },
+    retryButtonText: { color: colors.bg, fontWeight: "600" },
+  });
+}

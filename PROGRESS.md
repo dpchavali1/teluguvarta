@@ -295,7 +295,73 @@ Mirrors `docs/adr/README.md` — keep both in sync.
 
 (newest first — one line per ticket completion)
 
-- 2026-09-17 (NEXT SESSION START HERE): ADR-014 step 2 — web home/feed
+- 2026-09-17 (NEXT SESSION START HERE): ADR-014 step 3 — mobile navigation/
+  cards/theme parity, ad hoc per the ADR's stated implementation order (no
+  ticket file). Three changes to `apps/mobile`:
+  1. **Dark-mode nav chrome bug fixed** (this was the "real functional
+     gap" ADR-014 flagged, not a styling one). Added
+     `src/theme/useAppTheme.ts` — hand-written (not generated; `tokens.ts`
+     itself stays generated-only), wraps RN's `useColorScheme()` and picks
+     `colorSchemes`/`uiSchemes` by scheme. `MainTabs.tsx`'s tab bar/header
+     and `App.tsx`'s `NavigationContainer` theme (which every native-stack
+     pushed screen's header/background inherits automatically) now read
+     this hook instead of the static light-only `colors`/`ui` exports —
+     previously every dark-mode media query fired for CSS/web+admin but
+     nothing on mobile ever kept the same promise.
+  2. **Full-app theme parity**, matching the step's actual title, not just
+     the nav chrome: every one of the 14 files under `apps/mobile/src` that
+     imported static `colors`/`ui` (`StoryCard`, `HomeScreen`,
+     `StoryDetailScreen`, `SearchScreen`, `TopicScreen`,
+     `TopicsIndexScreen`, `SettingsScreen`, `LanguageScreen`,
+     `PrivacyScreen`, `NotificationsScreen`, `NotificationPreferencesScreen`
+     + its form, `LanguageToggle`, `OnboardingScreen`) converted to the
+     `createStyles(colors, ui)` factory + `useMemo` pattern driven by
+     `useAppTheme()`. Along the way fixed several bare `<Text>`/`TextInput`
+     elements that had no explicit color at all (default black — invisible
+     on a dark background): Language screen's radio label, onboarding's
+     option/chip/footer text, Privacy/Notifications screen buttons, all
+     `TextInput`s got `placeholderTextColor`.
+  3. **ADR-014 StoryBrief/StoryActions/LanguageControl contract applied to
+     `StoryCard.tsx`**, which previously rendered the identical full action
+     row (Share/Save/Report + per-card language toggle) on every layout
+     regardless of context — the same web defect step 2 already fixed.
+     `layout` is now `"hero" | "detail" | "compact"` (added `"detail"`,
+     previously the story-detail screen silently fell through to the
+     `"compact"` default). Compact (StoryBrief, every list row) renders
+     Save only. Hero and detail (StoryLead + the detail screen) render the
+     full Share/Save/Report set. The per-story EN/తెలుగు toggle — an
+     explicit exception path per the ADR's LanguageControl section — now
+     renders only in `"detail"`, not hero or compact. `StoryDetailScreen`
+     now passes `layout="detail"` instead of relying on the compact
+     default.
+  4. **ADR-014 TopicControl**: Topics needed to be "an unmistakable
+     destination, not buried inside a fifth-tab overflow" — it was one tap
+     into Settings ("Browse topics"), which is exactly that. Topics now
+     replaces the Notifications tab slot in `MainTabs.tsx` (still uses
+     `TopicsIndexScreen`, unchanged component). Notifications (its own
+     comment already says "the inbox shell... with nothing to deliver into
+     yet" — T17 push delivery isn't built) moved from a tab to a Settings
+     row + a pushed `RootStackParamList` screen; Settings' now-redundant
+     "Browse topics" row was removed since Topics is a tab. This also
+     directly addresses the design review's "5 tabs + header language
+     control reads as busy" complaint without adding a 6th tab. The now-
+     dead `TopicsIndex` push route (superseded by the tab) was removed from
+     `RootStackParamList`/`RootNavigator`, not left as a shim.
+  **Verified**: `npx tsc --noEmit` clean; `npx jest` — 19/19 passing across
+  all 5 existing suites (none needed updating — none asserted on tab
+  names/layout defaults); `npm run bundle-check` (`expo export
+  --platform ios --platform android`) — both platforms bundle clean, 928/
+  933 modules. **Not done**: no real-device/simulator dark-mode screenshot
+  pass (Claude in Chrome doesn't drive native RN screens; would need an
+  iOS/Android runtime) — verification here is compiled output + the theme
+  wiring itself, not an eyeballed screenshot, same caveat as web's
+  round 1-3 entries. The icon-system swap (emoji tab glyphs) remains
+  explicitly out of scope per ADR-014 (blocked on the pre-existing
+  @types/react conflict). ADR-014's remaining steps (admin density, the
+  cross-surface visual regression pass) are untouched — next session
+  should pick up admin per the ADR's stated implementation order.
+
+- 2026-09-17: ADR-014 step 2 — web home/feed
   rebuilt around reading priority. StoryLead-above-the-fold and StoryBrief-
   everywhere-else layout was already in place from the round 1-3 density
   passes (`.front-grid__lead`/`.front-grid__rail`/`.story-grid`), so the

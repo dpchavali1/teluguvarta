@@ -1,12 +1,13 @@
 import { topicLabel } from "@teluguvarta/domain";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Alert, AccessibilityInfo, DeviceEventEmitter, Pressable, StyleSheet, Text, View } from "react-native";
 
 import { reportIssue, trackEvent, type Language, type StoryOut } from "../lib/api";
 import { shareStory } from "../lib/share";
 import { getProfile, setLanguage as persistLanguage, LANGUAGE_CHANGE_EVENT } from "../lib/storage";
 import { useStoryCache } from "../lib/StoryCacheContext";
-import { colors, radius, spacing, typography, typographyFor, typographyTe, ui } from "../theme/tokens";
+import { radius, spacing, typography, typographyFor, typographyTe } from "../theme/tokens";
+import { useAppTheme, type AppTheme } from "../theme/useAppTheme";
 
 const STATUS_LABEL: Record<string, string | undefined> = {
   RETRACTED: "Retracted",
@@ -19,10 +20,12 @@ const STATUS_LABEL: Record<string, string | undefined> = {
 // publish.py:83), so surfacing sensitivity here is a truthful trust signal.
 const REVIEWED_SENSITIVITIES = new Set(["IMMIGRATION", "LEGAL", "FINANCIAL", "BREAKING", "OBITUARY_ACCUSATION"]);
 
-// Mirrors apps/web/src/components/StoryCard.tsx's fields/behavior exactly
-// (T15 acceptance criterion): labels, retracted/updated notice, headline +
-// summary + why-matters, a prominent source link, an EN/Telugu toggle when a
-// QA-passed `te` variant exists, native share, and save.
+// Mirrors apps/web/src/components/StoryCard.tsx's fields/behavior (T15
+// acceptance criterion, refined by ADR-014's StoryLead/StoryBrief/
+// StoryActions/LanguageControl contract): labels, retracted/updated
+// notice, headline + summary + why-matters, a prominent source link, an
+// EN/Telugu toggle only in the detail-view exception path, native share,
+// and save.
 export function StoryCard({
   story,
   onOpen,
@@ -34,13 +37,21 @@ export function StoryCard({
   // open, so the headline shouldn't be a dead tap target pointing nowhere.
   onOpen?: () => void;
   onOpenSource: (url: string) => void;
-  // "hero": the lead story on Home — bigger display-scale headline, no box
-  // chrome, a rule line instead of a border. "compact": every other list
-  // row (Search/Saved/Topic/StoryList, and the default for back-compat) —
-  // same content, a slim accent bar instead of a full card border.
-  layout?: "hero" | "compact";
+  // ADR-014 StoryLead/StoryBrief/StoryActions: "hero" is the lead story on
+  // Home — bigger display-scale headline, no box chrome, a rule line
+  // instead of a border, full StoryActions (Share/Save/Report). "detail" is
+  // the story-detail screen — same rich chrome as hero, full StoryActions,
+  // plus the one place a per-story LanguageControl exception is allowed.
+  // "compact" (StoryBrief) is every other list row (Search/Saved/Topic/
+  // StoryList, and the default for back-compat) — action-light: Save only,
+  // no per-card language toggle, per the ADR's scanability fix.
+  layout?: "hero" | "detail" | "compact";
 }) {
-  const isHero = layout === "hero";
+  const isCompact = layout === "compact";
+  const showFullActions = !isCompact;
+  const showLanguageToggle = layout === "detail";
+  const { colors, ui } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors, ui), [colors, ui]);
   const cache = useStoryCache();
   const [language, setLanguage] = useState<Language>("en");
   const [actionStatus, setActionStatus] = useState<string | null>(null);
@@ -115,9 +126,9 @@ export function StoryCard({
   }
 
   return (
-    <View style={[styles.card, isHero ? styles.cardHero : styles.cardCompact]} accessible={false}>
-      {!isHero && <View style={styles.accentBar} />}
-      <View style={isHero ? styles.heroContent : styles.compactContent}>
+    <View style={[styles.card, isCompact ? styles.cardCompact : styles.cardRich]} accessible={false}>
+      {isCompact && <View style={styles.accentBar} />}
+      <View style={isCompact ? styles.compactContent : styles.richContent}>
         <View style={styles.labels}>
           {[...story.countries, ...story.topics.map(topicLabel)].map((label) => (
             <View key={label} style={styles.pill}>
@@ -148,17 +159,17 @@ export function StoryCard({
             accessibilityLabel={`Open story: ${variant.headline}`}
             style={styles.touchTarget}
           >
-            <Text style={[styles.headline, isHero ? type.display : type.headline]}>{variant.headline}</Text>
+            <Text style={[styles.headline, isCompact ? type.headline : type.display]}>{variant.headline}</Text>
           </Pressable>
         ) : (
-          <Text style={[styles.headline, isHero ? type.display : type.headline]} accessibilityRole="header">
+          <Text style={[styles.headline, isCompact ? type.headline : type.display]} accessibilityRole="header">
             {variant.headline}
           </Text>
         )}
 
         <Text style={[styles.body, type.body]}>{variant.summary}</Text>
         {whyMatters ? (
-          <Text style={[styles.why, isHero && styles.whyHero, renderedLanguage === "te" && styles.whyTe]}>
+          <Text style={[styles.why, !isCompact && styles.whyRich, renderedLanguage === "te" && styles.whyTe]}>
             Why this matters: {whyMatters}
           </Text>
         ) : null}
@@ -178,7 +189,7 @@ export function StoryCard({
 
         {actionStatus && <Text accessibilityLiveRegion="polite">{actionStatus}</Text>}
         <View style={styles.actions}>
-          {hasTelugu && (
+          {showLanguageToggle && hasTelugu && (
             <View accessibilityRole="radiogroup" accessibilityLabel="Language" style={styles.langGroup}>
               <Pressable
                 onPress={() => handleLanguageSwitch("en")}
@@ -200,14 +211,16 @@ export function StoryCard({
               </Pressable>
             </View>
           )}
-          <Pressable
-            onPress={handleShare}
-            accessibilityRole="button"
-            accessibilityLabel={`Share: ${variant.headline}`}
-            style={[styles.actionButton, styles.actionButtonShare]}
-          >
-            <Text style={styles.actionButtonText}>⤴ Share</Text>
-          </Pressable>
+          {showFullActions && (
+            <Pressable
+              onPress={handleShare}
+              accessibilityRole="button"
+              accessibilityLabel={`Share: ${variant.headline}`}
+              style={[styles.actionButton, styles.actionButtonShare]}
+            >
+              <Text style={styles.actionButtonText}>⤴ Share</Text>
+            </Pressable>
+          )}
           <Pressable
             onPress={handleSaveToggle}
             disabled={saving}
@@ -220,14 +233,16 @@ export function StoryCard({
               {saved ? "🔖 Saved" : "🔖 Save"}
             </Text>
           </Pressable>
-          <Pressable
-            onPress={handleReportIssue}
-            accessibilityRole="button"
-            accessibilityLabel={`Report an issue: ${variant.headline}`}
-            style={[styles.actionButton, styles.actionButtonReport]}
-          >
-            <Text style={styles.actionButtonText}>⚑ Report</Text>
-          </Pressable>
+          {showFullActions && (
+            <Pressable
+              onPress={handleReportIssue}
+              accessibilityRole="button"
+              accessibilityLabel={`Report an issue: ${variant.headline}`}
+              style={[styles.actionButton, styles.actionButtonReport]}
+            >
+              <Text style={styles.actionButtonText}>⚑ Report</Text>
+            </Pressable>
+          )}
         </View>
       </View>
     </View>
@@ -235,123 +250,126 @@ export function StoryCard({
 }
 
 // §9.2 accessibility: every interactive element has a >=44pt touch target.
-const styles = StyleSheet.create({
-  card: { backgroundColor: colors.surface },
-  // Hero: the lead story — no box chrome, a rule line below instead of a
-  // border, more breathing room. Reads as a lead newspaper story, not a
-  // bordered card.
-  cardHero: {
-    margin: spacing.md,
-    marginBottom: spacing.md,
-    paddingBottom: spacing.lg,
-    borderBottomWidth: 2,
-    borderBottomColor: colors.rule,
-  },
-  heroContent: { gap: spacing.sm },
-  // Compact: every other list row — a slim accent bar instead of a full
-  // border/shadow card, tighter padding, a hairline divider below.
-  cardCompact: {
-    flexDirection: "row",
-    marginHorizontal: spacing.md,
-    paddingVertical: spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: ui.borderSubtle,
-    gap: spacing.sm,
-  },
-  accentBar: { width: 3, borderRadius: 2, borderCurve: "continuous", backgroundColor: colors.hot, alignSelf: "stretch" },
-  compactContent: { flex: 1, gap: spacing.xs },
-  date: { ...typography.meta, color: colors.muted, textTransform: "none" },
-  labels: { flexDirection: "row", flexWrap: "wrap", gap: spacing.xs },
-  // Matches web's plain .pill: a neutral outlined tag, not a colored fill —
-  // Folio has one accent color and one danger color, no third family.
-  pill: {
-    backgroundColor: "transparent",
-    borderWidth: 1,
-    borderColor: ui.borderControl,
-    borderRadius: radius.sm,
-    borderCurve: "continuous",
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 3,
-  },
-  pillText: { ...typography.meta, color: colors.faint, textTransform: "uppercase" },
-  notice: { color: ui.danger, fontWeight: "600" },
-  // Matches web's .story-card__reviewed: ink outline, transparent fill.
-  reviewedBadge: {
-    alignSelf: "flex-start",
-    borderWidth: 1,
-    borderColor: colors.rule,
-    borderRadius: radius.sm,
-    borderCurve: "continuous",
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 2,
-  },
-  reviewedBadgeText: { ...typography.meta, color: colors.text, fontWeight: "700" },
-  touchTarget: { minHeight: 44, justifyContent: "center" },
-  headline: { ...typography.headline, color: colors.text },
-  body: { ...typography.body, color: colors.muted },
-  why: {
-    ...typography.body,
-    fontWeight: "600",
-    color: ui.actionText,
-    backgroundColor: ui.actionPrimarySoft,
-    borderRadius: radius.sm,
-    borderCurve: "continuous",
-    borderLeftWidth: 3,
-    // Raw `accent` on `accentSoft` is low contrast — the border would be
-    // nearly invisible. Use ink instead (see design-review finding #4, same
-    // defect as apps/web/src/app/globals.css:896).
-    borderLeftColor: colors.rule,
-    padding: spacing.sm,
-  },
-  // Telugu glyphs are taller than Latin at the same size; without explicit
-  // leading this block sets solid and the vowel signs collide.
-  whyTe: { lineHeight: typographyTe.body.lineHeight },
-  // Hero pull-quote: wider, a thick rust rule instead of the compact card's
-  // thin ink border — the same "why this matters" emphasis treatment web's
-  // hero story gets in parallel.
-  whyHero: {
-    backgroundColor: "transparent",
-    borderRadius: 0,
-    borderLeftWidth: 4,
-    borderLeftColor: colors.hot,
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.md,
-  },
-  sourceLink: { color: colors.text, fontWeight: "600", textDecorationLine: "underline" },
-  actions: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: spacing.sm, marginTop: spacing.xs },
-  langGroup: { flexDirection: "row", gap: spacing.xs },
-  langButton: {
-    minHeight: 44,
-    minWidth: 44,
-    justifyContent: "center",
-    alignItems: "center",
-    paddingHorizontal: spacing.sm,
-    borderRadius: radius.pill,
-    borderCurve: "continuous",
-    borderWidth: 1,
-    borderColor: ui.borderControl,
-  },
-  // Matches web's toggle "pressed" convention: accent fill, ink text.
-  langButtonActive: { backgroundColor: ui.actionPrimarySoft, borderColor: ui.actionPrimary },
-  langButtonText: { ...typography.meta, textTransform: "none", color: colors.muted },
-  langButtonTextActive: { color: ui.actionText },
-  actionButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 5,
-    minHeight: 44,
-    minWidth: 44,
-    justifyContent: "center",
-    paddingHorizontal: spacing.md,
-    borderRadius: radius.pill,
-    borderCurve: "continuous",
-    borderWidth: 1,
-    borderColor: ui.borderControl,
-    backgroundColor: colors.surface,
-  },
-  actionButtonShare: { backgroundColor: colors.surface },
-  actionButtonSaved: { backgroundColor: ui.successSoft, borderColor: ui.success },
-  actionButtonReport: { borderColor: ui.borderSubtle },
-  actionButtonText: { ...typography.meta, textTransform: "none", color: colors.muted },
-  actionButtonTextActive: { color: ui.success },
-});
+function createStyles(colors: AppTheme["colors"], ui: AppTheme["ui"]) {
+  return StyleSheet.create({
+    card: { backgroundColor: colors.surface },
+    // Rich: StoryLead (hero) and the detail screen — no box chrome, a rule
+    // line below instead of a border, more breathing room. Reads as a lead
+    // newspaper story, not a bordered card.
+    cardRich: {
+      margin: spacing.md,
+      marginBottom: spacing.md,
+      paddingBottom: spacing.lg,
+      borderBottomWidth: 2,
+      borderBottomColor: colors.rule,
+    },
+    richContent: { gap: spacing.sm },
+    // Compact (StoryBrief): every other list row — a slim accent bar
+    // instead of a full border/shadow card, tighter padding, a hairline
+    // divider below.
+    cardCompact: {
+      flexDirection: "row",
+      marginHorizontal: spacing.md,
+      paddingVertical: spacing.md,
+      borderBottomWidth: 1,
+      borderBottomColor: ui.borderSubtle,
+      gap: spacing.sm,
+    },
+    accentBar: { width: 3, borderRadius: 2, borderCurve: "continuous", backgroundColor: colors.hot, alignSelf: "stretch" },
+    compactContent: { flex: 1, gap: spacing.xs },
+    date: { ...typography.meta, color: colors.muted, textTransform: "none" },
+    labels: { flexDirection: "row", flexWrap: "wrap", gap: spacing.xs },
+    // Matches web's plain .pill: a neutral outlined tag, not a colored fill —
+    // Folio has one accent color and one danger color, no third family.
+    pill: {
+      backgroundColor: "transparent",
+      borderWidth: 1,
+      borderColor: ui.borderControl,
+      borderRadius: radius.sm,
+      borderCurve: "continuous",
+      paddingHorizontal: spacing.sm,
+      paddingVertical: 3,
+    },
+    pillText: { ...typography.meta, color: colors.faint, textTransform: "uppercase" },
+    notice: { color: ui.danger, fontWeight: "600" },
+    // Matches web's .story-card__reviewed: ink outline, transparent fill.
+    reviewedBadge: {
+      alignSelf: "flex-start",
+      borderWidth: 1,
+      borderColor: colors.rule,
+      borderRadius: radius.sm,
+      borderCurve: "continuous",
+      paddingHorizontal: spacing.sm,
+      paddingVertical: 2,
+    },
+    reviewedBadgeText: { ...typography.meta, color: colors.text, fontWeight: "700" },
+    touchTarget: { minHeight: 44, justifyContent: "center" },
+    headline: { ...typography.headline, color: colors.text },
+    body: { ...typography.body, color: colors.muted },
+    why: {
+      ...typography.body,
+      fontWeight: "600",
+      color: ui.actionText,
+      backgroundColor: ui.actionPrimarySoft,
+      borderRadius: radius.sm,
+      borderCurve: "continuous",
+      borderLeftWidth: 3,
+      // Raw `accent` on `accentSoft` is low contrast — the border would be
+      // nearly invisible. Use ink instead (see design-review finding #4, same
+      // defect as apps/web/src/app/globals.css:896).
+      borderLeftColor: colors.rule,
+      padding: spacing.sm,
+    },
+    // Telugu glyphs are taller than Latin at the same size; without explicit
+    // leading this block sets solid and the vowel signs collide.
+    whyTe: { lineHeight: typographyTe.body.lineHeight },
+    // Hero/detail pull-quote: wider, a thick rust rule instead of the
+    // compact card's thin ink border — the same "why this matters"
+    // emphasis treatment web's hero story gets in parallel.
+    whyRich: {
+      backgroundColor: "transparent",
+      borderRadius: 0,
+      borderLeftWidth: 4,
+      borderLeftColor: colors.hot,
+      paddingVertical: spacing.sm,
+      paddingHorizontal: spacing.md,
+    },
+    sourceLink: { color: colors.text, fontWeight: "600", textDecorationLine: "underline" },
+    actions: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: spacing.sm, marginTop: spacing.xs },
+    langGroup: { flexDirection: "row", gap: spacing.xs },
+    langButton: {
+      minHeight: 44,
+      minWidth: 44,
+      justifyContent: "center",
+      alignItems: "center",
+      paddingHorizontal: spacing.sm,
+      borderRadius: radius.pill,
+      borderCurve: "continuous",
+      borderWidth: 1,
+      borderColor: ui.borderControl,
+    },
+    // Matches web's toggle "pressed" convention: accent fill, ink text.
+    langButtonActive: { backgroundColor: ui.actionPrimarySoft, borderColor: ui.actionPrimary },
+    langButtonText: { ...typography.meta, textTransform: "none", color: colors.muted },
+    langButtonTextActive: { color: ui.actionText },
+    actionButton: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 5,
+      minHeight: 44,
+      minWidth: 44,
+      justifyContent: "center",
+      paddingHorizontal: spacing.md,
+      borderRadius: radius.pill,
+      borderCurve: "continuous",
+      borderWidth: 1,
+      borderColor: ui.borderControl,
+      backgroundColor: colors.surface,
+    },
+    actionButtonShare: { backgroundColor: colors.surface },
+    actionButtonSaved: { backgroundColor: ui.successSoft, borderColor: ui.success },
+    actionButtonReport: { borderColor: ui.borderSubtle },
+    actionButtonText: { ...typography.meta, textTransform: "none", color: colors.muted },
+    actionButtonTextActive: { color: ui.success },
+  });
+}
