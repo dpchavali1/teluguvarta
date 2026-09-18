@@ -295,7 +295,62 @@ Mirrors `docs/adr/README.md` — keep both in sync.
 
 (newest first — one line per ticket completion)
 
-- 2026-09-17 (NEXT SESSION START HERE): ADR-014 step 4 — admin density/
+- 2026-09-17 (NEXT SESSION START HERE — read this before touching `apps/admin`
+  auth): live-verified the ADR-014 step 4 admin changes below against a real
+  running stack (API + admin dev servers + local Postgres) and found the
+  admin login flow is **fully broken for any account going through first-time
+  MFA enrollment** — a real, pre-existing bug independent of ADR-014, not
+  something this session caused:
+  - `apps/admin/src/app/login/page.tsx` has no MFA-code input field and
+    doesn't handle `mfa_enrollment_required: true` in the login response at
+    all — it stores whatever token comes back (even a restricted
+    `scope: mfa_enrollment` one) and redirects to `/`, which then 401/403s
+    and bounces back to `/login`. There is currently **no way to complete a
+    browser login** for a seeded/fresh admin account. Needs an MFA
+    setup+enroll UI (`POST /mfa/setup` → show QR/secret → `POST /mfa/enroll`
+    with a code) plus an MFA-code field on the login form itself for
+    already-enrolled accounts. Worth its own ticket, not a ride-along on
+    ADR-014's admin step.
+  - Separately, local `.env` was missing `MFA_SECRET_ENCRYPTION_KEY`
+    entirely (declared blank in `.env.example`, line 54, never filled in) —
+    every `/mfa/enroll` call 500'd (`RuntimeError: MFA_SECRET_ENCRYPTION_KEY
+    is not set`, `apps/api/app/security.py:135`) until a dev value was added
+    locally. **Added to local `.env` only** (gitignored, not committed):
+    `MFA_SECRET_ENCRYPTION_KEY=scwlP3p2fBv6AXfFYtFEEkNP_Aws8R0_4EbqDudXhlk=`
+    — treat as a placeholder, generate a real one
+    (`python3 -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"`)
+    before this matters anywhere shared.
+  - Verified the admin@teluguvarta.local account was enrolled and worked
+    end-to-end via direct API calls (Python + `pyotp`) and via a live
+    in-browser TOTP computation (Web Crypto `HMAC-SHA1`) run from the
+    DevTools console — both confirm `/mfa/setup` → `/mfa/enroll` →
+    `/auth/login` with `mfa_code` works correctly server-side. The bug is
+    entirely in the missing admin frontend UI, not the API.
+  - **Local DB has temporary demo data, not yet reverted** — added so the
+    user could see the new UI states without seeding real content:
+    - `review_tasks`: one row, `story_id = 7a505dee-80c1-4aa9-accf-6f3e45a01ef1`,
+      `reason = 'IMMIGRATION,SENSITIVE_CATEGORY'`, `status = 'PENDING'`.
+    - `stories`: `id = 2b315ab5-2b9c-4862-b1ed-593372b7843b` set from
+      `PUBLISHED` to `UPDATED` (valid transition, trigger-enforced).
+    **Revert before treating local Postgres as clean**:
+    `DELETE FROM review_tasks WHERE story_id = '7a505dee-80c1-4aa9-accf-6f3e45a01ef1';`
+    and `UPDATE stories SET status = 'PUBLISHED' WHERE id = '2b315ab5-2b9c-4862-b1ed-593372b7843b';`.
+  - The admin@teluguvarta.local account currently has MFA **enrolled**
+    (secret unknown/rotated during this session's debugging — don't assume
+    the specific secret values pasted in this session's chat still work;
+    check `SELECT mfa_secret IS NOT NULL FROM users WHERE email = '...'`
+    rather than trusting a stale value). To log in again without fighting
+    the frontend gap: re-run the enroll dance via `curl`/`pyotp` (see this
+    session's approach) or just `UPDATE users SET mfa_secret = NULL` and
+    accept that the *first* login after that will require the same
+    workaround again, since there's still no enrollment UI.
+  - Dev servers were left running for this verification and may or may not
+    still be up next session: API on `:8000` (`uvicorn app.main:app`,
+    `/private/tmp/.../api-dev.log`), admin on `:3001`
+    (`pnpm --filter @teluguvarta/admin dev`), web on `:3000`. Check
+    `lsof -nP -iTCP:PORT -sTCP:LISTEN` before assuming either is live.
+
+- 2026-09-17: ADR-014 step 4 — admin density/
   status refinement, ad hoc per the ADR's stated implementation order (no
   ticket file). Four changes to `apps/admin`:
   1. **Dead column removed**: `/review`'s table had a "Status" column that
