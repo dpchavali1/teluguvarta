@@ -1642,3 +1642,190 @@ a.pill:focus-visible {
     padding-inline: 0.15rem;
   }
 }
+
+/* ---------------------------------------------------------------- 14. Reader-first refresh
+   A daily briefing needs to get out of the reader's way. These rules replace
+   the multi-band masthead and repeated card chrome with one quiet navigation
+   row and a deliberate lead → supporting-stories rhythm. */
+.site-header {
+  position: sticky;
+  background: color-mix(in srgb, var(--color-surface) 94%, transparent);
+  border-bottom: 1px solid var(--border-subtle);
+  color: var(--color-text);
+}
+
+.site-header__inner {
+  max-width: var(--page-max);
+  min-height: 4rem;
+  margin: 0 auto;
+  padding: 0 1.25rem;
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+.site-header__brand {
+  flex: none;
+  color: var(--color-text);
+}
+
+.site-header__brand:hover { color: var(--color-text); }
+.site-header__wordmark { gap: 0; }
+.site-header__brand-en { font-size: 1.25rem; letter-spacing: -0.045em; }
+.site-header__brand-te { display: none; }
+
+.site-nav {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+}
+
+.site-nav ul {
+  max-width: none;
+  justify-content: flex-start;
+  gap: 1.25rem;
+  padding: 0;
+  flex-wrap: nowrap;
+}
+
+.site-nav a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.75rem;
+  padding: 0;
+  color: var(--text-secondary);
+  font-family: var(--font-body);
+  font-size: 0.92rem;
+  font-weight: 500;
+  letter-spacing: normal;
+  text-transform: none;
+  border: 0;
+}
+
+.site-nav a:hover,
+.site-nav a[aria-current="page"] {
+  color: var(--color-text);
+  text-decoration-color: var(--color-accent);
+}
+
+.site-header__utility-controls { margin-left: auto; gap: 0.35rem; }
+.theme-toggle,
+.language-toggle { border-color: var(--border-subtle); border-radius: var(--radius-lg); }
+.theme-toggle button,
+.language-toggle button { color: var(--text-secondary); }
+.theme-toggle button + button,
+.language-toggle button + button { border-left-color: var(--border-subtle); }
+.theme-toggle button:hover:not([aria-pressed="true"]),
+.language-toggle button:hover:not([aria-pressed="true"]) { background: var(--color-surface-sunken); color: var(--color-text); }
+
+.briefing-header {
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+  padding-bottom: 1rem;
+}
+.briefing-header h1 { font-size: clamp(1.65rem, 2.6vw, 2.15rem); }
+.briefing-kicker { color: var(--text-tertiary); }
+.briefing-cta {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.6rem;
+  padding: 0.45rem 0.75rem;
+  border: 1px solid var(--border-control);
+  border-radius: var(--radius-md);
+  color: var(--action-text);
+  font-size: 0.88rem;
+  font-weight: 500;
+  text-decoration: none;
+}
+.briefing-cta:hover { background: var(--action-primary-soft); color: var(--action-text); }
+
+.topic-rail { margin-bottom: 2rem; }
+.topic-rail::before { content: none; }
+.topic-rail__heading {
+  margin: 0 0 0.55rem;
+  color: var(--text-secondary);
+  font-size: 0.88rem;
+  font-weight: 500;
+}
+.topic-rail__list { gap: 0.45rem; padding: 0; }
+.pill--topic {
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: var(--font-body);
+  font-size: 0.84rem;
+  font-weight: 500;
+  letter-spacing: normal;
+  text-transform: none;
+  padding: 0.45rem 0.7rem;
+}
+
+.front-grid { grid-template-columns: minmax(0, 1.7fr) minmax(15rem, 0.8fr); gap: 0 2.25rem; }
+.front-grid__lead .story-card__headline { font-size: clamp(2rem, 3.3vw, 2.85rem); }
+.front-grid__lead .story-card > p:not([class]) { -webkit-line-clamp: unset; }
+.front-grid__rail { padding-left: 1.5rem; }
+.front-grid__rail > li { padding-bottom: 0.75rem; margin-bottom: 0.75rem; }
+.front-grid__rail .story-card > p:not([class]),
+.front-grid__rail .story-card__source-link { display: none; }
+
+.story-card__labels { gap: 0.35rem; margin-bottom: 0.6rem; }
+.pill {
+  padding: 0;
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: var(--font-body);
+  font-size: 0.78rem;
+  font-weight: 500;
+  letter-spacing: normal;
+  text-transform: none;
+}
+.pill + .pill::before { content: "·"; padding-right: 0.35rem; color: var(--text-tertiary); }
+.story-card__date { color: var(--text-tertiary); }
+.story-card__why { border-left-color: var(--color-hot); }
+.story-card__why strong { color: var(--text-secondary); }
+.story-card__actions { margin-top: 0.8rem; }
+.story-card__actions button {
+  min-height: 2.4rem;
+  padding: 0.35rem 0.6rem;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: var(--font-body);
+  font-size: 0.82rem;
+  font-weight: 500;
+  letter-spacing: normal;
+  text-transform: none;
+}
+.story-card__actions button:hover { background: var(--color-surface-sunken); color: var(--color-text); }
+.story-card--brief .story-card__actions { margin-top: 0.45rem; }
+.story-card--brief .story-card__actions button { font-family: var(--font-body); font-size: 0.78rem; letter-spacing: normal; text-transform: none; }
+.story-card--brief .story-card__source-link { display: none; }
+
+.section-rule { margin-top: 0.25rem; }
+.story-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 1.75rem; }
+.story-grid > li { padding: 1.25rem 0; }
+.feed-more { margin-top: -1.5rem; }
+.feed-more a { font-weight: 500; }
+
+@media (max-width: 900px) {
+  .front-grid { grid-template-columns: 1fr; }
+  .front-grid__rail {
+    padding: 1.25rem 0 0;
+    margin-top: 1.25rem;
+    border-left: 0;
+    border-top: 1px solid var(--border-subtle);
+  }
+}
+
+@media (max-width: 640px) {
+  .site-header__inner { min-height: auto; gap: 0.6rem; padding: 0.45rem 1rem; flex-wrap: wrap; }
+  .site-header__utility-controls { order: 1; margin-left: auto; }
+  .site-nav { order: 2; flex-basis: 100%; overflow-x: auto; }
+  .site-nav ul { gap: 1.1rem; }
+  .site-nav a { min-height: 2.25rem; font-size: 0.88rem; }
+  .briefing-header { align-items: flex-start; }
+  .story-grid { grid-template-columns: 1fr; }
+}

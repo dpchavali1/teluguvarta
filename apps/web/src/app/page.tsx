@@ -17,8 +17,8 @@ export default async function HomePage() {
     <>
       <section className="briefing-header" aria-labelledby="briefing-title">
         <div>
-          <p className="briefing-kicker">TTE · THE TELUGU EDIT</p>
-          <h1 id="briefing-title">Today’s briefing</h1>
+          <p className="briefing-kicker">Today</p>
+          <h1 id="briefing-title">What matters today</h1>
           <p>Clear updates for life here and back home.</p>
         </div>
         <OnboardingCta />
@@ -26,6 +26,7 @@ export default async function HomePage() {
 
       {topics.length > 0 && (
         <nav aria-label="Topics" className="topic-rail">
+          <p className="topic-rail__heading">Explore a topic</p>
           <ul className="topic-rail__list">
             {topics.slice(0, 5).map((topic) => (
               <li key={topic.slug}>

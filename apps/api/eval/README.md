@@ -5,7 +5,7 @@ headlines/summaries, each with a *good* Telugu rendering (must pass
 `app/content/qa.py`) and a deliberately broken *bad* one (must fail it) —
 spanning every category §18 lists (politics, money, immigration,
 entertainment, AP, Telangana, US, common names, numbers, multilingual).
-See "Corpus size" below — only 30 of the 300 items are hand-written.
+Every item is hand-written and human-reviewed — see "Corpus size" below.
 
 ## What this proves, and what it doesn't
 
@@ -43,27 +43,29 @@ nothing.
 
 ## Corpus size
 
-300 items (30 per category), meeting §18's ">=300 representative stories"
-count — but the corpus is two different tiers of trust, not one uniform
-set. `_meta.human_reviewed_ids` in `golden_set.json` lists the original 30
-items (3 per category): hand-written, human-considered, the "real starting
-corpus" this file used to describe in full.
+30 items (3 per category), meeting §18's "≥30 human-reviewed
+representative stories" bar — a single tier, all hand-written and
+human-reviewed, listed in full in `_meta.human_reviewed_ids` in
+`golden_set.json`.
 
-The other 270 (product-owner-approved 2026-09-09, after the 50-100-user
-pilot requirement was waived and full development resumed — see
-PROGRESS.md) were generated in bulk by Claude via a template-driven Python
-generator, not hand-written or reviewed by a native Telugu speaker or
-editorial staff. Every one of them is mechanically verified to pass/fail
-`qa.find_qa_issues`/`apply_glossary` exactly as this harness expects — the
-regression-catching property this eval exists for is real — but the
-English news copy and Telugu translations themselves have had zero
-linguistic or editorial review. `_meta.provenance` in `golden_set.json`
-carries this same caveat next to the data. Treat the 270 as
-structurally-correct filler that gets the count to spec, not as
-editorially-vetted ground truth; spot-check before trusting their
-naturalness/register the way the original 30 are trusted. Extend
-`golden_set.json` following the existing shape; no code changes are needed
-for the harness to pick up new items.
+A 270-item bulk-generated expansion (product-owner-approved 2026-09-09,
+after the 50-100-user pilot requirement was waived and full development
+resumed — see PROGRESS.md) existed from 2026-09-09 through 2026-09-16. It
+was mechanically verified to pass/fail `qa.find_qa_issues`/`apply_glossary`
+exactly as this harness expects, but the English news copy and Telugu
+translations themselves never had a native-Telugu-speaker or editorial
+review. Per **ADR-013** (accepted 2026-09-16), it has been removed rather
+than kept as unverified filler — a small honest set beats a large
+fictional one. See
+`docs/adr/ADR-013-golden-eval-set-trust-tier.md` for the full reasoning.
+
+Growing this set past 30 requires the same bar every time: each new item
+is native-Telugu-speaker reviewed *before* it's committed, added to
+`_meta.human_reviewed_ids`, and only then counted toward the total. No
+tooling/process for that review exists yet (ADR-013 doesn't propose one) —
+just the rule that unreviewed items don't count. Extend `golden_set.json`
+following the existing shape once that review has happened; no code
+changes are needed for the harness to pick up new items.
 
 ## Running it
 

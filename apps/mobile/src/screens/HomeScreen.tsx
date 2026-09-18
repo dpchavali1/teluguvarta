@@ -141,14 +141,9 @@ export function HomeScreen() {
       ListHeaderComponent={
         <>
           <View style={styles.welcome} accessibilityLabel="Your daily briefing">
-            <Text style={styles.welcomeEyebrow}>TTE · THE TELUGU EDIT</Text>
-            <Text style={styles.welcomeTitle}>Your daily briefing</Text>
+            <Text style={styles.welcomeEyebrow}>TODAY</Text>
+            <Text style={styles.welcomeTitle}>What matters today</Text>
             <Text style={styles.welcomeCopy}>Clear updates for life here and back home.</Text>
-            <View style={styles.trustRow}>
-              <Text style={styles.trustItem}>Original summaries</Text>
-              <Text style={styles.trustItem}>Source-linked</Text>
-              <Text style={styles.trustItem}>English + తెలుగు</Text>
-            </View>
           </View>
           {error && <Text style={styles.error}>{error}</Text>}
           {topics.length > 0 && (
@@ -201,18 +196,11 @@ function createStyles(colors: AppTheme["colors"], ui: AppTheme["ui"]) {
   welcome: {
     margin: spacing.md,
     marginBottom: spacing.sm,
-    padding: spacing.lg,
-    backgroundColor: colors.text,
-    borderRadius: 18,
-    borderCurve: "continuous",
-    borderWidth: 1,
-    borderColor: ui.borderControl,
+    paddingVertical: spacing.sm,
   },
-  welcomeEyebrow: { ...typography.meta, color: ui.actionPrimary, textTransform: "uppercase" },
-  welcomeTitle: { ...typography.display, color: colors.bg, marginTop: spacing.xs },
+  welcomeEyebrow: { ...typography.meta, color: ui.actionText, textTransform: "uppercase" },
+  welcomeTitle: { ...typography.display, color: colors.text, marginTop: spacing.xs },
   welcomeCopy: { ...typography.body, color: colors.muted, marginTop: spacing.xs },
-  trustRow: { flexDirection: "row", flexWrap: "wrap", gap: spacing.xs, marginTop: spacing.md },
-  trustItem: { ...typography.meta, textTransform: "none", color: colors.bg, borderWidth: 1, borderColor: ui.borderControl, borderRadius: 99, borderCurve: "continuous", paddingHorizontal: spacing.sm, paddingVertical: 4 },
   topicRow: { paddingVertical: spacing.sm, paddingHorizontal: spacing.md },
   // Matches web's .pill--topic: transparent, ink text, no fill at rest.
   topicChip: {
@@ -222,9 +210,7 @@ function createStyles(colors: AppTheme["colors"], ui: AppTheme["ui"]) {
     marginRight: spacing.sm,
     borderRadius: radius.pill,
     borderCurve: "continuous",
-    backgroundColor: "transparent",
-    borderWidth: 1,
-    borderColor: ui.borderControl,
+    backgroundColor: ui.actionPrimarySoft,
   },
   topicChipText: { ...typography.meta, textTransform: "none", color: colors.text },
   briefing: {

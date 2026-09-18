@@ -60,6 +60,9 @@ export function StoryCard({ story, headingLevel = "h2", display = "default" }: {
   const statusNotice = STATUS_LABEL[story.status];
   const primarySource = story.sources[0];
   const Heading = headingLevel;
+  const labels = display === "brief"
+    ? (story.topics.length > 0 ? story.topics.slice(0, 1).map(topicLabel) : story.countries.slice(0, 1))
+    : [...story.countries.slice(0, 1), ...story.topics.slice(0, 1).map(topicLabel)];
 
   async function handleShare() {
     track("story_share", { story_id: story.id });
@@ -114,12 +117,7 @@ export function StoryCard({ story, headingLevel = "h2", display = "default" }: {
   return (
     <article className={`story-card${variantClass}`} aria-labelledby={`story-${story.id}-headline`}>
       <div className="story-card__labels">
-        {story.countries.map((c) => (
-          <span className="pill" key={c}>{c}</span>
-        ))}
-        {story.topics.map((t) => (
-          <Link className="pill" key={t} href={`/topic/${t}`}>{topicLabel(t)}</Link>
-        ))}
+        {labels.map((label) => <span className="pill" key={label}>{label}</span>)}
       </div>
 
       {story.published_at && <p className="story-card__date"><time dateTime={story.published_at}>{new Date(story.published_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" })}</time>{story.status === "UPDATED" && story.updated_at && <> · Updated <time dateTime={story.updated_at}>{new Date(story.updated_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" })}</time></>}</p>}

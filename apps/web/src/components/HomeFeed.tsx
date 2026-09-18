@@ -26,8 +26,8 @@ export function HomeFeed({ initialStories }: { initialStories: StoryOut[] }) {
     return () => { cancelled = true; };
   }, [initialStories, revision]);
   const [lead, ...supporting] = stories;
-  const rail = supporting.slice(0, 5);
-  const rest = supporting.slice(5);
+  const rail = supporting.slice(0, 3);
+  const rest = supporting.slice(3);
   return <section aria-label="Latest stories">
     {error && <p role="status">Your preferences couldn’t be applied. Showing the latest stories. <button onClick={() => setRevision((value) => value + 1)}>Try again</button></p>}
     {!lead ? <p className="empty-state">No stories published yet. <Link href="/topics">Browse topics</Link> or check back soon.</p>
@@ -43,6 +43,6 @@ export function HomeFeed({ initialStories }: { initialStories: StoryOut[] }) {
           <ul className="story-grid">{rest.map((story) => <li key={story.id}><StoryCard story={story} display="brief" /></li>)}</ul>
         </>}
       </>}
-    <p><Link href="/latest">Browse all stories →</Link></p>
+    <p className="feed-more"><Link href="/latest">View all stories</Link></p>
   </section>;
 }

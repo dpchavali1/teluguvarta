@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
-import { LIFE_STAGES, getOnboardingProfile, type LifeStage } from "@/lib/onboarding";
+import { getOnboardingProfile, type LifeStage } from "@/lib/onboarding";
 
 // Design-review fix: the hero CTA always said "Personalize your feed →"
 // even after a person had already onboarded, with no way to tell from the
@@ -20,7 +20,7 @@ export function OnboardingCta() {
     // Not yet hydrated — render nothing rather than flash the wrong state.
     return (
       <p>
-        <Link className="page-hero__cta" href="/onboarding">Personalize your feed →</Link>
+        <Link className="briefing-cta" href="/onboarding">Personalize</Link>
       </p>
     );
   }
@@ -28,17 +28,15 @@ export function OnboardingCta() {
   if (lifeStages.length === 0) {
     return (
       <p>
-        <Link className="page-hero__cta" href="/onboarding">Personalize your feed →</Link>
+        <Link className="briefing-cta" href="/onboarding">Personalize</Link>
       </p>
     );
   }
 
-  const labels = lifeStages.map((stage) => LIFE_STAGES.find((s) => s.value === stage)?.label ?? stage);
-
   return (
     <p>
-      <Link className="page-hero__cta page-hero__cta--edit" href="/onboarding">
-        Your preferences: {labels.join(", ")} — edit →
+      <Link className="briefing-cta briefing-cta--edit" href="/onboarding">
+        Edit preferences
       </Link>
     </p>
   );

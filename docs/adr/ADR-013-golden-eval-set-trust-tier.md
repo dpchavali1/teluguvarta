@@ -1,6 +1,6 @@
 # ADR-013: Golden AI eval set — shrink the trusted claim to the reviewed 30
 
-- **Status**: proposed
+- **Status**: accepted
 - **Date**: 2026-09-16
 - **Ticket**: Spike 2 (`docs/plans/gemini-hetzner-telugu-plan.md` Phase −1)
 

@@ -91,6 +91,9 @@ export function StoryCard({
 
   const statusNotice = STATUS_LABEL[story.status];
   const primarySource = story.sources[0];
+  const labels = isCompact
+    ? (story.topics.length > 0 ? story.topics.slice(0, 1).map(topicLabel) : story.countries.slice(0, 1))
+    : [...story.countries.slice(0, 1), ...story.topics.slice(0, 1).map(topicLabel)];
 
   async function handleShare() {
     trackEvent("story_share", { story_id: story.id });
@@ -127,10 +130,9 @@ export function StoryCard({
 
   return (
     <View style={[styles.card, isCompact ? styles.cardCompact : styles.cardRich]} accessible={false}>
-      {isCompact && <View style={styles.accentBar} />}
       <View style={isCompact ? styles.compactContent : styles.richContent}>
         <View style={styles.labels}>
-          {[...story.countries, ...story.topics.map(topicLabel)].map((label) => (
+          {labels.map((label) => (
             <View key={label} style={styles.pill}>
               <Text style={styles.pillText}>{label}</Text>
             </View>
@@ -168,13 +170,13 @@ export function StoryCard({
         )}
 
         <Text style={[styles.body, type.body]}>{variant.summary}</Text>
-        {whyMatters ? (
+        {!isCompact && whyMatters ? (
           <Text style={[styles.why, !isCompact && styles.whyRich, renderedLanguage === "te" && styles.whyTe]}>
             Why this matters: {whyMatters}
           </Text>
         ) : null}
 
-        {primarySource && (
+        {!isCompact && primarySource && (
           <Pressable
             onPress={() => onOpenSource(primarySource.url)}
             accessibilityRole="link"
@@ -218,7 +220,7 @@ export function StoryCard({
               accessibilityLabel={`Share: ${variant.headline}`}
               style={[styles.actionButton, styles.actionButtonShare]}
             >
-              <Text style={styles.actionButtonText}>⤴ Share</Text>
+              <Text style={styles.actionButtonText}>Share</Text>
             </Pressable>
           )}
           <Pressable
@@ -230,7 +232,7 @@ export function StoryCard({
             style={[styles.actionButton, saved && styles.actionButtonSaved]}
           >
             <Text style={[styles.actionButtonText, saved && styles.actionButtonTextActive]}>
-              {saved ? "🔖 Saved" : "🔖 Save"}
+              {saved ? "Saved" : "Save"}
             </Text>
           </Pressable>
           {showFullActions && (
@@ -240,7 +242,7 @@ export function StoryCard({
               accessibilityLabel={`Report an issue: ${variant.headline}`}
               style={[styles.actionButton, styles.actionButtonReport]}
             >
-              <Text style={styles.actionButtonText}>⚑ Report</Text>
+              <Text style={styles.actionButtonText}>Report</Text>
             </Pressable>
           )}
         </View>
@@ -268,14 +270,11 @@ function createStyles(colors: AppTheme["colors"], ui: AppTheme["ui"]) {
     // instead of a full border/shadow card, tighter padding, a hairline
     // divider below.
     cardCompact: {
-      flexDirection: "row",
       marginHorizontal: spacing.md,
       paddingVertical: spacing.md,
       borderBottomWidth: 1,
       borderBottomColor: ui.borderSubtle,
-      gap: spacing.sm,
     },
-    accentBar: { width: 3, borderRadius: 2, borderCurve: "continuous", backgroundColor: colors.hot, alignSelf: "stretch" },
     compactContent: { flex: 1, gap: spacing.xs },
     date: { ...typography.meta, color: colors.muted, textTransform: "none" },
     labels: { flexDirection: "row", flexWrap: "wrap", gap: spacing.xs },

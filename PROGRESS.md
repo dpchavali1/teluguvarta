@@ -295,6 +295,25 @@ Mirrors `docs/adr/README.md` — keep both in sync.
 
 (newest first — one line per ticket completion)
 
+- 2026-09-17: Reader-first home/feed refresh, ad hoc per explicit product
+  request to make the app feel substantially simpler and less busy. The web
+  masthead is now a single compact row (brand, primary navigation, language
+  and theme controls) instead of three stacked bands; every route remains in
+  navigation. The homepage has a quieter briefing intro, topic rail, one
+  lead story, and just three supporting story headlines before the rest of
+  the feed. Brief cards now expose one useful label, a date, headline and
+  Save action; source links, the explanation and the complete action set are
+  retained on the lead/detail view where they are useful rather than repeated
+  while scanning. The same hierarchy now carries through the mobile Home
+  screen: the decorative dark welcome/trust-chip panel and compact-card
+  accent bars were removed, compact cards show one label and plain-language
+  actions, and source/explanation detail remains on lead and detail views.
+  Verified: `pnpm --filter web build`, `pnpm --filter mobile exec tsc
+  --noEmit`, and a live responsive web pass at 320px. The first visual pass
+  caught a narrow-width lead/rail overlap; fixed it with a 900px single-column
+  breakpoint and rechecked it live. No dependency, API, rights, or editorial
+  workflow changes.
+
 - 2026-09-17 (NEXT SESSION START HERE — read this before touching `apps/admin`
   auth): live-verified the ADR-014 step 4 admin changes below against a real
   running stack (API + admin dev servers + local Postgres) and found the

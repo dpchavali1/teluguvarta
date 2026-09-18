@@ -486,10 +486,12 @@ generation if the QA failure rate spikes.
   (feeds/DB/AI gateway), OpenAPI contract tests, web E2E, mobile smoke/E2E,
   security/dependency scanning, load testing (feed/search), accessibility,
   AI regression suite.
-- **Golden AI test set**: ≥300 representative stories (politics, money,
-  immigration, entertainment, AP, Telangana, US, common names, numbers,
-  multilingual) with expected labels/facts/entities/translation invariants;
-  run on every prompt or model change.
+- **Golden AI test set**: ≥30 human-reviewed representative stories
+  (politics, money, immigration, entertainment, AP, Telangana, US, common
+  names, numbers, multilingual) with expected labels/facts/entities/
+  translation invariants; run on every prompt or model change. The set may
+  grow past 30 only with items that have passed the same human review — see
+  ADR-013.
 - **Release gates**: no P0/P1 security defects; all critical migrations
   pass; no rights-disabled source can publish; no sensitive-category story
   bypasses review; an English correction invalidates the stale Telugu
