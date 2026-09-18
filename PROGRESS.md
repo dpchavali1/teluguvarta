@@ -295,7 +295,52 @@ Mirrors `docs/adr/README.md` — keep both in sync.
 
 (newest first — one line per ticket completion)
 
-- 2026-09-17 (NEXT SESSION START HERE): Web listing-page redesign round 3,
+- 2026-09-17 (NEXT SESSION START HERE): Round-3 redesign (below) got pushed
+  to `main` (commit `4e181de`), then the user delivered a full product
+  review of the visual state across **all three surfaces** (web/mobile/
+  admin), not just web. Findings: web still mixes visual systems (masthead
+  + rounded pills + card-grid + leftover ledger CSS) and every story card
+  exposes too many equal-weight actions; mobile differs materially from
+  web (filled "why this matters" blocks, a colored rail, emoji tab icons)
+  and is busy (5 bottom tabs + a header language control) with Topics not
+  a first-class destination; admin should share type/status color but stay
+  quieter/denser and hasn't been designed either way; **mobile nav dark
+  mode is a real functional bug** — the nav chrome only reads light token
+  values, not a styling gap.
+  User then gave a 6-step recommended redesign plan (component contract →
+  web home/feed → mobile nav/cards/theme parity → admin density → visual
+  regression). Asked how to sequence it; user chose **write step 1 as an
+  ADR first**, since it's an architecture-level decision (a cross-surface
+  component contract), consistent with this repo's "architecture decisions
+  get an ADR, don't infer mid-implementation" norm.
+  Wrote `docs/adr/ADR-014-editorial-component-contract.md` (status:
+  **accepted** same day) —
+  names 7 shared concepts (EditionHeader, StoryLead, StoryBrief,
+  StoryActions, LanguageControl, EditorialStatus, TopicControl), each with
+  one visual treatment implemented natively per platform (explicitly *not*
+  reopening ADR-009/ADR-010's rejection of a real shared component
+  library — no new cross-platform dependency), states the semantic-color
+  discipline rule explicitly (indigo=nav/action, rust=consequential-only,
+  green/amber/red=saved/review/error-only) and the Share/Report-in-detail-
+  only rule that's the actual fix for web's action-heavy cards. Explicitly
+  scopes the icon-system swap and the mobile dark-mode nav bug **out** —
+  icon system is blocked on the pre-existing React-type dependency conflict
+  and needs its own go-ahead per ADR-010 precedent; the dark-mode bug is a
+  plain fix, not a decision, and shouldn't be gated on ADR acceptance.
+  **Numbering note**: `docs/plans/gemini-hetzner-telugu-plan.md` reserves
+  ADR-011–016 for its own topics (014 = "Retrieval & grounded answering"),
+  but the repo already broke that reservation before this session —
+  ADR-011 and ADR-012 were used for unrelated P0 fixes (claim-evidence-
+  sufficiency, MFA enrollment), not the plan's topics. ADR-014 here follows
+  actual repo practice (next sequential number in `docs/adr/`), not the
+  plan's stale reservation. When that plan's retrieval ADR is eventually
+  written, it needs the next free number at that time, not literally 014.
+  **Not done yet**: ADR-014 is accepted but nothing in the 6-step plan is
+  implemented. Next session: step 2, rebuild web home/feed around reading
+  priority (StoryLead above the fold, StoryBrief everywhere else, Save-only
+  inline actions) against the accepted contract.
+
+- 2026-09-17: Web listing-page redesign round 3,
   ad hoc per explicit direction **"more like Axios, cleaner and modern"**
   (user's own reaction to round 2, quoted below). User confirmed via a
   manual screenshot (Claude in Chrome extension is still not connected —

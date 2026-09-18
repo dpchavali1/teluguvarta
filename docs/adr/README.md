@@ -33,5 +33,8 @@ accepted. Add ad-hoc ADRs below this table as they're written.
 - ADR-012 | First-login MFA enrollment flow | P0-3 | **accepted** — see
   [ADR-012](ADR-012-mfa-enrollment-flow.md)
 - ADR-013 | Golden eval set trust tier (shrink to reviewed 30) | Spike 2 |
-  **proposed** — see
+  **accepted** — see
   [ADR-013](ADR-013-golden-eval-set-trust-tier.md)
+- ADR-014 | Editorial component contract for web/mobile/admin coherence |
+  ad hoc, user-requested | **accepted** — see
+  [ADR-014](ADR-014-editorial-component-contract.md)
