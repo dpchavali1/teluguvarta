@@ -295,6 +295,45 @@ Mirrors `docs/adr/README.md` — keep both in sync.
 
 (newest first — one line per ticket completion)
 
+- 2026-09-24: **Admin MFA login fixed** (the 2026-09-17 "NEXT SESSION START
+  HERE" gap below is resolved). `apps/admin/src/app/login/page.tsx` now has
+  two steps. (1) Sign in: email, password and an always-visible optional
+  "Authenticator code" field. It's always shown rather than revealed after
+  an `MFA_REQUIRED` 401 because `admin_login_attempts` rate-limits every
+  attempt (5 per 15 minutes, including successes), so an extra round trip
+  would cost enrolled admins an attempt each time. `MFA_REQUIRED` and
+  `INVALID_MFA_CODE` clear and focus the field. (2) When the response has
+  `mfa_enrollment_required`, the page keeps the restricted enrollment token
+  in component state only (never `setSession`), calls `POST /mfa/setup`,
+  shows an `otpauth://` link plus the key grouped in fours for manual
+  entry, then `POST /mfa/enroll`. On success it returns to step 1 with a
+  notice to sign in with a fresh code, which gets a full token. There's no
+  QR image because the admin app has no QR dependency and adding one wasn't
+  required. The otpauth link and manual key cover desktop and mobile. A
+  401/403 during enrollment other than a wrong code (for example an expired
+  enrollment token) goes back to step 1. Also regenerated
+  `packages/contracts`, which had drifted: it was missing
+  `AdminLoginResponse.mfa_enrollment_required`, so CI's stale-contracts
+  check would have failed. `.env.example` now says
+  `MFA_SECRET_ENCRYPTION_KEY` is required even locally. Verified: admin
+  `tsc --noEmit`, `next lint` and `next build` are clean, contracts
+  typecheck passes, `tests/test_admin_auth.py` passes (13). Ran the page's
+  exact request sequence against a live API (with the `Origin` header and
+  CORS preflight) using a throwaway admin, deleted afterwards: first login
+  → enrollment token (403 on `/review-queue`) → setup → wrong code 401 →
+  enroll 200 → login without code `MFA_REQUIRED` → wrong code
+  `INVALID_MFA_CODE` → correct code gives a full token (200 on
+  `/review-queue`). **Not done**: there was no in-browser click-through
+  because the Chrome extension wasn't connected; the page was only
+  confirmed to render its fields via server-side HTML. The admin app has
+  no frontend test harness, so there's no automated UI test. Environment
+  notes: the local DB was one migration behind (`d4a7c1e2f6b9`, now
+  applied). `node_modules` and `apps/api/.venv` were missing and have been
+  reinstalled. A CommunityKart vite server listens on `[::1]:3001`, which
+  collides with admin's `localhost:3001`, so run admin with
+  `-H 127.0.0.1` and add `http://127.0.0.1:3001` to
+  `CORS_ALLOWED_ORIGINS`.
+
 - 2026-09-17: Reader-first home/feed refresh, ad hoc per explicit product
   request to make the app feel substantially simpler and less busy. The web
   masthead is now a single compact row (brand, primary navigation, language
@@ -314,7 +353,7 @@ Mirrors `docs/adr/README.md` — keep both in sync.
   breakpoint and rechecked it live. No dependency, API, rights, or editorial
   workflow changes.
 
-- 2026-09-17 (NEXT SESSION START HERE — read this before touching `apps/admin`
+- 2026-09-17 (RESOLVED 2026-09-24 — see entry above; was "next session start here" for `apps/admin`
   auth): live-verified the ADR-014 step 4 admin changes below against a real
   running stack (API + admin dev servers + local Postgres) and found the
   admin login flow is **fully broken for any account going through first-time

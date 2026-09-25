@@ -394,6 +394,35 @@ td button {
   padding: 0.7rem;
 }
 
+.auth-card .field-hint {
+  margin: 0.35rem 0 0;
+  font-size: 0.85rem;
+  color: var(--color-muted);
+}
+
+.auth-card .mfa-secret {
+  display: block;
+  font-family: var(--font-mono-stack);
+  font-size: 1rem;
+  letter-spacing: 0.05em;
+  word-break: break-all;
+  user-select: all;
+}
+
+.auth-card .link-button,
+.auth-card .link-button:hover:not(:disabled) {
+  width: auto;
+  padding: 0;
+  border: 0;
+  background: none;
+  box-shadow: none;
+  transform: none;
+  color: var(--color-text);
+  text-decoration: underline;
+  text-decoration-color: var(--color-accent-ink);
+  text-decoration-thickness: 2px;
+}
+
 /* ---------- Dashboard rule-separated stat/info row ---------- */
 
 .dashboard-summary {

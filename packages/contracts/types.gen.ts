@@ -728,6 +728,11 @@ export interface components {
             /** Expires In */
             expires_in: number;
             /**
+             * Mfa Enrollment Required
+             * @default false
+             */
+            mfa_enrollment_required: boolean;
+            /**
              * Role
              * @enum {string}
              */

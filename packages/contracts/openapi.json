@@ -285,6 +285,11 @@
             "title": "Expires In",
             "type": "integer"
           },
+          "mfa_enrollment_required": {
+            "default": false,
+            "title": "Mfa Enrollment Required",
+            "type": "boolean"
+          },
           "role": {
             "enum": [
               "EDITOR",
