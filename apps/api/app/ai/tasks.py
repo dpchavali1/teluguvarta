@@ -23,6 +23,8 @@ class Task(str, Enum):
 # Gemini model names are aliases Google re-points as Flash versions ship and
 # retire, so nothing here needs editing on a version change. Set the env var
 # to a pinned id (e.g. gemini-3.8-flash) when an eval needs a frozen model.
+# Free-tier limits (plan [R7]): Flash is 20 RPD, Flash Lite 500 RPD, so bulk
+# tasks must route to GEMINI_FLASH_LITE; GEMINI_FLASH is opt-in only.
 GEMINI_FLASH = os.environ.get("AI_GEMINI_FLASH_MODEL") or "gemini-flash-latest"
 GEMINI_FLASH_LITE = os.environ.get("AI_GEMINI_FLASH_LITE_MODEL") or "gemini-flash-lite-latest"
 

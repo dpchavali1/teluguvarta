@@ -38,3 +38,5 @@ accepted. Add ad-hoc ADRs below this table as they're written.
 - ADR-014 | Editorial component contract for web/mobile/admin coherence |
   ad hoc, user-requested | **accepted** — see
   [ADR-014](ADR-014-editorial-component-contract.md)
+- ADR-015 | Gemini free tier as an AI provider (amends ADR-001) | Phase −1 |
+  **proposed** — see [ADR-015](ADR-015-gemini-free-tier.md)

@@ -8,6 +8,7 @@ from __future__ import annotations
 import os
 import uuid
 from datetime import UTC, datetime
+from zoneinfo import ZoneInfo
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
@@ -49,6 +50,17 @@ def _month_start(now: datetime) -> datetime:
 
 def _day_start(now: datetime) -> datetime:
     return now.replace(hour=0, minute=0, second=0, microsecond=0)
+
+
+def quota_day_start(now: datetime) -> datetime:
+    """Start of the current provider-quota day, as a UTC instant. Google
+    resets free-tier RPD at midnight Pacific, not UTC (plan §5), so a request
+    counter must window on this, never on `_day_start`. Built from the
+    Pacific *date*, so DST days (23h/25h) stay correct.
+    """
+    pacific = now.astimezone(ZoneInfo("America/Los_Angeles"))
+    midnight = datetime(pacific.year, pacific.month, pacific.day, tzinfo=ZoneInfo("America/Los_Angeles"))
+    return midnight.astimezone(UTC)
 
 
 def today_cost_usd(db: Session, now: datetime | None = None) -> float:

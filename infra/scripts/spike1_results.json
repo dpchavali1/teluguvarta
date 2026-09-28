@@ -1,0 +1,766 @@
+{
+  "summary": {
+    "model": "gemini-flash-lite-latest",
+    "stories": 30,
+    "total_requests": 120,
+    "requests_per_story": 4.0,
+    "retries_after_failure": 0,
+    "failed_calls": 0,
+    "latency_p50_s": 0.76,
+    "latency_p95_s": 1.64,
+    "tokens_in": 7756,
+    "tokens_out": 4808
+  },
+  "rows": [
+    {
+      "id": "ap-01",
+      "en_headline": "Andhra Pradesh approves new port project",
+      "en_summary": "Andhra Pradesh will invest $500 million in the port over three years.",
+      "te_reference": "ఆంధ్రప్రదేశ్ మూడేళ్లలో ఈ పోర్టులో $500 million పెట్టుబడి పెడుతుంది.",
+      "gemini": {
+        "classify": {
+          "category": "Business & Economy",
+          "sensitivity": "NONE"
+        },
+        "summary": {
+          "summary_en": "Andhra Pradesh has approved a new port project. The region will invest $500 million in the port over three years."
+        },
+        "why_matters": {
+          "why_matters_en": "This matters because Andhra Pradesh will invest $500 million in the new port project over three years."
+        },
+        "translate": {
+          "headline_te": "ఆంధ్రప్రదేశ్ కొత్త పోర్టు ప్రాజెక్ట్‌ను ఆమోదించింది",
+          "summary_te": "ఆంధ్రప్రదేశ్ ఈ పోర్టులో మూడేళ్లలో 500 మిలియన్ డాలర్లు పెట్టుబడి పెట్టనుంది."
+        }
+      },
+      "grade": null,
+      "notes": "",
+      "requests": 4
+    },
+    {
+      "id": "ap-02",
+      "en_headline": "Andhra Pradesh farmers get subsidy update",
+      "en_summary": "The subsidy will not be reduced for the 2026 crop season.",
+      "te_reference": "2026 పంట సీజన్‌కు ఈ సబ్సిడీ తగ్గించబడదు, కోత లేదు.",
+      "gemini": {
+        "classify": {
+          "category": "Agriculture",
+          "sensitivity": "NONE"
+        },
+        "summary": {
+          "summary_en": "Andhra Pradesh farmers have received an update regarding their agricultural subsidies. The subsidy amount will not be reduced for the 2026 crop season."
+        },
+        "why_matters": {
+          "why_matters_en": "This matters to Telugu readers abroad because the subsidy for Andhra Pradesh farmers will not be reduced for the 2026 crop season."
+        },
+        "translate": {
+          "headline_te": "ఆంధ్రప్రదేశ్ రైతులకు సబ్సిడీ అప్‌డేట్",
+          "summary_te": "2026 పంట కాలానికి సబ్సిడీని తగ్గించరు."
+        }
+      },
+      "grade": null,
+      "notes": "",
+      "requests": 4
+    },
+    {
+      "id": "ap-03",
+      "en_headline": "Andhra Pradesh IT exports rise",
+      "en_summary": "Exports grew 8.5% in the quarter ending March 31.",
+      "te_reference": "మార్చి 31తో ముగిసిన త్రైమాసికంలో ఎగుమతులు 8.5% పెరిగాయి.",
+      "gemini": {
+        "classify": {
+          "category": "Business & Economy",
+          "sensitivity": "NONE"
+        },
+        "summary": {
+          "summary_en": "Andhra Pradesh IT exports have seen an increase. Specifically, exports grew by 8.5% in the quarter ending March 31."
+        },
+        "why_matters": {
+          "why_matters_en": "This matters to Telugu readers abroad because Andhra Pradesh IT exports grew 8.5% in the quarter ending March 31."
+        },
+        "translate": {
+          "headline_te": "ఆంధ్రప్రదేశ్ ఐటీ ఎగుమతులు వృద్ధి చెందాయి",
+          "summary_te": "మార్చి 31తో ముగిసిన త్రైమాసికంలో ఎగుమతులు 8.5% పెరిగాయి."
+        }
+      },
+      "grade": null,
+      "notes": "",
+      "requests": 4
+    },
+    {
+      "id": "common-names-01",
+      "en_headline": "Srinivas Reddy elected community board chair",
+      "en_summary": "Srinivas Reddy will serve a two-year term starting July 1.",
+      "te_reference": "శ్రీనివాస్ రెడ్డి జూలై 1 నుండి రెండేళ్ల పదవీకాలం నిర్వహిస్తారు.",
+      "gemini": {
+        "classify": {
+          "category": "Community",
+          "sensitivity": "NONE"
+        },
+        "summary": {
+          "summary_en": "Srinivas Reddy was elected as the community board chair. He will serve a two-year term starting on July 1."
+        },
+        "why_matters": {
+          "why_matters_en": "Srinivas Reddy's election as community board chair, where he will serve a two-year term starting July 1, matters to Telugu readers abroad because it highlights the global leadership and civic engagement of the Telugu community."
+        },
+        "translate": {
+          "headline_te": "శ్రీనివాస్ రెడ్డి కమ్యూనిటీ బోర్డ్ చైర్‌గా ఎన్నిక",
+          "summary_te": "శ్రీనివాస్ రెడ్డి జూలై 1 నుండి ప్రారంభమై రెండేళ్ల పాటు పదవిలో కొనసాగుతారు."
+        }
+      },
+      "grade": null,
+      "notes": "",
+      "requests": 4
+    },
+    {
+      "id": "common-names-02",
+      "en_headline": "Priya Patel wins state science award",
+      "en_summary": "Priya Patel's project did not place in last year's competition.",
+      "te_reference": "ప్రియా పటేల్ ప్రాజెక్టు గత ఏడాది పోటీలో స్థానం పొందలేదు.",
+      "gemini": {
+        "classify": {
+          "category": "Education & Local Community",
+          "sensitivity": "NONE"
+        },
+        "summary": {
+          "summary_en": "Priya Patel won a state science award after her project previously failed to place in last year's competition. This year's success marks a notable turnaround from her earlier defeat."
+        },
+        "why_matters": {
+          "why_matters_en": "This does not matter to Telugu readers abroad because it lacks any connection to the Telugu community or global locations, and simply reports that Priya Patel's project, which did not place last year, won a state science award."
+        },
+        "translate": {
+          "headline_te": "ప్రియా పటేల్ రాష్ట్ర స్థాయి సైన్స్ పురస్కారాన్ని గెలుచుకున్నారు",
+          "summary_te": "గతేడాది జరిగిన పోటీలో ప్రియా పటేల్ ప్రాజెక్ట్ స్థానం సంపాదించలేదు."
+        }
+      },
+      "grade": null,
+      "notes": "",
+      "requests": 4
+    },
+    {
+      "id": "common-names-03",
+      "en_headline": "Venkata Rao opens new clinic",
+      "en_summary": "Venkata Rao's clinic serves 300 patients per week.",
+      "te_reference": "వెంకట రావు క్లినిక్ వారానికి 300 మంది రోగులకు సేవలందిస్తుంది.",
+      "gemini": {
+        "classify": {
+          "category": "Community",
+          "sensitivity": "NONE"
+        },
+        "summary": {
+          "summary_en": "Venkata Rao has opened a new clinic. The clinic serves 300 patients per week."
+        },
+        "why_matters": {
+          "why_matters_en": "This matters to Telugu readers abroad because Venkata Rao's new clinic serves 300 patients per week."
+        },
+        "translate": {
+          "headline_te": "వెంకట రావు కొత్త క్లినిక్‌ను ప్రారంభించారు",
+          "summary_te": "వెంకట రావు క్లినిక్ వారానికి 300 మంది రోగులకు సేవలు అందిస్తుంది."
+        }
+      },
+      "grade": null,
+      "notes": "",
+      "requests": 4
+    },
+    {
+      "id": "entertainment-01",
+      "en_headline": "Telugu film crosses 200 crore worldwide",
+      "en_summary": "The film collected 200 crore INR within 10 days of release.",
+      "te_reference": "ఈ సినిమా విడుదలైన 10 రోజుల్లో 200 crore INR వసూలు చేసింది.",
+      "gemini": {
+        "classify": {
+          "category": "Entertainment",
+          "sensitivity": "NONE"
+        },
+        "summary": {
+          "summary_en": "A Telugu film crossed the 200 crore mark worldwide. It achieved this collection within 10 days of its release."
+        },
+        "why_matters": {
+          "why_matters_en": "This matters to Telugu readers abroad because the Telugu film collected 200 crore INR within 10 days of release worldwide."
+        },
+        "translate": {
+          "headline_te": "తెలుగు సినిమా ప్రపంచవ్యాప్తంగా 200 కోట్ల మార్క్‌ను దాటింది",
+          "summary_te": "ఈ సినిమా విడుదలైన 10 రోజుల్లోనే 200 కోట్ల రూపాయలను వసూలు చేసింది."
+        }
+      },
+      "grade": null,
+      "notes": "",
+      "requests": 4
+    },
+    {
+      "id": "entertainment-02",
+      "en_headline": "Popular singer announces US tour",
+      "en_summary": "The tour will not include stops outside the United States this year.",
+      "te_reference": "ఈ ఏడాది పర్యటన అమెరికా వెలుపల నగరాలను కలిగి ఉండదు, అదనపు స్టాప్ లేదు.",
+      "gemini": {
+        "classify": {
+          "category": "Entertainment",
+          "sensitivity": "NONE"
+        },
+        "summary": {
+          "summary_en": "A popular singer has announced a new US tour. This tour will not include any stops outside of the United States this year."
+        },
+        "why_matters": {
+          "why_matters_en": "This matters to Telugu readers abroad because the popular singer's tour will not include stops outside the United States this year."
+        },
+        "translate": {
+          "headline_te": "ప్రముఖ గాయకుడు US టూర్‌ను ప్రకటించారు",
+          "summary_te": "ఈ ఏడాది ఈ టూర్‌లో యునైటెడ్ స్టేట్స్ వెలుపల ఎలాంటి స్టాప్‌లు ఉండవు."
+        }
+      },
+      "grade": null,
+      "notes": "",
+      "requests": 4
+    },
+    {
+      "id": "entertainment-03",
+      "en_headline": "Streaming platform sets release date",
+      "en_summary": "The series premieres on September 20 across all regions.",
+      "te_reference": "ఈ సిరీస్ సెప్టెంబర్ 20న అన్ని ప్రాంతాల్లో విడుదలవుతుంది.",
+      "gemini": {
+        "classify": {
+          "category": "Entertainment",
+          "sensitivity": "NONE"
+        },
+        "summary": {
+          "summary_en": "A streaming platform has announced the release date for its upcoming series. The series premieres on September 20 across all regions."
+        },
+        "why_matters": {
+          "why_matters_en": "This matters to Telugu readers abroad because the series premieres on September 20 across all regions."
+        },
+        "translate": {
+          "headline_te": "స్ట్రీమింగ్ ప్లాట్‌ఫారమ్ విడుదల తేదీని ప్రకటించింది",
+          "summary_te": "ఈ సిరీస్ సెప్టెంబర్ 20న అన్ని ప్రాంతాలలో ప్రసారమవుతుంది."
+        }
+      },
+      "grade": null,
+      "notes": "",
+      "requests": 4
+    },
+    {
+      "id": "immigration-01",
+      "en_headline": "USCIS raises H-1B registration fee",
+      "en_summary": "USCIS said the $1,000 fee applies to petitions filed after January 15.",
+      "te_reference": "జనవరి 15 తర్వాత దాఖలు చేసే పిటిషన్లకు యుఎస్‌సిఐఎస్ $1,000 రుసుము వర్తిస్తుందని తెలిపింది.",
+      "gemini": {
+        "classify": {
+          "category": "USCIS H-1B Visa Fee Increase",
+          "sensitivity": "IMMIGRATION"
+        },
+        "summary": {
+          "summary_en": "USCIS has announced an increase to the H-1B registration fee. The agency stated that the $1,000 fee applies to petitions filed after January 15."
+        },
+        "why_matters": {
+          "why_matters_en": "This matters because USCIS said the $1,000 fee applies to petitions filed after January 15."
+        },
+        "translate": {
+          "headline_te": "USCIS H-1B రిజిస్ట్రేషన్ ఫీజును పెంచింది",
+          "summary_te": "జనవరి 15 తర్వాత దాఖలు చేసే దరఖాస్తులకు $1,000 ఫీజు వర్తిస్తుందని USCIS తెలిపింది."
+        }
+      },
+      "grade": null,
+      "notes": "",
+      "requests": 4
+    },
+    {
+      "id": "immigration-02",
+      "en_headline": "United States extends OPT processing window",
+      "en_summary": "USCIS confirmed processing will not exceed 90 days for most applicants.",
+      "te_reference": "చాలామంది దరఖాస్తుదారులకు ప్రాసెసింగ్ 90 రోజులు మించదు, ఆలస్యం కాదు అని యుఎస్‌సిఐఎస్ ధృవీకరించింది.",
+      "gemini": {
+        "classify": {
+          "category": "Education & Career",
+          "sensitivity": "IMMIGRATION"
+        },
+        "summary": {
+          "summary_en": "The United States has extended the processing window for OPT applications. USCIS has confirmed that processing will not exceed 90 days for most applicants."
+        },
+        "why_matters": {
+          "why_matters_en": "This matters to Telugu readers abroad because USCIS confirmed that the processing window for OPT will not exceed 90 days for most applicants."
+        },
+        "translate": {
+          "headline_te": "యుited స్టేట్స్ OPT ప్రాసెసింగ్ సమయాన్ని పొడిగించింది",
+          "summary_te": "చాలా మంది దరఖాస్తుదారులకు ప్రాసెసింగ్ 90 రోజులకు మించదని USCIS ధృవీకరించింది."
+        }
+      },
+      "grade": null,
+      "notes": "",
+      "requests": 4
+    },
+    {
+      "id": "immigration-03",
+      "en_headline": "Green card backlog details published",
+      "en_summary": "USCIS published updated wait-time estimates on https://uscis.gov/backlog on May 2.",
+      "te_reference": "మే 2న యుఎస్‌సిఐఎస్ https://uscis.gov/backlog వద్ద తాజా వేచి ఉండే సమయ అంచనాలను ప్రచురించింది.",
+      "gemini": {
+        "classify": {
+          "category": "US Immigration",
+          "sensitivity": "IMMIGRATION"
+        },
+        "summary": {
+          "summary_en": "USCIS published updated wait-time estimates on https://uscis.gov/backlog on May 2. This information details the current green card backlog."
+        },
+        "why_matters": {
+          "why_matters_en": "This matters to Telugu readers abroad because USCIS published updated green card wait-time estimates on its website on May 2."
+        },
+        "translate": {
+          "headline_te": "గ్రీన్ కార్డ్ బ్యాక్‌లాగ్ వివరాలు ప్రచురించబడ్డాయి",
+          "summary_te": "మే 2న https://uscis.gov/backlog లో USCIS నవీకరించబడిన నిరీక్షణ సమయం అంచనాలను ప్రచురించింది."
+        }
+      },
+      "grade": null,
+      "notes": "",
+      "requests": 4
+    },
+    {
+      "id": "money-01",
+      "en_headline": "Stock markets rally after inflation data",
+      "en_summary": "The index rose 2.4% after inflation cooled to 3.1% in February.",
+      "te_reference": "ద్రవ్యోల్బణం ఫిబ్రవరిలో 3.1%కి తగ్గిన తర్వాత సూచీ 2.4% పెరిగింది.",
+      "gemini": {
+        "classify": {
+          "category": "Economy & Markets",
+          "sensitivity": "FINANCIAL"
+        },
+        "summary": {
+          "summary_en": "The index rose 2.4% following the release of inflation data. Specifically, inflation cooled to 3.1% in February."
+        },
+        "why_matters": {
+          "why_matters_en": "This matters to Telugu readers abroad because the stock market index rose 2.4 percent after inflation cooled to 3.1 percent in February."
+        },
+        "translate": {
+          "headline_te": "ద్రవ్యోల్బణ డేటా తర్వాత స్టాక్ మార్కెట్లు పుంజుకున్నాయి",
+          "summary_te": "ఫిబ్రవరిలో ద్రవ్యోల్బణం 3.1%కి పడిపోవడంతో ఇండెక్స్ 2.4% పెరిగింది."
+        }
+      },
+      "grade": null,
+      "notes": "",
+      "requests": 4
+    },
+    {
+      "id": "money-02",
+      "en_headline": "Bank fees rise for overdraft customers",
+      "en_summary": "The new fee of $35 per overdraft takes effect April 1.",
+      "te_reference": "ఏప్రిల్ 1 నుండి ఓవర్‌డ్రాఫ్ట్‌కు $35 రుసుము అమల్లోకి వస్తుంది.",
+      "gemini": {
+        "classify": {
+          "category": "Economy & Business",
+          "sensitivity": "FINANCIAL"
+        },
+        "summary": {
+          "summary_en": "Bank fees are rising for overdraft customers. The new fee of $35 per overdraft takes effect April 1."
+        },
+        "why_matters": {
+          "why_matters_en": "This matters to Telugu readers abroad because a new bank fee of $35 per overdraft takes effect on April 1."
+        },
+        "translate": {
+          "headline_te": "ఓవర్‌డ్రాఫ్ట్ కస్టమర్ల కోసం బ్యాంక్ ఫీజులు పెరుగుదల",
+          "summary_te": "ఏప్రిల్ 1 నుండి ప్రతి ఓవర్‌డ్రాఫ్ట్‌పై కొత్తగా $35 ఫీజు అమలోకి వస్తుంది."
+        }
+      },
+      "grade": null,
+      "notes": "",
+      "requests": 4
+    },
+    {
+      "id": "money-03",
+      "en_headline": "Remittance costs to India decline",
+      "en_summary": "Average transfer fees are not expected to exceed 400 INR this year.",
+      "te_reference": "ఈ ఏడాది సగటు బదిలీ రుసుములు 400 INR మించవు అని అంచనా, పెరుగుదల కాదు.",
+      "gemini": {
+        "classify": {
+          "category": "Economy & Finance",
+          "sensitivity": "FINANCIAL"
+        },
+        "summary": {
+          "summary_en": "Remittance costs to India are declining. Average transfer fees are not expected to exceed 400 INR this year."
+        },
+        "why_matters": {
+          "why_matters_en": "This matters to Telugu readers abroad because average transfer fees to India are not expected to exceed 400 INR this year."
+        },
+        "translate": {
+          "headline_te": "భారతదేశానికి రెమిটెన్స్ ఖర్చులు తగ్గాయి",
+          "summary_te": "ఈ ఏడాది సగటు బదిలీ రుసుములు 400 INR మించవని భావిస్తున్నారు."
+        }
+      },
+      "grade": null,
+      "notes": "",
+      "requests": 4
+    },
+    {
+      "id": "multilingual-01",
+      "en_headline": "United States and Telangana sign education exchange",
+      "en_summary": "The program does not charge participating students any fee.",
+      "te_reference": "అమెరికా మరియు తెలంగాణ ఈ విద్యా మార్పిడి ఒప్పందంపై సంతకం చేశాయి; పాల్గొనే విద్యార్థులకు రుసుము లేదు.",
+      "gemini": {
+        "classify": {
+          "category": "Education",
+          "sensitivity": "NONE"
+        },
+        "summary": {
+          "summary_en": "The United States and Telangana have signed an education exchange program. Participating students are not charged any fee for the program."
+        },
+        "why_matters": {
+          "why_matters_en": "This matters to Telugu readers abroad because the United States and Telangana education exchange program does not charge participating students any fee."
+        },
+        "translate": {
+          "headline_te": "యునైటెడ్ స్టేట్స్ మరియు తెలంగాణ మధ్య విద్యా మార్పిడి ఒప్పందం",
+          "summary_te": "ఈ కార్యక్రమంలో పాల్గొనే విద్యార్థుల నుండి ఎటువంటి ఫీజు వసూలు చేయబడదు."
+        }
+      },
+      "grade": null,
+      "notes": "",
+      "requests": 4
+    },
+    {
+      "id": "multilingual-02",
+      "en_headline": "Andhra Pradesh diaspora reacts to USCIS rule change",
+      "en_summary": "USCIS said the rule takes effect August 12 and does not apply retroactively.",
+      "te_reference": "ఈ నియమం ఆగస్టు 12 నుండి అమల్లోకి వస్తుంది, పూర్వానుసరణీయంగా వర్తించదు, తిరోగమనం లేదు అని యుఎస్‌సిఐఎస్ తెలిపింది.",
+      "gemini": {
+        "classify": {
+          "category": "US Immigration & Policy",
+          "sensitivity": "IMMIGRATION"
+        },
+        "summary": {
+          "summary_en": "USCIS announced that a new rule takes effect on August 12 and will not apply retroactively. This update prompted reactions from the Andhra Pradesh diaspora."
+        },
+        "why_matters": {
+          "why_matters_en": "This matters to Telugu readers abroad because USCIS announced that the rule takes effect on August 12 and does not apply retroactively."
+        },
+        "translate": {
+          "headline_te": "యూఎస్‌సీఐఎస్ నిబంధన మార్పుపై స్పందించిన ఆంధ్రప్రదేశ్ ప్రవాసాంధ్రులు",
+          "summary_te": "ఈ నిబంధన ఆగస్టు 12 నుండి అమల్లోకి వస్తుందని మరియు ఇది పూర్వవర్తిగా వర్తించదని యూఎస్‌సీఐఎస్ తెలిపింది."
+        }
+      },
+      "grade": null,
+      "notes": "",
+      "requests": 4
+    },
+    {
+      "id": "multilingual-03",
+      "en_headline": "White House hosts United States-India business forum",
+      "en_summary": "The forum on https://whitehouse.gov/forum runs through June 30.",
+      "te_reference": "ఈ ఫోరమ్ https://whitehouse.gov/forum వద్ద జూన్ 30 వరకు కొనసాగుతుంది.",
+      "gemini": {
+        "classify": {
+          "category": "Business & Economy",
+          "sensitivity": "NONE"
+        },
+        "summary": {
+          "summary_en": "The White House is hosting the United States-India business forum. The forum, located at https://whitehouse.gov/forum, runs through June 30."
+        },
+        "why_matters": {
+          "why_matters_en": "This matters to Telugu readers abroad because the White House hosts a United States-India business forum running through June 30."
+        },
+        "translate": {
+          "headline_te": "వైట్‌హౌస్ యునైటెడ్ స్టేట్స్-ఇండియా వ్యాపార వేదికను నిర్వహిస్తోంది",
+          "summary_te": "https://whitehouse.gov/forum లోని ఈ వేదిక జూన్ 30 వరకు కొనసాగుతుంది."
+        }
+      },
+      "grade": null,
+      "notes": "",
+      "requests": 4
+    },
+    {
+      "id": "numbers-01",
+      "en_headline": "Census update shows population shift",
+      "en_summary": "The metro area grew by 45,231 residents since 2020.",
+      "te_reference": "2020 నుండి ఈ మెట్రో ప్రాంతం 45,231 మంది నివాసితులతో పెరిగింది.",
+      "gemini": {
+        "classify": {
+          "category": "Local News",
+          "sensitivity": "NONE"
+        },
+        "summary": {
+          "summary_en": "A recent census update shows a population shift in the metro area. Specifically, the region grew by 45,231 residents since 2020."
+        },
+        "why_matters": {
+          "why_matters_en": "This matters to Telugu readers abroad because the metro area grew by 45,231 residents since 2020, showing a population shift."
+        },
+        "translate": {
+          "headline_te": "జనాభా మార్పును సెన్సస్ అప్‌డేట్ చూపుతోంది",
+          "summary_te": "2020 నుండి మెట్రో ప్రాంతంలో 45,231 మంది నివాసితులు పెరిగారు."
+        }
+      },
+      "grade": null,
+      "notes": "",
+      "requests": 4
+    },
+    {
+      "id": "numbers-02",
+      "en_headline": "School district enrollment figures released",
+      "en_summary": "Enrollment reached 12,480 students, up 3.2% from last year.",
+      "te_reference": "ఎన్‌రోల్‌మెంట్ 12,480 విద్యార్థులకు చేరింది, గత ఏడాదితో పోలిస్తే 3.2% పెరిగింది.",
+      "gemini": {
+        "classify": {
+          "category": "Education",
+          "sensitivity": "NONE"
+        },
+        "summary": {
+          "summary_en": "School district enrollment figures were recently released. Total enrollment reached 12,480 students, which is up 3.2% from last year."
+        },
+        "why_matters": {
+          "why_matters_en": "School district enrollment figures were released, showing that enrollment reached 12,480 students, which is up 3.2% from last year."
+        },
+        "translate": {
+          "headline_te": "పాఠశాల జిల్లా ప్రవేశ వివరాలు విడుదలయ్యాయి",
+          "summary_te": "నమోదు సంఖ్య 12,480 విద్యార్థులకు చేరుకుంది, ఇది గత సంవత్సరం కంటే 3.2% పెరిగింది."
+        }
+      },
+      "grade": null,
+      "notes": "",
+      "requests": 4
+    },
+    {
+      "id": "numbers-03",
+      "en_headline": "Highway toll rates adjusted",
+      "en_summary": "The toll rises from $4.50 to $5.25 starting November 1.",
+      "te_reference": "నవంబర్ 1 నుండి టోల్ $4.50 నుండి $5.25కి పెరుగుతుంది.",
+      "gemini": {
+        "classify": {
+          "category": "Infrastructure",
+          "sensitivity": "FINANCIAL"
+        },
+        "summary": {
+          "summary_en": "Highway toll rates have been adjusted. The toll rises from $4.50 to $5.25 starting November 1."
+        },
+        "why_matters": {
+          "why_matters_en": "Highway toll rates will increase from $4.50 to $5.25 starting November 1, which matters to Telugu readers abroad who travel by road."
+        },
+        "translate": {
+          "headline_te": "హైవే టోల్ రేట్లు సవరించబడ్డాయి",
+          "summary_te": "నవంబర్ 1 నుండి టోల్ రుసుము $4.50 నుండి $5.25కి పెరిగింది."
+        }
+      },
+      "grade": null,
+      "notes": "",
+      "requests": 4
+    },
+    {
+      "id": "politics-01",
+      "en_headline": "White House announces new infrastructure council",
+      "en_summary": "The White House said on March 4 the council will oversee $12 billion in projects.",
+      "te_reference": "వైట్ హౌస్ మార్చి 4న ఈ మండలి $12 billion ప్రాజెక్టులను పర్యవేక్షిస్తుందని ప్రకటించింది.",
+      "gemini": {
+        "classify": {
+          "category": "US Politics & Policy",
+          "sensitivity": "NONE"
+        },
+        "summary": {
+          "summary_en": "On March 4, the White House announced a new infrastructure council. The council will oversee $12 billion in projects."
+        },
+        "why_matters": {
+          "why_matters_en": "The White House announced a new infrastructure council on March 4 to oversee $12 billion in projects."
+        },
+        "translate": {
+          "headline_te": "కొత్త ఇన్‌ఫ్రాస్ట్రక్చర్ కౌన్సిల్‌ను ప్రకటించిన వైట్ హౌస్",
+          "summary_te": "ఈ కౌన్సిల్ 12 బిలియన్ డాలర్ల ప్రాజెక్ట్‌లను పర్యవేక్షిస్తుందని వైట్ హౌస్ మార్చి 4న తెలిపింది."
+        }
+      },
+      "grade": null,
+      "notes": "",
+      "requests": 4
+    },
+    {
+      "id": "politics-02",
+      "en_headline": "United States and partner nations sign trade framework",
+      "en_summary": "Officials said the framework does not include new tariffs on electronics.",
+      "te_reference": "అమెరికా భాగస్వామ్య దేశాలతో ఒప్పందంపై సంతకం చేసింది; ఎలక్ట్రానిక్స్‌పై కొత్త సుంకాలు లేదు.",
+      "gemini": {
+        "classify": {
+          "category": "Economy & Business",
+          "sensitivity": "NONE"
+        },
+        "summary": {
+          "summary_en": "The United States and partner nations have signed a new trade framework. Officials stated that this framework does not include any new tariffs on electronics."
+        },
+        "why_matters": {
+          "why_matters_en": "This matters to Telugu readers abroad because officials said the framework does not include new tariffs on electronics."
+        },
+        "translate": {
+          "headline_te": "యునైటెడ్ స్టేట్స్ మరియు భాగస్వామ్య దేశాలు వాణిజ్య ఫ్రేమ్‌వర్క్‌పై సంతకం చేశాయి",
+          "summary_te": "ఈ ఫ్రేమ్‌వర్క్‌లో ఎలక్ట్రానిక్స్‌పై కొత్త సుంకాలు లేవని అధికారులు తెలిపారు."
+        }
+      },
+      "grade": null,
+      "notes": "",
+      "requests": 4
+    },
+    {
+      "id": "politics-03",
+      "en_headline": "United States Senate passes emergency funding bill",
+      "en_summary": "The Senate voted 62-38 on June 10 to approve the measure.",
+      "te_reference": "అమెరికా సెనేట్ జూన్ 10న 62-38 ఓట్లతో ఈ బిల్లును ఆమోదించింది.",
+      "gemini": {
+        "classify": {
+          "category": "US Politics & Policy",
+          "sensitivity": "NONE"
+        },
+        "summary": {
+          "summary_en": "The United States Senate passed an emergency funding bill. The measure was approved by a 62-38 vote on June 10."
+        },
+        "why_matters": {
+          "why_matters_en": "This does not matter to Telugu readers abroad as the provided facts do not contain any information about Telugu readers or their interests."
+        },
+        "translate": {
+          "headline_te": "యునైటెడ్ స్టేట్స్ సెనేట్ అత్యవసర నిధుల బిల్లును ఆమోదించింది",
+          "summary_te": "జూన్ 10 న ఈ చర్యను ఆమోదించడానికి సెనేట్ 62-38 తో ఓటు వేసింది."
+        }
+      },
+      "grade": null,
+      "notes": "",
+      "requests": 4
+    },
+    {
+      "id": "telangana-01",
+      "en_headline": "Telangana signs IT jobs agreement",
+      "en_summary": "Telangana expects 15,000 new jobs by December.",
+      "te_reference": "తెలంగాణ డిసెంబర్ నాటికి 15,000 కొత్త ఉద్యోగాలను అంచనా వేస్తోంది.",
+      "gemini": {
+        "classify": {
+          "category": "Technology & Economy",
+          "sensitivity": "NONE"
+        },
+        "summary": {
+          "summary_en": "Telangana has signed an IT jobs agreement and expects to create 15,000 new jobs by December. This development highlights the state's growing technology sector and upcoming employment opportunities."
+        },
+        "why_matters": {
+          "why_matters_en": "This matters because Telangana expects 15,000 new jobs by December through the IT agreement."
+        },
+        "translate": {
+          "headline_te": "తెలంగాణ ఐటీ ఉద్యోగాల ఒప్పందంపై సంతకం చేసింది",
+          "summary_te": "డిసెంబర్ నాటికి తెలంగాణలో 15,000 కొత్త ఉద్యోగాలు వస్తాయని అంచనా వేస్తున్నారు."
+        }
+      },
+      "grade": null,
+      "notes": "",
+      "requests": 4
+    },
+    {
+      "id": "telangana-02",
+      "en_headline": "Telangana water project update",
+      "en_summary": "Officials said the project is not delayed despite recent rains.",
+      "te_reference": "ఇటీవలి వర్షాలు ఉన్నప్పటికీ ఈ ప్రాజెక్టు ఆలస్యం కాలేదు అని అధికారులు తెలిపారు.",
+      "gemini": {
+        "classify": {
+          "category": "Telangana Infrastructure",
+          "sensitivity": "NONE"
+        },
+        "summary": {
+          "summary_en": "Officials stated that the Telangana water project is not delayed. This remains true despite recent rains."
+        },
+        "why_matters": {
+          "why_matters_en": "This matters to Telugu readers abroad because officials said the Telangana water project is not delayed despite recent rains."
+        },
+        "translate": {
+          "headline_te": "తెలంగాణ నీటి ప్రాజెక్ట్ అప్‌డేట్",
+          "summary_te": "ఇటీవలి వర్షాల కారణంగా ప్రాజెక్ట్ ఆలస్యం కాలేదని అధికారులు తెలిపారు."
+        }
+      },
+      "grade": null,
+      "notes": "",
+      "requests": 4
+    },
+    {
+      "id": "telangana-03",
+      "en_headline": "Telangana releases education budget",
+      "en_summary": "The budget allocates 5,000 crore INR for public schools.",
+      "te_reference": "ఈ బడ్జెట్ ప్రభుత్వ పాఠశాలలకు 5,000 crore INR కేటాయిస్తుంది.",
+      "gemini": {
+        "classify": {
+          "category": "Education",
+          "sensitivity": "NONE"
+        },
+        "summary": {
+          "summary_en": "Telangana has released its education budget. The budget allocates 5,000 crore INR for public schools."
+        },
+        "why_matters": {
+          "why_matters_en": "This matters to Telugu readers abroad because the Telangana education budget allocates 5,000 crore INR for public schools."
+        },
+        "translate": {
+          "headline_te": "తెలంగాణ విద్యా బడ్జెట్‌ను విడుదల చేసింది",
+          "summary_te": "ఈ బడ్జెట్ ప్రభుత్వ పాఠశాలల కోసం 5,000 కోట్ల రూపాయలను కేటాయించింది."
+        }
+      },
+      "grade": null,
+      "notes": "",
+      "requests": 4
+    },
+    {
+      "id": "us-01",
+      "en_headline": "United States unemployment rate holds steady",
+      "en_summary": "The rate stayed at 4.1% in August, matching July.",
+      "te_reference": "ఆగస్టులో ఈ రేటు 4.1%గా, జూలైతో సమానంగా కొనసాగింది.",
+      "gemini": {
+        "classify": {
+          "category": "Economy",
+          "sensitivity": "FINANCIAL"
+        },
+        "summary": {
+          "summary_en": "The United States unemployment rate held steady in August. The rate stayed at 4.1%, matching July."
+        },
+        "why_matters": {
+          "why_matters_en": "This matters to Telugu readers abroad because the United States unemployment rate held steady at 4.1% in August, matching July."
+        },
+        "translate": {
+          "headline_te": "యునైటెడ్ స్టేట్స్ నిరుద్యోగ రేటు స్థిరంగా ఉంది",
+          "summary_te": "ఆగస్టులో ఈ రేటు 4.1% వద్ద ఉండి, జూలైతో సమానంగా నిలిచింది."
+        }
+      },
+      "grade": null,
+      "notes": "",
+      "requests": 4
+    },
+    {
+      "id": "us-02",
+      "en_headline": "United States announces diplomatic visit",
+      "en_summary": "The visit is scheduled for October 3 and will not be postponed.",
+      "te_reference": "ఈ పర్యటన అక్టోబర్ 3న జరగనుంది, వాయిదా లేదు.",
+      "gemini": {
+        "classify": {
+          "category": "US-India Relations",
+          "sensitivity": "NONE"
+        },
+        "summary": {
+          "summary_en": "The United States has announced a diplomatic visit that is scheduled for October 3. This visit will not be postponed."
+        },
+        "why_matters": {
+          "why_matters_en": "This matters because the United States' scheduled diplomatic visit on October 3 will not be postponed."
+        },
+        "translate": {
+          "headline_te": "యునైటెడ్ స్టేట్స్ దౌత్యపరమైన పర్యటనను ప్రకటించింది",
+          "summary_te": "ఈ పర్యటన అక్టోబర్ 3 న ఖరారు చేయబడింది మరియు వాయిదా వేయబడదు."
+        }
+      },
+      "grade": null,
+      "notes": "",
+      "requests": 4
+    },
+    {
+      "id": "us-03",
+      "en_headline": "United States airport expansion completed",
+      "en_summary": "The $2 billion terminal opens to travelers this week.",
+      "te_reference": "ఈ $2 billion టెర్మినల్ ఈ వారం ప్రయాణికులకు అందుబాటులోకి వస్తుంది.",
+      "gemini": {
+        "classify": {
+          "category": "Infrastructure",
+          "sensitivity": "NONE"
+        },
+        "summary": {
+          "summary_en": "A new United States airport expansion has been completed. The $2 billion terminal opens to travelers this week."
+        },
+        "why_matters": {
+          "why_matters_en": "This matters to Telugu readers abroad because a $2 billion airport terminal in the United States opens to travelers this week."
+        },
+        "translate": {
+          "headline_te": "యునైటెడ్ స్టేట్స్ విమానాశ్రయ విస్తరణ పూర్తి అయింది",
+          "summary_te": "ఈ వారం $2 బిలియన్ల టెర్మినల్ ప్రయాణికుల కోసం తెరవబడింది."
+        }
+      },
+      "grade": null,
+      "notes": "",
+      "requests": 4
+    }
+  ]
+}

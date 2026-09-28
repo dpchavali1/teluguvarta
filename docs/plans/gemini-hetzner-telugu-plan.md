@@ -581,6 +581,24 @@ auto-publish) and `app/alerts.py`.
    `FREE_TIER_ALLOWED` (§4), before ADR-011 records either figure — both are required
    inputs to that ADR, same as Spike 1 (Telugu quality) already gates it on the
    translation side, and neither should be guessed at write time.
+   **[R7] Limits confirmed 2026-09-28** from AI Studio's rate-limit page, project
+   `TheTeluguEdit`, free tier (peak-vs-limit table). The 15/1,500 estimate above was
+   wrong for this project:
+
+   | Model | RPM | TPM | RPD |
+   |---|---|---|---|
+   | Gemini 3.8 Flash | 5 | 250K | 20 |
+   | Gemini 3.5 Flash Lite | 15 | 250K | 500 |
+   | Gemma 4 26B / 31B | 30 | 16K | 14.4K |
+   | Gemini Embedding 1 / 2 | 100 | 30K | 1K |
+
+   Consequences: 3.8 Flash at 20 RPD is not a pipeline model (eval/spot use only). Bulk
+   work is Flash Lite at 500 RPD — with ~4 calls per story (categorize, summary,
+   why-matters, translate) that is **~125 stories/day at best**, before retries, so
+   requests-per-story (Spike 1) is now the number that decides feasibility. Gemma's
+   14.4K RPD is attractive but its 16K TPM caps a request near one short story per
+   call and its Telugu quality is unmeasured. Limits are per project and shown as
+   peaks, so re-read the page before ADR-011 is accepted. RPD resets midnight Pacific.
 7. **Fix the dedup bug**: `DEDUP_CLUSTER_ESCALATION` routes `text-embedding-3-small`
    (`tasks.py:43-45`) into a chat completion and cannot work. Move to `run_embedding` +
    cosine. Calibrate **two thresholds** — cross-lingual cosine sits systematically lower

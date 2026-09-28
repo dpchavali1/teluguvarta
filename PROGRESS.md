@@ -18,7 +18,7 @@ gate section is gone; do not reintroduce a pilot gate on any future ticket.
 **Deliberately absent from `ROUTING`**: the free tier may train on submitted data, so routing any
 task to it needs ADR-011 plus the pre-call privacy gate (plan §4). Live-checked with the user's key
 2026-09-28: `gemini-3.8-flash` and `gemini-3.5-flash-lite` return correct Telugu; `gemini-2.5-*`
-now 404 for new users. Spike 1 (quality grading) and the AI Studio RPM/RPD limits check are still open.
+now 404 for new users. **Free-tier limits confirmed 2026-09-28** (plan §rate-limits [R7]): 3.8 Flash 5 RPM/250K TPM/**20 RPD**; 3.5 Flash Lite 15 RPM/250K TPM/**500 RPD** (~125 stories/day at ~4 calls/story) — far below the plan's old 15/1,500 estimate. **Spike 1 harness run 2026-09-28** (`infra/scripts/spike1_telugu_quality.py`, 30 golden items, Flash Lite): 4.0 requests/story, 0 failures, p50 0.76s / p95 1.64s; results in `infra/scripts/spike1_results.json`. **Still open: native-speaker grading of the sample** (fill `grade`/`notes`), which gates accepting ADR-015 (proposed; allowlist v1 awaiting owner review). Also added `budget.quota_day_start` (Pacific quota day).
 
 **Gemini/Hetzner/Telugu-first plan saved, not started (2026-09-16)**: a large
 pre-implementation plan — swap AI providers to Gemini's free tier, self-host
