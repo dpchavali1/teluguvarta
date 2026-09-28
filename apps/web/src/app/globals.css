@@ -1829,3 +1829,16 @@ a.pill:focus-visible {
   .briefing-header { align-items: flex-start; }
   .story-grid { grid-template-columns: 1fr; }
 }
+
+/* ADR-014 "StoryLead always above the fold" at short viewports: 200% zoom on
+   a laptop (≈640×400 CSS px) or a landscape phone. The briefing intro and
+   topic rail otherwise push the lead headline below the fold; drop the
+   decorative dek and the rail's visible heading (the nav keeps its
+   aria-label) and keep the CTA beside the title instead of stacked. */
+@media (max-height: 560px) {
+  .briefing-header { flex-direction: row; align-items: center; margin-bottom: 0.75rem; padding-bottom: 0.5rem; }
+  .briefing-header > div > p:last-child { display: none; }
+  .briefing-header h1 { font-size: 1.5rem; }
+  .topic-rail { margin-bottom: 1rem; }
+  .topic-rail__heading { display: none; }
+}

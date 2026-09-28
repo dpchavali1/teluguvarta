@@ -3,6 +3,7 @@ import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { STUDENT_TOPIC_SLUGS } from "@teluguvarta/domain";
 import React, { useEffect, useMemo, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { NotificationPreferencesForm } from "../components/NotificationPreferencesForm";
 import { getConfig, trackEvent, type TopicOut } from "../lib/api";
@@ -33,6 +34,9 @@ export function OnboardingScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { colors, ui } = useAppTheme();
   const styles = useMemo(() => createStyles(colors, ui), [colors, ui]);
+  // headerShown is false for this route, so nothing else keeps the skip
+  // link out from under the status bar / Dynamic Island.
+  const insets = useSafeAreaInsets();
   const [step, setStep] = useState(0);
   const [profile, setProfileDraft] = useState<OnboardingProfile>(EMPTY_PROFILE);
   const [prefs, setPrefsDraft] = useState<NotificationPreferences>(DEFAULT_NOTIFICATION_PREFERENCES);
@@ -81,7 +85,7 @@ export function OnboardingScreen() {
   }
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { paddingTop: insets.top }]}>
       <Pressable
         onPress={skipAll}
         accessibilityRole="button"

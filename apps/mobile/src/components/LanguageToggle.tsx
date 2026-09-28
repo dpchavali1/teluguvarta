@@ -33,7 +33,8 @@ export function LanguageToggle() {
         accessibilityLabel="English"
         style={[styles.button, language === "en" && styles.buttonActive]}
       >
-        <Text style={[styles.buttonText, language === "en" && styles.buttonTextActive]}>EN</Text>
+        {/* Lives in the fixed-height nav header — capped so it can't overflow at the largest Dynamic Type sizes. */}
+        <Text maxFontSizeMultiplier={1.3} style={[styles.buttonText, language === "en" && styles.buttonTextActive]}>EN</Text>
       </Pressable>
       <Pressable
         onPress={() => choose("te")}
@@ -42,7 +43,7 @@ export function LanguageToggle() {
         accessibilityLabel="తెలుగు"
         style={[styles.button, styles.buttonRight, language === "te" && styles.buttonActive]}
       >
-        <Text style={[styles.buttonText, language === "te" && styles.buttonTextActive]}>తె</Text>
+        <Text maxFontSizeMultiplier={1.3} style={[styles.buttonText, language === "te" && styles.buttonTextActive]}>తె</Text>
       </Pressable>
     </View>
   );

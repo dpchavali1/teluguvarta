@@ -49,6 +49,10 @@ export function MainTabs() {
         tabBarStyle: { backgroundColor: colors.surface, borderTopColor: colors.border },
         headerStyle: { backgroundColor: colors.surface },
         headerTitleStyle: { color: colors.text },
+        // ADR-014 step 5: the header has a fixed height, so a Dynamic Type
+        // title clipped at the largest sizes. Native iOS nav-bar titles
+        // don't scale either; screen content still does.
+        headerTitleAllowFontScaling: false,
         // Design-review fix: language was two taps deep in Settings with
         // no persistent affordance. One tap from every main tab now,
         // matching web's header-level placement.

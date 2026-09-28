@@ -295,6 +295,42 @@ Mirrors `docs/adr/README.md` — keep both in sync.
 
 (newest first — one line per ticket completion)
 
+- 2026-09-27: **ADR-014 step 5 — cross-surface visual regression pass**
+  (last step of ADR-014's implementation order; ad hoc, no ticket file).
+  **Web**: new `apps/web/scripts/visual-regression.mjs` (`pnpm --filter
+  @teluguvarta/web test:visual`, needs API + web running) — real-browser
+  Playwright pass over home/topics/search/saved/story/topic × 390/768/1440/
+  200%-zoom (640×400 @2x) × light/dark, saving screenshots to
+  `VR_OUT_DIR` and asserting no horizontal overflow, StoryLead headline
+  above the fold, and the same with every headline replaced in-DOM by a
+  long Telugu string (no data change); plus the four ADR-014 journeys
+  (first-story visibility, topic discovery, language switch + persistence
+  across reload, save → Saved after reload → reopen). One real defect
+  found and fixed: at 200% zoom the briefing intro + topic rail pushed the
+  lead below the fold — new `@media (max-height: 560px)` rule at the end
+  of `globals.css` (hides the dek and the rail's visible heading — nav
+  keeps its aria-label — and keeps the CTA inline). After fix: 88/88
+  checks pass; web typecheck/lint clean. **Mobile** (iOS Simulator, Expo
+  Go, `simctl ui content_size accessibility-extra-extra-extra-large` +
+  light/dark): (1) onboarding's "Continue without login" rendered under
+  the status bar — fixed with `useSafeAreaInsets` top padding, verified
+  live at largest text; (2) the tab header title and (3) header
+  `LanguageToggle` clipped/overflowed the fixed-height header at the
+  largest size — fixed with `headerTitleAllowFontScaling: false` (matches
+  native iOS nav bars) and `maxFontSizeMultiplier={1.3}` on the toggle
+  text. Mobile tsc clean, Jest 19/19. **Not done**: (2)/(3) were not
+  re-screenshotted after the fix (Simulator still ignores synthetic taps,
+  so reaching Home needs a manual tap each Expo Go relaunch); mobile
+  long-Telugu, story detail, and the four journeys were not walked on
+  mobile — no automated driver (no Detox/Maestro), and Expo Go deep links
+  don't match `App.tsx`'s `linking.prefixes` (no `exp://`). Onboarding
+  reappeared after an Expo Go relaunch despite `finish()` persisting the
+  flag — likely Expo Go storage scoping across Metro restarts, unconfirmed.
+  Environment: run Metro with `REACT_NATIVE_PACKAGER_HOSTNAME=127.0.0.1
+  npx expo start --lan` — `--localhost` binds IPv6 `[::1]` only and Expo
+  Go's `127.0.0.1` URL then fails with "Could not connect to development
+  server". Local demo data from 2026-09-17 still not reverted.
+
 - 2026-09-24: **Admin MFA login fixed** (the 2026-09-17 "NEXT SESSION START
   HERE" gap below is resolved). `apps/admin/src/app/login/page.tsx` now has
   two steps. (1) Sign in: email, password and an always-visible optional

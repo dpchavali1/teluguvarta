@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
-    "test:a11y": "node scripts/a11y-check.mjs"
+    "test:a11y": "node scripts/a11y-check.mjs",
+    "test:visual": "node scripts/visual-regression.mjs"
   },
   "dependencies": {
     "@teluguvarta/domain": "workspace:*",
