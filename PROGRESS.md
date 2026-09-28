@@ -13,6 +13,13 @@ signup capture) has been deleted, including its `pilot_signups` DB table
 the full list of removed files. `docs/BUILD_ORDER.md`'s pre-build validation
 gate section is gone; do not reintroduce a pilot gate on any future ticket.
 
+**Gemini provider adapter added, not routed (2026-09-28)**: `app/ai/providers/gemini_provider.py`
+(httpx REST, no SDK, key `AI_GEMINI_API_KEY`) + `provider="gemini"` in `gateway._resolve_provider`.
+**Deliberately absent from `ROUTING`**: the free tier may train on submitted data, so routing any
+task to it needs ADR-011 plus the pre-call privacy gate (plan §4). Live-checked with the user's key
+2026-09-28: `gemini-3.8-flash` and `gemini-3.5-flash-lite` return correct Telugu; `gemini-2.5-*`
+now 404 for new users. Spike 1 (quality grading) and the AI Studio RPM/RPD limits check are still open.
+
 **Gemini/Hetzner/Telugu-first plan saved, not started (2026-09-16)**: a large
 pre-implementation plan — swap AI providers to Gemini's free tier, self-host
 on Hetzner (superseding ADR-007), add Telugu-first sourcing (superseding

@@ -57,6 +57,13 @@ def _resolve_provider(name: str | None) -> Provider:
             return AnthropicProvider()
         except ProviderUnavailableError:
             return NullProvider()
+    if name == "gemini":
+        try:
+            from app.ai.providers.gemini_provider import GeminiProvider
+
+            return GeminiProvider()
+        except ProviderUnavailableError:
+            return NullProvider()
     return NullProvider()
 
 

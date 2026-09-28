@@ -5,6 +5,7 @@ naming a model directly, so swapping a provider/model touches one file.
 
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass
 from enum import Enum
 
@@ -17,6 +18,13 @@ class Task(str, Enum):
     WHY_MATTERS = "why_matters"
     TRANSLATION_EN_TE = "translation_en_te"
     SENSITIVE_VALIDATION = "sensitive_validation"
+
+
+# Gemini model names are aliases Google re-points as Flash versions ship and
+# retire, so nothing here needs editing on a version change. Set the env var
+# to a pinned id (e.g. gemini-3.8-flash) when an eval needs a frozen model.
+GEMINI_FLASH = os.environ.get("AI_GEMINI_FLASH_MODEL") or "gemini-flash-latest"
+GEMINI_FLASH_LITE = os.environ.get("AI_GEMINI_FLASH_LITE_MODEL") or "gemini-flash-lite-latest"
 
 
 @dataclass(frozen=True)
@@ -82,6 +90,9 @@ MODEL_PRICING: dict[str, ModelPricing] = {
     "gpt-4o": ModelPricing(0.0025, 0.01),
     "text-embedding-3-small": ModelPricing(0.00002, 0.0),
     "claude-3-5-sonnet-20241022": ModelPricing(0.003, 0.015),
+    # Free tier: $0 billed. Paid-tier rates to be added by ADR-011.
+    "gemini-flash-latest": ModelPricing(0.0, 0.0),
+    "gemini-flash-lite-latest": ModelPricing(0.0, 0.0),
 }
 
 
