@@ -25,6 +25,11 @@ class ProviderUnavailableError(RuntimeError):
     must queue the work for later, per §7.5 — never invent content."""
 
 
+class ProviderQuotaError(ProviderUnavailableError):
+    """The provider rejected the call for quota (HTTP 429). A deferral: the
+    gateway records it and returns DEFERRED rather than counting a failure."""
+
+
 class Provider(Protocol):
     name: str
 

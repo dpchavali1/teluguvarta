@@ -1,6 +1,6 @@
 # ADR-015: Gemini free tier as an AI provider (amends ADR-001)
 
-- **Status**: proposed
+- **Status**: accepted (2026-09-28)
 - **Date**: 2026-09-28
 - **Ticket**: Phase −1 / T22 prerequisite (`docs/plans/gemini-hetzner-telugu-plan.md` calls this "ADR-011"; that number is taken by the claim-evidence ADR, so it is ADR-015 here)
 

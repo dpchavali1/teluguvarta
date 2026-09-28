@@ -16,7 +16,11 @@ from typing import TYPE_CHECKING
 
 import httpx
 
-from app.ai.providers.base import ProviderResponse, ProviderUnavailableError
+from app.ai.providers.base import (
+    ProviderQuotaError,
+    ProviderResponse,
+    ProviderUnavailableError,
+)
 
 if TYPE_CHECKING:
     from app.ai.tasks import Task
@@ -53,6 +57,10 @@ class GeminiProvider:
                 timeout=TIMEOUT_SECONDS,
             )
             response.raise_for_status()
+        except httpx.HTTPStatusError as exc:
+            if exc.response.status_code == 429:
+                raise ProviderQuotaError("Gemini quota exhausted (429)") from exc
+            raise ProviderUnavailableError(f"Gemini request failed: HTTP {exc.response.status_code}") from exc
         except httpx.HTTPError as exc:
             # 429 (free-tier quota) and 5xx land here: queue for later, per §7.5.
             raise ProviderUnavailableError(f"Gemini request failed: {type(exc).__name__}") from exc

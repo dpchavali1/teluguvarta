@@ -88,6 +88,8 @@ class Source(Base):
     # §8.2 ranking's `source_quality` input (T16/ADR-005). Neutral default
     # until a later ticket exposes it in the source-registry admin CRUD.
     quality_score: Mapped[float] = mapped_column(Float, nullable=False, server_default="0.5")
+    # ADR-015: configured category, the only input to the free-tier allowlist.
+    category: Mapped[str | None] = mapped_column(Text, nullable=True)
 
 
 class XAccount(Base):
@@ -166,6 +168,8 @@ class Story(Base):
     # 'OBITUARY_ACCUSATION' per `ck_stories_sensitivity` (T11: §5.2's
     # publication-rules gate reads this).
     sensitivity: Mapped[str] = mapped_column(Text, nullable=False, server_default="NONE")
+    # ADR-015: 'FREE_TIER_ALLOWED' | 'RESTRICTED' | 'UNKNOWN' (see app/ai/privacy.py).
+    privacy_decision: Mapped[str] = mapped_column(Text, nullable=False, server_default="UNKNOWN")
     importance: Mapped[float] = mapped_column(Float, nullable=False, server_default="0")
     published_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     # T17: separate, always-manual editorial gate for *sending a breaking

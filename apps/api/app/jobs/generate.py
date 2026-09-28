@@ -214,7 +214,7 @@ def _generate_story(db: Session, story: Story) -> None:
     classify_outcome = gateway.run_task(
         Task.RELEVANCE_CATEGORIZATION, _classify_prompt(items), story_id=story.id, evidence_item_ids=evidence_item_ids
     )
-    if classify_outcome.status in (GatewayStatus.HOLD, GatewayStatus.UNAVAILABLE):
+    if classify_outcome.status in (GatewayStatus.HOLD, GatewayStatus.UNAVAILABLE, GatewayStatus.DEFERRED):
         return  # queue for later (§7.5) — items stay CLUSTERED, retried next sweep
     classification = classify_outcome.result
     if classification is None:
@@ -239,7 +239,7 @@ def _generate_story(db: Session, story: Story) -> None:
     generate_outcome = gateway.run_task(
         Task.SUMMARY, _generate_prompt(items), story_id=story.id, evidence_item_ids=evidence_item_ids
     )
-    if generate_outcome.status in (GatewayStatus.HOLD, GatewayStatus.UNAVAILABLE, GatewayStatus.CLASSIFICATION_ONLY):
+    if generate_outcome.status in (GatewayStatus.HOLD, GatewayStatus.UNAVAILABLE, GatewayStatus.DEFERRED, GatewayStatus.CLASSIFICATION_ONLY):
         return  # queue for later; classification alone doesn't advance the story
     generated = generate_outcome.result
     if generated is None:

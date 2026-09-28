@@ -16,8 +16,10 @@ from sqlalchemy.orm import Session
 
 from app.ai.budget import is_over_monthly_budget, record_call
 from app.ai.contracts import GenerationResult
-from app.ai.providers.base import Provider, ProviderUnavailableError
+from app.ai.privacy import PrivacyDecision, coerce
+from app.ai.providers.base import Provider, ProviderQuotaError, ProviderUnavailableError
 from app.ai.providers.null_provider import NullProvider
+from app.ai.ratelimit import acquire
 from app.ai.tasks import DEGRADABLE_ON_BUDGET_BREACH, ROUTING, Task
 
 # §7.5: "low confidence -> review queue." Below this, a syntactically valid
@@ -33,6 +35,8 @@ class GatewayStatus(str, Enum):
     REVIEW_QUEUE = "REVIEW_QUEUE"
     UNAVAILABLE = "UNAVAILABLE"
     CLASSIFICATION_ONLY = "CLASSIFICATION_ONLY"
+    # ADR-015: free-tier quota or a provider 429. A deferral, not a failure.
+    DEFERRED = "DEFERRED"
 
 
 @dataclass
@@ -40,6 +44,11 @@ class GatewayOutcome:
     status: GatewayStatus
     result: BaseModel | None = None
     removed_claims: list[str] = field(default_factory=list)
+
+
+class FreeTierViolation(RuntimeError):
+    """A dispatch to the Gemini free tier that ADR-015 forbids. Raised, never
+    logged-and-continued: a violation is a bug, not a runtime condition."""
 
 
 def _resolve_provider(name: str | None) -> Provider:
@@ -101,6 +110,15 @@ class AiGateway:
     def __init__(self, db: Session):
         self._db = db
 
+    @staticmethod
+    def _guard_free_tier(story_id, privacy_decision, editor_authored: bool) -> None:
+        if editor_authored:
+            raise FreeTierViolation("editor-authored text never goes to the free tier")
+        if story_id is None:
+            raise FreeTierViolation("free-tier dispatch requires a story with a recorded privacy decision")
+        if coerce(getattr(privacy_decision, "value", privacy_decision)) != PrivacyDecision.FREE_TIER_ALLOWED:
+            raise FreeTierViolation("story is not FREE_TIER_ALLOWED")
+
     def run_task(
         self,
         task: Task,
@@ -109,6 +127,8 @@ class AiGateway:
         story_id: uuid.UUID | None = None,
         result_model: type[BaseModel] = GenerationResult,
         evidence_item_ids: frozenset[str] | None = None,
+        privacy_decision: PrivacyDecision | str | None = None,
+        editor_authored: bool = False,
     ) -> GatewayOutcome:
         route = ROUTING[task]
 
@@ -118,11 +138,23 @@ class AiGateway:
         if task in DEGRADABLE_ON_BUDGET_BREACH and is_over_monthly_budget(self._db):
             return GatewayOutcome(status=GatewayStatus.CLASSIFICATION_ONLY)
 
+        if route.provider == "gemini":
+            self._guard_free_tier(story_id, privacy_decision, editor_authored)
+            if not acquire(self._db, route.default_model):
+                record_call(
+                    self._db, task=task, provider="gemini", model=route.default_model,
+                    status="DEFERRED", story_id=story_id,
+                )
+                return GatewayOutcome(status=GatewayStatus.DEFERRED)
+
         provider = _resolve_provider(route.provider)
         model = route.default_model
 
         try:
             response = provider.complete(model=model, task=task, prompt=prompt)
+        except ProviderQuotaError:
+            record_call(self._db, task=task, provider=provider.name, model=model, status="DEFERRED", story_id=story_id)
+            return GatewayOutcome(status=GatewayStatus.DEFERRED)
         except ProviderUnavailableError:
             return GatewayOutcome(status=GatewayStatus.UNAVAILABLE)
 

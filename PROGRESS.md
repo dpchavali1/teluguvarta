@@ -302,6 +302,18 @@ Mirrors `docs/adr/README.md` — keep both in sync.
 
 (newest first — one line per ticket completion)
 
+- 2026-09-28: **T22 — free-tier privacy gate, rate limiter, request counter**
+  (`docs/tickets/T22.md`; ADR-015 accepted; plan calls this scope "T23").
+  Added `app/ai/privacy.py` (three-state decision, allowlist v1),
+  `app/ai/ratelimit.py` (RPM bucket + Pacific-day RPD from `ai_call_log`),
+  gateway `FreeTierViolation` guard + `DEFERRED` status + `ProviderQuotaError`
+  (429), migration `e5b8d2f3a7c1` (`sources.category`,
+  `stories.privacy_decision`, `DEFERRED` in `ai_call_log` status check).
+  **Not done / follow-ups**: nothing is routed to Gemini (`ROUTING` unchanged);
+  `generate.py`/`translate.py` don't yet compute/persist/pass the decision, and
+  no admin UI sets `sources.category`; RPM bucket is in-process only. Tests:
+  278 pass, ruff clean.
+
 - 2026-09-27: **ADR-014 step 5 — cross-surface visual regression pass**
   (last step of ADR-014's implementation order; ad hoc, no ticket file).
   **Web**: new `apps/web/scripts/visual-regression.mjs` (`pnpm --filter

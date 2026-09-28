@@ -86,7 +86,7 @@ def _translate_story(db: Session, story: Story, en: StoryVariant) -> None:
     outcome = gateway.run_task(
         Task.TRANSLATION_EN_TE, _translate_prompt(en), story_id=story.id, result_model=TranslationResult
     )
-    if outcome.status in (GatewayStatus.HOLD, GatewayStatus.UNAVAILABLE, GatewayStatus.CLASSIFICATION_ONLY):
+    if outcome.status in (GatewayStatus.HOLD, GatewayStatus.UNAVAILABLE, GatewayStatus.DEFERRED, GatewayStatus.CLASSIFICATION_ONLY):
         return  # retried next sweep — no `te` variant created, per §7.5
     result = outcome.result
     if not isinstance(result, TranslationResult):
