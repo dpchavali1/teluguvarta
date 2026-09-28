@@ -34,6 +34,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.ai import AiGateway, GatewayStatus, Task
+from app.ai.privacy import PrivacyDecision, classify_privacy, coerce, tighten
 from app.jobs.cluster import normalized_title_key
 from app.jobs.queue import enqueue_job
 from app.models import (
@@ -204,15 +205,41 @@ def _env_flag(name: str, *, default: bool) -> bool:
     return value.strip().lower() not in ("0", "false", "no", "")
 
 
+def _resolve_privacy(db: Session, story: Story, items: list[SourceItem]) -> PrivacyDecision:
+    """ADR-015: computed once, on a story's first generation, from the source
+    category and item titles; afterwards the persisted value is authoritative
+    and may only tighten. A story whose items span sources with differing (or
+    missing) categories is ambiguous, so it gets no category and resolves
+    UNKNOWN.
+    """
+    from app.models import Source
+
+    categories = {
+        (db.get(Source, item.source_id).category if db.get(Source, item.source_id) else None) for item in items
+    }
+    category = next(iter(categories)) if len(categories) == 1 else None
+    computed = classify_privacy(category, *(item.title for item in items))
+    first_generation = db.scalars(select(StoryVariant.id).where(StoryVariant.story_id == story.id)).first() is None
+    decision = computed if first_generation else tighten(coerce(story.privacy_decision), computed)
+    story.privacy_decision = decision.value
+    db.flush()
+    return decision
+
+
 def _generate_story(db: Session, story: Story) -> None:
     items = _story_items(db, story)
     if not items:
         return
 
     evidence_item_ids = _evidence_item_ids(items)
+    privacy = _resolve_privacy(db, story, items)
     gateway = AiGateway(db)
     classify_outcome = gateway.run_task(
-        Task.RELEVANCE_CATEGORIZATION, _classify_prompt(items), story_id=story.id, evidence_item_ids=evidence_item_ids
+        Task.RELEVANCE_CATEGORIZATION,
+        _classify_prompt(items),
+        story_id=story.id,
+        evidence_item_ids=evidence_item_ids,
+        privacy_decision=privacy,
     )
     if classify_outcome.status in (GatewayStatus.HOLD, GatewayStatus.UNAVAILABLE, GatewayStatus.DEFERRED):
         return  # queue for later (§7.5) — items stay CLUSTERED, retried next sweep
@@ -231,13 +258,20 @@ def _generate_story(db: Session, story: Story) -> None:
     sensitivity = _normalize_sensitivity(classification.sensitivity)
     if sensitivity != "NONE":
         reasons.append("SENSITIVE_CATEGORY")  # P0 — NON_NEGOTIABLES #5, always human
+        # ADR-015: the model's own read may tighten, never loosen.
+        privacy = tighten(privacy, PrivacyDecision.RESTRICTED)
+        story.privacy_decision = privacy.value
 
     p1_review_enabled = _env_flag(P1_REVIEW_ENV_VAR, default=True)
     if classification.urgency.strip().upper() in ("HIGH", "URGENT") and p1_review_enabled:
         reasons.append("HIGH_IMPORTANCE")  # P1
 
     generate_outcome = gateway.run_task(
-        Task.SUMMARY, _generate_prompt(items), story_id=story.id, evidence_item_ids=evidence_item_ids
+        Task.SUMMARY,
+        _generate_prompt(items),
+        story_id=story.id,
+        evidence_item_ids=evidence_item_ids,
+        privacy_decision=privacy,
     )
     if generate_outcome.status in (GatewayStatus.HOLD, GatewayStatus.UNAVAILABLE, GatewayStatus.DEFERRED, GatewayStatus.CLASSIFICATION_ONLY):
         return  # queue for later; classification alone doesn't advance the story

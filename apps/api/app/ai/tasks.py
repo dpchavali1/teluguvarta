@@ -71,6 +71,19 @@ ROUTING: dict[Task, TaskRoute] = {
     ),
 }
 
+# ADR-015: routes used ONLY for a story whose persisted privacy decision is
+# FREE_TIER_ALLOWED, and only while AI_FREE_TIER_ENABLED is set. Everything
+# else keeps its ROUTING entry above; a non-allowed story is never sent here.
+FREE_TIER_ROUTING: dict[Task, TaskRoute] = {
+    task: TaskRoute(provider="gemini", default_model=GEMINI_FLASH_LITE)
+    for task in (Task.RELEVANCE_CATEGORIZATION, Task.SUMMARY, Task.TRANSLATION_EN_TE)
+}
+
+
+def free_tier_enabled() -> bool:
+    return os.environ.get("AI_FREE_TIER_ENABLED", "").strip().lower() in ("1", "true", "yes")
+
+
 # Tasks that degrade to "classification-only mode" (§7.5) once the monthly
 # AI budget is breached: generation tasks producing publishable content are
 # skipped; relevance/categorization and dedup escalation (needed just to

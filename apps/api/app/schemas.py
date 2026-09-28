@@ -275,6 +275,7 @@ class AdminSourceOut(BaseModel):
     reviewer: str | None = None
     rights_evidence: RightsEvidence = Field(default_factory=RightsEvidence)
     refresh_minutes: int | None = None
+    category: str | None = None
     active: bool
     fail_count: int
     last_success_at: datetime | None = None
@@ -289,6 +290,7 @@ class AdminSourceCreate(BaseModel):
     country: str | None = None
     language: str | None = None
     refresh_minutes: int | None = None
+    category: str | None = None
 
 
 class AdminSourceUpdate(BaseModel):
@@ -304,6 +306,7 @@ class AdminSourceUpdate(BaseModel):
     reviewer: str | None = None
     rights_evidence: RightsEvidence | None = None
     refresh_minutes: int | None = None
+    category: str | None = None
     active: bool | None = None
 
 

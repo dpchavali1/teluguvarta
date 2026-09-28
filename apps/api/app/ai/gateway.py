@@ -20,7 +20,13 @@ from app.ai.privacy import PrivacyDecision, coerce
 from app.ai.providers.base import Provider, ProviderQuotaError, ProviderUnavailableError
 from app.ai.providers.null_provider import NullProvider
 from app.ai.ratelimit import acquire
-from app.ai.tasks import DEGRADABLE_ON_BUDGET_BREACH, ROUTING, Task
+from app.ai.tasks import (
+    DEGRADABLE_ON_BUDGET_BREACH,
+    FREE_TIER_ROUTING,
+    ROUTING,
+    Task,
+    free_tier_enabled,
+)
 
 # §7.5: "low confidence -> review queue." Below this, a syntactically valid
 # result still isn't trusted enough to auto-publish. Only applies to
@@ -131,6 +137,14 @@ class AiGateway:
         editor_authored: bool = False,
     ) -> GatewayOutcome:
         route = ROUTING[task]
+        if (
+            task in FREE_TIER_ROUTING
+            and free_tier_enabled()
+            and not editor_authored
+            and story_id is not None
+            and coerce(getattr(privacy_decision, "value", privacy_decision)) == PrivacyDecision.FREE_TIER_ALLOWED
+        ):
+            route = FREE_TIER_ROUTING[task]
 
         if route.provider is None:
             raise ValueError(f"{task} has no provider route — call the deterministic helper instead")

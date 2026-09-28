@@ -114,6 +114,7 @@ def _source_out(source: Source) -> AdminSourceOut:
         reviewer=source.reviewer,
         rights_evidence=RightsEvidence(**source.rights_evidence),
         refresh_minutes=source.refresh_minutes,
+        category=source.category,
         active=source.active,
         fail_count=source.fail_count,
         last_success_at=source.last_success_at,
@@ -139,6 +140,7 @@ def create_source(
         country=body.country,
         language=body.language,
         refresh_minutes=body.refresh_minutes,
+        category=body.category,
     )
     db.add(source)
     db.flush()

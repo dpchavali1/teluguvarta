@@ -302,6 +302,20 @@ Mirrors `docs/adr/README.md` — keep both in sync.
 
 (newest first — one line per ticket completion)
 
+- 2026-09-28: **T22 follow-up — ADR-015 wiring** (ad hoc; no ticket file).
+  `generate.py` computes the privacy decision on a story's first generation
+  (single shared source category + item titles), persists it, and tightens it
+  to RESTRICTED when the model reports sensitivity; `translate.py` reads the
+  persisted value and never uses the free tier for corrected stories.
+  `tasks.py` gained `FREE_TIER_ROUTING` (relevance, summary, translation →
+  Flash Lite), used only for `FREE_TIER_ALLOWED` stories and only when
+  `AI_FREE_TIER_ENABLED=1` (**default off**, so behavior is unchanged until
+  enabled). `category` is settable via the admin source create/update API.
+  **Not done**: `WHY_MATTERS` stays on the paid route; no admin UI field for
+  category (API only); with no paid provider configured a non-allowed story
+  gets `UNAVAILABLE` and retries each sweep rather than an explicit
+  human-triage hold. Tests: 283 pass, ruff clean.
+
 - 2026-09-28: **T22 — free-tier privacy gate, rate limiter, request counter**
   (`docs/tickets/T22.md`; ADR-015 accepted; plan calls this scope "T23").
   Added `app/ai/privacy.py` (three-state decision, allowlist v1),
