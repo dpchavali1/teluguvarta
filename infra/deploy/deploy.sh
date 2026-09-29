@@ -4,7 +4,9 @@
 #   sudo ACME_EMAIL=you@example.com ./infra/deploy/deploy.sh
 #
 # The public website (apps/web) is NOT deployed here: host it on Vercel.
-# This server runs Postgres, the API, the worker, the admin app and Caddy.
+# This server runs Postgres, the API, the worker and the admin app in Docker,
+# routed through the host's nginx (nginx-setup.sh; certs via certbot).
+# Firewall changes are opt-in (UFW_SETUP=1) since the box may be shared.
 # DOMAIN is optional: without one, hostnames are derived from the server IP via
 # sslip.io (api.1-2-3-4.sslip.io), which still gets real HTTPS certificates.
 # After deploying the site on Vercel, tell the API its URL (CORS + share links):
@@ -30,7 +32,7 @@ if ! command -v docker >/dev/null; then
   curl -fsSL https://get.docker.com | sh
 fi
 
-if command -v ufw >/dev/null || apt-get install -y -qq ufw >/dev/null 2>&1; then
+if [ "${UFW_SETUP:-0}" = "1" ] && { command -v ufw >/dev/null || apt-get install -y -qq ufw >/dev/null 2>&1; }; then
   ufw allow 22/tcp >/dev/null; ufw allow 80/tcp >/dev/null; ufw allow 443/tcp >/dev/null
   ufw --force enable >/dev/null
   echo "==> Firewall: only 22, 80, 443 open"
@@ -124,12 +126,19 @@ if [ ! -f "$repo_root/.seeded" ]; then
   # The password now lives hashed in the DB; drop the plaintext copy.
   sed -i '/^ADMIN_SEED_PASSWORD=/d' "$ENV_FILE"
   touch "$repo_root/.seeded"
+  echo "Admin login (shown once — save it now; you enroll MFA on first sign-in):"
+  echo "  $admin_email / $admin_pass"
 fi
 
 echo "==> Starting all services"
-"${COMPOSE[@]}" up -d
+"${COMPOSE[@]}" up -d --remove-orphans
 
 # --- 4. verify ---------------------------------------------------------------
+echo "==> Configuring nginx + TLS"
+DOMAIN="$(grep '^DOMAIN=' "$ENV_FILE" | cut -d= -f2-)" \
+ACME_EMAIL="$(grep '^ACME_EMAIL=' "$ENV_FILE" | cut -d= -f2-)" \
+  "$repo_root/infra/deploy/nginx-setup.sh"
+
 echo "==> Waiting for API health"
 for _ in $(seq 1 30); do
   if "${COMPOSE[@]}" exec -T api python -c "import urllib.request as u; u.urlopen('http://localhost:8000/health')" 2>/dev/null; then
@@ -145,7 +154,3 @@ echo "API:    https://api.$domain/health"
 echo "Admin:  https://admin.$domain"
 echo "Vercel (apps/web) env: NEXT_PUBLIC_API_URL=https://api.$domain"
 echo "  NEXT_PUBLIC_WEB_URL=<your vercel URL>; then re-run with WEB_URL=<that URL>"
-if [ "$needs_seed" -eq 1 ]; then
-  echo "Admin login (shown once — save it now; you enroll MFA on first sign-in):"
-  echo "  $admin_email / $admin_pass"
-fi
