@@ -368,6 +368,17 @@ Mirrors `docs/adr/README.md` — keep both in sync.
   + `next lint` pass; not viewed in a browser. Remaining: `/observability`,
   `/login` on shared components, preset add+activate, browser check.
 
+- 2026-09-28: **Admin redesign, slice 6: observability** (`/observability`).
+  Summary tiles (tripped sources, jobs pending, AI spend, X spend) linking to
+  sections; ingestion table sorted problems-first with OK/Failing/Tripped
+  badges and relative times; job counts as badges; AI and X spend with a
+  budget bar; daily AI breakdown collapsed; X account table condensed (status
+  badges merged, `since_id` on row hover); auto-refresh every 60 s + Refresh
+  button; toasts replace the error banner. Data loading and pause/resume
+  logic unchanged, no API change. Admin `tsc` + `next lint` pass; not viewed
+  in a browser. Remaining: `/login` on shared components, preset
+  add+activate, browser check.
+
 - 2026-09-29: **Admin UI: add-source and rights forms** on `/sources`
   (`apps/admin/src/app/sources/page.tsx`). "Add source" → `POST /v1/admin/sources`
   (starts DISABLED/inactive); per-row "Rights & status" → `PATCH` with

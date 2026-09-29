@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
+import { Badge, EmptyState, PageHeader, StatTile, useToast } from "@/components/ui";
 import { apiUrl, clearSession, getToken } from "@/lib/auth";
 
 interface SourceIngestionHealth {
@@ -74,53 +75,68 @@ interface XAccount {
   budget_paused: boolean;
 }
 
+const usd = (n: number) => `$${n.toFixed(2)}`;
+
+function ago(iso: string | null): string {
+  if (!iso) return "—";
+  const minutes = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 60000));
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.round(minutes / 60);
+  return hours < 48 ? `${hours}h ago` : `${Math.round(hours / 24)}d ago`;
+}
+
+function BudgetBar({ spent, budget }: { spent: number; budget: number | null }) {
+  if (budget === null || budget <= 0) return <p className="field__hint">No monthly budget set.</p>;
+  const pct = Math.min(100, Math.round((spent / budget) * 100));
+  return (
+    <div className="budget-bar" role="img" aria-label={`${pct}% of monthly budget used`}>
+      <div className={`budget-bar__fill${pct >= 100 ? " budget-bar__fill--over" : ""}`} style={{ width: `${pct}%` }} />
+    </div>
+  );
+}
+
 export default function ObservabilityPage() {
   const router = useRouter();
+  const toast = useToast();
   const [data, setData] = useState<Observability | null>(null);
   const [xAccounts, setXAccounts] = useState<XAccount[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
   const [pausingSourceId, setPausingSourceId] = useState<string | null>(null);
+  const [updatedAt, setUpdatedAt] = useState<Date | null>(null);
 
-  const loadXAccounts = () => {
-    const token = getToken();
-    if (!token) return;
-    fetch(`${apiUrl()}/v1/admin/x-accounts`, {
-      headers: { Authorization: `Bearer ${token}` }
-    })
-      .then((response) => (response.ok ? response.json() : Promise.reject(new Error("Failed to load X accounts"))))
-      .then((body: XAccount[]) => setXAccounts(body))
-      .catch((err) => setError(err instanceof Error ? err.message : "Failed to load X accounts"));
-  };
-
-  useEffect(() => {
+  const load = useCallback(() => {
     const token = getToken();
     if (!token) {
       router.replace("/login");
       return;
     }
-    fetch(`${apiUrl()}/v1/admin/observability`, {
-      headers: { Authorization: `Bearer ${token}` }
-    })
-      .then((response) => {
-        if (!response.ok) {
-          if (response.status === 401) {
-            clearSession();
-            router.replace("/login");
-          }
-          throw new Error("Failed to load observability data");
+    const get = (path: string) =>
+      fetch(`${apiUrl()}/v1/admin${path}`, { headers: { Authorization: `Bearer ${token}` } }).then((response) => {
+        if (response.status === 401) {
+          clearSession();
+          router.replace("/login");
         }
-        return response.json();
+        return response.ok ? response.json() : Promise.reject(new Error(`Failed to load ${path.slice(1)}`));
+      });
+    get("/observability")
+      .then((body: Observability) => {
+        setData(body);
+        setUpdatedAt(new Date());
       })
-      .then((body: Observability) => setData(body))
-      .catch((err) => setError(err instanceof Error ? err.message : "Failed to load observability data"));
-    loadXAccounts();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [router]);
+      .catch((err) => toast("danger", err instanceof Error ? err.message : "Failed to load observability data"));
+    get("/x-accounts")
+      .then((body: XAccount[]) => setXAccounts(body))
+      .catch((err) => toast("danger", err instanceof Error ? err.message : "Failed to load X accounts"));
+  }, [router, toast]);
+
+  useEffect(() => {
+    load();
+    const timer = setInterval(load, 60000);
+    return () => clearInterval(timer);
+  }, [load]);
 
   async function togglePause(account: XAccount) {
     const token = getToken();
     setPausingSourceId(account.source_id);
-    setError(null);
     try {
       const response = await fetch(`${apiUrl()}/v1/admin/sources/${account.source_id}`, {
         method: "PATCH",
@@ -131,94 +147,119 @@ export default function ObservabilityPage() {
         const errorBody = (await response.json().catch(() => null)) as { error?: { message?: string } } | null;
         throw new Error(errorBody?.error?.message ?? "Failed to update X account");
       }
-      loadXAccounts();
+      toast("ok", `${account.handle} ${account.active ? "paused" : "resumed"}.`);
+      load();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to update X account");
+      toast("danger", err instanceof Error ? err.message : "Failed to update X account");
     } finally {
       setPausingSourceId(null);
     }
   }
 
+  const header = (
+    <PageHeader
+      title="Observability"
+      subtitle={updatedAt ? `Updated ${updatedAt.toLocaleTimeString()} · refreshes every minute` : undefined}
+      actions={
+        <button type="button" className="button-secondary" onClick={load}>
+          Refresh
+        </button>
+      }
+    />
+  );
+
+  if (data === null) {
+    return (
+      <main>
+        {header}
+        <p className="state-note">Loading…</p>
+      </main>
+    );
+  }
+
+  const jobs = data.job_queue.counts_by_status;
+  const oldest = data.job_queue.oldest_pending_age_seconds;
+  const ai = data.ai_cost;
+  const x = data.x_cost;
+  // Problems first: tripped breakers, then most failures in 24h.
+  const health = [...data.ingestion_health].sort(
+    (a, b) => Number(b.circuit_breaker_tripped) - Number(a.circuit_breaker_tripped) || b.failure_count_24h - a.failure_count_24h
+  );
+
   return (
     <main>
-      <h1>Observability</h1>
-      {error ? <p role="alert">{error}</p> : null}
-      {data === null ? (
-        <p className="state-note">Loading…</p>
-      ) : (
-        <>
-          <section>
-            <h2>Ingestion health (last 24h)</h2>
-            {data.ingestion_health.length === 0 ? (
-              <p>No sources configured.</p>
-            ) : (
-              <table>
-                <thead>
-                  <tr>
-                    <th>Source</th>
-                    <th>Success (24h)</th>
-                    <th>Failure (24h)</th>
-                    <th>Fail count</th>
-                    <th>Circuit breaker</th>
-                    <th>Last success</th>
-                    <th>Last error</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {data.ingestion_health.map((row) => (
-                    <tr key={row.source_id}>
-                      <td>{row.source_name}</td>
-                      <td>{row.success_count_24h}</td>
-                      <td>{row.failure_count_24h}</td>
-                      <td>{row.fail_count}</td>
-                      <td>
-                        <span className={`status-pill ${row.circuit_breaker_tripped ? "status-pill--danger" : "status-pill--ok"}`}>
-                          {row.circuit_breaker_tripped ? "Tripped" : "OK"}
-                        </span>
-                      </td>
-                      <td>{row.last_success_at ? new Date(row.last_success_at).toLocaleString() : "—"}</td>
-                      <td>{row.last_error_at ? new Date(row.last_error_at).toLocaleString() : "—"}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-          </section>
+      {header}
 
-          <section>
-            <h2>Job queue</h2>
-            <ul>
-              {Object.entries(data.job_queue.counts_by_status).map(([status, count]) => (
-                <li key={status}>
-                  {status}: {count}
-                </li>
+      <div className="tile-grid">
+        <StatTile href="#ingestion" label="Sources tripped" value={health.filter((h) => h.circuit_breaker_tripped).length} note={`${health.length} sources`} tone={health.some((h) => h.circuit_breaker_tripped) ? "danger" : "ok"} />
+        <StatTile href="#jobs" label="Jobs pending" value={jobs.PENDING ?? 0} note={oldest !== null ? `oldest ${Math.round(oldest / 60)} min` : "queue empty"} tone={(jobs.FAILED ?? 0) > 0 ? "danger" : "ok"} />
+        <StatTile href="#ai-cost" label="AI spend (month)" value={usd(ai.month_to_date_cost_usd)} note={ai.monthly_budget_usd !== null ? `of ${usd(ai.monthly_budget_usd)}` : "no budget set"} tone={ai.over_monthly_budget ? "danger" : "ok"} />
+        <StatTile href="#x" label="X spend (month)" value={usd(x.month_to_date_cost_usd)} note={x.monthly_budget_usd !== null ? `of ${usd(x.monthly_budget_usd)}` : "no budget set"} tone={x.over_monthly_budget ? "danger" : "ok"} />
+      </div>
+
+      <section id="ingestion">
+        <h2>Ingestion health (last 24h)</h2>
+        {health.length === 0 ? (
+          <EmptyState title="No sources configured" hint="Add one on the Sources page." />
+        ) : (
+          <table>
+            <thead>
+              <tr>
+                <th>Source</th>
+                <th>Status</th>
+                <th>OK / failed (24h)</th>
+                <th>Consecutive failures</th>
+                <th>Last success</th>
+                <th>Last error</th>
+              </tr>
+            </thead>
+            <tbody>
+              {health.map((row) => (
+                <tr key={row.source_id}>
+                  <td>{row.source_name}</td>
+                  <td>
+                    {row.circuit_breaker_tripped ? <Badge tone="danger">Tripped</Badge> : row.fail_count > 0 ? <Badge tone="warn">Failing</Badge> : <Badge tone="ok">OK</Badge>}
+                  </td>
+                  <td>
+                    {row.success_count_24h} / {row.failure_count_24h}
+                  </td>
+                  <td>{row.fail_count}</td>
+                  <td title={row.last_success_at ? new Date(row.last_success_at).toLocaleString() : undefined}>{ago(row.last_success_at)}</td>
+                  <td title={row.last_error_at ? new Date(row.last_error_at).toLocaleString() : undefined}>{ago(row.last_error_at)}</td>
+                </tr>
               ))}
-            </ul>
-            <p>
-              Oldest pending job age:{" "}
-              {data.job_queue.oldest_pending_age_seconds !== null
-                ? `${Math.round(data.job_queue.oldest_pending_age_seconds)}s`
-                : "n/a (queue empty)"}
-            </p>
-          </section>
+            </tbody>
+          </table>
+        )}
+      </section>
 
-          <section>
-            <h2>AI cost vs. budget</h2>
-            <ul>
-              <li>Month-to-date spend: ${data.ai_cost.month_to_date_cost_usd.toFixed(2)}</li>
-              <li>
-                Monthly budget:{" "}
-                {data.ai_cost.monthly_budget_usd !== null ? `$${data.ai_cost.monthly_budget_usd.toFixed(2)}` : "not set"}
-              </li>
-              <li>
-                Remaining budget:{" "}
-                {data.ai_cost.monthly_budget_remaining_usd !== null
-                  ? `$${data.ai_cost.monthly_budget_remaining_usd.toFixed(2)}`
-                  : "n/a"}
-              </li>
-              <li>Today&apos;s spend: ${data.ai_cost.today_cost_usd.toFixed(2)}</li>
-              {data.ai_cost.over_monthly_budget ? <li role="alert">Over monthly budget</li> : null}
-            </ul>
+      <section id="jobs">
+        <h2>Job queue</h2>
+        {Object.keys(jobs).length === 0 ? (
+          <p className="state-note">No jobs yet.</p>
+        ) : (
+          <p className="pill-row">
+            {Object.entries(jobs).map(([status, count]) => (
+              <Badge key={status} tone={status === "FAILED" && count > 0 ? "danger" : status === "DONE" ? "ok" : "neutral"}>
+                {status}: {count}
+              </Badge>
+            ))}
+          </p>
+        )}
+      </section>
+
+      <section id="ai-cost">
+        <h2>AI cost vs. budget</h2>
+        {ai.over_monthly_budget ? <p role="alert">Over monthly budget — paid AI is paused.</p> : null}
+        <BudgetBar spent={ai.month_to_date_cost_usd} budget={ai.monthly_budget_usd} />
+        <p className="card__meta">
+          Month-to-date {usd(ai.month_to_date_cost_usd)} · today {usd(ai.today_cost_usd)}
+          {ai.monthly_budget_remaining_usd !== null ? ` · ${usd(ai.monthly_budget_remaining_usd)} remaining` : ""}
+          {ai.daily_alert_usd !== null ? ` · daily alert at ${usd(ai.daily_alert_usd)}` : ""}
+        </p>
+        {ai.rows.length > 0 ? (
+          <details>
+            <summary>Daily breakdown ({ai.rows.length} rows)</summary>
             <table>
               <thead>
                 <tr>
@@ -230,7 +271,7 @@ export default function ObservabilityPage() {
                 </tr>
               </thead>
               <tbody>
-                {data.ai_cost.rows.map((row) => (
+                {ai.rows.map((row) => (
                   <tr key={`${row.day}-${row.task}`}>
                     <td>{row.day}</td>
                     <td>{row.task}</td>
@@ -241,98 +282,66 @@ export default function ObservabilityPage() {
                 ))}
               </tbody>
             </table>
-          </section>
+          </details>
+        ) : null}
+      </section>
 
-          <section>
-            <h2>X account health &amp; budget (X4)</h2>
-            <ul>
-              <li>Month-to-date X API spend: ${data.x_cost.month_to_date_cost_usd.toFixed(2)}</li>
-              <li>
-                Monthly budget:{" "}
-                {data.x_cost.monthly_budget_usd !== null ? `$${data.x_cost.monthly_budget_usd.toFixed(2)}` : "not set"}
-              </li>
-              <li>
-                Remaining budget:{" "}
-                {data.x_cost.monthly_budget_remaining_usd !== null
-                  ? `$${data.x_cost.monthly_budget_remaining_usd.toFixed(2)}`
-                  : "n/a"}
-              </li>
-              {data.x_cost.over_monthly_budget ? (
-                <li role="alert">
-                  Over monthly budget — {data.x_cost.low_priority_accounts_paused} low-priority account(s) paused
-                </li>
-              ) : null}
-            </ul>
-            {xAccounts === null ? (
-              <p>Loading X accounts…</p>
-            ) : xAccounts.length === 0 ? (
-              <p>No X accounts configured.</p>
-            ) : (
-              <table>
-                <thead>
-                  <tr>
-                    <th>Handle</th>
-                    <th>Rights status</th>
-                    <th>Active</th>
-                    <th>Budget class</th>
-                    <th>Budget paused</th>
-                    <th>since_id</th>
-                    <th>Fail count</th>
-                    <th>Errors (24h)</th>
-                    <th>MTD cost</th>
-                    <th>Last success</th>
-                    <th>Last error</th>
-                    <th>Action</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {xAccounts.map((account) => (
-                    <tr key={account.id}>
-                      <td>{account.handle}</td>
-                      <td>
-                        <span
-                          className={`status-pill status-pill--${account.rights_status === "DISABLED" ? "danger" : "ok"}`}
-                        >
-                          {account.rights_status}
-                        </span>
-                      </td>
-                      <td>
-                        <span className={`status-pill ${account.active ? "status-pill--ok" : "status-pill--warn"}`}>
-                          {account.active ? "Active" : "Paused"}
-                        </span>
-                      </td>
-                      <td>{account.budget_class ?? "—"}</td>
-                      <td>{account.budget_paused ? <span className="status-pill status-pill--warn">Budget-paused</span> : "—"}</td>
-                      <td>{account.since_id ?? "—"}</td>
-                      <td>
-                        {account.fail_count}
-                        {account.circuit_breaker_tripped ? (
-                          <span className="status-pill status-pill--danger" style={{ marginLeft: "0.4rem" }}>
-                            Tripped
-                          </span>
-                        ) : null}
-                      </td>
-                      <td>{account.recent_error_count_24h}</td>
-                      <td>${account.month_to_date_cost_usd.toFixed(2)}</td>
-                      <td>{account.last_success_at ? new Date(account.last_success_at).toLocaleString() : "—"}</td>
-                      <td>{account.last_error_at ? new Date(account.last_error_at).toLocaleString() : "—"}</td>
-                      <td>
-                        <button
-                          type="button"
-                          disabled={pausingSourceId === account.source_id}
-                          onClick={() => togglePause(account)}
-                        >
-                          {account.active ? "Pause" : "Resume"}
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-          </section>
-        </>
-      )}
+      <section id="x">
+        <h2>X account health &amp; budget</h2>
+        {x.over_monthly_budget ? (
+          <p role="alert">Over monthly budget — {x.low_priority_accounts_paused} low-priority account(s) paused.</p>
+        ) : null}
+        <BudgetBar spent={x.month_to_date_cost_usd} budget={x.monthly_budget_usd} />
+        <p className="card__meta">
+          Month-to-date {usd(x.month_to_date_cost_usd)}
+          {x.monthly_budget_remaining_usd !== null ? ` · ${usd(x.monthly_budget_remaining_usd)} remaining` : ""}
+        </p>
+        {xAccounts === null ? (
+          <p className="state-note">Loading X accounts…</p>
+        ) : xAccounts.length === 0 ? (
+          <EmptyState title="No X accounts configured" />
+        ) : (
+          <table>
+            <thead>
+              <tr>
+                <th>Handle</th>
+                <th>Status</th>
+                <th>Budget class</th>
+                <th>Failures</th>
+                <th>Errors (24h)</th>
+                <th>MTD cost</th>
+                <th>Last success</th>
+                <th />
+              </tr>
+            </thead>
+            <tbody>
+              {xAccounts.map((account) => (
+                <tr key={account.id} title={account.since_id ? `since_id ${account.since_id}` : undefined}>
+                  <td>{account.handle}</td>
+                  <td>
+                    <span className="pill-row">
+                      <Badge tone={account.rights_status === "DISABLED" ? "danger" : "ok"}>{account.rights_status}</Badge>
+                      <Badge tone={account.active ? "ok" : "warn"}>{account.active ? "Active" : "Paused"}</Badge>
+                      {account.budget_paused ? <Badge tone="warn">Budget-paused</Badge> : null}
+                      {account.circuit_breaker_tripped ? <Badge tone="danger">Tripped</Badge> : null}
+                    </span>
+                  </td>
+                  <td>{account.budget_class ?? "—"}</td>
+                  <td>{account.fail_count}</td>
+                  <td>{account.recent_error_count_24h}</td>
+                  <td>{usd(account.month_to_date_cost_usd)}</td>
+                  <td>{ago(account.last_success_at)}</td>
+                  <td>
+                    <button type="button" className="button-secondary" disabled={pausingSourceId === account.source_id} onClick={() => togglePause(account)}>
+                      {account.active ? "Pause" : "Resume"}
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </section>
     </main>
   );
 }
