@@ -311,10 +311,13 @@ Mirrors `docs/adr/README.md` — keep both in sync.
   Flash Lite), used only for `FREE_TIER_ALLOWED` stories and only when
   `AI_FREE_TIER_ENABLED=1` (**default off**, so behavior is unchanged until
   enabled). `category` is settable via the admin source create/update API.
-  **Not done**: `WHY_MATTERS` stays on the paid route; no admin UI field for
-  category (API only); with no paid provider configured a non-allowed story
-  gets `UNAVAILABLE` and retries each sweep rather than an explicit
-  human-triage hold. Tests: 283 pass, ruff clean.
+  With the free tier enabled and no paid provider key, a non-allowed story now
+  holds for human triage (`REVIEW_REQUIRED` + `ReviewTask` reason
+  `NO_PAID_PROVIDER`, items `REVIEW`) instead of retrying. **Not done**:
+  `WHY_MATTERS` stays on the paid route; no admin UI field for category (API
+  only). Tests: 286 pass, ruff clean; the suite intermittently errors at
+  scratch-DB teardown (`DROP DATABASE ... FORCE` permission denied), on a
+  different test each run — not investigated.
 
 - 2026-09-28: **T22 — free-tier privacy gate, rate limiter, request counter**
   (`docs/tickets/T22.md`; ADR-015 accepted; plan calls this scope "T23").

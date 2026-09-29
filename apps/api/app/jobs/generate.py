@@ -35,6 +35,7 @@ from sqlalchemy.orm import Session
 
 from app.ai import AiGateway, GatewayStatus, Task
 from app.ai.privacy import PrivacyDecision, classify_privacy, coerce, tighten
+from app.ai.tasks import free_tier_enabled, paid_provider_configured
 from app.jobs.cluster import normalized_title_key
 from app.jobs.queue import enqueue_job
 from app.models import (
@@ -226,6 +227,26 @@ def _resolve_privacy(db: Session, story: Story, items: list[SourceItem]) -> Priv
     return decision
 
 
+NO_PAID_PROVIDER_REASON = "NO_PAID_PROVIDER"
+
+
+def _must_hold_for_triage(privacy: PrivacyDecision) -> bool:
+    """ADR-015 decision 5: with the free tier in use and no paid provider
+    configured, a story that isn't FREE_TIER_ALLOWED has nowhere it may go,
+    so it holds for a human instead of retrying against a dead route."""
+    return free_tier_enabled() and not paid_provider_configured() and privacy != PrivacyDecision.FREE_TIER_ALLOWED
+
+
+def _hold_for_triage(db: Session, story: Story, items: list[SourceItem], reasons: list[str]) -> None:
+    story.status = "AI_READY"  # the status trigger requires DRAFT -> AI_READY -> REVIEW_REQUIRED
+    db.flush()
+    story.status = "REVIEW_REQUIRED"
+    db.flush()
+    db.add(ReviewTask(story_id=story.id, reason=",".join([*reasons, NO_PAID_PROVIDER_REASON]), status="PENDING"))
+    for item in items:
+        item.ingest_status = "REVIEW"
+
+
 def _generate_story(db: Session, story: Story) -> None:
     items = _story_items(db, story)
     if not items:
@@ -233,6 +254,9 @@ def _generate_story(db: Session, story: Story) -> None:
 
     evidence_item_ids = _evidence_item_ids(items)
     privacy = _resolve_privacy(db, story, items)
+    if _must_hold_for_triage(privacy):
+        _hold_for_triage(db, story, items, [])
+        return
     gateway = AiGateway(db)
     classify_outcome = gateway.run_task(
         Task.RELEVANCE_CATEGORIZATION,
@@ -261,6 +285,10 @@ def _generate_story(db: Session, story: Story) -> None:
         # ADR-015: the model's own read may tighten, never loosen.
         privacy = tighten(privacy, PrivacyDecision.RESTRICTED)
         story.privacy_decision = privacy.value
+        if _must_hold_for_triage(privacy):
+            story.sensitivity = sensitivity
+            _hold_for_triage(db, story, items, reasons)
+            return
 
     p1_review_enabled = _env_flag(P1_REVIEW_ENV_VAR, default=True)
     if classification.urgency.strip().upper() in ("HIGH", "URGENT") and p1_review_enabled:

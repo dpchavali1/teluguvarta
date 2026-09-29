@@ -3,14 +3,15 @@ decision, and only a FREE_TIER_ALLOWED story is routed to Gemini."""
 
 import hashlib
 
-from sqlalchemy import create_engine
+import pytest
+from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session
 
 from app.ai import gateway as gateway_module
 from app.ai import ratelimit
 from app.jobs.generate import generate_stories
 from app.jobs.translate import translate_stories
-from app.models import Correction, Source, Story, StoryVariant
+from app.models import Correction, ReviewTask, Source, Story, StoryVariant
 
 from .conftest import requires_postgres
 from .test_generate import (
@@ -19,6 +20,18 @@ from .test_generate import (
     _generation,
     _make_clustered_story,
 )
+
+
+@pytest.fixture(autouse=True)
+def _paid_provider_configured(monkeypatch):
+    # Routing tests assume a paid route exists; the hold tests remove it.
+    monkeypatch.setenv("AI_OPENAI_API_KEY", "test-key")
+    monkeypatch.delenv("AI_ANTHROPIC_API_KEY", raising=False)
+
+
+def _no_paid_provider(monkeypatch):
+    monkeypatch.delenv("AI_OPENAI_API_KEY", raising=False)
+    monkeypatch.delenv("AI_ANTHROPIC_API_KEY", raising=False)
 
 
 def _spy(monkeypatch, responses):
@@ -121,3 +134,50 @@ def test_translation_of_corrected_story_never_uses_gemini(migrated_database, mon
         translate_stories(db)
         assert "gemini" not in names
         assert names  # it was translated, on the paid route
+
+
+@requires_postgres
+def test_unknown_story_holds_for_triage_without_paid_provider(migrated_database, monkeypatch):
+    monkeypatch.setenv("AI_FREE_TIER_ENABLED", "1")
+    _no_paid_provider(monkeypatch)
+    with Session(create_engine(migrated_database)) as db:
+        story, item = _make_clustered_story(db, _source(db, "politics"), title="Council meets")
+        names = _spy(monkeypatch, [])
+        generate_stories(db)
+        db.refresh(story)
+        db.refresh(item)
+        task = db.scalars(select(ReviewTask).where(ReviewTask.story_id == story.id)).one()
+        assert names == []  # no provider was ever resolved
+        assert story.status == "REVIEW_REQUIRED"
+        assert item.ingest_status == "REVIEW"
+        assert "NO_PAID_PROVIDER" in task.reason
+        assert generate_stories(db) == 0  # idempotent: not retried next sweep
+
+
+@requires_postgres
+def test_allowed_story_is_not_held_without_paid_provider(migrated_database, monkeypatch):
+    monkeypatch.setenv("AI_FREE_TIER_ENABLED", "1")
+    _no_paid_provider(monkeypatch)
+    with Session(create_engine(migrated_database)) as db:
+        story, item = _make_clustered_story(db, _source(db, "sports"), title="Local team wins derby")
+        names = _spy(monkeypatch, [_classification(categories=["Sports"]), _generation(item_id=item.id)])
+        generate_stories(db)
+        db.refresh(story)
+        assert names == ["gemini", "gemini"]
+        assert story.status == "AI_READY"
+
+
+@requires_postgres
+def test_sensitivity_tightening_without_paid_provider_holds(migrated_database, monkeypatch):
+    monkeypatch.setenv("AI_FREE_TIER_ENABLED", "1")
+    _no_paid_provider(monkeypatch)
+    with Session(create_engine(migrated_database)) as db:
+        story, _ = _make_clustered_story(db, _source(db, "entertainment"), title="Film festival lineup")
+        names = _spy(monkeypatch, [_classification(sensitivity="LEGAL")])
+        generate_stories(db)
+        db.refresh(story)
+        task = db.scalars(select(ReviewTask).where(ReviewTask.story_id == story.id)).one()
+        assert names == ["gemini"]  # only the allowed classification call ran
+        assert story.status == "REVIEW_REQUIRED"
+        assert story.sensitivity == "LEGAL"
+        assert "SENSITIVE_CATEGORY" in task.reason and "NO_PAID_PROVIDER" in task.reason

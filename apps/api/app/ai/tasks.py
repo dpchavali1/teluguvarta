@@ -84,6 +84,10 @@ def free_tier_enabled() -> bool:
     return os.environ.get("AI_FREE_TIER_ENABLED", "").strip().lower() in ("1", "true", "yes")
 
 
+def paid_provider_configured() -> bool:
+    return bool(os.environ.get("AI_OPENAI_API_KEY") or os.environ.get("AI_ANTHROPIC_API_KEY"))
+
+
 # Tasks that degrade to "classification-only mode" (§7.5) once the monthly
 # AI budget is breached: generation tasks producing publishable content are
 # skipped; relevance/categorization and dedup escalation (needed just to
