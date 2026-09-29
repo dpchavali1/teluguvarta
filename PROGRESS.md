@@ -348,6 +348,36 @@ Mirrors `docs/adr/README.md` — keep both in sync.
 
 (newest first — one line per ticket completion)
 
+- 2026-09-28: **Admin redesign, slice 9: browser check + fixes.** First real
+  look at every admin page: headless Chromium at 1280 and 390 px, light and
+  dark, with a locally minted ADMIN token. Review pages were checked against
+  two temporary REVIEW_REQUIRED stories, deleted afterwards. No console
+  errors. Fixed:
+  - **Phones:** the page scrolled sideways, because `.admin-shell`'s
+    `align-items: flex-start` let `main` grow to its content width. The
+    header was a tall single row that cut off the nav. It is now sticky, with
+    brand and controls on one row and a swipeable link strip below.
+  - **Tables and tiles:** tables scroll inside `.table-scroll`. Stat tiles
+    sit two across on phones. The review queue hides the Sources and
+    duplicate "Review" columns on phones (`.col-wide-only`).
+  - **Checkboxes:** every checkbox label rendered as an uppercase field
+    caption with the box on its own line. It's now one CSS rule
+    (`label:has(> input[type=checkbox])`), and the inline styles and
+    `.checkbox-label` are gone.
+  - **Review detail:** the draft cards now show each variant's headline. The
+    Telugu headline was not visible to reviewers anywhere.
+  - **Dashboard:** it shows "oldest waiting 20d" instead of "28991 min". A
+    "Needs attention" item appears when pending jobs are older than 30 min
+    ("worker may not be running"); the observability jobs tile turns warn at
+    the same threshold.
+  - **Other:** a shared `lib/time.ts` replaces two copies of the age
+    formatter. Sources shows a relative "last fetched" time. The login
+    background now fills the full width.
+
+  Admin `tsc`, `next lint` and `pnpm run build` pass. **Not done:** this was
+  headless Chromium, not a real device or Safari. The VPS deploy is the
+  owner's step (`./infra/deploy/deploy.sh` on the box after push).
+
 - 2026-09-28: **Single-VPS deploy scaffolding** (ad hoc; supersedes ADR-007's
   Vercel/Render/Supabase split for now, no ADR yet). `infra/deploy/`:
   `deploy.sh` (Docker, ufw, swap, generated secrets in `.env.prod`, build,

@@ -8,15 +8,10 @@ import { useRouter } from "next/navigation";
 import { humanize, reasonHelp, reasonTone } from "@/lib/reviewReasons";
 import { EmptyState, PageHeader } from "@/components/ui";
 import { apiUrl, clearSession, getToken } from "@/lib/auth";
+import { age } from "@/lib/time";
 
 type ReviewQueueItem = components["schemas"]["ReviewQueueItemOut"];
 
-function age(iso: string): string {
-  const minutes = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 60000));
-  if (minutes < 60) return `${minutes}m`;
-  const hours = Math.round(minutes / 60);
-  return hours < 48 ? `${hours}h` : `${Math.round(hours / 24)}d`;
-}
 
 
 export default function ReviewQueuePage() {
@@ -128,17 +123,17 @@ export default function ReviewQueuePage() {
       ) : visibleItems && visibleItems.length === 0 ? (
         <p className="state-note">No items match this filter.</p>
       ) : (
-        <table>
+        <div className="table-scroll"><table>
           <thead>
             <tr>
               <th>Story</th>
-              <th>Sources</th>
+              <th className="col-wide-only">Sources</th>
               <th>Reason</th>
               {/* No Status column: this endpoint only ever returns
                   ReviewTask.status === "PENDING" rows, so every cell would
                   read the same value — dead width on a dense table. */}
               <th>Waiting</th>
-              <th></th>
+              <th className="col-wide-only"></th>
             </tr>
           </thead>
           <tbody>
@@ -150,7 +145,7 @@ export default function ReviewQueuePage() {
                 onClick={() => setActive(index)}
               >
                 <td><Link href={`/review/${item.story_id}`}>{item.headline ?? "Draft headline pending"}</Link></td>
-                <td>{item.source_names?.join(", ") || "No source linked"}</td>
+                <td className="col-wide-only">{item.source_names?.join(", ") || "No source linked"}</td>
                 <td>
                   {/* `reason` is a comma-joined list when a story trips more
                       than one gate (see jobs/generate.py). */}
@@ -168,13 +163,13 @@ export default function ReviewQueuePage() {
                   <span className="reason-help">{item.reason.split(",").map(reasonHelp).join(" ")}</span>
                 </td>
                 <td title={new Date(item.created_at).toLocaleString()}>{age(item.created_at)}</td>
-                <td>
+                <td className="col-wide-only">
                   <Link href={`/review/${item.story_id}`} aria-label={`Review: ${item.headline ?? item.story_id}`}>Review</Link>
                 </td>
               </tr>
             ))}
           </tbody>
-        </table>
+        </table></div>
       )}
     </main>
   );

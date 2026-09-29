@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 
 import { Badge, EmptyState, Field, PageHeader, useToast } from "@/components/ui";
 import { apiUrl, clearSession, getRole, getToken } from "@/lib/auth";
+import { ago } from "@/lib/time";
 
 interface RightsEvidence {
   terms_url: string | null;
@@ -203,8 +204,8 @@ function AddSourcePanel({ onCreated, onClose }: { onCreated: () => void; onClose
       </div>
       <fieldset className="enable-now">
         <legend>Rights</legend>
-        <label htmlFor="enable-now" className="checkbox-label">
-          <input id="enable-now" type="checkbox" checked={enableNow} disabled={!isAdmin} onChange={(e) => setEnableNow(e.target.checked)} style={{ width: "auto", marginRight: "0.5rem" }} />
+        <label htmlFor="enable-now">
+          <input id="enable-now" type="checkbox" checked={enableNow} disabled={!isAdmin} onChange={(e) => setEnableNow(e.target.checked)} />
           I have reviewed this source&apos;s terms — enable (LINK_ONLY) and activate it now
         </label>
         {!isAdmin ? <p className="field__hint">Only an ADMIN can enable a source. It will be added disabled.</p> : null}
@@ -329,7 +330,7 @@ function RightsForm({ source, onSaved }: { source: Source; onSaved: () => void }
         <textarea id={id("notes")} name="notes" defaultValue={ev.notes ?? ""} />
       </Field>
       <label htmlFor={id("active")}>
-        <input id={id("active")} name="active" type="checkbox" defaultChecked={source.active} style={{ width: "auto", marginRight: "0.5rem" }} />
+        <input id={id("active")} name="active" type="checkbox" defaultChecked={source.active} />
         Active (fetch this source)
       </label>
       <div className="card__foot">
@@ -379,8 +380,8 @@ function SourceCard({ source, onChanged }: { source: Source; onChanged: () => vo
       </div>
       <p className="card__meta">{source.feed_url ?? source.base_url ?? "No feed URL"}</p>
       {enabled ? (
-        <p className="card__meta">
-          {source.last_success_at ? `Last fetched ${new Date(source.last_success_at).toLocaleString()}` : "Never fetched"}
+        <p className="card__meta" title={source.last_success_at ? new Date(source.last_success_at).toLocaleString() : undefined}>
+          {source.last_success_at ? `Last fetched ${ago(source.last_success_at)}` : "Never fetched"}
           {source.fail_count > 0 ? ` · ${source.fail_count} consecutive failures` : ""}
         </p>
       ) : null}

@@ -1,4 +1,4 @@
-# Admin redesign — plan (2026-09-29, not started)
+# Admin redesign — plan (items 1–7 done 2026-09-28, slices 1–9 in PROGRESS.md; only the VPS deploy remains)
 
 **Goal (owner's words):** make the whole admin modern and easy to use; tasks
 must be smooth with very little manual involvement. The first version of

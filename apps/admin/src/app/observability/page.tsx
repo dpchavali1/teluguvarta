@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 
 import { Badge, EmptyState, PageHeader, StatTile, useToast } from "@/components/ui";
 import { apiUrl, clearSession, getToken } from "@/lib/auth";
+import { STALE_QUEUE_SECONDS, ago, duration } from "@/lib/time";
 
 interface SourceIngestionHealth {
   source_id: string;
@@ -77,13 +78,6 @@ interface XAccount {
 
 const usd = (n: number) => `$${n.toFixed(2)}`;
 
-function ago(iso: string | null): string {
-  if (!iso) return "—";
-  const minutes = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 60000));
-  if (minutes < 60) return `${minutes}m ago`;
-  const hours = Math.round(minutes / 60);
-  return hours < 48 ? `${hours}h ago` : `${Math.round(hours / 24)}d ago`;
-}
 
 function BudgetBar({ spent, budget }: { spent: number; budget: number | null }) {
   if (budget === null || budget <= 0) return <p className="field__hint">No monthly budget set.</p>;
@@ -192,7 +186,7 @@ export default function ObservabilityPage() {
 
       <div className="tile-grid">
         <StatTile href="#ingestion" label="Sources tripped" value={health.filter((h) => h.circuit_breaker_tripped).length} note={`${health.length} sources`} tone={health.some((h) => h.circuit_breaker_tripped) ? "danger" : "ok"} />
-        <StatTile href="#jobs" label="Jobs pending" value={jobs.PENDING ?? 0} note={oldest !== null ? `oldest ${Math.round(oldest / 60)} min` : "queue empty"} tone={(jobs.FAILED ?? 0) > 0 ? "danger" : "ok"} />
+        <StatTile href="#jobs" label="Jobs pending" value={jobs.PENDING ?? 0} note={oldest !== null ? `oldest waiting ${duration(oldest)}` : "queue empty"} tone={(jobs.FAILED ?? 0) > 0 ? "danger" : oldest !== null && oldest > STALE_QUEUE_SECONDS ? "warn" : "ok"} />
         <StatTile href="#ai-cost" label="AI spend (month)" value={usd(ai.month_to_date_cost_usd)} note={ai.monthly_budget_usd !== null ? `of ${usd(ai.monthly_budget_usd)}` : "no budget set"} tone={ai.over_monthly_budget ? "danger" : "ok"} />
         <StatTile href="#x" label="X spend (month)" value={usd(x.month_to_date_cost_usd)} note={x.monthly_budget_usd !== null ? `of ${usd(x.monthly_budget_usd)}` : "no budget set"} tone={x.over_monthly_budget ? "danger" : "ok"} />
       </div>
@@ -202,7 +196,7 @@ export default function ObservabilityPage() {
         {health.length === 0 ? (
           <EmptyState title="No sources configured" hint="Add one on the Sources page." />
         ) : (
-          <table>
+          <div className="table-scroll"><table>
             <thead>
               <tr>
                 <th>Source</th>
@@ -229,7 +223,7 @@ export default function ObservabilityPage() {
                 </tr>
               ))}
             </tbody>
-          </table>
+          </table></div>
         )}
       </section>
 
@@ -260,7 +254,7 @@ export default function ObservabilityPage() {
         {ai.rows.length > 0 ? (
           <details>
             <summary>Daily breakdown ({ai.rows.length} rows)</summary>
-            <table>
+            <div className="table-scroll"><table>
               <thead>
                 <tr>
                   <th>Day</th>
@@ -281,7 +275,7 @@ export default function ObservabilityPage() {
                   </tr>
                 ))}
               </tbody>
-            </table>
+            </table></div>
           </details>
         ) : null}
       </section>
@@ -301,7 +295,7 @@ export default function ObservabilityPage() {
         ) : xAccounts.length === 0 ? (
           <EmptyState title="No X accounts configured" />
         ) : (
-          <table>
+          <div className="table-scroll"><table>
             <thead>
               <tr>
                 <th>Handle</th>
@@ -339,7 +333,7 @@ export default function ObservabilityPage() {
                 </tr>
               ))}
             </tbody>
-          </table>
+          </table></div>
         )}
       </section>
     </main>

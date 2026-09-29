@@ -251,6 +251,7 @@ export default function StoryReviewPage() {
                 {en ? (
                   <div className="card">
                     <h3>English</h3>
+                    <p className="variant-headline">{en.headline}</p>
                     <p>{en.summary}</p>
                     {en.why_matters ? (
                       <p>
@@ -263,6 +264,7 @@ export default function StoryReviewPage() {
                 {te ? (
                   <div className="card" lang="te">
                     <h3>Telugu</h3>
+                    <p className="variant-headline">{te.headline}</p>
                     <p>{te.summary}</p>
                     {te.why_matters ? (
                       <p>
@@ -364,7 +366,7 @@ export default function StoryReviewPage() {
                 <p role="alert">{story.sensitivity} requires a recorded reason before approve/reject.</p>
               )}
               <label htmlFor="archive">
-                <input id="archive" type="checkbox" checked={archive} onChange={(event) => setArchive(event.target.checked)} style={{ width: "auto", marginRight: "0.5rem" }} />
+                <input id="archive" type="checkbox" checked={archive} onChange={(event) => setArchive(event.target.checked)} />
                 Archive instead of sending back to draft
               </label>
               <div className="card__foot">

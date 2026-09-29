@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { EmptyState, PageHeader, StatTile, Tone } from "@/components/ui";
 import { apiUrl, clearSession, getRole, getToken } from "@/lib/auth";
 import { captureException } from "@/lib/errorTracking";
+import { STALE_QUEUE_SECONDS, duration } from "@/lib/time";
 
 interface SourceRow {
   rights_status: string;
@@ -99,6 +100,16 @@ export default function Home() {
   if (failedJobs > 0) {
     attention.push({ key: "jobs", href: "/observability", tone: "warn", node: `${failedJobs} failed job${failedJobs > 1 ? "s" : ""}.` });
   }
+  const oldest = obs.job_queue.oldest_pending_age_seconds;
+  const staleQueue = oldest !== null && oldest > STALE_QUEUE_SECONDS;
+  if (staleQueue) {
+    attention.push({
+      key: "stale-queue",
+      href: "/observability#jobs",
+      tone: "danger",
+      node: `Jobs have been waiting ${duration(oldest)} — the worker may not be running.`
+    });
+  }
   if (reviewCount > 0) {
     attention.push({ key: "review", href: "/review", tone: "warn", node: `${reviewCount} stor${reviewCount > 1 ? "ies" : "y"} waiting for human review.` });
   }
@@ -106,7 +117,6 @@ export default function Home() {
     attention.push({ key: "rights", href: "/sources", tone: "warn", node: `${needsRights} source${needsRights > 1 ? "s" : ""} need a rights review before they can ingest.` });
   }
 
-  const oldest = obs.job_queue.oldest_pending_age_seconds;
   const budgetNote = ai.monthly_budget_usd === null ? "No budget set" : `of ${usd(ai.monthly_budget_usd)} budget`;
 
   return (
@@ -135,8 +145,8 @@ export default function Home() {
           href="/observability"
           label="Jobs pending"
           value={jobs.PENDING ?? 0}
-          note={oldest !== null ? `oldest ${Math.round(oldest / 60)} min` : `${failedJobs} failed`}
-          tone={failedJobs > 0 ? "danger" : "ok"}
+          note={oldest !== null ? `oldest waiting ${duration(oldest)}` : `${failedJobs} failed`}
+          tone={failedJobs > 0 || staleQueue ? "danger" : "ok"}
         />
         <StatTile href="/observability" label="AI spend (month)" value={usd(ai.month_to_date_cost_usd)} note={budgetNote} tone={ai.over_monthly_budget ? "danger" : "ok"} />
       </div>
