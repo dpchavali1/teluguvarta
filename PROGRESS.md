@@ -159,11 +159,9 @@ write one, and approve didn't check for English, so an empty story could be publ
   and `run_ai_translate` does nothing while it's off. The default is off when unset. Editor-written Telugu is
   unaffected. At the owner's request, `deploy.sh` and `.env.example` now write `true`.
   Verified: full API suite 361 passed (2 new tests in `tests/test_translate.py`); ruff clean; mypy still 71.
-  **Owner step on the VPS, before the next `deploy.sh`:** set `AI_TRANSLATION_ENABLED=true` in `.env.prod`.
-  `deploy.sh` only writes the file on the first run, so it still says `false`, and Telugu translation stops if
-  you deploy without changing it.
-- **Next steps in the plan:** separate `gemini_free`/`gemini_paid` routing (needs an ADR, since ADR-015 assumes
-  one Gemini tier; ADR-018's `gemini_paid` provider may already cover this, so check before writing one); the pinned-model limiter and
+  **Live in prod (2026-09-29):** the owner set `AI_TRANSLATION_ENABLED=true` in `.env.prod` and deployed.
+- **Next steps in the plan:** (separate `gemini`/`gemini_paid` routing is done: ADR-018's `PAID_GEMINI_ROUTING`
+  in `app/ai/tasks.py`, so no new ADR is needed.) The pinned-model limiter and
   quota accounting; a mobile `EXPO_PUBLIC_WEB_URL` (blocked on the web deploy); one rights-reviewed
   sports/entertainment/community source.
 
