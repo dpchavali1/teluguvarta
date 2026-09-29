@@ -22,6 +22,33 @@ preloaded, and new `radius.card`/`radius.pill` tokens are added (CSS output only
 with `CORS_ALLOWED_ORIGINS=http://localhost:3000` or the Saved journey fails. Listing routes still use
 `force-dynamic` (no ISR), which is the next performance lever.
 
+**Ops + perf pass (2026-09-28, later)**:
+- **Admin:** light/dark toggle in the sidebar (`b651bb2`).
+- **Web ISR** (`d84f2e2`):
+  - `/` and `/topics` prerender and revalidate. A build with the API unreachable renders
+    empty via `duringBuild()` instead of failing; verified by building against a dead port.
+  - `/story/[slug]` renders on first request, then serves from cache (`x-nextjs-cache`
+    MISS then HIT, `s-maxage=60`).
+  - `/latest`, `/topic`, `/country` stay dynamic because they read `?cursor`.
+  - **Open:** a missing story returns HTTP **200**. The not-found UI does render with
+    `noindex`. Seen in dev mode too; the cause is likely `story/[slug]/loading.tsx`
+    streaming before `notFound()`, but no comparison build of the old code was done.
+- **Prod backups** (`5cc533d`):
+  - `infra/deploy/backup-prod.sh`: nightly age-encrypted dump, 14 days local, 30 days on
+    a Hetzner Storage Box.
+  - `infra/deploy/restore-drill.sh`: restores into a throwaway DB and compares with live.
+  - `deploy.sh`: installs the cron job and backs up before each migration.
+  - Setup steps in `infra/deploy/BACKUPS.md`.
+  - **Not yet run on the server.** Waiting on the owner's age key and Storage Box
+    (owner chose to test on the server). Only the pipe-dump → file → `pg_restore` path
+    was verified locally (schema version + row counts matched).
+- **Local DB:** deleted the five 2026-09-17 hand-published NPR stories and the fake
+  review task (the demo-data note below is now resolved).
+- **Still open:** Vercel deploy and `WEB_URL`; Telugu sources (draft evidence in
+  `docs/sources/telugu-source-candidates.md`, pending owner review under ADR-002).
+
+**Superseded — ADR-015 has since been accepted and T22 is done** (`e3c9ecd`, `b773094`,
+`534eb25`): the paragraph below describes the state before that and is kept as history.
 **Gemini provider adapter added, not routed (2026-09-28)**: `app/ai/providers/gemini_provider.py`
 (httpx REST, no SDK, key `AI_GEMINI_API_KEY`) + `provider="gemini"` in `gateway._resolve_provider`.
 **Deliberately absent from `ROUTING`**: the free tier may train on submitted data, so routing any
@@ -583,7 +610,7 @@ Mirrors `docs/adr/README.md` — keep both in sync.
     DevTools console — both confirm `/mfa/setup` → `/mfa/enroll` →
     `/auth/login` with `mfa_code` works correctly server-side. The bug is
     entirely in the missing admin frontend UI, not the API.
-  - **Local DB has temporary demo data, not yet reverted** — added so the
+  - (RESOLVED 2026-09-28: review task and demo stories deleted.) **Local DB has temporary demo data, not yet reverted** — added so the
     user could see the new UI states without seeding real content:
     - `review_tasks`: one row, `story_id = 7a505dee-80c1-4aa9-accf-6f3e45a01ef1`,
       `reason = 'IMMIGRATION,SENSITIVE_CATEGORY'`, `status = 'PENDING'`.
