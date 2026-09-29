@@ -38,6 +38,7 @@ from app.content.serialize import load_story_relations
 from app.content.variants import EDITOR_MODEL_VERSION
 from app.db import get_db
 from app.errors import APIError
+from app.jobs.brief_lane import BRIEF_ACTOR, briefs_enabled, daily_cap, published_today
 from app.jobs.source_fetch import CIRCUIT_BREAKER_THRESHOLD
 from app.models import (
     AuditEvent,
@@ -57,6 +58,7 @@ from app.schemas import (
     AdminActionRequest,
     AdminActionResponse,
     AdminAuditEventOut,
+    AdminAutoBriefOut,
     AdminCorrectionOut,
     AdminCorrectionRequest,
     AdminDraftRequest,
@@ -345,12 +347,53 @@ def update_x_account(
 
 
 @router.get("/kill-switches")
-def get_kill_switches() -> KillSwitchesOut:
+def get_kill_switches(db: Session = Depends(get_db)) -> KillSwitchesOut:
     return KillSwitchesOut(
         auto_publish_global=os.environ.get("AUTO_PUBLISH_GLOBAL", "false").lower() == "true",
         auto_publish_category_immigration=os.environ.get("AUTO_PUBLISH_CATEGORY_IMMIGRATION", "false").lower()
         == "true",
+        auto_publish_briefs=briefs_enabled(),
+        auto_publish_briefs_daily_cap=daily_cap(),
+        briefs_published_today=published_today(db, datetime.now(UTC)),
     )
+
+
+@router.get("/briefs/recent")
+def list_recent_briefs(db: Session = Depends(get_db)) -> list[AdminAutoBriefOut]:
+    """ADR-019: briefs the lane auto-approved in the last 24 hours, newest first."""
+    events = db.scalars(
+        select(AuditEvent)
+        .where(
+            AuditEvent.actor == BRIEF_ACTOR,
+            AuditEvent.action == "STORY_AUTO_APPROVED",
+            AuditEvent.created_at >= datetime.now(UTC) - timedelta(hours=24),
+        )
+        .order_by(AuditEvent.created_at.desc())
+    ).all()
+    out: list[AdminAutoBriefOut] = []
+    for event in events:
+        story = db.get(Story, event.entity_id)
+        if story is None:
+            continue
+        en = db.scalars(
+            select(StoryVariant).where(StoryVariant.story_id == story.id, StoryVariant.language == "en")
+        ).first()
+        titles = db.scalars(
+            select(SourceItem.title)
+            .join(StorySource, StorySource.source_item_id == SourceItem.id)
+            .where(StorySource.story_id == story.id)
+            .order_by(StorySource.evidence_rank)
+        ).all()
+        out.append(
+            AdminAutoBriefOut(
+                story_id=story.id, status=story.status,
+                headline=en.headline if en else None, summary=en.summary if en else None,
+                source_titles=[t for t in titles if t],
+                matched_tokens=(event.metadata_ or {}).get("title_match", {}).get("matched", []),
+                approved_at=event.created_at,
+            )
+        )
+    return out
 
 
 def _review_task_out(task: ReviewTask) -> ReviewQueueItemOut:
@@ -459,6 +502,7 @@ def get_story_detail(story_id: UUID, db: Session = Depends(get_db)) -> AdminStor
         canonical_slug=story.canonical_slug,
         status=story.status,
         sensitivity=story.sensitivity,
+        format=story.format,
         importance=story.importance,
         published_at=story.published_at,
         variants={

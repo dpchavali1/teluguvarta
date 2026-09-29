@@ -107,6 +107,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/admin/briefs/recent": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Recent Briefs
+         * @description ADR-019: briefs the lane auto-approved in the last 24 hours, newest first.
+         */
+        get: operations["list_recent_briefs_v1_admin_briefs_recent_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/admin/jobs": {
         parameters: {
             query?: never;
@@ -707,6 +727,36 @@ export interface components {
                 [key: string]: unknown;
             };
         };
+        /**
+         * AdminAutoBriefOut
+         * @description ADR-019: a story the brief lane auto-approved, for the after-publish
+         *     check (retract/correct from the story page).
+         */
+        AdminAutoBriefOut: {
+            /**
+             * Approved At
+             * Format: date-time
+             */
+            approved_at: string;
+            /** Headline */
+            headline?: string | null;
+            /** Matched Tokens */
+            matched_tokens?: string[];
+            /** Source Titles */
+            source_titles?: string[];
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "DRAFT" | "AI_READY" | "REVIEW_REQUIRED" | "APPROVED" | "SCHEDULED" | "PUBLISHED" | "UPDATED" | "RETRACTED" | "CORRECTION_PENDING" | "ARCHIVED";
+            /**
+             * Story Id
+             * Format: uuid
+             */
+            story_id: string;
+            /** Summary */
+            summary?: string | null;
+        };
         /** AdminCorrectionOut */
         AdminCorrectionOut: {
             /**
@@ -952,6 +1002,12 @@ export interface components {
             /** Corrections */
             corrections?: components["schemas"]["AdminCorrectionOut"][];
             /**
+             * Format
+             * @default FULL
+             * @enum {string}
+             */
+            format: "FULL" | "BRIEF";
+            /**
              * Id
              * Format: uuid
              */
@@ -1167,10 +1223,25 @@ export interface components {
          *     publish logic exists to gate yet — see T12).
          */
         KillSwitchesOut: {
+            /**
+             * Auto Publish Briefs
+             * @default false
+             */
+            auto_publish_briefs: boolean;
+            /**
+             * Auto Publish Briefs Daily Cap
+             * @default 0
+             */
+            auto_publish_briefs_daily_cap: number;
             /** Auto Publish Category Immigration */
             auto_publish_category_immigration: boolean;
             /** Auto Publish Global */
             auto_publish_global: boolean;
+            /**
+             * Briefs Published Today
+             * @default 0
+             */
+            briefs_published_today: number;
         };
         /** MeResponse */
         MeResponse: {
@@ -1469,6 +1540,12 @@ export interface components {
             canonical_slug: string;
             /** Countries */
             countries?: string[];
+            /**
+             * Format
+             * @default FULL
+             * @enum {string}
+             */
+            format: "FULL" | "BRIEF";
             /**
              * Id
              * Format: uuid
@@ -1797,6 +1874,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MfaSetupResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_recent_briefs_v1_admin_briefs_recent_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminAutoBriefOut"][];
                 };
             };
             /** @description Validation Error */

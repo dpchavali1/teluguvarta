@@ -101,6 +101,80 @@
         "title": "AdminAuditEventOut",
         "type": "object"
       },
+      "AdminAutoBriefOut": {
+        "description": "ADR-019: a story the brief lane auto-approved, for the after-publish\ncheck (retract/correct from the story page).",
+        "properties": {
+          "approved_at": {
+            "format": "date-time",
+            "title": "Approved At",
+            "type": "string"
+          },
+          "headline": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Headline"
+          },
+          "matched_tokens": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Matched Tokens",
+            "type": "array"
+          },
+          "source_titles": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Source Titles",
+            "type": "array"
+          },
+          "status": {
+            "enum": [
+              "DRAFT",
+              "AI_READY",
+              "REVIEW_REQUIRED",
+              "APPROVED",
+              "SCHEDULED",
+              "PUBLISHED",
+              "UPDATED",
+              "RETRACTED",
+              "CORRECTION_PENDING",
+              "ARCHIVED"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "story_id": {
+            "format": "uuid",
+            "title": "Story Id",
+            "type": "string"
+          },
+          "summary": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Summary"
+          }
+        },
+        "required": [
+          "story_id",
+          "status",
+          "approved_at"
+        ],
+        "title": "AdminAutoBriefOut",
+        "type": "object"
+      },
       "AdminCorrectionOut": {
         "properties": {
           "created_at": {
@@ -949,6 +1023,15 @@
             "title": "Corrections",
             "type": "array"
           },
+          "format": {
+            "default": "FULL",
+            "enum": [
+              "FULL",
+              "BRIEF"
+            ],
+            "title": "Format",
+            "type": "string"
+          },
           "id": {
             "format": "uuid",
             "title": "Id",
@@ -1587,6 +1670,16 @@
       "KillSwitchesOut": {
         "description": "Read-only view of the \u00a715 global kill switches (env-backed; no\npublish logic exists to gate yet \u2014 see T12).",
         "properties": {
+          "auto_publish_briefs": {
+            "default": false,
+            "title": "Auto Publish Briefs",
+            "type": "boolean"
+          },
+          "auto_publish_briefs_daily_cap": {
+            "default": 0,
+            "title": "Auto Publish Briefs Daily Cap",
+            "type": "integer"
+          },
           "auto_publish_category_immigration": {
             "title": "Auto Publish Category Immigration",
             "type": "boolean"
@@ -1594,6 +1687,11 @@
           "auto_publish_global": {
             "title": "Auto Publish Global",
             "type": "boolean"
+          },
+          "briefs_published_today": {
+            "default": 0,
+            "title": "Briefs Published Today",
+            "type": "integer"
           }
         },
         "required": [
@@ -2474,6 +2572,15 @@
             "title": "Countries",
             "type": "array"
           },
+          "format": {
+            "default": "FULL",
+            "enum": [
+              "FULL",
+              "BRIEF"
+            ],
+            "title": "Format",
+            "type": "string"
+          },
           "id": {
             "format": "uuid",
             "title": "Id",
@@ -3135,6 +3242,60 @@
         "summary": "Mfa Setup",
         "tags": [
           "admin-auth"
+        ]
+      }
+    },
+    "/v1/admin/briefs/recent": {
+      "get": {
+        "description": "ADR-019: briefs the lane auto-approved in the last 24 hours, newest first.",
+        "operationId": "list_recent_briefs_v1_admin_briefs_recent_get",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/AdminAutoBriefOut"
+                  },
+                  "title": "Response List Recent Briefs V1 Admin Briefs Recent Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Recent Briefs",
+        "tags": [
+          "admin"
         ]
       }
     },

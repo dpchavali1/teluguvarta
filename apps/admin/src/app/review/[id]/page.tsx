@@ -55,6 +55,7 @@ interface StoryDetail {
   canonical_slug: string;
   status: string;
   sensitivity: string;
+  format?: "FULL" | "BRIEF";
   importance: number;
   published_at: string | null;
   variants: Record<string, StoryVariant>;
@@ -342,6 +343,7 @@ export default function StoryReviewPage() {
           <span className="pill-row">
             <Badge tone={statusNotice?.tone ?? "neutral"}>{story.status}</Badge>
             <Badge tone={isAlwaysReviewed ? "danger" : "warn"}>{unclassified ? "UNCLASSIFIED" : story.sensitivity}</Badge>
+            {story.format === "BRIEF" ? <Badge>BRIEF · auto-published (ADR-019)</Badge> : null}
           </span>
         }
       />

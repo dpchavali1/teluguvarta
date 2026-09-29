@@ -10,6 +10,7 @@ import { clearSession, getRole, getToken } from "@/lib/auth";
 const LINKS = [
   { href: "/", label: "Home" },
   { href: "/review", label: "Review queue" },
+  { href: "/briefs", label: "Auto briefs" },
   { href: "/sources", label: "Sources" },
   { href: "/observability", label: "Observability" },
 ];

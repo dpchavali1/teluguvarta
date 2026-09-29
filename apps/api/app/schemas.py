@@ -20,6 +20,8 @@ StoryStatus = Literal[
     "DRAFT", "AI_READY", "REVIEW_REQUIRED", "APPROVED", "SCHEDULED",
     "PUBLISHED", "UPDATED", "RETRACTED", "CORRECTION_PENDING", "ARCHIVED",
 ]
+# ADR-019: BRIEF = a link-first brief from the auto-publish lane; readers label it.
+StoryFormat = Literal["FULL", "BRIEF"]
 Sensitivity = Literal["NONE", "IMMIGRATION", "LEGAL", "FINANCIAL", "BREAKING", "OBITUARY_ACCUSATION"]
 # §3.1 life-stage values, explicit-only per NON_NEGOTIABLES (never inferred) — §8.3's
 # "why this matters" audience segment (T16).
@@ -67,6 +69,7 @@ class StoryOut(BaseModel):
     canonical_slug: str
     status: StoryStatus
     sensitivity: Sensitivity
+    format: StoryFormat = "FULL"
     importance: float
     published_at: datetime | None = None
     updated_at: datetime
@@ -434,6 +437,7 @@ class AdminStoryDetailOut(BaseModel):
     canonical_slug: str
     status: StoryStatus
     sensitivity: Sensitivity
+    format: StoryFormat = "FULL"
     importance: float
     published_at: datetime | None = None
     variants: dict[Language, StoryVariantOut] = Field(default_factory=dict)
@@ -458,6 +462,23 @@ class KillSwitchesOut(BaseModel):
 
     auto_publish_global: bool
     auto_publish_category_immigration: bool
+    # ADR-019 link-first brief lane.
+    auto_publish_briefs: bool = False
+    auto_publish_briefs_daily_cap: int = 0
+    briefs_published_today: int = 0
+
+
+class AdminAutoBriefOut(BaseModel):
+    """ADR-019: a story the brief lane auto-approved, for the after-publish
+    check (retract/correct from the story page)."""
+
+    story_id: UUID
+    status: StoryStatus
+    headline: str | None = None
+    summary: str | None = None
+    source_titles: list[str] = Field(default_factory=list)
+    matched_tokens: list[str] = Field(default_factory=list)
+    approved_at: datetime
 
 
 class AdminAuditEventOut(BaseModel):

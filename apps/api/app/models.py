@@ -178,6 +178,9 @@ class Story(Base):
     # #5). NULL means never send; set once an editor explicitly approves the
     # alert (see `app/routers/admin.py::approve_breaking_alert`).
     breaking_alert_approved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    # ADR-019: 'FULL' | 'BRIEF' per `ck_stories_format`. BRIEF is set only by the
+    # link-first brief lane (`app/jobs/brief_lane.py`); readers see a "Brief" label.
+    format: Mapped[str] = mapped_column(Text, nullable=False, server_default="FULL")
 
 
 class StoryVariant(Base):

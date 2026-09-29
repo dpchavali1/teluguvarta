@@ -22,7 +22,7 @@ jest.mock("../lib/api", () => ({
   getHome: jest.fn(), getSavedStories: jest.fn(), search: jest.fn(), trackEvent: jest.fn(),
 }));
 const story = (headline: string): StoryOut => ({
-  id: "11111111-1111-1111-1111-111111111111", canonical_slug: "example", status: "UPDATED", sensitivity: "NONE",
+  id: "11111111-1111-1111-1111-111111111111", canonical_slug: "example", status: "UPDATED", sensitivity: "NONE", format: "FULL",
   importance: 0.5, published_at: "2026-09-01T12:00:00Z", updated_at: "2026-09-12T12:00:00Z",
   countries: [], topics: [], sources: [], variants: { en: { language: "en", headline, summary: "Summary", qa_status: "PASSED" } },
 });

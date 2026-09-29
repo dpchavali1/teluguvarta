@@ -21,6 +21,9 @@ with no independent retry value" precedent as T08/T09/T11:
    `AI_READY` in the first place (always routed straight to
    `REVIEW_REQUIRED`), so gating on that flag would be dead code — this *is*
    the "should be a no-op" acceptance criterion, satisfied structurally.
+   ADR-019: with the global switch off, a story first gets a chance at the
+   link-first brief lane (`app/jobs/brief_lane.py`, `AUTO_PUBLISH_BRIEFS`,
+   daily cap). Lane failures add their reason to the review task.
 2. `publish_due_stories` — promotes every `Story.status == SCHEDULED` (from
    either path above, or a human editor's `POST .../approve`, which itself
    already cascades `REVIEW_REQUIRED -> APPROVED -> SCHEDULED` per the
@@ -40,6 +43,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.ai.budget import is_over_monthly_budget
+from app.jobs.brief_lane import LaneOutcome, daily_cap, published_today, try_brief_lane
 from app.jobs.queue import enqueue_job
 from app.models import AuditEvent, Job, ReviewTask, Story
 
@@ -74,7 +78,11 @@ def auto_publish_stories(db: Session) -> int:
     if not stories:
         return 0
 
-    enabled = _auto_publish_enabled() and not _budget_breach_disables_auto_publish(db)
+    budget_breached = _budget_breach_disables_auto_publish(db)
+    enabled = _auto_publish_enabled() and not budget_breached
+    # ADR-019: the brief lane only runs where a story would otherwise wait for
+    # review because the global switch is off, and closes on a budget breach.
+    brief_cap_left = None if enabled or budget_breached else daily_cap() - published_today(db, _now())
     count = 0
     for story in stories:
         # NON_NEGOTIABLES #5: never auto-publish a sensitive category,
@@ -88,9 +96,19 @@ def auto_publish_stories(db: Session) -> int:
             continue
 
         if not enabled:
+            lane = LaneOutcome.NOT_ATTEMPTED
+            if brief_cap_left is not None:
+                lane = try_brief_lane(db, story, remaining_cap=brief_cap_left)
+            if lane == LaneOutcome.PUBLISHED:
+                brief_cap_left = (brief_cap_left or 0) - 1
+                count += 1
+                continue
+            reason = "AUTO_PUBLISH_DISABLED"
+            if lane != LaneOutcome.NOT_ATTEMPTED:
+                reason += f",{lane.value}"
             story.status = "REVIEW_REQUIRED"
             db.flush()
-            db.add(ReviewTask(story_id=story.id, reason="AUTO_PUBLISH_DISABLED", status="PENDING"))
+            db.add(ReviewTask(story_id=story.id, reason=reason, status="PENDING"))
             count += 1
             continue
 

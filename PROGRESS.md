@@ -77,14 +77,31 @@ write one, and approve didn't check for English, so an empty story could be publ
   3. Auto-publish lane ADR (the plan called it "ADR-011", but that number is the claim-evidence ADR; use
      the next free number, ADR-019; ADR-016 is reserved) for "link-first briefs" (headline plus a one-liner limited to what the
      source title says, plus the source link). Only for rights-reviewed, `sensitivity=NONE`, high-confidence
-     stories, with a daily cap. **ADR-019 accepted (2026-09-29); not implemented yet (NEXT).** Owner
-     decisions: sentence ≤30 words; briefs drop "why this matters" (NON_NEGOTIABLES #15 amended);
-     confidence ≥0.8 for both classify and `generate_brief`; `AUTO_PUBLISH_BRIEFS_DAILY_CAP=20`, day starts
-     at midnight America/New_York; readers see a "Brief" label (`story.format` FULL|BRIEF, migration).
-     `AUTO_PUBLISH_BRIEFS` defaults off and is separate from GLOBAL. The ADR's §1–§3 are the build spec:
-     a `generate_brief` gateway task, a title-token check (`BRIEF_TITLE_MISMATCH`), rights/sensitivity/
-     source-category eligibility, the `BRIEF_DAILY_CAP` overflow reason, the `system:brief_lane` audit, the
-     admin "Auto-published briefs (24h)" list, and the Brief label on web/mobile.
+     stories, with a daily cap. **ADR-019 accepted and implemented (2026-09-29).** Owner decisions: sentence
+     ≤30 words, no "why this matters" (NON_NEGOTIABLES #15 amended), confidence ≥0.8, 20/day with the day
+     starting at midnight America/New_York, and a "Brief" label for readers.
+     - `app/jobs/brief_lane.py`, called from `auto_publish_stories` only when `AUTO_PUBLISH_GLOBAL` is off and
+       the budget isn't breached. It checks eligibility (`LINK_ONLY` + `rights_reviewed_at` +
+       `rights_evidence_url` on every source, sensitivity `NONE`, not `RESTRICTED`, source category not
+       immigration/legal/financial/breaking, `importance` ≥0.8, `AI_REVIEW_P1_STORIES` on). It then makes a
+       `BriefResult` call on the `SUMMARY` route and runs deterministic checks (numbers, capitalized words and
+       causal words must be in the cited titles; one sentence; headline similarity; real citations). On a pass
+       it overwrites the English variant, drops Telugu for re-translation, sets `story.format=BRIEF`, and
+       auto-approves with audit `system:brief_lane`.
+     - Failures keep the full draft and add `BRIEF_TITLE_MISMATCH`, `BRIEF_REJECTED` or `BRIEF_DAILY_CAP` to the
+       `AUTO_PUBLISH_DISABLED` review task.
+     - Migration `f6c9e3a4b8d2` adds `stories.format` (FULL|BRIEF). `format` is in `StoryOut` and the admin
+       story detail; contracts are regenerated.
+     - Admin: an "Auto briefs" page (`GET /v1/admin/briefs/recent`, last 24h), lane state and today's count
+       on `/kill-switches`, help text for the new reasons, and a BRIEF badge on the story page.
+     - Web/mobile: a "Brief" badge; the web story page adds "Read the full story at the source".
+     - Verified: `pytest` 342 passed (22 new in `tests/test_brief_lane.py`); ruff clean; the migration upgrades,
+       downgrades and upgrades again cleanly. mypy went 68→71; the 3 new errors are the existing str→Literal
+       pattern (format/status args). Admin and web `tsc`, eslint and `next build` clean; mobile `tsc` + jest
+       19 passed. Not run: web `test:visual` (no fixture story is a BRIEF) and the admin page in a browser.
+     **Not live yet — owner steps on the VPS (after ADR-018's steps):** add `AUTO_PUBLISH_BRIEFS=true` and
+     `AUTO_PUBLISH_BRIEFS_DAILY_CAP=20` to `.env.prod` (`deploy.sh` only writes them on first run), set
+     `rights_reviewed_at` and `rights_evidence_url` on the sources you want in the lane, and re-run `deploy.sh`.
   4. Rights-review the public-domain government feeds so their RSS description can be stored as evidence.
 - **Next steps in the plan:** separate `gemini_free`/`gemini_paid` routing (needs an ADR, since ADR-015 assumes
   one Gemini tier); make `AI_TRANSLATION_ENABLED` actually stop `ai_translate`; the pinned-model limiter and

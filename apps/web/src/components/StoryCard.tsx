@@ -42,6 +42,9 @@ export function StoryCard({ story, headingLevel = "h2", display = "default" }: {
   const [saveError, setSaveError] = useState<string | null>(null);
   const hasTelugu = Boolean(story.variants.te);
   const isHumanReviewed = REVIEWED_SENSITIVITIES.has(story.sensitivity);
+  // ADR-019: a link-first brief (auto-published, no "why this matters"). Not
+  // the same thing as `display === "brief"`, which is only card density.
+  const isLinkFirstBrief = story.format === "BRIEF";
 
   useEffect(() => {
     const sync = () => setSaved(isSaved(story.id));
@@ -138,8 +141,9 @@ export function StoryCard({ story, headingLevel = "h2", display = "default" }: {
     </button>
   );
 
-  const badges = (story.sensitivity === "BREAKING" || isHumanReviewed || statusNotice) && (
+  const badges = (story.sensitivity === "BREAKING" || isHumanReviewed || statusNotice || isLinkFirstBrief) && (
     <div className="story-card__badges">
+      {isLinkFirstBrief && <span className="badge badge--accent" title="A short brief. The full story is at the source link.">Brief</span>}
       {story.sensitivity === "BREAKING" && <span className="badge badge--hot"><span className="badge__pulse" aria-hidden="true" />Breaking</span>}
       {statusNotice && <span className={`badge ${statusNotice.className}`} role="status">{statusNotice.text}</span>}
       {isHumanReviewed && <span className="badge badge--success story-card__reviewed"><Icon name="check" size={13} /> Human-reviewed</span>}
@@ -168,6 +172,14 @@ export function StoryCard({ story, headingLevel = "h2", display = "default" }: {
       {language !== renderedLanguage && <p className="story-card__notice" role="status">Telugu translation isn’t available yet. Showing English.</p>}
 
       <p className="story-card__summary" lang={renderedLanguage}>{variant.summary}</p>
+
+      {isDetail && isLinkFirstBrief && primarySource && (
+        <a className="story-card__source-link story-card__source-link--lead" href={primarySource.url} target="_blank" rel="noopener noreferrer">
+          <span className="sources__domain">{sourceDomain(primarySource.url)}</span>
+          Read the full story at the source
+          <Icon name="external" size={14} />
+        </a>
+      )}
 
       {isDetail && (
         <div className="story-card__detail-meta">

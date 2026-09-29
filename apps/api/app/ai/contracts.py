@@ -54,3 +54,16 @@ class WhyMattersResult(BaseModel):
     own, just a rendering of an already-approved story for one segment."""
 
     why_matters: str
+
+
+class BriefResult(BaseModel):
+    """ADR-019 contract for a link-first brief: an original headline plus one
+    sentence bounded by the source title's facts. Run on the `SUMMARY` route,
+    so it carries no routing of its own. Not `GenerationResult`, so the
+    gateway's confidence/claim checks don't apply; `app/jobs/brief_lane.py`
+    runs stricter ones itself."""
+
+    headline_en: str
+    brief_en: str
+    confidence: float = Field(ge=0.0, le=1.0)
+    claims: list[Claim] = Field(default_factory=list)

@@ -111,6 +111,7 @@ def story_to_out(db: Session, story: Story, loaded: StoryRelations | None = None
         canonical_slug=story.canonical_slug,
         status=story.status,
         sensitivity=story.sensitivity,
+        format=story.format,
         importance=story.importance,
         published_at=story.published_at,
         updated_at=updated_at,  # type: ignore[arg-type]

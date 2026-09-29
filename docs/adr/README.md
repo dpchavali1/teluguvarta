@@ -49,5 +49,5 @@ accepted. Add ad-hoc ADRs below this table as they're written.
   [ADR-018](ADR-018-gemini-paid-route.md)
 - ADR-019 | Auto-publish lane for link-first briefs (amends ADR-002 /
   NON_NEGOTIABLES #15; narrows ADR-011 for briefs only) | automation plan
-  step 3 | **accepted** (2026-09-29) — see
+  step 3 | **accepted and implemented** (2026-09-29) — see
   [ADR-019](ADR-019-link-first-brief-auto-publish.md)

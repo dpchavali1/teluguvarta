@@ -26,7 +26,11 @@ const REASON_HELP: Record<string, string> = {
   LOW_CONFIDENCE_GENERATION: "The AI wasn't confident in its summary.",
   SIMILARITY_TO_SOURCE: "The summary is too close to the source text — rewrite it.",
   NO_PAID_PROVIDER:
-    "This source's category needs paid AI and none is configured, so no draft was written and the story was never classified. Check the source yourself for immigration, legal, financial or breaking content."
+    "This source's category needs paid AI and none is configured, so no draft was written and the story was never classified. Check the source yourself for immigration, legal, financial or breaking content.",
+  AUTO_PUBLISH_DISABLED: "Auto-publish is off, so every clean draft waits for a person.",
+  BRIEF_DAILY_CAP: "Eligible for the brief lane, but today's cap was already used (resets at midnight New York time).",
+  BRIEF_TITLE_MISMATCH: "The AI's brief added a name, number or cause the source title doesn't state. The full draft below is unchanged.",
+  BRIEF_REJECTED: "The brief lane tried and failed a check (confidence, length, headline too close to the source, or missing citations). The full draft below is unchanged."
 };
 
 // A NO_PAID_PROVIDER hold skips classification, so its stored sensitivity is a

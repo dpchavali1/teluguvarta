@@ -155,3 +155,26 @@ corroboration (ADR-011's option 1b) is not needed for this shape.
 - **Require two-outlet corroboration for the lane.** Rejected: most clusters
   have a single source, so the lane would be almost always empty. The
   title-match check gives the same protection for a brief.
+
+## Implementation notes (2026-09-29)
+
+Choices made while building it, within the decision above:
+
+- The lane runs inside `publish_scheduler` (`app/jobs/brief_lane.py`, called
+  from `auto_publish_stories`), not in `ai_classify`. The full draft is only
+  replaced when the brief passes, so every failure leaves the reviewer the full
+  draft.
+- `generate_brief` is a `BriefResult` contract on the existing `SUMMARY` route,
+  not a new `Task`, so the ADR-015/ADR-018 routing and budget gates apply
+  without new routing entries.
+- Classification confidence is read from `story.importance` (where generate
+  already stores it). Urgency isn't persisted, so the lane stays closed unless
+  `AI_REVIEW_P1_STORIES` is on (the default); that route is what keeps
+  HIGH-urgency stories out of `AI_READY`.
+- The ADR-015 restricted-signal check is enforced as `privacy_decision !=
+  RESTRICTED`, in addition to the source-category blocklist.
+- A third review reason, `BRIEF_REJECTED`, covers non-title failures (low
+  confidence, over 30 words or more than one sentence, headline too close to
+  the source, missing or fabricated citations, or a gateway failure).
+- Admin: `GET /v1/admin/briefs/recent` and the "Auto briefs" page;
+  `/kill-switches` reports the lane state and today's count.

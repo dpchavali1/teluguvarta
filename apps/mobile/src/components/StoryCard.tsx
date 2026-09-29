@@ -147,6 +147,12 @@ export function StoryCard({
             <Text style={styles.reviewedBadgeText}>✓ Human-reviewed</Text>
           </View>
         )}
+        {/* ADR-019: a link-first brief — short, no "why this matters"; the full story is at the source link. */}
+        {story.format === "BRIEF" && (
+          <View style={styles.reviewedBadge} accessibilityLabel="Brief. The full story is at the source link.">
+            <Text style={styles.reviewedBadgeText}>Brief</Text>
+          </View>
+        )}
 
         {statusNotice && (
           <Text style={styles.notice} accessibilityLiveRegion="polite">
