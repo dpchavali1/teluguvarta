@@ -4,7 +4,9 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 
+import { Badge, EmptyState, Field, PageHeader, useToast } from "@/components/ui";
 import { apiUrl, clearSession, getToken } from "@/lib/auth";
+import { reasonHelp, reasonTone } from "@/lib/reviewReasons";
 
 interface StoryVariant {
   language: "en" | "te";
@@ -78,6 +80,7 @@ export default function StoryReviewPage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
   const storyId = params.id;
+  const toast = useToast();
 
   const [story, setStory] = useState<StoryDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -136,7 +139,14 @@ export default function StoryReviewPage() {
       const body = action === "reject" ? { reason: reason || null, archive } : { reason: reason || null };
       await postAction(storyId, action, body);
       setReason("");
-      load();
+      if (action === "retract") {
+        toast("ok", "Story retracted.");
+        load();
+      } else {
+        // Straight back to the queue so triage is one decision after another.
+        toast("ok", action === "approve" ? "Approved." : archive ? "Rejected and archived." : "Rejected — sent back to draft.");
+        router.push("/review");
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Action failed");
     } finally {
@@ -155,6 +165,7 @@ export default function StoryReviewPage() {
       if (correctedSummary !== en?.summary) body.summary = correctedSummary;
       await postAction(storyId, "correct", body);
       setReason("");
+      toast("ok", "Correction submitted.");
       load();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Correction failed");
@@ -176,6 +187,7 @@ export default function StoryReviewPage() {
     return (
       <main>
         <p role="alert">{error}</p>
+        <Link href="/review">Back to review queue</Link>
       </main>
     );
   }
@@ -183,7 +195,7 @@ export default function StoryReviewPage() {
   if (!story) {
     return (
       <main>
-        <p>Loading…</p>
+        <p className="state-note">Loading…</p>
       </main>
     );
   }
@@ -193,21 +205,23 @@ export default function StoryReviewPage() {
   const isAlwaysReviewed = ALWAYS_REVIEWED_SENSITIVITIES.has(story.sensitivity);
   const reasonRequired = isAlwaysReviewed && reason.trim().length === 0;
   const statusNotice = STATUS_NOTICE[story.status];
+  const heldReasons = story.review_task ? story.review_task.reason.split(",").map((r) => r.trim()) : [];
 
   return (
     <main>
       <p>
-        <Link href="/review">Back to review queue</Link>
+        <Link href="/review">← Back to review queue</Link>
       </p>
-      <h1>{en?.headline ?? story.canonical_slug}</h1>
-      <p>
-        Status: <strong>{story.status}</strong> ·{" "}
-        <span className={`status-pill status-pill--${isAlwaysReviewed ? "danger" : "warn"}`}>
-          {story.sensitivity}
-        </span>{" "}
-        · Importance: {story.importance.toFixed(2)}
-      </p>
-      {story.review_task ? <p>Review reason: {story.review_task.reason}</p> : null}
+      <PageHeader
+        title={en?.headline ?? story.canonical_slug}
+        subtitle={`Importance ${story.importance.toFixed(2)}`}
+        actions={
+          <span className="pill-row">
+            <Badge tone={statusNotice?.tone ?? "neutral"}>{story.status}</Badge>
+            <Badge tone={isAlwaysReviewed ? "danger" : "warn"}>{story.sensitivity}</Badge>
+          </span>
+        }
+      />
       {statusNotice ? (
         <p className={`editorial-status editorial-status--${statusNotice.tone}`} role="status">
           {statusNotice.text}
@@ -215,165 +229,177 @@ export default function StoryReviewPage() {
       ) : null}
       {error ? <p role="alert">{error}</p> : null}
 
-      <section>
-        <h2>AI draft (English)</h2>
-        {en ? (
-          <>
-            <p>{en.summary}</p>
-            {en.why_matters ? <p><em>Why it matters:</em> {en.why_matters}</p> : null}
-            <p>QA status: {en.qa_status}</p>
-          </>
-        ) : (
-          <p>No English variant yet.</p>
-        )}
-        {te ? (
-          <div lang="te">
-            <h3>Telugu variant</h3>
-            <p>{te.summary}</p>
-            {te.why_matters ? <p><em>Why it matters:</em> {te.why_matters}</p> : null}
-            <p lang="en">QA status: {te.qa_status}</p>
-          </div>
-        ) : null}
-      </section>
-
-      <section>
-        <h2>Sources ({story.sources.length})</h2>
-        <ul>
-          {story.sources.map((source) => (
-            <li key={source.url}>
-              <strong>{source.role}</strong> — {source.source_name}{" "}
-              <span
-                className={`status-pill status-pill--${source.source_rights_status === "DISABLED" ? "danger" : "ok"}`}
-              >
-                {source.source_rights_status}
-              </span>
-              :{" "}
-              <a href={source.url} target="_blank" rel="noreferrer">
-                {source.title ?? source.url}
-              </a>
-            </li>
-          ))}
-        </ul>
-      </section>
-
-      <section>
-        <h2>Actions</h2>
+      <div className="detail-layout">
         <div>
-          <label htmlFor="reason">Reason{isAlwaysReviewed ? " (required for this category)" : ""}</label>
-          <input id="reason" value={reason} onChange={(event) => setReason(event.target.value)} />
+          {heldReasons.length > 0 ? (
+            <section>
+              <h2>Why this is held</h2>
+              <ul className="reason-list">
+                {heldReasons.map((r) => (
+                  <li key={r}>
+                    <Badge tone={reasonTone(r)}>{r.replace(/_/g, " ").toLowerCase()}</Badge> {reasonHelp(r)}
+                  </li>
+                ))}
+              </ul>
+            </section>
+          ) : null}
+
+          <section>
+            <h2>AI draft</h2>
+            {en || te ? (
+              <div className="variant-grid">
+                {en ? (
+                  <div className="card">
+                    <h3>English</h3>
+                    <p>{en.summary}</p>
+                    {en.why_matters ? (
+                      <p>
+                        <em>Why it matters:</em> {en.why_matters}
+                      </p>
+                    ) : null}
+                    <Badge tone={en.qa_status === "PASSED" ? "ok" : en.qa_status === "FAILED" ? "danger" : "warn"}>QA {en.qa_status}</Badge>
+                  </div>
+                ) : null}
+                {te ? (
+                  <div className="card" lang="te">
+                    <h3>Telugu</h3>
+                    <p>{te.summary}</p>
+                    {te.why_matters ? (
+                      <p>
+                        <em>Why it matters:</em> {te.why_matters}
+                      </p>
+                    ) : null}
+                    <span lang="en">
+                      <Badge tone={te.qa_status === "PASSED" ? "ok" : te.qa_status === "FAILED" ? "danger" : "warn"}>QA {te.qa_status}</Badge>
+                    </span>
+                  </div>
+                ) : null}
+              </div>
+            ) : (
+              <EmptyState title="No draft yet" hint="No English or Telugu variant has been written for this story." />
+            )}
+          </section>
+
+          <section>
+            <h2>Sources ({story.sources.length})</h2>
+            <ul className="source-list">
+              {story.sources.map((source) => (
+                <li key={source.url}>
+                  <span className="pill-row">
+                    <Badge>{source.role}</Badge>
+                    <Badge tone={source.source_rights_status === "DISABLED" ? "danger" : "ok"}>{source.source_rights_status}</Badge>
+                  </span>
+                  <a href={source.url} target="_blank" rel="noreferrer">
+                    {source.title ?? source.url}
+                  </a>
+                  <span className="card__meta">{source.source_name}</span>
+                </li>
+              ))}
+            </ul>
+          </section>
+
+          {story.status === "PUBLISHED" || story.status === "UPDATED" ? (
+            <section>
+              <h2>Correct this story</h2>
+              <form onSubmit={handleCorrectSubmit}>
+                <Field label="Headline" htmlFor="headline">
+                  <input id="headline" value={correctedHeadline} onChange={(event) => setCorrectedHeadline(event.target.value)} />
+                </Field>
+                <Field label="Summary" htmlFor="summary">
+                  <textarea id="summary" rows={5} value={correctedSummary} onChange={(event) => setCorrectedSummary(event.target.value)} />
+                </Field>
+                {isAlwaysReviewed && pendingCorrect && (
+                  <p role="alert">{story.sensitivity} — confirm this correction to a published sensitive-category story.</p>
+                )}
+                <div className="card__foot">
+                  {pendingCorrect ? (
+                    <>
+                      <button type="submit" disabled={submitting || !reason}>
+                        Confirm submit correction
+                      </button>
+                      <button type="button" className="button-secondary" disabled={submitting} onClick={() => setPendingCorrect(false)}>
+                        Cancel
+                      </button>
+                    </>
+                  ) : (
+                    <button type="submit" disabled={submitting || !reason}>
+                      Submit correction
+                    </button>
+                  )}
+                </div>
+                {!reason ? <p className="field__hint">Enter a reason in the Decision panel to enable this.</p> : null}
+              </form>
+            </section>
+          ) : null}
+
+          <section>
+            <h2>Correction history</h2>
+            {story.corrections.length === 0 ? (
+              <p className="state-note">No corrections yet.</p>
+            ) : (
+              <ul>
+                {story.corrections.map((correction) => (
+                  <li key={correction.id}>
+                    {new Date(correction.created_at).toLocaleString()} — {correction.reason}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
         </div>
 
-        {story.status === "REVIEW_REQUIRED" ? (
-          <>
-            {isAlwaysReviewed && (
-              <p className="status-pill status-pill--danger">
-                {story.sensitivity} requires a recorded reason before approve/reject.
-              </p>
-            )}
-            <label>
-              <input type="checkbox" checked={archive} onChange={(event) => setArchive(event.target.checked)} />
-              Archive instead of sending back to draft
-            </label>
+        <aside className="decision-panel" aria-label="Decision">
+          <h2>Decision</h2>
+          {story.status === "REVIEW_REQUIRED" || story.status === "PUBLISHED" || story.status === "UPDATED" ? (
+            <Field label={`Reason${isAlwaysReviewed ? " (required for this category)" : ""}`} htmlFor="reason">
+              <input id="reason" value={reason} onChange={(event) => setReason(event.target.value)} />
+            </Field>
+          ) : (
+            <p className="state-note">No actions available while the story is {story.status}.</p>
+          )}
 
-            {pendingAction === "approve" ? (
-              <>
-                <button type="button" disabled={submitting || reasonRequired} onClick={() => handleAction("approve")}>
-                  Confirm approve
-                </button>
-                <button type="button" disabled={submitting} onClick={() => setPendingAction(null)}>
-                  Cancel
-                </button>
-              </>
-            ) : pendingAction === "reject" ? (
-              <>
-                <button type="button" disabled={submitting || reasonRequired} onClick={() => handleAction("reject")}>
-                  Confirm reject
-                </button>
-                <button type="button" disabled={submitting} onClick={() => setPendingAction(null)}>
-                  Cancel
-                </button>
-              </>
-            ) : (
-              <>
-                <button
-                  type="button"
-                  disabled={submitting}
-                  onClick={() => (isAlwaysReviewed ? setPendingAction("approve") : handleAction("approve"))}
-                >
-                  Approve
-                </button>
-                <button
-                  type="button"
-                  disabled={submitting}
-                  onClick={() => (isAlwaysReviewed ? setPendingAction("reject") : handleAction("reject"))}
-                >
-                  Reject
-                </button>
-              </>
-            )}
-          </>
-        ) : null}
+          {story.status === "REVIEW_REQUIRED" ? (
+            <>
+              {isAlwaysReviewed && (
+                <p role="alert">{story.sensitivity} requires a recorded reason before approve/reject.</p>
+              )}
+              <label htmlFor="archive">
+                <input id="archive" type="checkbox" checked={archive} onChange={(event) => setArchive(event.target.checked)} style={{ width: "auto", marginRight: "0.5rem" }} />
+                Archive instead of sending back to draft
+              </label>
+              <div className="card__foot">
+                {pendingAction === "approve" || pendingAction === "reject" ? (
+                  <>
+                    <button type="button" disabled={submitting || reasonRequired} onClick={() => handleAction(pendingAction)}>
+                      Confirm {pendingAction}
+                    </button>
+                    <button type="button" className="button-secondary" disabled={submitting} onClick={() => setPendingAction(null)}>
+                      Cancel
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <button type="button" disabled={submitting} onClick={() => (isAlwaysReviewed ? setPendingAction("approve") : handleAction("approve"))}>
+                      Approve
+                    </button>
+                    <button type="button" className="button-secondary" disabled={submitting} onClick={() => (isAlwaysReviewed ? setPendingAction("reject") : handleAction("reject"))}>
+                      Reject
+                    </button>
+                  </>
+                )}
+              </div>
+            </>
+          ) : null}
 
-        {story.status === "PUBLISHED" ? (
-          <button type="button" disabled={submitting} onClick={() => handleAction("retract")}>
-            Retract
-          </button>
-        ) : null}
-      </section>
-
-      {story.status === "PUBLISHED" || story.status === "UPDATED" ? (
-        <section>
-          <h2>Correct this story</h2>
-          <form onSubmit={handleCorrectSubmit}>
-            <div>
-              <label htmlFor="headline">Headline</label>
-              <input
-                id="headline"
-                value={correctedHeadline}
-                onChange={(event) => setCorrectedHeadline(event.target.value)}
-              />
-            </div>
-            <div>
-              <label htmlFor="summary">Summary</label>
-              <textarea id="summary" value={correctedSummary} onChange={(event) => setCorrectedSummary(event.target.value)} />
-            </div>
-            {isAlwaysReviewed && pendingCorrect && (
-              <p className="status-pill status-pill--danger">
-                {story.sensitivity} — confirm this correction to a published sensitive-category story.
-              </p>
-            )}
-            {pendingCorrect ? (
-              <>
-                <button type="submit" disabled={submitting || !reason}>
-                  Confirm submit correction
-                </button>
-                <button type="button" disabled={submitting} onClick={() => setPendingCorrect(false)}>
-                  Cancel
-                </button>
-              </>
-            ) : (
-              <button type="submit" disabled={submitting || !reason}>
-                Submit correction
+          {story.status === "PUBLISHED" ? (
+            <div className="card__foot">
+              <button type="button" className="button-secondary" disabled={submitting} onClick={() => handleAction("retract")}>
+                Retract
               </button>
-            )}
-          </form>
-        </section>
-      ) : null}
-
-      <section>
-        <h2>Correction history</h2>
-        {story.corrections.length === 0 ? (
-          <p>No corrections yet.</p>
-        ) : (
-          <ul>
-            {story.corrections.map((correction) => (
-              <li key={correction.id}>
-                {new Date(correction.created_at).toLocaleString()} — {correction.reason}
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
+            </div>
+          ) : null}
+        </aside>
+      </div>
     </main>
   );
 }

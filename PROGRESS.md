@@ -356,6 +356,18 @@ Mirrors `docs/adr/README.md` — keep both in sync.
   write an ADR first. `/review/[id]` not yet touched. Admin `tsc` + `next
   lint` pass; not viewed in a browser.
 
+- 2026-09-28: **Admin redesign, slice 5: review detail** (`/review/[id]`).
+  Two-column layout: "Why this is held" (shared `lib/reviewReasons.ts`, now
+  used by the list too), English/Telugu drafts side by side with QA badges,
+  sources with rights badges, correction form/history; sticky Decision panel
+  on the right. Approve/reject now toast and return to `/review` so triage
+  flows. **Gating logic unchanged**: sensitive-category approve/reject/
+  correct still need a recorded reason and a confirm step; no keyboard
+  shortcut for approve/reject on purpose. Reason field now only renders for
+  statuses that have actions (REVIEW_REQUIRED/PUBLISHED/UPDATED). Admin `tsc`
+  + `next lint` pass; not viewed in a browser. Remaining: `/observability`,
+  `/login` on shared components, preset add+activate, browser check.
+
 - 2026-09-29: **Admin UI: add-source and rights forms** on `/sources`
   (`apps/admin/src/app/sources/page.tsx`). "Add source" → `POST /v1/admin/sources`
   (starts DISABLED/inactive); per-row "Rights & status" → `PATCH` with
