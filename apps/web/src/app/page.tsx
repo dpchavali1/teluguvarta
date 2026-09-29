@@ -5,13 +5,12 @@ import { Icon } from "@/components/Icon";
 import { OnboardingCta } from "@/components/OnboardingCta";
 import { StudentBriefing } from "@/components/StudentBriefing";
 import { EditionDate } from "@/components/EditionDate";
-import { getHome } from "@/lib/api";
+import { duringBuild, getHome } from "@/lib/api";
 
 export const revalidate = 60;
-export const dynamic = "force-dynamic";
 
 export default async function HomePage() {
-  const { top_stories: topStories, topics } = await getHome();
+  const { top_stories: topStories, topics } = await getHome().catch(duringBuild({ top_stories: [], topics: [] }));
 
   return (
     <div className="home">

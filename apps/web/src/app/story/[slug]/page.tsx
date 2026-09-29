@@ -9,9 +9,14 @@ import { TrackEvent } from "@/components/TrackEvent";
 import { ApiNotFoundError, getShareMeta, getStory, listStories, storyUrl, type StoryOut } from "@/lib/api";
 
 export const revalidate = 60;
-export const dynamic = "force-dynamic";
 
 type Props = { params: Promise<{ slug: string }> };
+
+// No stories prebuilt (build never needs the API); each one renders on first
+// request and is then cached and revalidated every 60s.
+export async function generateStaticParams() {
+  return [];
+}
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;

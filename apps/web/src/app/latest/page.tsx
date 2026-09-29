@@ -5,7 +5,6 @@ import { listStories } from "@/lib/api";
 
 export const metadata = { title: "Latest stories" };
 export const revalidate = 60;
-export const dynamic = "force-dynamic";
 
 export default async function LatestPage({ searchParams }: { searchParams: Promise<{ cursor?: string }> }) {
   const { cursor } = await searchParams;

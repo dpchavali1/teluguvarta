@@ -6,7 +6,6 @@ import { PageHeader, StoryGrid } from "@/components/StoryGrid";
 import { ApiNotFoundError, getTopic } from "@/lib/api";
 
 export const revalidate = 60;
-export const dynamic = "force-dynamic";
 
 type Props = { params: Promise<{ slug: string }>; searchParams: Promise<{ cursor?: string }> };
 

@@ -63,6 +63,17 @@ async function apiGet<T>(path: string, params?: Record<string, string | undefine
 
 export { ApiNotFoundError };
 
+// Static routes (`/`, `/topics`) prerender during `next build`; an unreachable
+// API there must not fail the deploy, so they render `fallback` and ISR fills
+// them on the first revalidation. At runtime the error still throws, so ISR
+// keeps serving the last good page instead of caching an empty one.
+export function duringBuild<T>(fallback: T): (err: unknown) => T {
+  return (err) => {
+    if (process.env.NEXT_PHASE === "phase-production-build") return fallback;
+    throw err;
+  };
+}
+
 export type HomeParams = { residenceCountry?: string; homeState?: string; homeCity?: string; topics?: string[]; segment?: string };
 export async function getHome(params: HomeParams = {}): Promise<HomeResponse> {
   const raw = await apiGet<components["schemas"]["HomeResponse"]>("/v1/home", {

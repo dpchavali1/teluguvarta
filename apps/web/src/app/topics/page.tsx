@@ -3,10 +3,9 @@ import Link from "next/link";
 
 import { Icon } from "@/components/Icon";
 import { PageHeader } from "@/components/StoryGrid";
-import { getConfig } from "@/lib/api";
+import { duringBuild, getConfig } from "@/lib/api";
 
 export const revalidate = 3600;
-export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "Topics",
@@ -19,8 +18,8 @@ export const metadata: Metadata = {
 // full-catalog list sitemap.ts already fetches via getConfig().topics
 // (not getHome()'s personalized/ranked subset).
 export default async function TopicsPage() {
-  const config = await getConfig();
-  const topics = config.topics.filter((topic) => topic.active);
+  const topics = (await getConfig().then((config) => config.topics).catch(duringBuild([])))
+    .filter((topic) => topic.active);
 
   return (
     <>

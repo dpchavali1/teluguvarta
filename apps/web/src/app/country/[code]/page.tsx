@@ -5,7 +5,6 @@ import { PageHeader, StoryGrid } from "@/components/StoryGrid";
 import { listStories } from "@/lib/api";
 
 export const revalidate = 60;
-export const dynamic = "force-dynamic";
 
 type Props = { params: Promise<{ code: string }>; searchParams: Promise<{ cursor?: string }> };
 
