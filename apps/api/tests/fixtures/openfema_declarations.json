@@ -1,0 +1,6 @@
+{"metadata": {"skip": 0, "top": 200, "entityname": "FemaWebDisasterDeclarations", "version": "v1"},
+ "FemaWebDisasterDeclarations": [
+  {"disasterNumber": 3654, "declarationDate": "2026-09-25T00:00:00.000Z", "disasterName": "TROPICAL STORM NOLO", "declarationType": "Emergency", "stateName": "Hawaii", "disasterPageUrl": "https://www.fema.gov/disaster/3654"},
+  {"disasterNumber": 4940, "declarationDate": "2026-09-01T00:00:00.000Z", "disasterName": "SEVERE STORMS, STRAIGHT-LINE WINDS, TORNADOES, AND FLOODING", "declarationType": "Major Disaster", "stateName": "Kansas", "disasterPageUrl": "https://www.fema.gov/disaster/4940"},
+  {"disasterNumber": 1, "declarationDate": "2004-05-02T00:00:00.000Z", "disasterName": "TORNADO & HEAVY RAINFALL", "declarationType": "Major Disaster", "stateName": "Georgia", "disasterPageUrl": "https://www.fema.gov/disaster/1"}
+ ]}

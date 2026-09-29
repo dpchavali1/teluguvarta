@@ -12,6 +12,8 @@ from datetime import UTC, datetime, timedelta
 import httpx
 from sqlalchemy.orm import Session
 
+from app.adapters.base import SourceAdapter
+from app.adapters.openfema import OpenFemaAdapter, is_openfema_url
 from app.adapters.rss import RssFeedAdapter
 from app.jobs.queue import enqueue_job
 from app.models import Job, Source
@@ -70,6 +72,13 @@ def schedule_due_source_fetches(db: Session) -> int:
     return enqueued
 
 
+def adapter_for(source: Source) -> SourceAdapter:
+    """OpenFEMA is the only non-feed source; every other source is RSS/Atom."""
+    if is_openfema_url(source.feed_url):
+        return OpenFemaAdapter(source)
+    return RssFeedAdapter(source)
+
+
 def run_source_fetch(db: Session, job: Job) -> None:
     """Runs one source's `fetch -> normalize -> validate -> emit` pipeline
     (T07's adapter contract) and updates the source's health fields. Raises
@@ -82,7 +91,7 @@ def run_source_fetch(db: Session, job: Job) -> None:
     if source is None:
         raise ValueError(f"source_fetch job references missing source {source_id}")
 
-    adapter = RssFeedAdapter(source)
+    adapter = adapter_for(source)
     try:
         with httpx.Client(timeout=FETCH_TIMEOUT_SECONDS) as client:
             raw_items = adapter.fetch(client)

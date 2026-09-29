@@ -103,7 +103,7 @@ SEED_SOURCES = [
     {
         "name": "FEMA Disaster Declarations",
         "base_url": "https://www.fema.gov",
-        "feed_url": "https://www.fema.gov/feeds/disasters.rss",
+        "feed_url": "https://www.fema.gov/api/open/v1/FemaWebDisasterDeclarations",
         "source_type": "government",
         "country": "US",
         "language": "en",

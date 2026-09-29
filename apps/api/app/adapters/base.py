@@ -92,6 +92,9 @@ class SourceAdapter:
             errors.append("missing or invalid url")
         if not item.title:
             errors.append("missing title")
+        elif item.title.isdigit():
+            # FEMA's RSS feed sent bare disaster numbers ("1", "100") as titles.
+            errors.append("title is only digits")
         return ValidationResult(valid=not errors, errors=errors)
 
     def emit(self, db: Session, item: NormalizedItem) -> SourceItem:

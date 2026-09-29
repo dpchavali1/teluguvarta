@@ -37,16 +37,30 @@ write one, and approve didn't check for English, so an empty story could be publ
   - Deliberately **no bulk approve**: the queue page's "nothing decided unseen" rule stands.
   - Contracts regenerated. This also picks up the draft endpoint, which the previous commit missed.
 - **Open issues seen in the prod queue after deploy (2026-09-29, not fixed):**
-  - **FEMA title "1": root cause found in prod (2026-09-29), not fixed.** The FEMA feed does work from the VPS; the
-    403 only happened on direct `curl` checks. It sends bare disaster numbers as titles (`1`, `100`, `1000`, …) with
-    `published_at` in 2004, and those items sit in `REVIEW`. Found with
-    `SELECT s.name, si.title, si.url, si.published_at, si.ingest_status FROM source_items si JOIN sources s ON s.id = si.source_id WHERE length(si.title) < 4;`.
-    Fix:
-    - Move FEMA to the OpenFEMA JSON API (`DisasterDeclarationsSummaries`, which has real titles and dates).
-    - Reject items whose title is only digits, and skip stale items.
-    - Clean up the existing FEMA rows and stories.
+  - **FEMA title "1": fixed in code (2026-09-29), not yet live.** The RSS feed sent bare disaster numbers as
+    titles with 2004 dates.
+    - `app/adapters/openfema.py`: `OpenFemaAdapter` reads `FemaWebDisasterDeclarations` (one row per disaster)
+      instead of `DisasterDeclarationsSummaries` (one row per county). Titles look like "Emergency declaration for
+      Hawaii: Tropical Storm Nolo", the external id is `fema-disaster-N`, and the URL is the disaster page. It
+      asks only for the last 30 days (`MAX_AGE_DAYS`) and drops anything older.
+    - `source_fetch.adapter_for` picks this adapter for any `www.fema.gov/api/open/` feed_url; everything else
+      stays RSS. The seed points at the API.
+    - The shared `validate` now rejects titles that are only digits, for every source.
+    - `infra/scripts/fema_openfema_cutover.py` is a dry run unless given `--apply`. It deletes unpublished
+      (DRAFT/AI_READY/REVIEW_REQUIRED) stories built only from RSS-era FEMA items, and deletes RSS-era items nothing
+      references. It keeps published or mixed stories and reports them. It then points the source at the API,
+      resets `fail_count` and writes a `SOURCE_UPDATED` audit event. It never touches `fema-disaster-*` items,
+      so rerunning it is safe.
+    - Verified: 7 new tests in `tests/test_openfema.py` (the cutover test runs on Postgres); the full API suite
+      passes (359, plus the known flaky `test_schema` setup error, which passes on rerun); ruff clean; mypy still
+      71. A live fetch of the API through the adapter gave 15 current declarations, all valid, with no
+      User-Agent header needed.
+    - Known gap: admin's "Test feed" probe is RSS-only, so it rejects the API URL. Don't re-probe FEMA.
 
-    Until then, set FEMA inactive in admin so it stops filling the queue.
+    **Owner steps on the VPS:** (a) run `deploy.sh`; (b) run
+    `docker compose -f infra/deploy/docker-compose.prod.yml --env-file .env.prod run --rm api python
+    /srv/infra/scripts/fema_openfema_cutover.py`, the same way `deploy.sh` runs the seed. Run it first without
+    `--apply` to read the counts, then with `--apply`. (c) Set FEMA active in admin.
   - **State Dept duplicated titles: fixed.** The upstream feed itself sends "Israel - Level 3: Reconsider
     Travel - Level 3: Reconsider Travel". `rss._clean_title` collapses whitespace and drops a repeated trailing
     " - " segment. It only applies to newly ingested items; existing rows keep the old titles.
@@ -139,7 +153,7 @@ write one, and approve didn't check for English, so an empty story could be publ
      **Live and verified in prod (2026-09-29):** after the 22:00 UTC fetch, State Dept has 216 items with a stored
      description (max 4,000 chars); every other source has 0.
      New fetches store the text from then on. The first State Dept fetch after the flag fills existing items too,
-     because the upsert updates `description`. FEMA stays off until it moves to the OpenFEMA API.
+     because the upsert updates `description`. FEMA stays off until the OpenFEMA cutover runs in prod (see the FEMA entry above).
 - **Next steps in the plan:** separate `gemini_free`/`gemini_paid` routing (needs an ADR, since ADR-015 assumes
   one Gemini tier); make `AI_TRANSLATION_ENABLED` actually stop `ai_translate`; the pinned-model limiter and
   quota accounting; a mobile `EXPO_PUBLIC_WEB_URL` (blocked on the web deploy); one rights-reviewed
