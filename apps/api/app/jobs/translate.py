@@ -36,6 +36,7 @@ from app.ai.contracts import TranslationResult
 from app.ai.privacy import PrivacyDecision, coerce, tighten
 from app.content.glossary import apply_glossary
 from app.content.qa import find_qa_issues
+from app.content.variants import EDITOR_MODEL_VERSION
 from app.jobs.queue import enqueue_job
 from app.models import Correction, Job, ReviewTask, Story, StoryVariant
 
@@ -86,18 +87,21 @@ def _translate_story(db: Session, story: Story, en: StoryVariant) -> None:
     gateway = AiGateway(db)
     # ADR-015: the persisted decision only; a sensitive story is never
     # FREE_TIER_ALLOWED, and text touched by an editor correction is staff
-    # pre-publication copy that never goes to the free tier.
+    # pre-publication copy that never goes to the free tier — as is an
+    # English draft an editor wrote in admin.
     decision = coerce(story.privacy_decision)
     if story.sensitivity != "NONE":
         decision = tighten(decision, PrivacyDecision.RESTRICTED)
-    corrected = db.scalars(select(Correction.id).where(Correction.story_id == story.id)).first() is not None
+    editor_authored = en.model_version == EDITOR_MODEL_VERSION or (
+        db.scalars(select(Correction.id).where(Correction.story_id == story.id)).first() is not None
+    )
     outcome = gateway.run_task(
         Task.TRANSLATION_EN_TE,
         _translate_prompt(en),
         story_id=story.id,
         result_model=TranslationResult,
         privacy_decision=decision,
-        editor_authored=corrected,
+        editor_authored=editor_authored,
     )
     if outcome.status in (GatewayStatus.HOLD, GatewayStatus.UNAVAILABLE, GatewayStatus.DEFERRED, GatewayStatus.CLASSIFICATION_ONLY):
         return  # retried next sweep — no `te` variant created, per §7.5

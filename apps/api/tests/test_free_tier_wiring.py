@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 
 from app.ai import gateway as gateway_module
 from app.ai import ratelimit
+from app.content.variants import EDITOR_MODEL_VERSION
 from app.jobs.generate import generate_stories
 from app.jobs.translate import translate_stories
 from app.models import Correction, ReviewTask, Source, Story, StoryVariant
@@ -127,6 +128,25 @@ def test_translation_of_corrected_story_never_uses_gemini(migrated_database, mon
             Correction(
                 story_id=story.id, reason="typo",
                 old_text_hash=hashlib.sha256(b"a").hexdigest(), new_text_hash=hashlib.sha256(b"b").hexdigest(),
+            )
+        )
+        db.commit()
+        names = _spy(monkeypatch, [{"headline_te": "హెచ్", "summary_te": "ఎస్", "why_matters_te": None}])
+        translate_stories(db)
+        assert "gemini" not in names
+        assert names  # it was translated, on the paid route
+
+
+@requires_postgres
+def test_translation_of_editor_drafted_story_never_uses_gemini(migrated_database, monkeypatch):
+    monkeypatch.setenv("AI_FREE_TIER_ENABLED", "1")
+    with Session(create_engine(migrated_database)) as db:
+        story = Story(canonical_slug="editor-drafted", privacy_decision="FREE_TIER_ALLOWED")
+        db.add(story)
+        db.flush()
+        db.add(
+            StoryVariant(
+                story_id=story.id, language="en", headline="H", summary="S", model_version=EDITOR_MODEL_VERSION
             )
         )
         db.commit()

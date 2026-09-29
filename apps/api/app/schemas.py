@@ -390,6 +390,16 @@ class AdminCorrectionRequest(BaseModel):
     why_matters: str | None = None
 
 
+class AdminDraftRequest(BaseModel):
+    """An editor-written story variant for a story still in review — the
+    fallback when no AI route may draft it (e.g. NO_PAID_PROVIDER)."""
+
+    headline: str = Field(min_length=1)
+    summary: str = Field(min_length=1)
+    why_matters: str | None = None
+    reason: str | None = None
+
+
 class AdminActionResponse(BaseModel):
     story_id: UUID
     status: StoryStatus

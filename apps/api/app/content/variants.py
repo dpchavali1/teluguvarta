@@ -16,6 +16,11 @@ from typing import Protocol
 
 from app.schemas import Language
 
+# `StoryVariant.model_version` for text an editor wrote in admin rather than a
+# model generated. Editor-authored copy is staff pre-publication text, so the
+# translation job never sends it to the free tier (ADR-015).
+EDITOR_MODEL_VERSION = "editor"
+
 
 class VariantLike(Protocol):
     language: str

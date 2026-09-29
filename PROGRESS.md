@@ -13,6 +13,25 @@ signup capture) has been deleted, including its `pilot_signups` DB table
 the full list of removed files. `docs/BUILD_ORDER.md`'s pre-build validation
 gate section is gone; do not reintroduce a pilot gate on any future ticket.
 
+**Manual drafting in admin (2026-09-29)**: step 1 of the free/low-cost AI plan (VPS is a CPX21, 3 vCPU/4 GB,
+so no local LLM; the plan is Gemini free for allowlisted categories, a capped paid Flash-Lite route, and manual
+drafting as the fallback). Before this, a `NO_PAID_PROVIDER` story sat in review with "No draft yet" and no way to
+write one, and approve didn't check for English, so an empty story could be published.
+- `PUT /v1/admin/stories/{id}/variants/{en|te}`: editor writes or rewrites a draft while the story is
+  `REVIEW_REQUIRED` (published stories still go through `/correct`). Blank text returns 422 `EMPTY_DRAFT`.
+  Rewriting English deletes the Telugu variant. Telugu needs English first (409 `NO_ENGLISH_DRAFT`) and must pass
+  `find_qa_issues` (422 `TELUGU_QA_FAILED`), then saves as `PASSED`. Audit action: `STORY_DRAFT_WRITTEN`.
+- Approve returns 422 `NO_ENGLISH_DRAFT` unless an English headline and summary exist.
+- Editor text is marked `model_version = "editor"` (`EDITOR_MODEL_VERSION`); `ai_translate` treats it as
+  editor-authored, so it never goes to the Gemini free tier (same rule as corrected stories).
+- Admin review page: "Write/Edit English|Telugu draft" forms; Approve is disabled until English exists.
+- Verified: ruff, admin `tsc`, full API suite 307 passed against local Postgres (1 setup error in untouched
+  `test_cluster.py` from psycopg, passes on rerun). The admin UI has not been checked in a browser yet.
+- **Next steps in the plan:** separate `gemini_free`/`gemini_paid` routing (needs an ADR, since ADR-015 assumes
+  one Gemini tier); make `AI_TRANSLATION_ENABLED` actually stop `ai_translate`; the pinned-model limiter and
+  quota accounting; a mobile `EXPO_PUBLIC_WEB_URL` (blocked on the web deploy); one rights-reviewed
+  sports/entertainment/community source.
+
 **Web redesign, ADR-017 (2026-09-28)**: `apps/web` presentation-only rewrite. It adds a sticky header with a
 topic bar, a mobile bottom tab bar, card-based StoryLead/StoryBrief (ADR-014 contract unchanged), and a story
 page with a sources card, "More in {topic}" and NewsArticle JSON-LD. There are skeleton `loading.tsx` routes,

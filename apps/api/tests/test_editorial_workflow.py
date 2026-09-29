@@ -11,6 +11,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session
 
+from app.content.variants import EDITOR_MODEL_VERSION
 from app.jobs.publish import auto_publish_stories, publish_due_stories
 from app.models import (
     AiCallLog,
@@ -66,13 +67,14 @@ def _auth(token):
     return {"Authorization": f"Bearer {token}"}
 
 
-def _make_review_required_story(db: Session, *, sensitivity: str = "NONE") -> Story:
+def _make_review_required_story(db: Session, *, sensitivity: str = "NONE", with_english: bool = True) -> Story:
     story = Story(canonical_slug=f"story-{uuid.uuid4()}", status="AI_READY", sensitivity=sensitivity)
     db.add(story)
     db.flush()
     story.status = "REVIEW_REQUIRED"
     db.add(ReviewTask(story_id=story.id, reason="TEST_SETUP", status="PENDING"))
-    db.add(StoryVariant(story_id=story.id, language="en", headline="Old headline", summary="Old summary", why_matters="Old why"))
+    if with_english:
+        db.add(StoryVariant(story_id=story.id, language="en", headline="Old headline", summary="Old summary", why_matters="Old why"))
     db.commit()
     db.refresh(story)
     return story
@@ -119,6 +121,109 @@ def test_approve_rejects_illegal_transition(client, db_session):
 
     response = client.post(f"/v1/admin/stories/{story.id}/approve", json={}, headers=_auth(token))
     assert response.status_code == 409
+    assert response.json()["error"]["code"] == "ILLEGAL_TRANSITION"
+
+
+def _variant(db: Session, story: Story, language: str) -> StoryVariant | None:
+    db.expire_all()
+    return db.scalars(
+        select(StoryVariant).where(StoryVariant.story_id == story.id, StoryVariant.language == language)
+    ).first()
+
+
+def test_approve_refuses_story_without_english_draft(client, db_session):
+    token = _token(client, db_session)
+    story = _make_review_required_story(db_session, with_english=False)
+
+    response = client.post(f"/v1/admin/stories/{story.id}/approve", json={}, headers=_auth(token))
+    assert response.status_code == 422
+    assert response.json()["error"]["code"] == "NO_ENGLISH_DRAFT"
+
+    db_session.refresh(story)
+    assert story.status == "REVIEW_REQUIRED"
+
+
+def test_editor_writes_english_draft_then_approves(client, db_session):
+    token = _token(client, db_session)
+    story = _make_review_required_story(db_session, with_english=False)
+
+    response = client.put(
+        f"/v1/admin/stories/{story.id}/variants/en",
+        json={"headline": "  Editor headline ", "summary": "Editor summary", "why_matters": " ", "reason": "no AI route"},
+        headers=_auth(token),
+    )
+    assert response.status_code == 200
+    assert response.json()["status"] == "REVIEW_REQUIRED"
+
+    en = _variant(db_session, story, "en")
+    assert (en.headline, en.summary, en.why_matters) == ("Editor headline", "Editor summary", None)
+    assert en.model_version == EDITOR_MODEL_VERSION
+
+    event = db_session.scalars(
+        select(AuditEvent).where(AuditEvent.entity_id == story.id, AuditEvent.action == "STORY_DRAFT_WRITTEN")
+    ).first()
+    assert event is not None
+    assert event.actor == ADMIN_EMAIL
+
+    response = client.post(f"/v1/admin/stories/{story.id}/approve", json={}, headers=_auth(token))
+    assert response.status_code == 200
+    assert response.json()["status"] == "SCHEDULED"
+
+
+def test_rewriting_english_draft_invalidates_telugu(client, db_session):
+    token = _token(client, db_session)
+    story = _make_review_required_story(db_session)
+    db_session.add(StoryVariant(story_id=story.id, language="te", headline="పాత శీర్షిక", summary="పాత సారాంశం"))
+    db_session.commit()
+
+    response = client.put(
+        f"/v1/admin/stories/{story.id}/variants/en",
+        json={"headline": "New headline", "summary": "New summary"},
+        headers=_auth(token),
+    )
+    assert response.status_code == 200
+    assert _variant(db_session, story, "en").headline == "New headline"
+    assert _variant(db_session, story, "te") is None
+
+
+def test_telugu_draft_needs_english_and_must_pass_qa(client, db_session):
+    token = _token(client, db_session)
+    story = _make_review_required_story(db_session, with_english=False)
+    url = f"/v1/admin/stories/{story.id}/variants/te"
+
+    response = client.put(url, json={"headline": "శీర్షిక", "summary": "సారాంశం"}, headers=_auth(token))
+    assert response.status_code == 409
+    assert response.json()["error"]["code"] == "NO_ENGLISH_DRAFT"
+
+    client.put(
+        f"/v1/admin/stories/{story.id}/variants/en",
+        json={"headline": "Fees rise to 250 dollars", "summary": "The fee rises."},
+        headers=_auth(token),
+    )
+    response = client.put(url, json={"headline": "రుసుము పెరిగింది", "summary": "రుసుము పెరుగుతుంది."}, headers=_auth(token))
+    assert response.status_code == 422
+    assert response.json()["error"]["code"] == "TELUGU_QA_FAILED"
+    assert _variant(db_session, story, "te") is None
+
+    response = client.put(url, json={"headline": "రుసుము 250 డాలర్లకు పెరిగింది", "summary": "రుసుము పెరుగుతుంది."}, headers=_auth(token))
+    assert response.status_code == 200
+    te = _variant(db_session, story, "te")
+    assert te.qa_status == "PASSED"
+    assert te.model_version == EDITOR_MODEL_VERSION
+
+
+def test_draft_rejects_blank_text_and_published_story(client, db_session):
+    token = _token(client, db_session)
+    story = _make_review_required_story(db_session)
+    url = f"/v1/admin/stories/{story.id}/variants/en"
+
+    response = client.put(url, json={"headline": "   ", "summary": "S"}, headers=_auth(token))
+    assert response.status_code == 422
+    assert response.json()["error"]["code"] == "EMPTY_DRAFT"
+
+    _publish(db_session, story)
+    response = client.put(url, json={"headline": "H", "summary": "S"}, headers=_auth(token))
+    assert response.status_code == 409  # published stories go through /correct
     assert response.json()["error"]["code"] == "ILLEGAL_TRANSITION"
 
 

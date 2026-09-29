@@ -76,6 +76,101 @@ async function postAction(storyId: string, action: string, body: Record<string, 
   }
 }
 
+async function putDraft(storyId: string, language: "en" | "te", body: Record<string, unknown>): Promise<void> {
+  const token = getToken();
+  const response = await fetch(`${apiUrl()}/v1/admin/stories/${storyId}/variants/${language}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    body: JSON.stringify(body)
+  });
+  if (!response.ok) {
+    const errorBody = (await response.json().catch(() => null)) as { error?: { message?: string } } | null;
+    throw new Error(errorBody?.error?.message ?? "Saving the draft failed");
+  }
+}
+
+// Editor-written draft for a story still in review — the fallback when no AI
+// route could draft it (NO_PAID_PROVIDER, budget exhausted, outage). Rewriting
+// the English discards any Telugu, which is derived from it.
+function DraftEditor({
+  storyId,
+  language,
+  variant,
+  reason,
+  onSaved
+}: {
+  storyId: string;
+  language: "en" | "te";
+  variant: StoryVariant | undefined;
+  reason: string;
+  onSaved: () => void;
+}) {
+  const toast = useToast();
+  const [open, setOpen] = useState(false);
+  const [headline, setHeadline] = useState(variant?.headline ?? "");
+  const [summary, setSummary] = useState(variant?.summary ?? "");
+  const [whyMatters, setWhyMatters] = useState(variant?.why_matters ?? "");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const label = language === "en" ? "English" : "Telugu";
+  const id = `draft-${language}`;
+
+  async function handleSubmit(event: React.FormEvent) {
+    event.preventDefault();
+    setSaving(true);
+    setError(null);
+    try {
+      await putDraft(storyId, language, { headline, summary, why_matters: whyMatters || null, reason: reason || null });
+      toast("ok", `${label} draft saved.`);
+      setOpen(false);
+      onSaved();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Saving the draft failed");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  if (!open) {
+    return (
+      <div className="card__foot">
+        <button type="button" className="button-secondary" onClick={() => setOpen(true)}>
+          {variant ? `Edit ${label}` : `Write ${label} draft`}
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <form onSubmit={handleSubmit} lang={language}>
+      <h3 lang="en">{label} draft</h3>
+      <Field label="Headline" htmlFor={`${id}-headline`}>
+        <input id={`${id}-headline`} required value={headline} onChange={(event) => setHeadline(event.target.value)} />
+      </Field>
+      <Field label="Summary" htmlFor={`${id}-summary`}>
+        <textarea id={`${id}-summary`} required rows={5} value={summary} onChange={(event) => setSummary(event.target.value)} />
+      </Field>
+      <Field label="Why it matters (optional)" htmlFor={`${id}-why`}>
+        <textarea id={`${id}-why`} rows={2} value={whyMatters} onChange={(event) => setWhyMatters(event.target.value)} />
+      </Field>
+      {language === "en" ? (
+        <p className="field__hint" lang="en">
+          Saving replaces any Telugu version, which must then be rewritten or re-translated.
+        </p>
+      ) : null}
+      {error ? <p role="alert">{error}</p> : null}
+      <div className="card__foot" lang="en">
+        <button type="submit" disabled={saving}>
+          Save {label}
+        </button>
+        <button type="button" className="button-secondary" disabled={saving} onClick={() => setOpen(false)}>
+          Cancel
+        </button>
+      </div>
+    </form>
+  );
+}
+
 export default function StoryReviewPage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
@@ -245,7 +340,7 @@ export default function StoryReviewPage() {
           ) : null}
 
           <section>
-            <h2>AI draft</h2>
+            <h2>Draft</h2>
             {en || te ? (
               <div className="variant-grid">
                 {en ? (
@@ -280,6 +375,15 @@ export default function StoryReviewPage() {
             ) : (
               <EmptyState title="No draft yet" hint="No English or Telugu variant has been written for this story." />
             )}
+            {story.status === "REVIEW_REQUIRED" ? (
+              <div>
+                {/* Keyed on the saved text so an open editor never shows stale copy after a save. */}
+                <DraftEditor key={`en-${en?.headline}`} storyId={story.id} language="en" variant={en} reason={reason} onSaved={load} />
+                {en ? (
+                  <DraftEditor key={`te-${te?.headline}`} storyId={story.id} language="te" variant={te} reason={reason} onSaved={load} />
+                ) : null}
+              </div>
+            ) : null}
           </section>
 
           <section>
@@ -381,7 +485,7 @@ export default function StoryReviewPage() {
                   </>
                 ) : (
                   <>
-                    <button type="button" disabled={submitting} onClick={() => (isAlwaysReviewed ? setPendingAction("approve") : handleAction("approve"))}>
+                    <button type="button" disabled={submitting || !en} onClick={() => (isAlwaysReviewed ? setPendingAction("approve") : handleAction("approve"))}>
                       Approve
                     </button>
                     <button type="button" className="button-secondary" disabled={submitting} onClick={() => (isAlwaysReviewed ? setPendingAction("reject") : handleAction("reject"))}>
@@ -390,6 +494,7 @@ export default function StoryReviewPage() {
                   </>
                 )}
               </div>
+              {!en ? <p className="field__hint">Write an English draft before approving.</p> : null}
             </>
           ) : null}
 

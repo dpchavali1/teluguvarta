@@ -33,7 +33,9 @@ from app.ai.budget import (
     today_cost_usd,
 )
 from app.auth import AdminPrincipal, current_admin
+from app.content.qa import find_qa_issues
 from app.content.serialize import load_story_relations
+from app.content.variants import EDITOR_MODEL_VERSION
 from app.db import get_db
 from app.errors import APIError
 from app.jobs.source_fetch import CIRCUIT_BREAKER_THRESHOLD
@@ -57,6 +59,7 @@ from app.schemas import (
     AdminAuditEventOut,
     AdminCorrectionOut,
     AdminCorrectionRequest,
+    AdminDraftRequest,
     AdminFeedTestOut,
     AdminFeedTestRequest,
     AdminJobOut,
@@ -73,6 +76,7 @@ from app.schemas import (
     AiCostSummaryOut,
     JobQueueHealthOut,
     KillSwitchesOut,
+    Language,
     ObservabilityOut,
     ReviewQueueItemOut,
     RightsEvidence,
@@ -381,6 +385,12 @@ def _resolve_review_task(db: Session, story_id: UUID, decision: str) -> None:
         task.decision = decision
 
 
+def _get_variant(db: Session, story_id: UUID, language: str) -> StoryVariant | None:
+    return db.scalars(
+        select(StoryVariant).where(StoryVariant.story_id == story_id, StoryVariant.language == language)
+    ).first()
+
+
 def _story_text_hash(variant: StoryVariant | None) -> str:
     payload = "" if variant is None else f"{variant.headline}\n{variant.summary}\n{variant.why_matters or ''}"
     return hashlib.sha256(payload.encode()).hexdigest()
@@ -472,6 +482,11 @@ def approve_story(
 ) -> AdminActionResponse:
     story = _get_story_or_404(db, story_id)
     _require_status(story, "REVIEW_REQUIRED")
+    en = _get_variant(db, story.id, "en")
+    if en is None or not en.headline.strip() or not en.summary.strip():
+        raise APIError(
+            422, "NO_ENGLISH_DRAFT", "Write an English headline and summary before approving — English is canonical"
+        )
 
     story.status = "APPROVED"
     db.flush()
@@ -480,6 +495,69 @@ def approve_story(
 
     _resolve_review_task(db, story.id, "APPROVED")
     _write_audit_event(db, admin.email, "STORY_APPROVED", "story", story.id, {"reason": body.reason})
+    db.commit()
+    db.refresh(story)
+    return AdminActionResponse(story_id=story.id, status=story.status)
+
+
+@router.put("/stories/{story_id}/variants/{language}")
+def write_story_draft(
+    story_id: UUID,
+    language: Language,
+    body: AdminDraftRequest,
+    admin: AdminPrincipal = Depends(current_admin),
+    db: Session = Depends(get_db),
+) -> AdminActionResponse:
+    """Editor-written draft for a story still in review: the fallback when no
+    AI route may draft it (NO_PAID_PROVIDER, budget exhausted, outage).
+    Published stories go through /correct instead, which records a
+    Correction. English stays canonical (NON_NEGOTIABLES #7): Telugu needs an
+    English variant to derive from, must pass the same QA as machine
+    translation, and is invalidated whenever the English is rewritten."""
+
+    story = _get_story_or_404(db, story_id)
+    _require_status(story, "REVIEW_REQUIRED")
+
+    headline = body.headline.strip()
+    summary = body.summary.strip()
+    why_matters = body.why_matters.strip() if body.why_matters and body.why_matters.strip() else None
+    if not headline or not summary:
+        raise APIError(422, "EMPTY_DRAFT", "Headline and summary must not be blank")
+
+    en = _get_variant(db, story.id, "en")
+    if language == "te":
+        if en is None:
+            raise APIError(409, "NO_ENGLISH_DRAFT", "Write the English draft first — Telugu is derived from it")
+        issues = find_qa_issues(en.headline, headline) + find_qa_issues(en.summary, summary)
+        if en.why_matters and why_matters:
+            issues += find_qa_issues(en.why_matters, why_matters)
+        if issues:
+            raise APIError(422, "TELUGU_QA_FAILED", f"Telugu draft doesn't match the English: {', '.join(issues)}")
+
+    variant = en if language == "en" else _get_variant(db, story.id, "te")
+    old_hash = _story_text_hash(variant)
+    if variant is None:
+        variant = StoryVariant(story_id=story.id, language=language, headline=headline, summary=summary)
+        db.add(variant)
+    variant.headline = headline
+    variant.summary = summary
+    variant.why_matters = why_matters
+    variant.model_version = EDITOR_MODEL_VERSION
+    # English has no QA pass of its own; Telugu reaching here passed QA above.
+    variant.qa_status = "PASSED" if language == "te" else "PENDING"
+    variant.generated_at = datetime.now(UTC)
+
+    if language == "en":
+        db.execute(delete(StoryWhyMattersCache).where(StoryWhyMattersCache.story_id == story.id))
+        te = _get_variant(db, story.id, "te")
+        if te is not None:
+            db.delete(te)
+    db.flush()
+
+    _write_audit_event(
+        db, admin.email, "STORY_DRAFT_WRITTEN", "story", story.id,
+        {"language": language, "reason": body.reason, "old_text_hash": old_hash, "new_text_hash": _story_text_hash(variant)},
+    )
     db.commit()
     db.refresh(story)
     return AdminActionResponse(story_id=story.id, status=story.status)
