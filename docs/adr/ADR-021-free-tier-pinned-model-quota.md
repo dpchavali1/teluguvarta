@@ -1,6 +1,6 @@
 # ADR-021: Free-tier quota accounting for pinned Gemini models
 
-- **Status**: proposed
+- **Status**: rejected (2026-09-29): owner has no plans to pin free-tier models; "leave it as is" chosen
 - **Date**: 2026-09-29
 - **Ticket**: automation plan follow-up ("pinned-model limiter and quota accounting"); amends ADR-015 decision 6
 
@@ -31,7 +31,7 @@ We don't know how Google counts quota between an alias and a pinned id. The
 current numbers came from the owner reading AI Studio on 2026-09-28. This ADR
 does not assume either answer.
 
-## Decision (proposed)
+## Decision (proposed, not adopted)
 
 1. Key `FREE_TIER_LIMITS` by **quota family** (`flash`, `flash-lite`), not by
    model id, with an explicit map from each allowed model id (the alias plus any pinned
@@ -69,3 +69,9 @@ does not assume either answer.
 1. Do you plan to pin free-tier models at all? If not, choose "leave it as is"
    and close this.
 2. If yes, which pinned ids are needed, and what RPM/RPD does AI Studio show for each?
+
+## Outcome (2026-09-29)
+
+The owner answered "no" to question 1. Free-tier routes stay on the `-latest` aliases, and
+`FREE_TIER_LIMITS` stays keyed per model id. The guard is the `UNAVAILABLE` refusal plus
+`check_ai_model_refusal_alerts`. Reopen this if someone needs to pin a free-tier model.

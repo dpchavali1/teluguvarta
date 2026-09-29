@@ -168,12 +168,11 @@ write one, and approve didn't check for English, so an empty story could be publ
   `UNAVAILABLE` the same as `DEFERRED` (retry next sweep).
   Verified: full API suite 364 passed plus 1 known psycopg setup flake (`test_observability.py`, 7/7 on rerun);
   3 new tests; ruff clean; mypy still 71.
-  **ADR-021 (proposed, waiting on the owner):** count an alias and its confirmed pinned ids against one quota
-  family, since we don't know how Google counts them. See its "Owner questions". Nothing is implemented until
-  it's accepted.
+  **ADR-021 rejected (2026-09-29):** the owner doesn't plan to pin free-tier models, so the quota-family
+  change isn't needed. The refusal alert is the only guard. Reopen it if someone pins a free-tier model.
 - **Next steps in the plan:** (separate `gemini`/`gemini_paid` routing is done: ADR-018's `PAID_GEMINI_ROUTING`
   in `app/ai/tasks.py`, so no new ADR is needed.) The pinned-model limiter and
-  quota accounting (refusal alert done; the quota-family change waits on ADR-021); a mobile `EXPO_PUBLIC_WEB_URL` (blocked on the web deploy); one rights-reviewed
+  quota accounting (done: refusal alert; ADR-021 rejected as not needed); a mobile `EXPO_PUBLIC_WEB_URL` (blocked on the web deploy); one rights-reviewed
   sports/entertainment/community source.
 
 **Web redesign, ADR-017 (2026-09-28)**: `apps/web` presentation-only rewrite. It adds a sticky header with a
