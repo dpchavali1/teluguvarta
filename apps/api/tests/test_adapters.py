@@ -70,6 +70,19 @@ def test_state_travel_advisories_normalize_and_validate():
     }
 
 
+def test_rss_title_drops_repeated_trailing_segment():
+    feed = b"""<rss><channel><item>
+      <title>  Israel - Level 3: Reconsider Travel - Level 3: Reconsider Travel </title>
+      <link>https://example.org/israel</link>
+    </item><item>
+      <title>Major Disaster Declaration - Texas - Flooding</title>
+      <link>https://example.org/texas</link>
+    </item></channel></rss>"""
+    adapter = RssFeedAdapter(_make_source(name="S", feed_url="https://example.org/f.xml"))
+    titles = [item.title for item in adapter.parse(feed).items]
+    assert titles == ["Israel - Level 3: Reconsider Travel", "Major Disaster Declaration - Texas - Flooding"]
+
+
 def test_fema_disasters_rejects_invalid_item():
     """One fixture item has no title — validate() must reject it rather
     than emit() silently accepting bad data."""

@@ -37,10 +37,14 @@ write one, and approve didn't check for English, so an empty story could be publ
   - Deliberately **no bulk approve**: the queue page's "nothing decided unseen" rule stands.
   - Contracts regenerated. This also picks up the draft endpoint, which the previous commit missed.
 - **Open issues seen in the prod queue after deploy (2026-09-29, not fixed):**
-  - The FEMA source item title is "1", probably the disaster number instead of its name. Fix the FEMA
-    adapter/feed parsing. It also breaks the headline pre-fill.
-  - State Dept titles repeat the level ("Israel - Level 3: Reconsider Travel - Level 3: Reconsider Travel").
-    Check whether the feed or our parser causes it.
+  - **FEMA title "1": open.** `https://www.fema.gov/feeds/disasters.rss` returns an Akamai "Access Denied"
+    HTML page to `curl` from both the dev Mac and the VPS. That page isn't valid XML, so it can't be what
+    produced the "1" items. Next step: read the stored `source_items.raw` for a FEMA item on prod to see what the
+    worker actually received. Likely fix: move FEMA to the OpenFEMA JSON API
+    (`DisasterDeclarationsSummaries`), and treat a non-feed/HTML response as a fetch failure.
+  - **State Dept duplicated titles: fixed.** The upstream feed itself sends "Israel - Level 3: Reconsider
+    Travel - Level 3: Reconsider Travel". `rss._clean_title` collapses whitespace and drops a repeated trailing
+    " - " segment. It only applies to newly ingested items; existing rows keep the old titles.
   - NO_PAID_PROVIDER holds are never classified, so their sensitivity stays `NONE`. The queue says
     "0 always-human-reviewed" even for a terror-plot story, and there is no confirm/required-reason friction.
     Step 2 (paid route) fixes this; until then, treat every held story as unclassified.

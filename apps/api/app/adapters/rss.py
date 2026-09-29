@@ -44,7 +44,7 @@ def _from_rss_item(entry: ET.Element) -> RawItem:
     return RawItem(
         external_id=guid,
         url=link,
-        title=entry.findtext("title"),
+        title=_clean_title(entry.findtext("title")),
         published_at=_parse_rfc822(entry.findtext("pubDate")),
         raw_bytes=ET.tostring(entry, encoding="utf-8"),
     )
@@ -58,10 +58,23 @@ def _from_atom_entry(entry: ET.Element) -> RawItem:
     return RawItem(
         external_id=guid,
         url=link,
-        title=entry.findtext(f"{ATOM_NS}title"),
+        title=_clean_title(entry.findtext(f"{ATOM_NS}title")),
         published_at=_parse_iso8601(published),
         raw_bytes=ET.tostring(entry, encoding="utf-8"),
     )
+
+
+def _clean_title(value: str | None) -> str | None:
+    """Collapses whitespace and drops a repeated trailing " - " segment: the
+    State Dept feed sends e.g. "Israel - Level 3: Reconsider Travel - Level 3:
+    Reconsider Travel". The title seeds the admin headline pre-fill."""
+    if value is None:
+        return None
+    title = " ".join(value.split())
+    parts = title.split(" - ")
+    while len(parts) > 1 and parts[-1] == parts[-2]:
+        parts.pop()
+    return " - ".join(parts) or None
 
 
 def _parse_rfc822(value: str | None) -> datetime | None:
