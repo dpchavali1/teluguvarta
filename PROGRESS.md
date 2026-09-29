@@ -311,6 +311,14 @@ Mirrors `docs/adr/README.md` — keep both in sync.
   the VPS. Not covered: encrypted backups (`backup.sh` needs
   `BACKUP_AGE_RECIPIENT`), AI keys, Sentry, mobile.
 
+- 2026-09-29: **Admin UI: add-source and rights forms** on `/sources`
+  (`apps/admin/src/app/sources/page.tsx`). "Add source" → `POST /v1/admin/sources`
+  (starts DISABLED/inactive); per-row "Rights & status" → `PATCH` with
+  status (DISABLED/LINK_ONLY), evidence URL, reviewer, terms/permitted
+  fields/restrictions/territory/notes, and the `active` toggle. Server rules
+  unchanged (ADMIN role + evidence required to enable). Typecheck + lint pass;
+  not exercised in a browser, no UI tests.
+
 - 2026-09-28: **Admin UI: source category field.** New `/sources` page
   (`apps/admin/src/app/sources/page.tsx`, nav link added) lists sources and
   edits `category` via `PATCH /v1/admin/sources/{id}` (empty → null), with a
