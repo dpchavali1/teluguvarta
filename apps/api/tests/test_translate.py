@@ -13,8 +13,13 @@ from app.ai.providers.base import ProviderResponse
 from app.content.glossary import apply_glossary
 from app.content.qa import find_qa_issues
 from app.content.variants import resolve_display_variant
-from app.jobs.translate import translate_stories
-from app.models import ReviewTask, Story, StoryVariant
+from app.jobs import translate as translate_module
+from app.jobs.translate import (
+    run_ai_translate,
+    schedule_ai_translate,
+    translate_stories,
+)
+from app.models import Job, ReviewTask, Story, StoryVariant
 from app.schemas import StoryVariantOut
 
 from .conftest import requires_postgres
@@ -210,3 +215,32 @@ def test_resolve_display_variant_serves_te_when_passed_qa():
     assert resolved is not None
     assert resolved.served_language == "te"
     assert resolved.fallback is False
+
+
+@requires_postgres
+def test_translation_flag_off_schedules_and_runs_nothing(migrated_database, monkeypatch):
+    monkeypatch.setenv("AI_TRANSLATION_ENABLED", "false")
+    engine = create_engine(migrated_database)
+    with Session(engine) as db:
+        _make_story_with_en_variant(db)
+        assert schedule_ai_translate(db) is None
+        assert db.scalars(select(Job).where(Job.type == "ai_translate")).first() is None
+
+        # A job queued before the flag was turned off must not translate.
+        called = []
+        monkeypatch.setattr(translate_module, "translate_stories", lambda _db: called.append(1))
+        run_ai_translate(db, Job(type="ai_translate", payload={}))
+        assert called == []
+
+
+@requires_postgres
+def test_translation_flag_on_schedules_and_runs(migrated_database, monkeypatch):
+    monkeypatch.setenv("AI_TRANSLATION_ENABLED", "true")
+    engine = create_engine(migrated_database)
+    with Session(engine) as db:
+        assert schedule_ai_translate(db) is not None
+
+        called = []
+        monkeypatch.setattr(translate_module, "translate_stories", lambda _db: called.append(1))
+        run_ai_translate(db, Job(type="ai_translate", payload={}))
+        assert called == [1]

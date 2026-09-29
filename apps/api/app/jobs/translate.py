@@ -37,10 +37,20 @@ from app.ai.privacy import PrivacyDecision, coerce, tighten
 from app.content.glossary import apply_glossary
 from app.content.qa import find_qa_issues
 from app.content.variants import EDITOR_MODEL_VERSION
+from app.jobs.generate import _env_flag
 from app.jobs.queue import enqueue_job
 from app.models import Correction, Job, ReviewTask, Story, StoryVariant
 
 TRANSLATE_INTERVAL_MINUTES = 2
+
+# Same flag `/v1/config` reports as `ai_translation_enabled`. Off means no
+# `ai_translate` job is scheduled or run; readers get the English fallback and
+# editor-written Telugu (`PUT .../variants/te`) is unaffected.
+TRANSLATION_ENABLED_ENV_VAR = "AI_TRANSLATION_ENABLED"
+
+
+def translation_enabled() -> bool:
+    return _env_flag(TRANSLATION_ENABLED_ENV_VAR, default=False)
 
 # §4.3: during the early-launch phase, sample a percentage of political/
 # legal/financial Telugu translations into the review queue even when QA
@@ -162,7 +172,10 @@ def translate_stories(db: Session) -> int:
 
 
 def run_ai_translate(db: Session, job: Job) -> None:
-    """Job handler wrapping `translate_stories` for the worker."""
+    """Job handler wrapping `translate_stories` for the worker. Re-checks the
+    flag so a job queued before it was turned off does nothing."""
+    if not translation_enabled():
+        return
     translate_stories(db)
 
 
@@ -175,7 +188,10 @@ def _translate_window(now: datetime) -> datetime:
 
 def schedule_ai_translate(db: Session) -> Job | None:
     """Enqueues one `ai_translate` job per `TRANSLATE_INTERVAL_MINUTES`
-    window, same time-bucketed-dedupe_key pattern as `schedule_ai_classify`."""
+    window, same time-bucketed-dedupe_key pattern as `schedule_ai_classify`.
+    Enqueues nothing while `AI_TRANSLATION_ENABLED` is off."""
+    if not translation_enabled():
+        return None
     now = _now()
     dedupe_key = f"ai_translate:{_translate_window(now).isoformat()}"
     return enqueue_job(db, "ai_translate", {}, dedupe_key=dedupe_key)
