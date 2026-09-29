@@ -658,3 +658,8 @@ button.is-selected { background: var(--color-accent); color: var(--color-bg); }
 .attention-list { list-style: none; margin: 0 0 1.5rem; padding: 0; display: grid; gap: 0.5rem; }
 .attention-list li { padding: 0.65rem 1rem; }
 .attention-list a { font-weight: 600; }
+
+/* ---------- Review queue ---------- */
+
+tr.row-active { background: var(--color-surface-sunken); box-shadow: inset 4px 0 0 var(--color-accent); }
+.reason-help { display: block; margin-top: 0.3rem; font-size: 0.78rem; color: var(--color-muted); max-width: 26rem; }

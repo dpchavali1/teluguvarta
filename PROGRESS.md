@@ -345,6 +345,17 @@ Mirrors `docs/adr/README.md` — keep both in sync.
   queue triage, other pages on shared components, one-call preset
   add+activate, browser check.
 
+- 2026-09-28: **Admin redesign, slice 4: review queue** (`/review`). Page
+  header with counts; plain-language "why is this held" under each reason
+  pill (`REASON_HELP`, covers every gate in `jobs/generate.py` incl.
+  `NO_PAID_PROVIDER`); age ("Waiting") column; keyboard triage — j/k move,
+  Enter opens the story. Deliberately **no bulk approve/reject and no
+  approve-from-list**: decisions stay on the detail page so an
+  always-human-reviewed story is never decided unseen (NON_NEGOTIABLES). If
+  bulk actions for non-danger reasons are wanted, that's a product call —
+  write an ADR first. `/review/[id]` not yet touched. Admin `tsc` + `next
+  lint` pass; not viewed in a browser.
+
 - 2026-09-29: **Admin UI: add-source and rights forms** on `/sources`
   (`apps/admin/src/app/sources/page.tsx`). "Add source" → `POST /v1/admin/sources`
   (starts DISABLED/inactive); per-row "Rights & status" → `PATCH` with
