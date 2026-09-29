@@ -1,31 +1,20 @@
-import Link from "next/link";
 import type { Metadata } from "next";
 
-import { PageHeader, StoryGrid } from "@/components/StoryGrid";
-import { listStories } from "@/lib/api";
+import { CountryFeed, countryMetadata } from "./CountryFeed";
 
 export const revalidate = 60;
 
-type Props = { params: Promise<{ code: string }>; searchParams: Promise<{ cursor?: string }> };
+type Props = { params: Promise<{ code: string }> };
 
-export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const code = (await params).code.toUpperCase();
-  return { title: `${code} news`, description: `Latest stories about ${code} on TTE.` };
+// Nothing prebuilt; each country renders on first request, then is cached.
+export async function generateStaticParams() {
+  return [];
 }
 
-export default async function CountryPage({ params, searchParams }: Props) {
-  const code = (await params).code.toUpperCase();
-  const { cursor } = await searchParams;
-  const { items, next_cursor } = await listStories({ country: code, cursor });
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  return countryMetadata((await params).code.toUpperCase());
+}
 
-  return (
-    <>
-      <PageHeader eyebrow="Country" title={`${code} news`} />
-      <StoryGrid stories={items} empty={<>No published stories about {code} yet.</>} />
-      <nav className="pagination" aria-label="Story pages">
-        {cursor && <Link className="button" href={`/country/${code}`}>Latest in this country</Link>}
-        {next_cursor && <Link className="button" href={`/country/${code}?cursor=${encodeURIComponent(next_cursor)}`}>Older stories →</Link>}
-      </nav>
-    </>
-  );
+export default async function CountryPage({ params }: Props) {
+  return <CountryFeed code={(await params).code.toUpperCase()} />;
 }

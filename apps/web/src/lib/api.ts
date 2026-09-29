@@ -63,7 +63,7 @@ async function apiGet<T>(path: string, params?: Record<string, string | undefine
 
 export { ApiNotFoundError };
 
-// Static routes (`/`, `/topics`) prerender during `next build`; an unreachable
+// Static routes (`/`, `/topics`, `/latest`) prerender during `next build`; an unreachable
 // API there must not fail the deploy, so they render `fallback` and ISR fills
 // them on the first revalidation. At runtime the error still throws, so ISR
 // keeps serving the last good page instead of caching an empty one.
@@ -72,6 +72,18 @@ export function duringBuild<T>(fallback: T): (err: unknown) => T {
     if (process.env.NEXT_PHASE === "phase-production-build") return fallback;
     throw err;
   };
+}
+
+// Listing pages take their cursor from an `older/[cursor]` path segment, and
+// Next passes that param still percent-encoded (the base64 `=` arrives as %3D,
+// which the API reads as a bad cursor and silently serves page one). Returns
+// null for a malformed escape so the page can 404.
+export function pathCursor(raw: string): string | null {
+  try {
+    return decodeURIComponent(raw);
+  } catch {
+    return null;
+  }
 }
 
 export type HomeParams = { residenceCountry?: string; homeState?: string; homeCity?: string; topics?: string[]; segment?: string };

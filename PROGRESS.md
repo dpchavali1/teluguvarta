@@ -210,7 +210,26 @@ page with a sources card, "More in {topic}" and NewsArticle JSON-LD. There are s
 preloaded, and new `radius.card`/`radius.pill` tokens are added (CSS output only). Verified: typecheck, lint,
 `next build`, `test:visual` 88/88, `test:a11y` clean, token contrast check. `test:visual` needs the API started
 with `CORS_ALLOWED_ORIGINS=http://localhost:3000` or the Saved journey fails. Listing routes still use
-`force-dynamic` (no ISR), which is the next performance lever.
+`force-dynamic` (no ISR), which is the next performance lever. **Done 2026-09-29, see below.**
+
+**Listing pages cached with ISR (2026-09-29)**: `/latest`, `/topic/[slug]` and `/country/[code]` read `?cursor=`,
+and reading `searchParams` made Next render them on every request despite `revalidate = 60`.
+- Pagination moved into the path: `/latest/older/[cursor]`, `/topic/[slug]/older/[cursor]`,
+  `/country/[code]/older/[cursor]`. Each base page and its older page share one feed component
+  (`LatestFeed`/`TopicFeed`/`CountryFeed`, next to the page).
+- The dynamic routes return `[]` from `generateStaticParams` (like `/story/[slug]`), so each page renders on its
+  first request and is then cached. `/latest` prerenders at build and uses `duringBuild`, so a build with the API
+  down still succeeds. Only `/search` is still rendered per request.
+- Next passes the path cursor still percent-encoded (`MjA%3D`), and the API reads that as a bad cursor and
+  silently serves page one. `pathCursor()` in `lib/api.ts` decodes it and returns null (the page 404s) on a
+  malformed escape.
+- Old `?cursor=` links now show page one. Nothing in the repo generated them except these pages.
+- Verified: typecheck, lint and `next build` (the listing routes now show ○/●). On `next start`, the second
+  request is `x-nextjs-cache: HIT`, an older page with offset 20 is empty and offset 0 shows the story, and an
+  unknown topic still returns 404. `test:a11y` passes, `test:visual` 88/88 (against `next dev` on :3000;
+  on any other port the API's CORS blocks the Telugu-reload journey).
+- Local gotcha: `next build` overwrites the `.next` folder that a running `next dev` uses, so restart dev after
+  building.
 
 **Ops + perf pass (2026-09-28, later)**:
 - **Admin:** light/dark toggle in the sidebar (`b651bb2`).
