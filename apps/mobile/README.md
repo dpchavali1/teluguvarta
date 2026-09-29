@@ -18,6 +18,16 @@ On a physical device, `EXPO_PUBLIC_API_URL` (`.env` at the repo root) must
 point at a LAN-reachable address for `apps/api` (not `localhost`), since the
 device isn't the same machine running the API.
 
+Standalone APK against the VPS (no Metro needed; `EXPO_PUBLIC_*` is baked in
+at bundle time, so a debug build with the default `localhost` shows nothing):
+
+```sh
+cd apps/mobile/android   # after `npx expo prebuild -p android`; recreate
+                         # local.properties with sdk.dir=~/Library/Android/sdk
+EXPO_PUBLIC_API_URL=https://api.5-78-188-206.sslip.io ./gradlew :app:assembleRelease
+adb install -r app/build/outputs/apk/release/app-release.apk
+```
+
 ## Commands
 
 - `pnpm run typecheck` — `tsc --noEmit`.
