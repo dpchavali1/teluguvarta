@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { createContext, ReactNode, useCallback, useContext, useState } from "react";
 
 export type Tone = "ok" | "warn" | "danger" | "neutral";
@@ -70,5 +71,15 @@ export function ToastProvider({ children }: { children: ReactNode }) {
         ))}
       </div>
     </ToastContext.Provider>
+  );
+}
+
+export function StatTile({ href, label, value, note, tone = "neutral" }: { href: string; label: string; value: ReactNode; note?: string; tone?: Tone }) {
+  return (
+    <Link href={href} className={`stat-tile stat-tile--${tone}`}>
+      <span className="stat-tile__label">{label}</span>
+      <strong className="stat-tile__value">{value}</strong>
+      {note ? <span className="stat-tile__note">{note}</span> : null}
+    </Link>
   );
 }

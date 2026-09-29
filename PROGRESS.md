@@ -335,6 +335,16 @@ Mirrors `docs/adr/README.md` — keep both in sync.
   feed button in the add panel; cards show last fetched / consecutive
   failures / "failing" badge (fields were already in the API).
 
+- 2026-09-28: **Admin redesign, slice 3: dashboard** (`/`). No API change —
+  reads `/sources`, `/review-queue`, `/observability` in parallel. "Needs
+  attention" list (budget exceeded, circuit-broken sources, failed jobs,
+  review queue, sources awaiting rights review), each linking to the page
+  that fixes it, plus stat tiles (active sources, rights review, review
+  queue, jobs pending, AI spend vs budget). New `StatTile` in `ui.tsx`.
+  Admin `tsc` + `next lint` pass; not viewed in a browser. Remaining: review
+  queue triage, other pages on shared components, one-call preset
+  add+activate, browser check.
+
 - 2026-09-29: **Admin UI: add-source and rights forms** on `/sources`
   (`apps/admin/src/app/sources/page.tsx`). "Add source" → `POST /v1/admin/sources`
   (starts DISABLED/inactive); per-row "Rights & status" → `PATCH` with
