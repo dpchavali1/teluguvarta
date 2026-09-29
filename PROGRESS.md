@@ -74,7 +74,8 @@ write one, and approve didn't check for English, so an empty story could be publ
      Verified: `pytest` 320 passed. One run had a Postgres `InsufficientResources` error on a different test
      each time; it's local and flaky, and those tests pass on their own. `ruff` is clean. mypy has the same 68
      errors before and after.
-  3. ADR-011: auto-publish lane for "link-first briefs" (headline plus a one-liner limited to what the
+  3. Auto-publish lane ADR (the plan called it "ADR-011", but that number is the claim-evidence ADR; use
+     the next free number, ADR-019; ADR-016 is reserved) for "link-first briefs" (headline plus a one-liner limited to what the
      source title says, plus the source link). Only for rights-reviewed, `sensitivity=NONE`, high-confidence
      stories, with a daily cap.
   4. Rights-review the public-domain government feeds so their RSS description can be stored as evidence.
