@@ -77,7 +77,12 @@ write one, and approve didn't check for English, so an empty story could be publ
   3. Auto-publish lane ADR (the plan called it "ADR-011", but that number is the claim-evidence ADR; use
      the next free number, ADR-019; ADR-016 is reserved) for "link-first briefs" (headline plus a one-liner limited to what the
      source title says, plus the source link). Only for rights-reviewed, `sensitivity=NONE`, high-confidence
-     stories, with a daily cap.
+     stories, with a daily cap. **ADR-019 written as proposed (2026-09-29), waiting on owner answers to
+     Q1–Q6** (brief length cap, dropping "why this matters" as an amendment to ADR-002/#15, confidence
+     bar, daily cap, cap day boundary, reader label). Nothing implemented. Proposed defaults: a new
+     `AUTO_PUBLISH_BRIEFS` flag (default off, separate from GLOBAL), a deterministic title-token match on the
+     one-liner, sources must have `rights_reviewed_at` and `rights_evidence_url`, confidence ≥0.8,
+     cap 20/day, and a `story.format` column.
   4. Rights-review the public-domain government feeds so their RSS description can be stored as evidence.
 - **Next steps in the plan:** separate `gemini_free`/`gemini_paid` routing (needs an ADR, since ADR-015 assumes
   one Gemini tier); make `AI_TRANSLATION_ENABLED` actually stop `ai_translate`; the pinned-model limiter and
