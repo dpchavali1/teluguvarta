@@ -61,6 +61,9 @@ write one, and approve didn't check for English, so an empty story could be publ
     `docker compose -f infra/deploy/docker-compose.prod.yml --env-file .env.prod run --rm api python
     /srv/infra/scripts/fema_openfema_cutover.py`, the same way `deploy.sh` runs the seed. Run it first without
     `--apply` to read the counts, then with `--apply`. (c) Set FEMA active in admin.
+    **Cutover applied in prod (2026-09-29 22:17 UTC):** its audit event shows 3 stories and 5 RSS-era items deleted,
+    0 kept. The source is active with `fail_count` 0. Still to check: the first OpenFEMA fetch (hourly, so around
+    23:00 UTC) should create `fema-disaster-*` items. Prod DB user is `teluguvarta`, not `postgres`.
   - **State Dept duplicated titles: fixed.** The upstream feed itself sends "Israel - Level 3: Reconsider
     Travel - Level 3: Reconsider Travel". `rss._clean_title` collapses whitespace and drops a repeated trailing
     " - " segment. It only applies to newly ingested items; existing rows keep the old titles.
