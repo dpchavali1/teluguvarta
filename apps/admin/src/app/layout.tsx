@@ -3,6 +3,7 @@ import { Bricolage_Grotesque, Inter_Tight, JetBrains_Mono, Noto_Sans_Telugu } fr
 
 import AdminNav from "@/components/AdminNav";
 import ErrorTrackingBoot from "@/components/ErrorTrackingBoot";
+import { ToastProvider } from "@/components/ui";
 
 import "./globals.css";
 
@@ -50,10 +51,12 @@ export default function RootLayout({ children }: { children: ReactNode }) {
     >
       <body>
         <ErrorTrackingBoot />
-        <div className="admin-shell">
-          <AdminNav />
-          {children}
-        </div>
+        <ToastProvider>
+          <div className="admin-shell">
+            <AdminNav />
+            {children}
+          </div>
+        </ToastProvider>
       </body>
     </html>
   );

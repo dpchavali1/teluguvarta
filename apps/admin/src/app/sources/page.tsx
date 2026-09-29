@@ -3,6 +3,7 @@
 import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
+import { Badge, EmptyState, Field, PageHeader, useToast } from "@/components/ui";
 import { apiUrl, clearSession, getToken } from "@/lib/auth";
 
 interface RightsEvidence {
@@ -35,6 +36,26 @@ const FREE_TIER_CATEGORIES = ["entertainment", "sports", "community_events"];
 // ADR-002: only these two are reachable in this build phase.
 const RIGHTS_STATUSES = ["DISABLED", "LINK_ONLY"];
 
+interface Preset {
+  label: string;
+  source_type: string;
+  country: string;
+  language: string;
+  refresh_minutes: number;
+  category: string;
+}
+
+// Presets prefill the add form only. They never touch rights: the evidence URL
+// and reviewer still have to be supplied by a human (ADR-002).
+const PRESETS: Preset[] = [
+  { label: "US government feed", source_type: "government", country: "US", language: "en", refresh_minutes: 60, category: "" },
+  { label: "India news site", source_type: "news", country: "IN", language: "en", refresh_minutes: 30, category: "" },
+  { label: "Telugu news site", source_type: "news", country: "IN", language: "te", refresh_minutes: 30, category: "" },
+  { label: "Sports blog", source_type: "blog", country: "", language: "en", refresh_minutes: 30, category: "sports" }
+];
+
+const BLANK_FORM = { name: "", feed_url: "", base_url: "", source_type: "news", country: "", language: "en", refresh_minutes: 30, category: "" };
+
 async function api(path: string, method: string, body?: unknown): Promise<unknown> {
   const response = await fetch(`${apiUrl()}/v1/admin${path}`, {
     method,
@@ -50,70 +71,101 @@ async function api(path: string, method: string, body?: unknown): Promise<unknow
 
 const blankToNull = (value: string) => (value.trim() === "" ? null : value.trim());
 
-function AddSourceForm({ onCreated, onError }: { onCreated: () => void; onError: (m: string | null) => void }) {
+function AddSourcePanel({ onCreated, onClose }: { onCreated: () => void; onClose: () => void }) {
+  const toast = useToast();
   const [busy, setBusy] = useState(false);
+  const [preset, setPreset] = useState<string | null>(null);
+  const [form, setForm] = useState(BLANK_FORM);
+
+  const set = (key: keyof typeof BLANK_FORM) => (e: { target: { value: string } }) =>
+    setForm((prev) => ({ ...prev, [key]: key === "refresh_minutes" ? Number(e.target.value) : e.target.value }));
+
+  function applyPreset(p: Preset) {
+    setPreset(p.label);
+    setForm((prev) => ({ ...prev, source_type: p.source_type, country: p.country, language: p.language, refresh_minutes: p.refresh_minutes, category: p.category }));
+  }
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const form = new FormData(event.currentTarget);
-    const text = (key: string) => blankToNull(String(form.get(key) ?? ""));
-    const refresh = text("refresh_minutes");
     setBusy(true);
-    onError(null);
     try {
       await api("/sources", "POST", {
-        name: text("name"),
-        feed_url: text("feed_url"),
-        base_url: text("base_url"),
-        source_type: text("source_type"),
-        country: text("country"),
-        language: text("language"),
-        refresh_minutes: refresh === null ? null : Number(refresh),
-        category: text("category")
+        name: form.name.trim(),
+        feed_url: blankToNull(form.feed_url),
+        base_url: blankToNull(form.base_url),
+        source_type: form.source_type,
+        country: blankToNull(form.country),
+        language: blankToNull(form.language),
+        refresh_minutes: form.refresh_minutes,
+        category: blankToNull(form.category)
       });
-      (event.target as HTMLFormElement).reset();
+      toast("ok", `Added ${form.name.trim()} — review its rights to enable it.`);
+      setForm(BLANK_FORM);
+      setPreset(null);
       onCreated();
+      onClose();
     } catch (err) {
-      onError(err instanceof Error ? err.message : "Failed to add source");
+      toast("danger", err instanceof Error ? err.message : "Failed to add source");
     } finally {
       setBusy(false);
     }
   }
 
   return (
-    <details>
-      <summary>Add source</summary>
-      <form onSubmit={submit}>
-        <p className="state-note">New sources start DISABLED and inactive. Set rights below before they can ingest.</p>
-        <label htmlFor="new-name">Name</label>
-        <input id="new-name" name="name" required />
-        <label htmlFor="new-feed">Feed URL (RSS/Atom)</label>
-        <input id="new-feed" name="feed_url" type="url" required />
-        <label htmlFor="new-base">Site URL</label>
-        <input id="new-base" name="base_url" type="url" />
-        <label htmlFor="new-type">Type</label>
-        <select id="new-type" name="source_type" defaultValue="news">
-          <option value="news">news</option>
-          <option value="government">government</option>
-          <option value="blog">blog</option>
-        </select>
-        <label htmlFor="new-country">Country (e.g. US, IN)</label>
-        <input id="new-country" name="country" />
-        <label htmlFor="new-lang">Language (e.g. en, te)</label>
-        <input id="new-lang" name="language" defaultValue="en" />
-        <label htmlFor="new-refresh">Refresh every (minutes)</label>
-        <input id="new-refresh" name="refresh_minutes" type="number" min={5} defaultValue={30} />
-        <label htmlFor="new-cat">Category (optional)</label>
-        <input id="new-cat" name="category" list="source-categories" />
+    <form className="panel" onSubmit={submit}>
+      <h2>Add a source</h2>
+      <p className="field__hint" style={{ marginBottom: "0.75rem" }}>Start from a preset, then fill in the name and feed URL. New sources start DISABLED and inactive.</p>
+      <div className="preset-row" role="group" aria-label="Presets">
+        {PRESETS.map((p) => (
+          <button key={p.label} type="button" className={preset === p.label ? "is-selected" : "button-secondary"} onClick={() => applyPreset(p)}>
+            {p.label}
+          </button>
+        ))}
+      </div>
+      <div className="field-grid">
+        <Field label="Name" htmlFor="new-name">
+          <input id="new-name" required value={form.name} onChange={set("name")} />
+        </Field>
+        <Field label="Feed URL (RSS/Atom)" htmlFor="new-feed">
+          <input id="new-feed" type="url" required value={form.feed_url} onChange={set("feed_url")} placeholder="https://…/feed.xml" />
+        </Field>
+        <Field label="Site URL" htmlFor="new-base">
+          <input id="new-base" type="url" value={form.base_url} onChange={set("base_url")} />
+        </Field>
+        <Field label="Type" htmlFor="new-type">
+          <select id="new-type" value={form.source_type} onChange={set("source_type")}>
+            <option value="news">news</option>
+            <option value="government">government</option>
+            <option value="blog">blog</option>
+          </select>
+        </Field>
+        <Field label="Country" htmlFor="new-country" hint="e.g. US, IN">
+          <input id="new-country" value={form.country} onChange={set("country")} />
+        </Field>
+        <Field label="Language" htmlFor="new-lang" hint="e.g. en, te">
+          <input id="new-lang" value={form.language} onChange={set("language")} />
+        </Field>
+        <Field label="Refresh every (minutes)" htmlFor="new-refresh">
+          <input id="new-refresh" type="number" min={5} value={form.refresh_minutes} onChange={set("refresh_minutes")} />
+        </Field>
+        <Field label="Category" htmlFor="new-cat" hint={`Free AI tier: ${FREE_TIER_CATEGORIES.join(", ")}. Anything else routes to paid AI.`}>
+          <input id="new-cat" list="source-categories" value={form.category} onChange={set("category")} />
+        </Field>
+      </div>
+      <div className="card__foot">
         <button type="submit" disabled={busy}>
           {busy ? "Adding…" : "Add source"}
         </button>
-      </form>
-    </details>
+        <button type="button" className="button-secondary" onClick={onClose}>
+          Cancel
+        </button>
+      </div>
+    </form>
   );
 }
 
-function RightsForm({ source, onSaved, onError }: { source: Source; onSaved: () => void; onError: (m: string | null) => void }) {
+function RightsForm({ source, onSaved }: { source: Source; onSaved: () => void }) {
+  const toast = useToast();
   const [busy, setBusy] = useState(false);
   const ev = source.rights_evidence;
 
@@ -121,20 +173,16 @@ function RightsForm({ source, onSaved, onError }: { source: Source; onSaved: () 
     event.preventDefault();
     const form = new FormData(event.currentTarget);
     const text = (key: string) => blankToNull(String(form.get(key) ?? ""));
-    const status = String(form.get("rights_status"));
-    const evidenceUrl = text("rights_evidence_url");
-    const reviewer = text("reviewer");
     const fields = String(form.get("permitted_fields") ?? "")
       .split(",")
       .map((f) => f.trim())
       .filter(Boolean);
     setBusy(true);
-    onError(null);
     try {
       await api(`/sources/${source.id}`, "PATCH", {
-        rights_status: status,
-        rights_evidence_url: evidenceUrl,
-        reviewer,
+        rights_status: String(form.get("rights_status")),
+        rights_evidence_url: text("rights_evidence_url"),
+        reviewer: text("reviewer"),
         // Re-stamped on every save that touches rights: this is the review time.
         rights_reviewed_at: new Date().toISOString(),
         rights_evidence: {
@@ -147,9 +195,10 @@ function RightsForm({ source, onSaved, onError }: { source: Source; onSaved: () 
         },
         active: form.get("active") === "on"
       });
+      toast("ok", `Saved rights for ${source.name}.`);
       onSaved();
     } catch (err) {
-      onError(err instanceof Error ? err.message : "Failed to save rights");
+      toast("danger", err instanceof Error ? err.message : "Failed to save rights");
     } finally {
       setBusy(false);
     }
@@ -157,49 +206,119 @@ function RightsForm({ source, onSaved, onError }: { source: Source; onSaved: () 
 
   const id = (name: string) => `${name}-${source.id}`;
   return (
-    <form onSubmit={submit}>
-      <p className="state-note">
+    <form onSubmit={submit} style={{ marginTop: "1rem" }}>
+      <p className="field__hint" style={{ marginBottom: "0.75rem" }}>
         Enabling (LINK_ONLY) needs an evidence URL and reviewer, and an ADMIN account. Link + headline + short summary only (ADR-002).
       </p>
-      <label htmlFor={id("status")}>Rights status</label>
-      <select id={id("status")} name="rights_status" defaultValue={source.rights_status}>
-        {RIGHTS_STATUSES.map((s) => (
-          <option key={s} value={s}>
-            {s}
-          </option>
-        ))}
-      </select>
-      <label htmlFor={id("evurl")}>Evidence URL (terms / permission page)</label>
-      <input id={id("evurl")} name="rights_evidence_url" type="url" defaultValue={source.rights_evidence_url ?? ""} />
-      <label htmlFor={id("reviewer")}>Reviewer (your name)</label>
-      <input id={id("reviewer")} name="reviewer" defaultValue={source.reviewer ?? ""} />
-      <label htmlFor={id("terms")}>Terms URL</label>
-      <input id={id("terms")} name="terms_url" type="url" defaultValue={ev.terms_url ?? ""} />
-      <label htmlFor={id("fields")}>Permitted fields (comma-separated)</label>
-      <input id={id("fields")} name="permitted_fields" defaultValue={ev.permitted_fields.join(", ") || "title, url, summary"} />
-      <label htmlFor={id("restr")}>Restrictions</label>
-      <input id={id("restr")} name="restrictions" defaultValue={ev.restrictions ?? ""} />
-      <label htmlFor={id("terr")}>Territory</label>
-      <input id={id("terr")} name="territory" defaultValue={ev.territory ?? ""} />
-      <label htmlFor={id("notes")}>Notes</label>
-      <textarea id={id("notes")} name="notes" defaultValue={ev.notes ?? ""} />
+      <div className="field-grid">
+        <Field label="Rights status" htmlFor={id("status")}>
+          <select id={id("status")} name="rights_status" defaultValue={source.rights_status}>
+            {RIGHTS_STATUSES.map((s) => (
+              <option key={s} value={s}>
+                {s}
+              </option>
+            ))}
+          </select>
+        </Field>
+        <Field label="Evidence URL" htmlFor={id("evurl")} hint="Terms or permission page">
+          <input id={id("evurl")} name="rights_evidence_url" type="url" defaultValue={source.rights_evidence_url ?? ""} />
+        </Field>
+        <Field label="Reviewer" htmlFor={id("reviewer")} hint="Your name">
+          <input id={id("reviewer")} name="reviewer" defaultValue={source.reviewer ?? ""} />
+        </Field>
+        <Field label="Terms URL" htmlFor={id("terms")}>
+          <input id={id("terms")} name="terms_url" type="url" defaultValue={ev.terms_url ?? ""} />
+        </Field>
+        <Field label="Permitted fields" htmlFor={id("fields")} hint="Comma-separated">
+          <input id={id("fields")} name="permitted_fields" defaultValue={ev.permitted_fields.join(", ") || "title, url, summary"} />
+        </Field>
+        <Field label="Restrictions" htmlFor={id("restr")}>
+          <input id={id("restr")} name="restrictions" defaultValue={ev.restrictions ?? ""} />
+        </Field>
+        <Field label="Territory" htmlFor={id("terr")}>
+          <input id={id("terr")} name="territory" defaultValue={ev.territory ?? ""} />
+        </Field>
+      </div>
+      <Field label="Notes" htmlFor={id("notes")}>
+        <textarea id={id("notes")} name="notes" defaultValue={ev.notes ?? ""} />
+      </Field>
       <label htmlFor={id("active")}>
         <input id={id("active")} name="active" type="checkbox" defaultChecked={source.active} style={{ width: "auto", marginRight: "0.5rem" }} />
         Active (fetch this source)
       </label>
-      <button type="submit" disabled={busy}>
-        {busy ? "Saving…" : "Save rights"}
-      </button>
+      <div className="card__foot">
+        <button type="submit" disabled={busy}>
+          {busy ? "Saving…" : "Save rights"}
+        </button>
+      </div>
     </form>
+  );
+}
+
+function SourceCard({ source, onChanged }: { source: Source; onChanged: () => void }) {
+  const toast = useToast();
+  const [open, setOpen] = useState(false);
+  const [draft, setDraft] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  const current = (draft ?? source.category ?? "").trim();
+  const dirty = draft !== null && current !== (source.category ?? "");
+  const enabled = source.rights_status !== "DISABLED";
+  const freeTier = FREE_TIER_CATEGORIES.includes(current.toLowerCase());
+
+  async function saveCategory() {
+    setSaving(true);
+    try {
+      await api(`/sources/${source.id}`, "PATCH", { category: current === "" ? null : current });
+      setDraft(null);
+      toast("ok", `Category saved for ${source.name}.`);
+      onChanged();
+    } catch (err) {
+      toast("danger", err instanceof Error ? err.message : "Failed to save category");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <article className={enabled ? "card" : "card card--attention"}>
+      <div className="card__head">
+        <h2 className="card__title">{source.name}</h2>
+        <span className="pill-row">
+          <Badge tone={enabled ? "ok" : "warn"}>{source.rights_status}</Badge>
+          <Badge tone={source.active ? "ok" : "neutral"}>{source.active ? "active" : "inactive"}</Badge>
+          <Badge tone={freeTier ? "ok" : "neutral"}>{freeTier ? "free AI tier" : "paid AI only"}</Badge>
+        </span>
+      </div>
+      <p className="card__meta">{source.feed_url ?? source.base_url ?? "No feed URL"}</p>
+      {!enabled ? (
+        <p className="card__prompt">Needs a rights review before it can ingest — add the evidence URL and your name.</p>
+      ) : null}
+      <div className="card__foot">
+        <input
+          list="source-categories"
+          aria-label={`Category for ${source.name}`}
+          value={draft ?? source.category ?? ""}
+          placeholder="category (unset)"
+          onChange={(e) => setDraft(e.target.value)}
+        />
+        <button type="button" disabled={!dirty || saving} onClick={saveCategory}>
+          {saving ? "Saving…" : "Save category"}
+        </button>
+        <button type="button" className={enabled ? "button-secondary" : undefined} aria-expanded={open} onClick={() => setOpen((v) => !v)}>
+          {open ? "Close" : enabled ? "Edit rights" : "Review rights"}
+        </button>
+      </div>
+      {open ? <RightsForm source={source} onSaved={onChanged} /> : null}
+    </article>
   );
 }
 
 export default function SourcesPage() {
   const router = useRouter();
+  const toast = useToast();
   const [sources, setSources] = useState<Source[] | null>(null);
-  const [drafts, setDrafts] = useState<Record<string, string>>({});
-  const [savingId, setSavingId] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [adding, setAdding] = useState(false);
 
   function load() {
     const token = getToken();
@@ -216,92 +335,42 @@ export default function SourcesPage() {
         return response.ok ? response.json() : Promise.reject(new Error("Failed to load sources"));
       })
       .then((body: Source[]) => setSources(body))
-      .catch((err) => setError(err instanceof Error ? err.message : "Failed to load sources"));
+      .catch((err) => toast("danger", err instanceof Error ? err.message : "Failed to load sources"));
   }
 
   useEffect(load, [router]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  async function saveCategory(source: Source) {
-    const value = (drafts[source.id] ?? source.category ?? "").trim();
-    setSavingId(source.id);
-    setError(null);
-    try {
-      await api(`/sources/${source.id}`, "PATCH", { category: value === "" ? null : value });
-      setDrafts((prev) => {
-        const next = { ...prev };
-        delete next[source.id];
-        return next;
-      });
-      load();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to save category");
-    } finally {
-      setSavingId(null);
-    }
-  }
+  const needsReview = sources?.filter((s) => s.rights_status === "DISABLED").length ?? 0;
 
   return (
     <main>
-      <h1>Sources</h1>
-      {error ? <p role="alert">{error}</p> : null}
+      <PageHeader
+        title="Sources"
+        subtitle={sources ? `${sources.length} total · ${needsReview} need a rights review` : undefined}
+        actions={
+          !adding ? (
+            <button type="button" onClick={() => setAdding(true)}>
+              Add source
+            </button>
+          ) : null
+        }
+      />
       <datalist id="source-categories">
         {FREE_TIER_CATEGORIES.map((c) => (
           <option key={c} value={c} />
         ))}
       </datalist>
-      <AddSourceForm onCreated={load} onError={setError} />
+      {adding ? <AddSourcePanel onCreated={load} onClose={() => setAdding(false)} /> : null}
       {sources === null ? (
         <p className="state-note">Loading…</p>
+      ) : sources.length === 0 ? (
+        <EmptyState title="No sources yet" hint="Add a feed to start ingesting stories." />
       ) : (
-        <table>
-          <thead>
-            <tr>
-              <th>Source</th>
-              <th>Rights</th>
-              <th>Category</th>
-              <th>Free AI tier</th>
-              <th />
-            </tr>
-          </thead>
-          <tbody>
-            {sources.map((source) => {
-              const draft = drafts[source.id];
-              const current = (draft ?? source.category ?? "").trim();
-              const dirty = draft !== undefined && current !== (source.category ?? "");
-              return (
-                <tr key={source.id}>
-                  <td>
-                    {source.name}
-                    <details>
-                      <summary>Rights &amp; status</summary>
-                      <RightsForm source={source} onSaved={load} onError={setError} />
-                    </details>
-                  </td>
-                  <td>
-                    {source.rights_status}
-                    <br />
-                    {source.active ? "active" : "inactive"}
-                  </td>
-                  <td>
-                    <input
-                      list="source-categories"
-                      aria-label={`Category for ${source.name}`}
-                      value={draft ?? source.category ?? ""}
-                      placeholder="unset"
-                      onChange={(e) => setDrafts({ ...drafts, [source.id]: e.target.value })}
-                    />
-                  </td>
-                  <td>{FREE_TIER_CATEGORIES.includes(current.toLowerCase()) ? "Eligible" : "Paid only"}</td>
-                  <td>
-                    <button type="button" disabled={!dirty || savingId === source.id} onClick={() => saveCategory(source)}>
-                      {savingId === source.id ? "Saving…" : "Save"}
-                    </button>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+        <div className="card-list">
+          {sources.map((source) => (
+            <SourceCard key={source.id} source={source} onChanged={load} />
+          ))}
+        </div>
       )}
     </main>
   );

@@ -311,6 +311,18 @@ Mirrors `docs/adr/README.md` — keep both in sync.
   the VPS. Not covered: encrypted backups (`backup.sh` needs
   `BACKUP_AGE_RECIPIENT`), AI keys, Sentry, mobile.
 
+- 2026-09-28: **Admin redesign, slice 1** (`docs/plans/admin-redesign.md`
+  items 2–3, partial). New shared `apps/admin/src/components/ui.tsx`
+  (Badge, PageHeader, EmptyState, Field, toasts via `ToastProvider` in
+  layout) + CSS in `globals.css`. `/sources` rebuilt: card per source with
+  rights/active/free-tier badges, "needs rights review" prompt, inline
+  category save, Add-source panel with presets (prefill type/country/
+  language/refresh/category only — rights evidence stays human-supplied,
+  ADR-002). Rights save logic unchanged. Admin `tsc` + `next lint` pass.
+  **Not yet done:** browser check of any page (needs a logged-in session),
+  last-fetch/fail-count on cards (API doesn't return them), Test-feed
+  endpoint, dashboard, review queue, other pages on the shared components.
+
 - 2026-09-29: **Admin UI: add-source and rights forms** on `/sources`
   (`apps/admin/src/app/sources/page.tsx`). "Add source" → `POST /v1/admin/sources`
   (starts DISABLED/inactive); per-row "Rights & status" → `PATCH` with

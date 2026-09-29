@@ -523,3 +523,108 @@ td button {
   font-size: 0.9rem;
   padding: 1.25rem 0;
 }
+
+/* ---------- Shared admin components (components/ui.tsx) ---------- */
+
+.status-pill--neutral {
+  background: transparent;
+  color: var(--color-muted);
+  border-color: var(--color-border);
+}
+
+.page-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.page-header h1 { margin-bottom: 0.25rem; }
+.page-header__sub { margin: 0; color: var(--color-muted); font-size: 0.9rem; }
+.page-header__actions { display: flex; gap: 0.6rem; }
+
+.field { margin-bottom: 1rem; }
+.field input, .field select, .field textarea { margin-bottom: 0; }
+.field__hint { margin: 0.3rem 0 0; font-size: 0.8rem; color: var(--color-muted); }
+.field-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr)); gap: 0 1rem; }
+
+.empty-block {
+  border: 1px dashed var(--color-border);
+  padding: 2rem 1.5rem;
+  text-align: center;
+  color: var(--color-muted);
+}
+
+.toast-stack {
+  position: fixed;
+  right: 1rem;
+  bottom: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  z-index: 50;
+  max-width: min(24rem, calc(100vw - 2rem));
+}
+
+.toast {
+  padding: 0.7rem 1rem;
+  font-size: 0.88rem;
+  font-weight: 500;
+  border-left: 4px solid var(--success);
+  background: var(--success-soft);
+  color: var(--success);
+  box-shadow: var(--shadow-hard-sm);
+}
+
+.toast--danger {
+  border-left-color: var(--danger);
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+button.button-secondary {
+  background: transparent;
+  color: var(--color-text);
+  border-color: var(--color-border);
+  box-shadow: none;
+}
+
+/* ---------- Sources ---------- */
+
+.card-list { display: grid; gap: 0.9rem; }
+
+.card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 1rem 1.15rem;
+}
+
+.card--attention { border-left: 4px solid var(--warning); }
+
+.card__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+}
+
+.card__title { margin: 0; font-size: 1rem; }
+.card__meta { margin: 0.35rem 0 0; font-size: 0.82rem; color: var(--color-muted); word-break: break-all; }
+.card__prompt { margin: 0.75rem 0 0; font-size: 0.86rem; }
+.card__foot { display: flex; flex-wrap: wrap; align-items: center; gap: 0.75rem; margin-top: 0.85rem; }
+.card__foot input { width: 12rem; margin-bottom: 0; }
+
+.panel {
+  background: var(--color-surface);
+  border: 1px solid var(--color-rule);
+  padding: 1.25rem;
+  margin-bottom: 1.5rem;
+}
+
+.preset-row { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 1rem; }
+.preset-row button { padding: 0.4rem 0.8rem; }
+button.is-selected { background: var(--color-accent); color: var(--color-bg); }
