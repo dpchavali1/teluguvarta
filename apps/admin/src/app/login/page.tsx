@@ -133,7 +133,11 @@ export default function LoginPage() {
     return (
       <main className="auth-page">
         <div className="auth-card">
+          <div className="auth-brand">
+            TTE<span>Admin</span>
+          </div>
           <h1>Set up two-factor authentication</h1>
+          <p className="auth-step">Step 2 of 2 · one-time setup</p>
           <p>
             Admin accounts need an authenticator app (such as Google Authenticator, 1Password or Authy). Add this
             account to your app, then enter the 6-digit code it shows.
@@ -180,8 +184,11 @@ export default function LoginPage() {
   return (
     <main className="auth-page">
       <div className="auth-card">
-        <h1>TTE Admin — Sign in</h1>
-        {notice ? <p role="status">{notice}</p> : null}
+        <div className="auth-brand">
+          TTE<span>Admin</span>
+        </div>
+        <h1>Sign in</h1>
+        {notice ? <p role="status" className="auth-notice">{notice}</p> : null}
         <form onSubmit={onLogin}>
           <div>
             <label htmlFor="email">Email</label>

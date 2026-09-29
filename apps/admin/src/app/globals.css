@@ -681,3 +681,14 @@ tr.row-active { background: var(--color-surface-sunken); box-shadow: inset 4px 0
 .budget-bar__fill { height: 100%; background: var(--success); }
 .budget-bar__fill--over { background: var(--danger); }
 section[id] { scroll-margin-top: 1rem; }
+
+/* ---------- Login polish ---------- */
+
+.auth-page { padding: 1.5rem; background: var(--color-surface-sunken); }
+.auth-card h1 { font-size: 1.35rem; margin-bottom: 0.4rem; }
+.auth-brand { font-family: var(--font-heading); font-weight: 800; font-size: 1.2rem; margin-bottom: 1.25rem; }
+.auth-brand span { display: block; font-family: var(--font-mono-stack); font-size: 0.62rem; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--color-faint); margin-top: 0.2rem; }
+.auth-step { margin: 0 0 1rem; font-size: 0.8rem; color: var(--color-muted); }
+.auth-notice { background: var(--success-soft); color: var(--success); padding: 0.75rem 1rem; font-weight: 500; }
+.auth-card input { margin-bottom: 0.25rem; }
+.auth-card form > div { margin-bottom: 0.85rem; }

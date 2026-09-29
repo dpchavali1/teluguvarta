@@ -379,6 +379,14 @@ Mirrors `docs/adr/README.md` — keep both in sync.
   in a browser. Remaining: `/login` on shared components, preset
   add+activate, browser check.
 
+- 2026-09-28: **Admin redesign, slice 7: login** (`/login`). Visual polish
+  only — brand lockup, "Step 2 of 2" on MFA setup, success-tinted notice,
+  spacing; ADR-012 flow/logic untouched. Also ran a full `pnpm run build` in
+  `apps/admin` for the first time this redesign: compiles, lints and
+  type-checks, all 7 routes build. **Every redesigned page is still
+  unverified in a real browser** (that is the next step, before more
+  features). Remaining: preset add+activate (needs API), browser check.
+
 - 2026-09-29: **Admin UI: add-source and rights forms** on `/sources`
   (`apps/admin/src/app/sources/page.tsx`). "Add source" → `POST /v1/admin/sources`
   (starts DISABLED/inactive); per-row "Rights & status" → `PATCH` with
