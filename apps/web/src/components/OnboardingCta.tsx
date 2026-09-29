@@ -3,41 +3,31 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
-import { getOnboardingProfile, type LifeStage } from "@/lib/onboarding";
+import { Icon } from "@/components/Icon";
+import { getOnboardingProfile } from "@/lib/onboarding";
 
 // Design-review fix: the hero CTA always said "Personalize your feed →"
 // even after a person had already onboarded, with no way to tell from the
 // home page that a profile existed or to see/edit it without redoing the
-// whole flow blind.
+// whole flow blind. Until hydration we can't know, so the first paint uses
+// the not-yet-personalized copy (the common case for a first visit).
 export function OnboardingCta() {
-  const [lifeStages, setLifeStages] = useState<LifeStage[] | null>(null);
+  const [onboarded, setOnboarded] = useState(false);
 
   useEffect(() => {
-    setLifeStages(getOnboardingProfile().lifeStages);
+    setOnboarded(getOnboardingProfile().lifeStages.length > 0);
   }, []);
 
-  if (lifeStages === null) {
-    // Not yet hydrated — render nothing rather than flash the wrong state.
-    return (
-      <p>
-        <Link className="briefing-cta" href="/onboarding">Personalize</Link>
-      </p>
-    );
-  }
-
-  if (lifeStages.length === 0) {
-    return (
-      <p>
-        <Link className="briefing-cta" href="/onboarding">Personalize</Link>
-      </p>
-    );
-  }
-
   return (
-    <p>
-      <Link className="briefing-cta briefing-cta--edit" href="/onboarding">
-        Edit preferences
+    <div className="personalize-card">
+      <span className="personalize-card__icon" aria-hidden="true"><Icon name="sparkle" size={20} /></span>
+      <div>
+        <p className="personalize-card__title">{onboarded ? "Your feed is personalized" : "Make it yours"}</p>
+        <p className="personalize-card__text">{onboarded ? "Update where you live and what you follow." : "Pick where you live and the topics you follow. No account needed."}</p>
+      </div>
+      <Link className={`button button--primary briefing-cta${onboarded ? " briefing-cta--edit" : ""}`} href="/onboarding">
+        {onboarded ? "Edit preferences" : "Personalize"}
       </Link>
-    </p>
+    </div>
   );
 }

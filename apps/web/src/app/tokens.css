@@ -43,6 +43,8 @@
   --shadow-hard-sm: 3px 3px 0 var(--color-rule);
   --radius-md: 2px;
   --radius-lg: 3px;
+  --radius-card: 14px;
+  --radius-pill: 999px;
   --space-xs: 4px;
   --space-sm: 8px;
   --space-md: 12px;

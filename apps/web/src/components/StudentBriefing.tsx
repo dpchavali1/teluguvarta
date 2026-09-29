@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 
-import { StoryCard } from "@/components/StoryCard";
+import { StoryGrid } from "@/components/StoryGrid";
 import { getStudentBriefing, type StoryOut } from "@/lib/api";
 import { getOnboardingProfile, isStudentLifeStage, primaryLifeStageSegment } from "@/lib/onboarding";
 
@@ -45,14 +45,11 @@ export function StudentBriefing() {
 
   return (
     <section className="student-briefing" aria-labelledby="student-briefing-heading">
-      <h2 id="student-briefing-heading">Student Briefing</h2>
-      <ul className="story-grid">
-        {stories.map((story) => (
-          <li key={story.id}>
-            <StoryCard story={story} display="brief" />
-          </li>
-        ))}
-      </ul>
+      <div className="section-head">
+        <h2 id="student-briefing-heading">Student Briefing</h2>
+        <span className="badge badge--accent">For students</span>
+      </div>
+      <StoryGrid stories={stories} />
     </section>
   );
 }

@@ -21,6 +21,8 @@ ${cssSemantic("light")}
   --shadow-hard-sm: ${tokens.shadow.sm}px ${tokens.shadow.sm}px 0 var(--color-rule);
   --radius-md: ${tokens.radius.md}px;
   --radius-lg: ${tokens.radius.lg}px;
+  --radius-card: ${tokens.radius.card}px;
+  --radius-pill: ${tokens.radius.pill}px;
   --space-xs: ${tokens.spacing.xs}px;
   --space-sm: ${tokens.spacing.sm}px;
   --space-md: ${tokens.spacing.md}px;

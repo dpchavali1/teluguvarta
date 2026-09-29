@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+
+import { Icon } from "./Icon";
 import { StoryCard } from "./StoryCard";
 import { getHome, type StoryOut } from "@/lib/api";
 import { getOnboardingProfile, primaryLifeStageSegment } from "@/lib/onboarding";
@@ -26,23 +28,29 @@ export function HomeFeed({ initialStories }: { initialStories: StoryOut[] }) {
     return () => { cancelled = true; };
   }, [initialStories, revision]);
   const [lead, ...supporting] = stories;
-  const rail = supporting.slice(0, 3);
-  const rest = supporting.slice(3);
-  return <section aria-label="Latest stories">
-    {error && <p role="status">Your preferences couldn’t be applied. Showing the latest stories. <button onClick={() => setRevision((value) => value + 1)}>Try again</button></p>}
-    {!lead ? <p className="empty-state">No stories published yet. <Link href="/topics">Browse topics</Link> or check back soon.</p>
+  const rail = supporting.slice(0, 4);
+  const rest = supporting.slice(4);
+  return <section className="feed" aria-label="Latest stories">
+    {error && <p className="callout" role="status">Your preferences couldn’t be applied. Showing the latest stories. <button className="button button--small" onClick={() => setRevision((value) => value + 1)}>Try again</button></p>}
+    {!lead ? <div className="empty-state">No stories published yet. <Link href="/topics">Browse topics</Link> or check back soon.</div>
       : <>
         <div className="front-grid">
           <div className="front-grid__lead"><StoryCard story={lead} headingLevel="h2" display="lead" /></div>
           {rail.length > 0 && (
-            <ul className="front-grid__rail">{rail.map((story) => <li key={story.id}><StoryCard story={story} display="brief" /></li>)}</ul>
+            <div className="front-grid__side">
+              <h2 className="rail-title">Top stories</h2>
+              <ol className="front-grid__rail">{rail.map((story) => <li key={story.id}><StoryCard story={story} headingLevel="h3" display="brief" /></li>)}</ol>
+            </div>
           )}
         </div>
         {rest.length > 0 && <>
-          <div className="section-rule"><span>More stories</span></div>
-          <ul className="story-grid">{rest.map((story) => <li key={story.id}><StoryCard story={story} display="brief" /></li>)}</ul>
+          <div className="section-head">
+            <h2>More stories</h2>
+            <Link className="section-head__more" href="/latest">View all <Icon name="arrowRight" size={16} /></Link>
+          </div>
+          <ul className="story-grid">{rest.map((story) => <li key={story.id}><StoryCard story={story} headingLevel="h3" display="brief" /></li>)}</ul>
         </>}
       </>}
-    <p className="feed-more"><Link href="/latest">View all stories</Link></p>
+    <p className="feed-more"><Link className="button" href="/latest">View all stories <Icon name="arrowRight" size={16} /></Link></p>
   </section>;
 }

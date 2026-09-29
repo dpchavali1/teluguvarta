@@ -13,6 +13,15 @@ signup capture) has been deleted, including its `pilot_signups` DB table
 the full list of removed files. `docs/BUILD_ORDER.md`'s pre-build validation
 gate section is gone; do not reintroduce a pilot gate on any future ticket.
 
+**Web redesign, ADR-017 (2026-09-28)**: `apps/web` presentation-only rewrite. It adds a sticky header with a
+topic bar, a mobile bottom tab bar, card-based StoryLead/StoryBrief (ADR-014 contract unchanged), and a story
+page with a sources card, "More in {topic}" and NewsArticle JSON-LD. There are skeleton `loading.tsx` routes,
+`globals.css` is rewritten (47→34 KB, no override layers), JetBrains Mono is dropped, the Telugu fonts are not
+preloaded, and new `radius.card`/`radius.pill` tokens are added (CSS output only). Verified: typecheck, lint,
+`next build`, `test:visual` 88/88, `test:a11y` clean, token contrast check. `test:visual` needs the API started
+with `CORS_ALLOWED_ORIGINS=http://localhost:3000` or the Saved journey fails. Listing routes still use
+`force-dynamic` (no ISR), which is the next performance lever.
+
 **Gemini provider adapter added, not routed (2026-09-28)**: `app/ai/providers/gemini_provider.py`
 (httpx REST, no SDK, key `AI_GEMINI_API_KEY`) + `provider="gemini"` in `gateway._resolve_provider`.
 **Deliberately absent from `ROUTING`**: the free tier may train on submitted data, so routing any

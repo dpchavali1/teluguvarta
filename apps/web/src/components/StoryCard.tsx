@@ -4,15 +4,18 @@ import Link from "next/link";
 import { topicLabel } from "@teluguvarta/domain";
 import { useEffect, useState, type FormEvent } from "react";
 
+import { Icon } from "@/components/Icon";
+import { TimeAgo } from "@/components/TimeAgo";
 import { reportIssue, storyUrl, type Language, type StoryOut } from "@/lib/api";
+import { formatDate, sourceDomain } from "@/lib/format";
 import { SAVED_CHANGE_EVENT, isSaved, toggleSaved } from "@/lib/saved";
 import { track } from "@/lib/analytics";
 import { getPreferredLanguage, LANGUAGE_CHANGE_EVENT, setPreferredLanguage } from "@/lib/onboarding";
 
 const STATUS_LABEL: Record<string, { text: string; className: string } | undefined> = {
-  RETRACTED: { text: "Retracted", className: "story-card__notice--retracted" },
-  UPDATED: { text: "Updated / corrected", className: "story-card__notice--updated" },
-  CORRECTION_PENDING: { text: "Correction pending", className: "story-card__notice--updated" },
+  RETRACTED: { text: "Retracted", className: "badge--danger" },
+  UPDATED: { text: "Updated / corrected", className: "badge--accent" },
+  CORRECTION_PENDING: { text: "Correction pending", className: "badge--accent" },
 };
 
 // NON_NEGOTIABLES #5: sensitivity != "NONE" can never reach a published
@@ -21,7 +24,14 @@ const STATUS_LABEL: Record<string, { text: string; className: string } | undefin
 // not a claim we have to separately track.
 const REVIEWED_SENSITIVITIES = new Set(["IMMIGRATION", "LEGAL", "FINANCIAL", "BREAKING", "OBITUARY_ACCUSATION"]);
 
-export function StoryCard({ story, headingLevel = "h2", display = "default" }: { story: StoryOut; headingLevel?: "h1" | "h2"; display?: "default" | "lead" | "brief" }) {
+type Display = "default" | "lead" | "brief";
+
+// ADR-014 component contract, one component per surface role:
+//   display="lead"    -> StoryLead  (full StoryActions)
+//   display="brief"   -> StoryBrief (Save only; whole card is the link)
+//   display="default" -> story detail (full StoryActions + per-story
+//                        language override, the only place it's offered)
+export function StoryCard({ story, headingLevel = "h2", display = "default" }: { story: StoryOut; headingLevel?: "h1" | "h2" | "h3"; display?: Display }) {
   const [language, setLanguage] = useState<Language>("en");
   const [saved, setSaved] = useState(false);
   const [shareStatus, setShareStatus] = useState<string | null>(null);
@@ -60,9 +70,11 @@ export function StoryCard({ story, headingLevel = "h2", display = "default" }: {
   const statusNotice = STATUS_LABEL[story.status];
   const primarySource = story.sources[0];
   const Heading = headingLevel;
-  const labels = display === "brief"
-    ? (story.topics.length > 0 ? story.topics.slice(0, 1).map(topicLabel) : story.countries.slice(0, 1))
-    : [...story.countries.slice(0, 1), ...story.topics.slice(0, 1).map(topicLabel)];
+  const href = `/story/${story.canonical_slug}`;
+  const kicker = story.topics[0] ? topicLabel(story.topics[0]) : story.countries[0];
+  const country = story.topics.length > 0 ? story.countries[0] : undefined;
+  const isBrief = display === "brief";
+  const isDetail = display === "default";
 
   async function handleShare() {
     track("story_share", { story_id: story.id });
@@ -112,138 +124,155 @@ export function StoryCard({ story, headingLevel = "h2", display = "default" }: {
     finally { setReportBusy(false); }
   }
 
-  const variantClass = display === "lead" ? " story-card--lead" : display === "brief" ? " story-card--brief" : "";
+  const saveButton = (
+    <button
+      className="story-card__action story-card__action--save"
+      type="button"
+      onClick={handleSaveToggle}
+      aria-pressed={saved}
+      aria-label={saved ? `Unsave: ${variant.headline}` : `Save: ${variant.headline}`}
+      title={saved ? "Saved" : "Save for later"}
+    >
+      <Icon name="bookmark" size={17} filled={saved} />
+      <span className={isBrief ? "visually-hidden" : undefined}>{saved ? "Saved" : "Save"}</span>
+    </button>
+  );
+
+  const badges = (story.sensitivity === "BREAKING" || isHumanReviewed || statusNotice) && (
+    <div className="story-card__badges">
+      {story.sensitivity === "BREAKING" && <span className="badge badge--hot"><span className="badge__pulse" aria-hidden="true" />Breaking</span>}
+      {statusNotice && <span className={`badge ${statusNotice.className}`} role="status">{statusNotice.text}</span>}
+      {isHumanReviewed && <span className="badge badge--success story-card__reviewed"><Icon name="check" size={13} /> Human-reviewed</span>}
+    </div>
+  );
+
+  const meta = (
+    <p className="story-card__meta">
+      {kicker && <span className="story-card__kicker">{kicker}</span>}
+      {country && !isBrief && <span className="story-card__country">{country}</span>}
+      {story.published_at && <span className="story-card__date"><TimeAgo iso={story.published_at} /></span>}
+    </p>
+  );
+
+  const variantClass = display === "lead" ? " story-card--lead" : isBrief ? " story-card--brief" : " story-card--detail";
 
   return (
     <article className={`story-card${variantClass}`} aria-labelledby={`story-${story.id}-headline`}>
-      <div className="story-card__labels">
-        {labels.map((label) => <span className="pill" key={label}>{label}</span>)}
-      </div>
-
-      {story.published_at && <p className="story-card__date"><time dateTime={story.published_at}>{new Date(story.published_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" })}</time>{story.status === "UPDATED" && story.updated_at && <> · Updated <time dateTime={story.updated_at}>{new Date(story.updated_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" })}</time></>}</p>}
-      {language !== renderedLanguage && <p role="status">Telugu translation isn’t available yet. Showing English.</p>}
-      {story.personalization?.explanation && <p className="story-card__recommendation" lang="en">{story.personalization.explanation}</p>}
-      {isHumanReviewed && (
-        <p className="story-card__reviewed">
-          <span aria-hidden="true">✓</span> Human-reviewed
-        </p>
-      )}
-
-      {statusNotice && (
-        <p className={`story-card__notice ${statusNotice.className}`} role="status">
-          {statusNotice.text}
-        </p>
-      )}
+      {meta}
+      {badges}
 
       <Heading className="story-card__headline" id={`story-${story.id}-headline`} lang={renderedLanguage}>
-        <Link href={`/story/${story.canonical_slug}`}>{variant.headline}</Link>
+        {isDetail ? variant.headline : <Link className="story-card__link" href={href}>{variant.headline}</Link>}
       </Heading>
 
-      <p lang={renderedLanguage}>{variant.summary}</p>
-      {whyMatters && (
-        <p className="story-card__why" lang={renderedLanguage}>
-          <strong lang="en">Why this matters:</strong> {whyMatters}
-        </p>
+      {language !== renderedLanguage && <p className="story-card__notice" role="status">Telugu translation isn’t available yet. Showing English.</p>}
+
+      <p className="story-card__summary" lang={renderedLanguage}>{variant.summary}</p>
+
+      {isDetail && (
+        <div className="story-card__detail-meta">
+          {story.published_at && <span>Published <time dateTime={story.published_at}>{formatDate(story.published_at)}</time></span>}
+          {story.status === "UPDATED" && story.updated_at && <span>Updated <time dateTime={story.updated_at}>{formatDate(story.updated_at)}</time></span>}
+          {/* ADR-014: the per-story language override is a story-detail
+              exception; list items follow the edition-level header control. */}
+          {hasTelugu && (
+            <div className="segmented" role="group" aria-label="Language">
+              <button type="button" aria-pressed={language === "en"} onClick={() => handleLanguageSwitch("en")}>English</button>
+              <button type="button" aria-pressed={language === "te"} onClick={() => handleLanguageSwitch("te")} lang="te">తెలుగు</button>
+            </div>
+          )}
+        </div>
       )}
 
-      {primarySource && (
-        <p>
-          <a
-            className="story-card__source-link"
-            href={primarySource.url}
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read the original source{primarySource.title ? `: ${primarySource.title}` : ""} ↗
-          </a>
-        </p>
+      {!isBrief && story.personalization?.explanation && (
+        <p className="story-card__recommendation" lang="en"><Icon name="sparkle" size={15} /> {story.personalization.explanation}</p>
       )}
 
-      <div className="story-card__actions">
-        {/* ADR-014: LanguageControl is edition-level (SiteHeader); a per-card
-            override is only offered as a story-detail exception, never on a
-            StoryBrief/StoryLead list item. */}
-        {display === "default" && hasTelugu && (
-          <div role="group" aria-label="Language">
-            <button
-              type="button"
-              aria-pressed={language === "en"}
-              onClick={() => handleLanguageSwitch("en")}
-            >
-              English
+      {!isBrief && whyMatters && (
+        <aside className="story-card__why" lang={renderedLanguage}>
+          <strong lang="en">Why this matters</strong>
+          <p>{whyMatters}</p>
+        </aside>
+      )}
+
+      {isDetail && story.sources.length > 0 && (
+        <section className="sources" aria-labelledby={`sources-${story.id}`}>
+          <h2 id={`sources-${story.id}`} className="sources__title">Original reporting</h2>
+          <ul>
+            {story.sources.map((source) => (
+              <li key={source.url}>
+                <a className="sources__link story-card__source-link" href={source.url} target="_blank" rel="noopener noreferrer">
+                  <span className="sources__domain">{sourceDomain(source.url)}</span>
+                  <span className="sources__name">Read the original source{source.title ? `: ${source.title}` : ""}</span>
+                  <Icon name="external" size={16} />
+                </a>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      {isBrief ? (
+        <div className="story-card__footer">
+          {primarySource && (
+            <a className="story-card__source" href={primarySource.url} target="_blank" rel="noopener noreferrer" aria-label={`Read the original source${primarySource.title ? `: ${primarySource.title}` : ""} (${sourceDomain(primarySource.url)})`}>
+              {sourceDomain(primarySource.url)} <Icon name="external" size={13} />
+            </a>
+          )}
+          {saveButton}
+        </div>
+      ) : (
+        <>
+          {display === "lead" && primarySource && (
+            <a className="story-card__source-link story-card__source-link--lead" href={primarySource.url} target="_blank" rel="noopener noreferrer">
+              <span className="sources__domain">{sourceDomain(primarySource.url)}</span>
+              Read the original source{primarySource.title ? `: ${primarySource.title}` : ""}
+              <Icon name="external" size={14} />
+            </a>
+          )}
+          {/* ADR-014 StoryActions: full set (Share/Save/Report) on StoryLead
+              and story-detail; StoryBrief list items get Save only. */}
+          <div className="story-card__actions">
+            <button className="story-card__action story-card__action--share" type="button" onClick={handleShare} aria-label={`Share: ${variant.headline}`}>
+              <Icon name="share" size={17} /><span>Share</span>
             </button>
+            {saveButton}
             <button
+              className="story-card__action story-card__action--report"
               type="button"
-              aria-pressed={language === "te"}
-              onClick={() => handleLanguageSwitch("te")}
-              lang="te"
+              onClick={() => setReportOpen((open) => !open)}
+              aria-expanded={reportOpen}
+              aria-label={`Report an issue: ${variant.headline}`}
             >
-              తెలుగు
+              <Icon name="flag" size={17} /><span>Report an issue</span>
             </button>
           </div>
-        )}
-        {/* ADR-014 StoryActions: full set (Share/Save/Report) on StoryLead and
-            story-detail; StoryBrief list items get Save only. */}
-        {display !== "brief" && (
-          <button className="story-card__action story-card__action--share" type="button" onClick={handleShare} aria-label={`Share: ${variant.headline}`}>
-            Share
-          </button>
-        )}
-        <button
-          className="story-card__action story-card__action--save"
-          type="button"
-          onClick={handleSaveToggle}
-          aria-pressed={saved}
-          aria-label={saved ? `Unsave: ${variant.headline}` : `Save: ${variant.headline}`}
-        >
-          {saved ? "Saved" : "Save"}
-        </button>
-        {display !== "brief" && (
-          <button
-            className="story-card__action story-card__action--report"
-            type="button"
-            onClick={() => setReportOpen((open) => !open)}
-            aria-expanded={reportOpen}
-            aria-label={`Report an issue: ${variant.headline}`}
-          >
-            Report an issue
-          </button>
-        )}
-      </div>
-
-      {saveError && <p role="alert">{saveError}</p>}
-      {shareStatus && (
-        <p className="story-card__inline-status" role="status">
-          {shareStatus}
-        </p>
+        </>
       )}
 
-      {display !== "brief" && reportOpen && (
+      {saveError && <p className="story-card__inline-status" role="alert">{saveError}</p>}
+      {shareStatus && <p className="story-card__inline-status" role="status">{shareStatus}</p>}
+
+      {!isBrief && reportOpen && (
         <form className="story-card__report" onSubmit={handleReportSubmit}>
           <label htmlFor={`report-${story.id}`}>Describe the issue with this story</label>
           <textarea
             id={`report-${story.id}`}
             value={reportText}
             onChange={(event) => setReportText(event.target.value)}
-            rows={2}
+            rows={3}
             maxLength={2000}
             required
             disabled={reportBusy}
           />
           <div className="story-card__report-actions">
-            <button type="submit" disabled={reportBusy || !reportText.trim()}>{reportBusy ? "Sending…" : "Submit"}</button>
-            <button type="button" onClick={() => setReportOpen(false)}>
-              Cancel
-            </button>
+            <button className="button button--primary" type="submit" disabled={reportBusy || !reportText.trim()}>{reportBusy ? "Sending…" : "Submit"}</button>
+            <button className="button" type="button" onClick={() => setReportOpen(false)}>Cancel</button>
           </div>
         </form>
       )}
 
-      {display !== "brief" && reportStatus && (
-        <p className="story-card__inline-status" role="status">
-          {reportStatus}
-        </p>
-      )}
+      {!isBrief && reportStatus && <p className="story-card__inline-status" role="status">{reportStatus}</p>}
     </article>
   );
 }

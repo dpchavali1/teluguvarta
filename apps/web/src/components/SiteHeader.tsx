@@ -3,42 +3,72 @@
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 
+import { Icon } from "@/components/Icon";
 import { LanguageToggle } from "@/components/LanguageToggle";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import type { TopicOut } from "@/lib/api";
 
 const NAV_LINKS = [
   { href: "/", label: "Home" },
+  { href: "/latest", label: "Latest" },
   { href: "/topics", label: "Topics" },
-  { href: "/search", label: "Search" },
   { href: "/saved", label: "Saved" },
   { href: "/about", label: "About" },
 ];
 
-export function SiteHeader() {
+export function isActivePath(pathname: string, href: string): boolean {
+  if (href === "/") return pathname === "/";
+  if (href === "/topics") return pathname === "/topics" || pathname.startsWith("/topic/");
+  return pathname === href || pathname.startsWith(`${href}/`);
+}
+
+// ADR-014 EditionHeader: masthead + edition-level language control + theme
+// control, once per page. The topic bar underneath is the section nav.
+export function SiteHeader({ topics }: { topics: TopicOut[] }) {
   const pathname = usePathname();
   return (
     <header className="site-header">
-      <div className="site-header__inner">
-        <Link href="/" className="site-header__brand">
-          <span className="site-header__wordmark">
-            <span className="site-header__brand-en">TTE</span>
-            <span className="site-header__brand-te" lang="te">తెలుగు ఎడిట్</span>
-          </span>
-        </Link>
-        <nav className="site-nav" aria-label="Main navigation">
-          <ul>
-            {NAV_LINKS.map((link) => (
-              <li key={link.href}>
-                <Link href={link.href} aria-current={pathname === link.href || (link.href === "/topics" && pathname.startsWith("/topic/")) ? "page" : undefined}>{link.label}</Link>
-              </li>
-            ))}
-          </ul>
-        </nav>
-        <div className="site-header__utility-controls">
-          <LanguageToggle />
-          <ThemeToggle />
+      <div className="site-header__bar">
+        <div className="site-header__inner">
+          <Link href="/" className="brand" aria-label="TTE — The Telugu Edit, home">
+            <span className="brand__mark" aria-hidden="true" lang="te">తె</span>
+            <span className="brand__text">
+              <span className="brand__name">The Telugu Edit</span>
+              <span className="brand__tag" lang="te">తెలుగు ఎడిట్</span>
+            </span>
+          </Link>
+          <nav className="site-nav" aria-label="Main navigation">
+            <ul>
+              {NAV_LINKS.map((link) => (
+                <li key={link.href}>
+                  <Link href={link.href} aria-current={isActivePath(pathname, link.href) ? "page" : undefined}>{link.label}</Link>
+                </li>
+              ))}
+            </ul>
+          </nav>
+          <div className="site-header__tools">
+            <Link href="/search" className="icon-button" aria-label="Search" aria-current={pathname === "/search" ? "page" : undefined}>
+              <Icon name="search" />
+            </Link>
+            <LanguageToggle />
+            <ThemeToggle />
+          </div>
         </div>
       </div>
+      {topics.length > 0 && (
+        <nav className="topic-bar" aria-label="Topics">
+          <ul className="topic-bar__list">
+            {topics.map((topic) => {
+              const href = `/topic/${topic.slug}`;
+              return (
+                <li key={topic.slug}>
+                  <Link href={href} className="topic-bar__link" aria-current={pathname === href ? "page" : undefined}>{topic.name}</Link>
+                </li>
+              );
+            })}
+          </ul>
+        </nav>
+      )}
     </header>
   );
 }

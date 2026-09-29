@@ -1,1258 +1,1470 @@
 /* ============================================================================
-   TTE — The Telugu Edit — "Ink & Signal"
+   TTE — The Telugu Edit — web stylesheet (ADR-017 "modern newsroom")
 
-   Direction: high-contrast editorial press. Warm bone paper, near-black ink,
-   one calm indigo accent and a hot vermilion for warnings. Hard
-   edges (2px radius, hairline rules, offset shadows) instead of soft floating
-   cards; the feed reads as a numbered ledger of dispatches, not a card grid.
-   Display type is a wide grotesque set very large with negative tracking;
-   every label and micro-datum is mono uppercase.
+   Text-first news design: no images (ADR-002 rights rules), so hierarchy
+   comes from type scale, weight, one accent and soft card surfaces. All
+   colors come from the generated tokens (ADR-009); this file only derives
+   tints/shadows from them with color-mix().
 
-   Structure of this file:
-     1. Tokens (light / dark / data-theme)
-     2. Base elements + a11y primitives
-     3. Masthead (always ink) + theme toggle
-     4. Page shell, page headings, footer
-     5. Hero
-     6. Topic rail
-     7. Story ledger + story card
-     8. Forms, buttons, empty states
-     9. Student briefing, onboarding, legal
-    10. Motion preferences + narrow viewports
+     1. Local tokens            6. Home (edition, front grid, rail)
+     2. Base + a11y             7. Story cards
+     3. Controls                8. Story page
+     4. Header + topic bar      9. Listing pages, topics, search
+     5. Bottom nav + footer    10. Forms, legal, status, skeletons, motion
    ========================================================================== */
 
 @import "./tokens.css";
 
-:root {
-  --page-max: 76rem;
-  --measure: 46rem;
+/* ------------------------------------------------------ 1. Local tokens */
 
-  /* Round 3 ("more like Axios, cleaner and modern"): local overrides on
-     top of the shared design-token pipeline, not in tokens.json/tokens.css
-     — apps/admin imports the same generated tokens.css and apps/mobile
-     consumes the same tokens.json, and this pass is web-listing-page-only,
-     so it stays scoped to this file. Light paper goes near-white; dark
-     mode (already fairly neutral/modern) is untouched via the higher-
-     specificity `:root:not([data-theme="light"])` / `:root[data-theme=
-     "dark"]` rules in tokens.css winning over this plain :root. */
+:root {
+  --page-max: 78rem;
+  --measure: 44rem;
+  --gutter: clamp(16px, 4vw, 32px);
+  --header-h: 64px;
+  --bottom-nav-h: 64px;
+
+  /* Light paper goes near-white for a crisp modern read (precedent: the
+     round-3 listing pass). Dark mode keeps the generated Folio pair — the
+     token file's dark selectors out-rank this plain :root. */
   --color-bg: #ffffff;
   --color-surface: #ffffff;
   --color-surface-sunken: #f4f3f0;
   --canvas: #ffffff;
   --surface: #ffffff;
   --surface-subtle: #f4f3f0;
-  --shadow-soft: 0 1px 2px rgba(28, 26, 21, 0.07), 0 1px 1px rgba(28, 26, 21, 0.04);
 
-  /* English display type moves from the serif (Fraunces) to the same tight
-     grotesque used for body copy — bold sans headlines read as "clean/
-     modern" the way the serif+uppercase+hairline system reads as
-     "newspaper". Telugu headings keep their own font (--font-te-heading,
-     unchanged below) — that's a separate register, not what round 3 is
-     about. */
+  --shadow-color: color-mix(in srgb, var(--text-primary) 10%, transparent);
+  --shadow-sm: 0 1px 2px var(--shadow-color);
+  --shadow-md: 0 1px 2px var(--shadow-color), 0 8px 24px -8px var(--shadow-color);
+  --shadow-lg: 0 2px 4px var(--shadow-color), 0 16px 40px -12px var(--shadow-color);
+
   --font-heading: var(--font-sans), var(--font-sans-fallback);
+
+  --text-display: clamp(2rem, 1.25rem + 3vw, 3.5rem);
+  --text-h1: clamp(1.75rem, 1.3rem + 1.8vw, 2.5rem);
+  --text-lead: clamp(1.625rem, 1.1rem + 2vw, 2.625rem);
+  --text-h2: 1.375rem;
+  --text-card: 1.1875rem;
+  --text-body: 1.0625rem;
+  --text-small: 0.875rem;
+  --text-meta: 0.75rem;
 }
 
-/* -------------------------------------------------------- 2. Base + a11y */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --shadow-color: rgb(0 0 0 / 0.45);
+  }
+}
 
-* {
+:root[data-theme="dark"] {
+  --shadow-color: rgb(0 0 0 / 0.45);
+}
+
+/* ------------------------------------------------------- 2. Base + a11y */
+
+*,
+*::before,
+*::after {
   box-sizing: border-box;
 }
 
 html {
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
+  scroll-padding-top: calc(var(--header-h) + 56px);
 }
 
 body {
   margin: 0;
-  background: var(--color-bg);
-  color: var(--color-text);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--canvas);
+  color: var(--text-primary);
   font-family: var(--font-body);
-  font-size: 1.0625rem;
-  line-height: 1.55;
+  font-size: var(--text-body);
+  line-height: 1.6;
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
 }
 
 h1,
 h2,
 h3 {
+  margin: 0;
   font-family: var(--font-heading);
   font-weight: 700;
-  line-height: 1.02;
-  letter-spacing: -0.03em;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
   text-wrap: balance;
+}
+
+p {
+  margin: 0;
+  text-wrap: pretty;
+}
+
+ul,
+ol {
+  margin: 0;
+  padding: 0;
 }
 
 [lang="te"] {
   font-family: var(--font-te);
+  line-height: 1.75;
 }
 
-h1[lang="te"],
-h2[lang="te"],
-h3[lang="te"],
-[lang="te"] h1,
-[lang="te"] h2,
-[lang="te"] h3 {
+:is(h1, h2, h3)[lang="te"],
+[lang="te"] :is(h1, h2, h3) {
   font-family: var(--font-te-heading);
-  font-weight: 700;
-  letter-spacing: -0.005em;
-  line-height: 1.2;
+  font-weight: 400;
+  letter-spacing: 0;
+  line-height: 1.4;
 }
 
-/* Links carry their own underline, so colour is never the sole signal. */
 a {
-  color: var(--color-text);
-  text-decoration: underline;
-  text-decoration-color: var(--color-accent-ink);
-  text-decoration-thickness: 2px;
-  text-underline-offset: 3px;
-  transition: text-decoration-color var(--duration-fast) var(--ease-out), color var(--duration-fast) var(--ease-out);
+  color: var(--action-text);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.2em;
 }
 
 a:hover {
-  color: var(--color-accent-ink);
-  text-decoration-color: currentColor;
+  text-decoration-thickness: 2px;
 }
 
-a:focus-visible,
-button:focus-visible,
-input:focus-visible,
-[tabindex]:focus-visible {
-  outline: 3px solid var(--focus-ring);
+:focus-visible {
+  outline: 2px solid var(--focus-ring);
   outline-offset: 2px;
-  border-radius: 0;
-}
-
-button {
-  font: inherit;
+  border-radius: 4px;
 }
 
 ::selection {
-  background: var(--color-accent);
-  color: var(--color-accent-contrast);
+  background: var(--action-primary-soft);
+  color: var(--text-primary);
+}
+
+.icon {
+  flex: none;
+  display: block;
 }
 
 .visually-hidden {
-  position: absolute;
+  position: absolute !important;
   width: 1px;
   height: 1px;
   padding: 0;
   margin: -1px;
   overflow: hidden;
-  clip: rect(0, 0, 0, 0);
+  clip: rect(0 0 0 0);
   white-space: nowrap;
   border: 0;
 }
 
 .skip-link {
   position: absolute;
-  left: -9999px;
-  top: 0;
-  background: var(--color-accent);
-  color: var(--color-accent-contrast);
-  font-family: var(--font-mono-stack);
-  font-size: 0.8rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  text-decoration: none;
-  padding: 0.8rem 1.1rem;
+  left: var(--space-lg);
+  top: -100px;
   z-index: 100;
-  border: 2px solid var(--color-rule);
+  padding: var(--space-sm) var(--space-lg);
+  background: var(--action-primary);
+  color: var(--action-primary-text);
+  border-radius: var(--radius-pill);
+  font-weight: 600;
 }
 
 .skip-link:focus {
-  left: 0.5rem;
-  top: 0.5rem;
+  top: var(--space-sm);
 }
-
-/* Shared micro-label recipe: mono, uppercase, tracked out. */
-.eyebrow,
-.pill,
-.story-card__notice,
-.story-detail__meta,
-.site-nav a,
-.site-footer,
-.topic-rail__list,
-.story-card__actions button {
-  font-family: var(--font-mono-stack);
-}
-
-/* ------------------------------------------------- 3. Masthead + toggle */
-
-/* A three-tier newspaper masthead: a thin utility strip (edition line +
-   toggles), a large nameplate row, and a rule-bordered nav strip — three
-   distinct bands, not one crammed bar. Ink in both themes. */
-.site-header {
-  --mh-bg: #1c1a15;
-  --mh-fg: #f5efe1;
-  --mh-muted: #c8bfab;
-
-  position: sticky;
-  top: 0;
-  z-index: 20;
-  background: var(--mh-bg);
-  color: var(--mh-fg);
-}
-
-.site-header__utility {
-  max-width: var(--page-max);
-  margin: 0 auto;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  padding: 0.4rem 1.25rem;
-  border-bottom: 1px solid #3a362b;
-}
-
-.site-header__edition {
-  font-family: var(--font-mono-stack);
-  font-size: 0.66rem;
-  font-weight: 500;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--mh-muted);
-}
-
-.site-header__utility-controls {
-  display: flex;
-  align-items: center;
-  gap: 0.6rem;
-}
-
-.site-header__nameplate {
-  max-width: var(--page-max);
-  margin: 0 auto;
-  padding: 1.1rem 1.25rem;
-  display: flex;
-  justify-content: center;
-}
-
-.site-header__brand {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  text-decoration: none;
-  color: var(--mh-fg);
-  line-height: 1;
-}
-
-.site-header__brand:hover {
-  color: var(--mh-fg);
-}
-
-/* Brand mark: a hard slab with a notched corner, not a soft blob. */
-.site-header__mark {
-  display: block;
-  width: 2.1rem;
-  height: 2.1rem;
-  flex: none;
-  background: var(--color-accent);
-  clip-path: polygon(0 0, 100% 0, 100% 62%, 62% 100%, 0 100%);
-  transition: transform var(--duration-base) var(--ease-out);
-}
-
-.site-header__brand:hover .site-header__mark {
-  transform: rotate(-90deg);
-}
-
-.site-header__wordmark {
-  display: flex;
-  flex-direction: column;
-  gap: 0.15rem;
-}
-
-.site-header__brand-en {
-  font-family: var(--font-heading);
-  font-weight: 800;
-  font-size: clamp(1.75rem, 4vw, 2.4rem);
-  letter-spacing: -0.03em;
-  text-transform: uppercase;
-}
-
-.site-header__brand-te {
-  font-family: var(--font-te);
-  font-size: 0.85rem;
-  font-weight: 500;
-  color: var(--mh-muted);
-}
-
-.site-nav {
-  border-top: 2px solid var(--color-accent);
-  border-bottom: 1px solid #3a362b;
-}
-
-.site-nav ul {
-  max-width: var(--page-max);
-  margin: 0 auto;
-  display: flex;
-  justify-content: center;
-  gap: 1.75rem;
-  list-style: none;
-  padding: 0.65rem 1.25rem;
-  flex-wrap: wrap;
-}
-
-.site-nav a {
-  text-decoration: none;
-  color: var(--mh-muted);
-  font-size: 0.72rem;
-  font-weight: 500;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  padding: 0.3rem 0;
-  border-bottom: 2px solid transparent;
-  transition: color var(--duration-fast) var(--ease-out), border-color var(--duration-fast) var(--ease-out);
-}
-
-.site-nav a:hover {
-  color: var(--mh-fg);
-  border-bottom-color: var(--color-accent);
-}
-
-.site-header a:focus-visible,
-.site-header button:focus-visible {
-  outline-color: var(--color-accent);
-}
-
-.theme-toggle {
-  display: inline-flex;
-  align-items: center;
-  gap: 0;
-  background: transparent;
-  border: 1px solid #3a362b;
-  border-radius: 7px;
-  overflow: hidden;
-  padding: 0;
-}
-
-.theme-toggle button {
-  all: unset;
-  box-sizing: border-box;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 30px;
-  height: 26px;
-  border-radius: 0;
-  cursor: pointer;
-  color: var(--mh-muted);
-  transition: background var(--duration-fast) var(--ease-out), color var(--duration-fast) var(--ease-out);
-}
-
-.theme-toggle button + button {
-  border-left: 1px solid #3a362b;
-}
-
-.theme-toggle button[aria-pressed="true"] {
-  background: var(--color-accent);
-  color: var(--color-accent-contrast);
-}
-
-.theme-toggle button:hover:not([aria-pressed="true"]) {
-  background: #29241c;
-  color: var(--mh-fg);
-}
-
-.language-toggle {
-  display: inline-flex;
-  align-items: center;
-  gap: 0;
-  background: transparent;
-  border: 1px solid #3a362b;
-  border-radius: 7px;
-  overflow: hidden;
-  padding: 0;
-}
-
-.language-toggle button {
-  all: unset;
-  box-sizing: border-box;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 30px;
-  height: 26px;
-  padding: 0 0.4rem;
-  font-family: var(--font-mono-stack);
-  font-size: 0.7rem;
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  border-radius: 0;
-  cursor: pointer;
-  color: var(--mh-muted);
-  transition: background var(--duration-fast) var(--ease-out), color var(--duration-fast) var(--ease-out);
-}
-
-.language-toggle button + button {
-  border-left: 1px solid #3a362b;
-}
-
-.language-toggle button[aria-pressed="true"] {
-  background: var(--color-accent);
-  color: var(--color-accent-contrast);
-}
-
-.language-toggle button:hover:not([aria-pressed="true"]) {
-  background: #29241c;
-  color: var(--mh-fg);
-}
-
-/* ------------------------------------- 4. Page shell, headings, footer */
 
 main {
+  flex: 1;
+  width: 100%;
   max-width: var(--page-max);
   margin: 0 auto;
-  padding: 2.5rem 1.25rem 5rem;
+  padding: clamp(20px, 3vw, 40px) var(--gutter) 64px;
 }
 
-/* Standard page heading for every non-hero route (search, saved, topic,
-   country, story detail, legal, onboarding, 404, error) — oversized display
-   type over a signal-lime slab rule. */
-main h1 {
-  font-size: clamp(2.1rem, 5.5vw, 3.4rem);
-  font-weight: 800;
-  letter-spacing: -0.03em;
-  text-transform: none;
-  margin: 0 0 1.75rem;
-  max-width: 24ch;
-}
-
-main h1::after {
-  content: "";
-  display: block;
-  width: 3rem;
-  height: 4px;
-  margin-top: 1rem;
-  border-radius: 999px;
-  background: var(--color-accent);
-}
-
-/* The hero and story headlines run their own treatment. */
-.page-hero h1::after,
-.story-card__headline::after {
-  content: none;
-}
-
-main h2 {
-  font-size: clamp(1.5rem, 3vw, 2rem);
-  margin: 0 0 0.75rem;
-}
-
-/* Eyebrow: the mono-uppercase micro-label that sits above a heading to give
-   a section its "section title" (kicker). Declared in the shared mono-font
-   list already; styled here so every listing page can use it instead of
-   inventing a one-off label. */
 .eyebrow {
-  margin: 0 0 0.4rem;
-  font-size: 0.68rem;
+  margin: 0 0 var(--space-sm);
+  color: var(--action-text);
+  font-size: var(--text-meta);
   font-weight: 700;
-  letter-spacing: 0.18em;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
+}
+
+/* ---------------------------------------------------------- 3. Controls */
+
+button,
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-sm);
+  min-height: 40px;
+  padding: 0 18px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-pill);
+  background: var(--surface);
+  color: var(--text-primary);
+  font: inherit;
+  font-size: var(--text-small);
+  font-weight: 600;
+  line-height: 1;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background var(--duration-fast) var(--ease-out), border-color var(--duration-fast) var(--ease-out), color var(--duration-fast) var(--ease-out), transform var(--duration-fast) var(--ease-out);
+}
+
+button:hover,
+.button:hover {
+  border-color: var(--border-control);
+  background: var(--surface-subtle);
+}
+
+button:active,
+.button:active {
+  transform: scale(0.97);
+}
+
+button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.button--primary,
+.onboarding__actions button:first-child {
+  border-color: var(--action-primary);
+  background: var(--action-primary);
+  color: var(--action-primary-text);
+}
+
+.button--primary:hover,
+.onboarding__actions button:first-child:hover {
+  border-color: var(--action-primary-hover);
+  background: var(--action-primary-hover);
+  color: var(--action-primary-text);
+}
+
+.button--small {
+  min-height: 32px;
+  padding: 0 12px;
+}
+
+.icon-button {
+  display: inline-grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--text-secondary);
+}
+
+.icon-button:hover,
+.icon-button[aria-current="page"] {
+  background: var(--surface-subtle);
+  color: var(--text-primary);
+}
+
+/* Segmented control: header language toggle + story-detail override. */
+.language-toggle,
+.segmented {
+  display: inline-flex;
+  padding: 3px;
+  gap: 2px;
+  border-radius: var(--radius-pill);
+  background: var(--surface-subtle);
+}
+
+.language-toggle button,
+.segmented button {
+  min-height: 30px;
+  padding: 0 12px;
+  border: 0;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 0.8125rem;
+}
+
+.language-toggle button[aria-pressed="true"],
+.segmented button[aria-pressed="true"] {
+  background: var(--surface);
+  color: var(--text-primary);
+  box-shadow: var(--shadow-sm);
+}
+
+.theme-toggle__to-light {
+  display: none;
+}
+
+:root[data-theme="dark"] .theme-toggle__to-dark {
+  display: none;
+}
+
+:root[data-theme="dark"] .theme-toggle__to-light {
+  display: block;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .theme-toggle__to-dark {
+    display: none;
+  }
+
+  :root:not([data-theme="light"]) .theme-toggle__to-light {
+    display: block;
+  }
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px;
+  border-radius: var(--radius-pill);
+  background: var(--surface-subtle);
+  color: var(--text-secondary);
+  font-size: var(--text-meta);
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.badge--hot {
+  background: var(--color-hot-soft);
+  color: var(--color-hot);
+}
+
+.badge--accent {
+  background: var(--action-primary-soft);
   color: var(--action-text);
 }
 
-/* Shared compact header for every listing route (/latest, /search, /topic,
-   /country, /saved). Same weight class as the homepage's .briefing-header,
-   deliberately far smaller than the giant `main h1` slab treatment used on
-   legal/static pages — a listing page's job is to show stories, not spend
-   a full screen on its own title. */
-.listing-header {
-  margin: 0 0 1.75rem;
-  padding: 0 0 1.1rem;
+.badge--success {
+  background: var(--success-soft);
+  color: var(--success);
+}
+
+.badge--danger {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+.badge__pulse {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+  animation: pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  50% {
+    opacity: 0.3;
+  }
+}
+
+.chip-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+  list-style: none;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 38px;
+  padding: 0 16px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-pill);
+  background: var(--surface);
+  color: var(--text-primary);
+  font-size: var(--text-small);
+  font-weight: 600;
+  text-decoration: none;
+  transition: background var(--duration-fast) var(--ease-out), border-color var(--duration-fast) var(--ease-out);
+}
+
+.chip:hover {
+  border-color: var(--action-primary);
+  background: var(--action-primary-soft);
+  color: var(--action-text);
+}
+
+.callout {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-md);
+  margin-bottom: var(--space-xl);
+  padding: var(--space-md) var(--space-lg);
+  border-radius: var(--radius-card);
+  background: var(--warning-soft);
+  color: var(--text-primary);
+}
+
+.empty-state {
+  padding: 48px var(--space-xl);
+  border: 1px dashed var(--border-control);
+  border-radius: var(--radius-card);
+  color: var(--text-secondary);
+  text-align: center;
+}
+
+/* ------------------------------------------------ 4. Header + topic bar */
+
+.site-header {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  background: color-mix(in srgb, var(--canvas) 86%, transparent);
+  -webkit-backdrop-filter: saturate(180%) blur(14px);
+  backdrop-filter: saturate(180%) blur(14px);
   border-bottom: 1px solid var(--border-subtle);
 }
 
-.listing-header h1 {
+.site-header__inner {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xl);
+  max-width: var(--page-max);
+  height: var(--header-h);
+  margin: 0 auto;
+  padding: 0 var(--gutter);
+}
+
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
   margin: 0;
-  max-width: none;
-  font-size: clamp(1.6rem, 2.8vw, 2.15rem);
-  letter-spacing: -0.03em;
-  text-transform: none;
+  color: var(--text-primary);
+  text-decoration: none;
 }
 
-.listing-header h1::after {
-  content: none;
+.brand__mark {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: var(--action-primary);
+  color: var(--action-primary-text);
+  font-family: var(--font-te);
+  font-size: 1.125rem;
+  font-weight: 700;
+  line-height: 1;
 }
 
-.listing-header p:last-child {
-  margin: 0.5rem 0 0;
+.brand__text {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.1;
+}
+
+.brand__name {
+  font-size: 1.0625rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  white-space: nowrap;
+}
+
+.brand__tag {
+  color: var(--text-tertiary);
+  font-size: 0.6875rem;
+  line-height: 1.4;
+}
+
+.site-nav {
+  flex: 1;
+}
+
+.site-nav ul {
+  display: flex;
+  gap: 2px;
+  list-style: none;
+}
+
+.site-nav a {
+  display: block;
+  padding: 8px 14px;
+  border-radius: var(--radius-pill);
   color: var(--text-secondary);
-  max-width: var(--measure);
+  font-size: 0.9375rem;
+  font-weight: 600;
+  text-decoration: none;
 }
 
-main > p,
-.legal p,
-.onboarding p {
-  max-width: var(--measure);
+.site-nav a:hover {
+  background: var(--surface-subtle);
+  color: var(--text-primary);
+}
+
+.site-nav a[aria-current="page"] {
+  background: var(--action-primary-soft);
+  color: var(--action-text);
+}
+
+.site-header__tools {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+}
+
+.topic-bar {
+  max-width: var(--page-max);
+  margin: 0 auto;
+  /* Fade the edges so it reads as horizontally scrollable. */
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 var(--gutter), #000 calc(100% - 48px), transparent);
+  mask-image: linear-gradient(90deg, transparent, #000 var(--gutter), #000 calc(100% - 48px), transparent);
+}
+
+.topic-bar__list {
+  display: flex;
+  gap: 4px;
+  padding: 0 var(--gutter) 8px;
+  overflow-x: auto;
+  list-style: none;
+  scrollbar-width: none;
+  overscroll-behavior-x: contain;
+}
+
+.topic-bar__list::-webkit-scrollbar {
+  display: none;
+}
+
+.topic-bar__link {
+  display: block;
+  padding: 5px 12px;
+  border-radius: var(--radius-pill);
+  color: var(--text-secondary);
+  font-size: var(--text-small);
+  font-weight: 500;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.topic-bar__link:hover {
+  background: var(--surface-subtle);
+  color: var(--text-primary);
+}
+
+.topic-bar__link[aria-current="page"] {
+  background: var(--text-primary);
+  color: var(--canvas);
+}
+
+/* -------------------------------------------- 5. Bottom nav + footer */
+
+.bottom-nav {
+  display: none;
 }
 
 .site-footer {
-  background: var(--color-surface-sunken);
-  border-top: 2px solid var(--color-rule);
-  margin-top: 4rem;
-  padding: 3rem 1.25rem 3.5rem;
-  color: var(--color-muted);
-  font-size: 0.78rem;
-  letter-spacing: 0.02em;
+  margin-top: auto;
+  background: var(--surface-subtle);
+  color: var(--text-secondary);
+  font-size: var(--text-small);
 }
 
 .site-footer__inner {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) repeat(3, minmax(0, 1fr));
+  gap: var(--space-xl) 40px;
   max-width: var(--page-max);
   margin: 0 auto;
+  padding: 48px var(--gutter) 32px;
 }
 
-.site-footer > .site-footer__inner > p {
-  max-width: 52ch;
-  font-family: var(--font-body);
-  font-size: 0.95rem;
-  letter-spacing: normal;
-  line-height: 1.5;
-  margin: 0;
+.site-footer__about {
+  display: grid;
+  gap: var(--space-md);
+  max-width: 24rem;
+}
+
+.site-footer__heading {
+  margin-bottom: var(--space-md);
+  color: var(--text-primary);
+  font-weight: 700;
 }
 
 .site-footer ul {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.6rem 1.5rem;
+  display: grid;
+  gap: var(--space-sm);
   list-style: none;
-  margin: 1.75rem 0 0;
-  padding: 1.5rem 0 0;
-  border-top: 1px solid var(--color-border);
 }
 
 .site-footer a {
-  color: var(--color-muted);
-  text-transform: uppercase;
+  color: var(--text-secondary);
   text-decoration: none;
-  border-bottom: 1px solid transparent;
 }
 
 .site-footer a:hover {
-  color: var(--color-text);
-  border-bottom-color: var(--color-accent);
+  color: var(--text-primary);
+  text-decoration: underline;
 }
 
-/* ------------------------------------------------------------- 5. Hero */
-
-.page-hero {
-  position: relative;
-  overflow: hidden;
-  isolation: isolate;
-  padding: 3.5rem 2.5rem 3.25rem;
-  margin: -2.5rem -1.25rem 3.5rem;
-  border-bottom: 2px solid var(--color-rule);
-  background: var(--color-bg);
+.site-footer__base {
+  max-width: var(--page-max);
+  margin: 0 auto;
+  padding: var(--space-lg) var(--gutter) 32px;
+  border-top: 1px solid var(--border-subtle);
+  color: var(--text-tertiary);
+  font-size: var(--text-meta);
 }
 
-/* Halftone dot field, bleeding off the right edge. */
-.page-hero__glow {
-  position: absolute;
-  inset: 0 0 0 auto;
-  width: min(60%, 34rem);
-  z-index: -1;
-  background-image: radial-gradient(var(--color-accent) 1.5px, transparent 1.6px);
-  background-size: 14px 14px;
-  opacity: 0.55;
-  mask-image: linear-gradient(to left, #000 0%, transparent 85%);
-  -webkit-mask-image: linear-gradient(to left, #000 0%, transparent 85%);
-}
+/* ------------------------------------------------------------- 6. Home */
 
-.page-hero::before {
-  content: "TODAY'S BRIEFING";
-  display: inline-block;
-  font-family: var(--font-mono-stack);
-  font-size: 0.68rem;
-  font-weight: 700;
-  letter-spacing: 0.18em;
-  color: var(--color-accent-contrast);
-  background: var(--color-accent);
-  padding: 0.3rem 0.6rem;
-  margin-bottom: 1.5rem;
-}
-
-.page-hero h1 {
-  font-size: clamp(3rem, 11vw, 6.5rem);
-  font-weight: 800;
-  line-height: 0.88;
-  letter-spacing: -0.05em;
-  text-transform: uppercase;
-  margin: 0 0 1.5rem;
-  max-width: 16ch;
-}
-
-.page-hero p {
-  color: var(--color-muted);
-  font-size: clamp(1.05rem, 1.6vw, 1.3rem);
-  max-width: 42ch;
-  margin: 0;
-}
-
-.page-hero p + p {
-  margin-top: 2rem;
-}
-
-.page-hero__cta {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.8rem 1.4rem;
-  background: var(--color-accent);
-  color: var(--color-accent-contrast) !important;
-  border: 0;
-  border-radius: 999px;
-  font-family: var(--font-mono-stack);
-  font-size: 0.82rem;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  text-decoration: none !important;
-  box-shadow: none;
-  transition: background var(--duration-fast) var(--ease-out), transform var(--duration-fast) var(--ease-out);
-}
-
-.page-hero__cta:hover {
-  background: var(--color-accent-strong);
-  transform: translateY(-1px);
-}
-
-/* --------------------------------------------------------- 6. Topic rail */
-
-.topic-rail {
-  position: relative;
-  margin-bottom: 3rem;
-}
-
-.topic-rail::before {
-  content: "TOPICS";
-  display: block;
-  font-family: var(--font-mono-stack);
-  font-size: 0.66rem;
-  font-weight: 700;
-  letter-spacing: 0.18em;
-  color: var(--color-faint);
-  margin-bottom: 0.7rem;
-}
-
-.topic-rail__list {
+.edition {
   display: flex;
-  flex-wrap: nowrap;
-  overflow-x: auto;
-  gap: 0.5rem;
-  list-style: none;
-  margin: 0;
-  padding: 0.15rem 0.1rem;
-  border: 0;
-  scrollbar-width: thin;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-lg) var(--space-xl);
+  margin-bottom: clamp(20px, 3vw, 32px);
 }
 
-.topic-rail__list li {
+.edition h1 {
+  font-size: var(--text-h1);
+  letter-spacing: -0.03em;
+}
+
+.edition__lede {
+  margin-top: 6px;
+  color: var(--text-secondary);
+}
+
+.personalize-card {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  max-width: 30rem;
+  padding: 12px 12px 12px 16px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-card);
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+}
+
+.personalize-card__icon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--action-primary-soft);
+  color: var(--action-text);
+}
+
+.personalize-card__title {
+  font-size: var(--text-small);
+  font-weight: 700;
+}
+
+.personalize-card__text {
+  color: var(--text-secondary);
+  font-size: 0.8125rem;
+  line-height: 1.4;
+}
+
+.personalize-card .button {
   flex: none;
 }
 
-.topic-rail__list li + li .pill--topic {
-  border-left: 0;
+.front-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.7fr) minmax(17rem, 1fr);
+  gap: clamp(20px, 3vw, 40px);
+  margin-bottom: 48px;
 }
 
-.pill--topic {
-  display: block;
-  background: var(--color-accent-soft);
-  border: 0;
-  color: var(--color-accent-ink);
-  font-family: var(--font-mono-stack);
-  font-size: 0.72rem;
-  font-weight: 600;
-  letter-spacing: 0.08em;
+.front-grid__side {
+  min-width: 0;
+}
+
+.rail-title {
+  margin-bottom: var(--space-sm);
+  padding-bottom: var(--space-sm);
+  border-bottom: 2px solid var(--text-primary);
+  font-size: var(--text-small);
+  font-weight: 800;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
-  border-radius: 999px;
-  padding: 0.55rem 1rem;
-  white-space: nowrap;
-  text-decoration: none;
-  transition: background var(--duration-fast) var(--ease-out), color var(--duration-fast) var(--ease-out);
 }
 
-.pill--topic:hover {
-  background: var(--color-accent);
-  color: var(--color-accent-contrast);
-}
-
-/* --------------------------------------------- 7. Story ledger + card */
-
-/* The feed is a numbered ledger of hairline-separated dispatches. The first
-   entry on any list gets a lead-story scale bump. */
-.story-list {
-  counter-reset: dispatch;
-  display: block;
+.front-grid__rail {
   list-style: none;
-  margin: 0 0 3rem;
-  padding: 0;
-  border-top: 0;
+  counter-reset: rail;
 }
 
-.story-list > li {
-  counter-increment: dispatch;
-  display: block;
+.front-grid__rail > li {
+  counter-increment: rail;
+  display: grid;
+  grid-template-columns: 2.25rem minmax(0, 1fr);
   border-bottom: 1px solid var(--border-subtle);
 }
 
-@keyframes dispatch-in {
-  from {
-    opacity: 0;
-    transform: translateY(14px);
-  }
-  to {
-    opacity: 1;
-    transform: none;
-  }
+.front-grid__rail > li::before {
+  content: counter(rail);
+  padding-top: 18px;
+  color: var(--action-primary);
+  font-size: 1.75rem;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: -0.04em;
 }
+
+.section-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-lg);
+  margin: 0 0 var(--space-lg);
+  padding-top: var(--space-lg);
+  border-top: 1px solid var(--border-subtle);
+}
+
+.section-head h2 {
+  font-size: var(--text-h2);
+}
+
+.section-head__more {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: var(--text-small);
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.section-head__more:hover {
+  text-decoration: underline;
+}
+
+.feed-more {
+  display: flex;
+  justify-content: center;
+  margin: 32px 0 48px;
+}
+
+.student-briefing,
+.explore {
+  margin-bottom: 48px;
+}
+
+/* ------------------------------------------------------ 7. Story cards */
 
 .story-card {
   position: relative;
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
-  padding: 2.25rem 0 2rem;
+  gap: 10px;
+  min-width: 0;
 }
 
-.story-list .story-card {
-  padding-left: 5rem;
-  animation: dispatch-in 0.45s var(--ease-out) both;
-  animation-delay: calc(var(--i, 0) * 55ms);
-}
-
-/* Ledger index — decorative, mirrors the visible list order. */
-.story-list .story-card::before {
-  content: counter(dispatch, decimal-leading-zero);
-  position: absolute;
-  left: 0;
-  top: 2.4rem;
-  font-family: var(--font-mono-stack);
-  font-size: 0.9rem;
-  font-weight: 700;
-  letter-spacing: 0.02em;
-  color: var(--color-faint);
-  transition: color var(--duration-fast) var(--ease-out);
-}
-
-.story-list > li:hover .story-card::before {
-  color: var(--color-accent-ink);
-}
-
-.story-card__labels {
+.story-card__meta {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.4rem;
-  margin-bottom: 1rem;
-}
-
-.pill {
-  display: inline-block;
-  font-family: var(--font-mono-stack);
-  font-size: 0.62rem;
-  font-weight: 600;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  border: 0;
-  border-radius: 999px;
-  padding: 0.3rem 0.65rem;
-  color: var(--color-muted);
-  background: var(--color-surface-sunken);
-  text-decoration: none;
-}
-
-a.pill:hover {
-  background: var(--color-accent);
-  color: var(--color-accent-contrast);
-  text-decoration: none;
-}
-
-.story-card__notice {
-  display: inline-block;
-  font-family: var(--font-mono-stack);
-  font-size: 0.66rem;
-  font-weight: 700;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  border-radius: 999px;
-  padding: 0.3rem 0.6rem;
-  margin: 0 0 1rem;
-}
-
-.story-card__inline-status {
-  font-size: 0.8rem;
-  color: var(--color-muted);
-  margin-top: 0.5rem;
-}
-
-.story-card__report {
-  margin-top: 0.5rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.4rem;
-}
-
-.story-card__report textarea {
-  width: 100%;
-  font: inherit;
-  border: 1px solid var(--color-border);
-  border-radius: 8px;
-  background: var(--color-surface);
-  color: var(--color-text);
-  padding: 0.5rem;
-}
-
-.story-card__report-actions {
-  display: flex;
-  gap: 0.5rem;
-}
-
-.story-card__reviewed {
-  display: inline-flex;
   align-items: center;
-  gap: 0.35rem;
-  font-family: var(--font-mono-stack);
-  font-size: 0.66rem;
-  font-weight: 700;
-  letter-spacing: 0.14em;
+  gap: 4px 0;
+  color: var(--text-tertiary);
+  font-size: var(--text-meta);
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.story-card__meta > span + span::before {
+  content: "·";
+  margin: 0 7px;
+  color: var(--text-tertiary);
+}
+
+.story-card__kicker {
+  color: var(--action-text);
+  font-weight: 800;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
-  border: 0;
-  border-radius: 999px;
-  padding: 0.3rem 0.6rem;
-  margin: 0 0 1rem;
-  color: var(--color-text);
-  background: var(--color-surface-sunken);
 }
 
-.story-card__notice--retracted {
-  background: var(--color-hot);
-  color: var(--color-bg);
+.story-card__badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
 }
 
-.story-card__notice--updated {
-  background: var(--color-accent);
-  color: var(--color-accent-contrast);
-}
-
-/* text-transform is reset explicitly: on /story/[slug] the headline IS the
-   page h1, and `main h1` sets uppercase — a real headline must never be
-   case-folded. */
 .story-card__headline {
-  margin: 0 0 0.8rem;
-  font-size: clamp(1.5rem, 2.6vw, 2rem);
-  font-weight: 700;
-  line-height: 1.04;
-  letter-spacing: -0.032em;
-  text-transform: none;
-  max-width: 30ch;
-}
-
-/* Lead dispatch: bigger headline, bigger deck. */
-.story-list > li:first-child .story-card__headline {
-  font-size: clamp(2rem, 4.4vw, 3.15rem);
-  max-width: 26ch;
-}
-
-/* :not([class]) so the lead bump hits the summary/source paragraphs only and
-   leaves .story-card__why at its own size. */
-.story-list > li:first-child .story-card > p:not([class]) {
-  font-size: 1.15rem;
+  font-size: var(--text-card);
+  line-height: 1.25;
+  overflow-wrap: anywhere;
 }
 
 .story-card__headline a {
-  text-decoration: none;
-  color: var(--color-text);
-  background-image: linear-gradient(var(--color-accent), var(--color-accent));
-  background-repeat: no-repeat;
-  background-position: 0 88%;
-  background-size: 0% 0.28em;
-  transition: background-size 0.28s var(--ease-out);
-}
-
-.story-card__headline a:hover,
-.story-card__headline a:focus-visible {
-  background-size: 100% 0.28em;
-  color: var(--color-text);
+  color: inherit;
   text-decoration: none;
 }
 
-.story-card > p {
-  margin: 0 0 0.7rem;
-  max-width: var(--measure);
-  color: var(--color-muted);
+.story-card__headline a:hover {
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 0.15em;
 }
 
-/* "Why this matters" — a ruled aside, not a tinted box. Design-review fix:
-   the rule was --color-accent (signal-lime), which measures ~1.2:1 against
-   the light-mode bone background — below the 3:1 WCAG 1.4.11 floor for a
-   non-text UI indicator, and effectively invisible for low-vision users.
-   --color-rule stays high-contrast in both themes (it's already the ink/
-   off-white text color) and still reads as a deliberate marker. */
+.story-card__summary {
+  color: var(--text-secondary);
+  font-size: 0.9375rem;
+  line-height: 1.55;
+}
+
+.story-card__notice,
+.story-card__inline-status {
+  color: var(--text-secondary);
+  font-size: var(--text-small);
+}
+
+.story-card__recommendation {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--action-text);
+  font-size: var(--text-small);
+  font-weight: 600;
+}
+
 .story-card__why {
-  color: var(--color-text);
-  background: transparent;
-  border-left: 4px solid var(--color-rule);
-  border-radius: 0;
-  padding: 0.1rem 0 0.1rem 1rem;
-  margin: 1.1rem 0 1rem;
-  font-size: 0.98rem;
+  padding: 14px 16px;
+  border-left: 3px solid var(--color-hot);
+  border-radius: 0 10px 10px 0;
+  background: color-mix(in srgb, var(--color-hot-soft) 55%, var(--surface));
 }
 
-.story-card__why strong,
-.story-card__why b {
+.story-card__why strong {
   display: block;
-  font-family: var(--font-mono-stack);
-  font-size: 0.64rem;
-  font-weight: 700;
-  letter-spacing: 0.16em;
+  margin-bottom: 2px;
+  color: var(--color-hot);
+  font-size: var(--text-meta);
+  font-weight: 800;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: var(--color-faint);
-  margin-bottom: 0.3rem;
 }
 
-.story-card__source-link {
-  font-family: var(--font-mono-stack);
-  font-size: 0.78rem;
-  font-weight: 500;
-  letter-spacing: 0.03em;
+.story-card__why p {
+  color: var(--text-primary);
+  font-size: 0.9375rem;
 }
 
 .story-card__actions {
   display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  margin-top: 1.35rem;
   flex-wrap: wrap;
+  gap: var(--space-sm);
+  margin-top: 4px;
 }
 
-.story-card__actions [role="group"] {
+.story-card__action {
+  min-height: 38px;
+  padding: 0 14px;
+  color: var(--text-secondary);
+}
+
+.story-card__action[aria-pressed="true"] {
+  border-color: transparent;
+  background: var(--action-primary-soft);
+  color: var(--action-text);
+}
+
+.story-card__source-link--lead {
   display: inline-flex;
-  border: 0;
-  border-radius: 999px;
-  overflow: hidden;
-  background: var(--color-surface-sunken);
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-secondary);
+  font-size: var(--text-small);
+  text-decoration: none;
 }
 
-.story-card__actions [role="group"] button {
-  border: 0;
-  border-radius: 0;
+.story-card__source-link--lead:hover {
+  color: var(--text-primary);
+  text-decoration: underline;
+}
+
+.story-card__source-link--lead .sources__domain {
+  padding: 2px 8px;
+  border-radius: 6px;
+  background: var(--surface-subtle);
+  color: var(--text-primary);
+  font-weight: 700;
+}
+
+.story-card__report {
+  display: grid;
+  gap: var(--space-sm);
+  padding: var(--space-lg);
+  border-radius: var(--radius-card);
+  background: var(--surface-subtle);
+}
+
+.story-card__report label {
+  font-size: var(--text-small);
+  font-weight: 600;
+}
+
+.story-card__report-actions {
+  display: flex;
+  gap: var(--space-sm);
+}
+
+/* Lead: the richest card on the page. A soft accent wash stands in for
+   the photo a news site would normally use. */
+.story-card--lead {
+  gap: 14px;
+  height: 100%;
+  padding: clamp(20px, 3vw, 36px);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-card);
+  background:
+    radial-gradient(120% 90% at 100% 0%, color-mix(in srgb, var(--action-primary-soft) 80%, transparent), transparent 60%),
+    var(--surface);
+  box-shadow: var(--shadow-md);
+}
+
+.story-card--lead .story-card__headline {
+  font-size: var(--text-lead);
+  line-height: 1.08;
+  letter-spacing: -0.03em;
+}
+
+.story-card--lead .story-card__headline[lang="te"] {
+  line-height: 1.35;
+  letter-spacing: 0;
+}
+
+.story-card--lead .story-card__summary {
+  max-width: 40rem;
+  font-size: 1.125rem;
+}
+
+/* When the rail is taller than the lead, keep the headline block at the
+   top and pin source + actions to the bottom of the card. */
+.story-card--lead .story-card__source-link--lead {
+  margin-top: auto;
+  padding-top: var(--space-lg);
+}
+
+/* Brief: compact card; the headline link's ::after stretches over the
+   whole card so anywhere is clickable, while the source link and Save
+   button sit above it. */
+.story-card--brief {
+  height: 100%;
+}
+
+.story-card--brief .story-card__link::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  border-radius: inherit;
+}
+
+.story-card--brief .story-card__summary {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  overflow: hidden;
+}
+
+.story-card__footer {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+  margin-top: auto;
+  padding-top: 4px;
+}
+
+.story-card__source {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text-tertiary);
+  font-size: var(--text-meta);
+  font-weight: 600;
+  text-decoration: none;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.story-card__source:hover {
+  color: var(--text-primary);
+  text-decoration: underline;
+}
+
+.story-card--brief .story-card__action--save {
+  width: 40px;
+  height: 40px;
+  min-height: 0;
+  padding: 0;
+  border-color: transparent;
   background: transparent;
 }
 
-.story-card__actions [role="group"] button + button {
-  border-left: 1px solid var(--color-border);
+.story-card--brief .story-card__action--save:hover {
+  background: var(--surface-subtle);
+  color: var(--text-primary);
 }
 
-.story-card__actions button {
-  border: 0;
-  background: var(--color-surface-sunken);
-  color: var(--color-muted);
-  border-radius: 999px;
-  padding: 0.5rem 0.85rem;
-  font-family: var(--font-mono-stack);
-  font-size: 0.68rem;
-  font-weight: 600;
-  letter-spacing: 0.1em;
+.story-card--brief .story-card__action--save[aria-pressed="true"] {
+  background: var(--action-primary-soft);
+  color: var(--action-text);
+}
+
+.story-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 18rem), 1fr));
+  gap: 20px;
+  list-style: none;
+}
+
+.story-grid > li {
+  min-width: 0;
+}
+
+.story-grid .story-card--brief,
+.skeleton-card {
+  padding: 20px 20px 14px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-card);
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+  transition: transform var(--duration-base) var(--ease-out), box-shadow var(--duration-base) var(--ease-out), border-color var(--duration-base) var(--ease-out);
+}
+
+.story-grid .story-card--brief:hover {
+  transform: translateY(-2px);
+  border-color: var(--border-control);
+  box-shadow: var(--shadow-lg);
+}
+
+.story-grid--compact {
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 15rem), 1fr));
+}
+
+/* Rail items: headline-first, no box, summary hidden. */
+.front-grid__rail .story-card--brief {
+  gap: 6px;
+  padding: 16px 0 8px;
+}
+
+.front-grid__rail .story-card__headline {
+  font-size: 1.0625rem;
+}
+
+.front-grid__rail .story-card__summary {
+  display: none;
+}
+
+/* ------------------------------------------------------- 8. Story page */
+
+.story-page {
+  max-width: var(--page-max);
+  margin: 0 auto;
+}
+
+.breadcrumb {
+  max-width: var(--measure);
+  margin: 0 auto var(--space-xl);
+  font-size: var(--text-small);
+}
+
+.breadcrumb ol {
+  display: flex;
+  flex-wrap: wrap;
+  list-style: none;
+}
+
+.breadcrumb li + li::before {
+  content: "/";
+  margin: 0 8px;
+  color: var(--text-tertiary);
+}
+
+.breadcrumb a {
+  color: var(--text-secondary);
+  text-decoration: none;
+}
+
+.breadcrumb a:hover {
+  color: var(--text-primary);
+  text-decoration: underline;
+}
+
+.story-detail {
+  max-width: var(--measure);
+  margin: 0 auto 56px;
+}
+
+.story-card--detail {
+  gap: 20px;
+}
+
+.story-card--detail .story-card__meta {
+  font-size: var(--text-small);
+}
+
+.story-card--detail .story-card__headline {
+  font-size: var(--text-display);
+  line-height: 1.06;
+  letter-spacing: -0.035em;
+}
+
+.story-card--detail .story-card__headline[lang="te"] {
+  line-height: 1.35;
+  letter-spacing: 0;
+}
+
+.story-card--detail .story-card__summary {
+  color: var(--text-primary);
+  font-size: clamp(1.125rem, 1rem + 0.5vw, 1.3125rem);
+  line-height: 1.6;
+}
+
+.story-card__detail-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-sm) var(--space-lg);
+  padding: var(--space-md) 0;
+  border-block: 1px solid var(--border-subtle);
+  color: var(--text-tertiary);
+  font-size: var(--text-small);
+}
+
+.story-card__detail-meta .segmented {
+  margin-left: auto;
+}
+
+.story-card--detail .story-card__why {
+  padding: 18px 20px;
+}
+
+.story-card--detail .story-card__why p {
+  font-size: 1.0625rem;
+}
+
+.sources {
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-card);
+  background: var(--surface);
+  overflow: hidden;
+}
+
+.sources__title {
+  padding: 12px 18px;
+  border-bottom: 1px solid var(--border-subtle);
+  background: var(--surface-subtle);
+  color: var(--text-secondary);
+  font-size: var(--text-meta);
+  font-weight: 800;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
-  cursor: pointer;
-  min-height: 2.4rem;
-  box-shadow: none;
-  transform: none;
-  transition: background var(--duration-fast) var(--ease-out), color var(--duration-fast) var(--ease-out);
 }
 
-.story-card__actions button:hover {
-  background: var(--color-text);
-  color: var(--color-bg);
-  box-shadow: none;
-  transform: none;
+.sources ul {
+  list-style: none;
 }
 
-.story-card__actions button[aria-pressed="true"] {
-  background: var(--color-accent);
-  color: var(--color-accent-contrast);
-  border-color: var(--color-rule);
+.sources li + li {
+  border-top: 1px solid var(--border-subtle);
 }
 
-/* Story detail: the card stands alone, so it carries its own frame. */
-.story-detail__meta {
-  color: var(--color-faint);
-  font-size: 0.72rem;
-  font-weight: 500;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  margin: 0 0 1.5rem;
+.sources__link {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 2px var(--space-md);
+  align-items: center;
+  padding: 14px 18px;
+  color: var(--text-primary);
+  text-decoration: none;
 }
 
-.story-detail .story-card {
-  padding: 0;
-  border-top: 2px solid var(--color-rule);
-  padding-top: 2rem;
+.sources__link:hover {
+  background: var(--surface-subtle);
 }
 
-.story-detail .story-card__headline {
-  font-size: clamp(2.1rem, 5.5vw, 3.75rem);
-  max-width: 24ch;
-}
-
-/* --------------------------------- 8. Forms, buttons, empty states */
-
-/* Baseline button for routes with no bespoke styling (error boundary,
-   account deletion). Class-scoped rules below win over this. */
-main button {
-  border: 0;
-  background: var(--color-text);
-  color: var(--color-bg);
-  border-radius: 999px;
-  padding: 0.7rem 1.25rem;
-  font-family: var(--font-mono-stack);
-  font-size: 0.78rem;
+.sources__domain {
+  color: var(--text-tertiary);
+  font-size: var(--text-meta);
   font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  cursor: pointer;
-  box-shadow: none;
-  transition: opacity var(--duration-fast) var(--ease-out), transform var(--duration-fast) var(--ease-out);
 }
 
-main button:hover:not(:disabled) {
-  opacity: 0.85;
-  transform: translateY(-1px);
+.sources__name {
+  grid-row: 2;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  line-height: 1.4;
 }
 
-/* Without this a disabled button keeps the full ink fill, the hard shadow and
-   the press-shift on hover, so it reads as clickable. Colour is not the sole
-   signal: the shadow drops and the cursor changes too. */
-main button:disabled {
-  background: var(--color-surface-sunken);
-  color: var(--color-faint);
-  border-color: var(--color-border);
-  box-shadow: none;
-  transform: none;
-  cursor: not-allowed;
+.sources__link .icon {
+  grid-row: 1 / span 2;
+  grid-column: 2;
+  color: var(--text-tertiary);
+}
+
+.related {
+  padding-top: var(--space-sm);
+}
+
+/* ---------------------------------- 9. Listing pages, topics, search */
+
+.page-header {
+  max-width: 48rem;
+  margin-bottom: clamp(24px, 3vw, 36px);
+}
+
+.page-header h1 {
+  font-size: var(--text-h1);
+  letter-spacing: -0.03em;
+}
+
+.page-header__lede {
+  margin-top: var(--space-sm);
+  color: var(--text-secondary);
+  font-size: 1.0625rem;
+}
+
+.pagination {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--space-md);
+  margin-top: 40px;
+}
+
+.pagination:empty {
+  display: none;
+}
+
+.topic-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 15rem), 1fr));
+  gap: var(--space-md);
+  list-style: none;
+}
+
+.topic-tile {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  padding: 14px 16px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-card);
+  background: var(--surface);
+  color: var(--text-primary);
+  font-weight: 700;
+  text-decoration: none;
+  transition: transform var(--duration-base) var(--ease-out), box-shadow var(--duration-base) var(--ease-out), border-color var(--duration-base) var(--ease-out);
+}
+
+.topic-tile:hover {
+  transform: translateY(-2px);
+  border-color: var(--action-primary);
+  box-shadow: var(--shadow-md);
+}
+
+.topic-tile__initial {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: var(--action-primary-soft);
+  color: var(--action-text);
+  font-size: 1.125rem;
+  font-weight: 800;
+}
+
+.topic-tile__name {
+  flex: 1;
+  min-width: 0;
+}
+
+.topic-tile .icon {
+  color: var(--text-tertiary);
 }
 
 .search-form {
+  position: relative;
   display: flex;
-  gap: 0;
-  margin-bottom: 3rem;
-  max-width: 34rem;
-  border: 1px solid var(--color-border);
-  border-radius: 999px;
-  overflow: hidden;
-  background: var(--color-surface-sunken);
+  gap: var(--space-sm);
+  max-width: 42rem;
+  margin-bottom: 32px;
 }
 
-.search-form input[type="search"] {
+.search-form__icon {
+  position: absolute;
+  left: 18px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-tertiary);
+  pointer-events: none;
+}
+
+.search-form input {
   flex: 1;
   min-width: 0;
-  padding: 0.85rem 0 0.85rem 1.25rem;
-  border: 0;
-  border-radius: 0;
-  font-family: var(--font-body);
-  font-size: 1rem;
-  background: transparent;
-  color: var(--color-text);
+  min-height: 52px;
+  padding: 0 18px 0 50px;
+  border: 1px solid var(--border-control);
+  border-radius: var(--radius-pill);
+  background: var(--surface);
+  color: var(--text-primary);
+  font: inherit;
+  box-shadow: var(--shadow-sm);
 }
 
-.search-form input[type="search"]:focus-visible {
-  outline-offset: -3px;
+.search-form input:focus-visible {
+  outline-offset: 0;
+  border-color: var(--action-primary);
 }
 
-.search-form button {
-  border: 0;
-  background: var(--color-accent);
-  color: var(--color-accent-contrast);
-  border-radius: 999px;
-  margin: 0.25rem;
-  padding: 0.6rem 1.25rem;
-  font-family: var(--font-mono-stack);
-  font-size: 0.76rem;
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  cursor: pointer;
-  box-shadow: none;
-  transition: background var(--duration-fast) var(--ease-out);
+.search-form .button {
+  min-height: 52px;
+  padding: 0 24px;
 }
 
-.search-form button:hover {
-  transform: none;
-  box-shadow: none;
-  background: var(--color-accent-strong);
-  color: var(--color-accent-contrast);
+.result-count {
+  margin-bottom: var(--space-lg);
+  color: var(--text-tertiary);
+  font-size: var(--text-small);
+  font-weight: 600;
 }
 
-.search-form button:focus-visible {
-  outline-offset: -3px;
+/* -------------------- 10. Forms, legal, status, skeletons, motion */
+
+input[type="text"],
+textarea {
+  width: 100%;
+  padding: 10px 14px;
+  border: 1px solid var(--border-control);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--text-primary);
+  font: inherit;
 }
 
-.empty-state {
-  color: var(--color-muted);
-  font-family: var(--font-mono-stack);
-  font-size: 0.85rem;
-  letter-spacing: 0.04em;
-  padding: 2.5rem 0;
-  border-top: 1px solid var(--color-border);
-  border-bottom: 1px solid var(--color-border);
+input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  accent-color: var(--action-primary);
 }
 
-/* --------------- 9. Student briefing, onboarding, legal */
-
-/* Student briefing: a flagged band above the main ledger. Design-review
-   fix: this was --color-accent (signal-lime) at ~1.15:1 against the
-   light-mode bone background — a non-text UI indicator needs 3:1 (WCAG
-   1.4.11) regardless of how thick the rule is. --color-rule holds
-   contrast in both themes. */
-.student-briefing {
-  margin-bottom: 3.5rem;
-  padding: 0;
-  border-radius: 0;
-  border: 0;
-  border-top: 8px solid var(--color-rule);
-  background: transparent;
-}
-
-.student-briefing h2 {
-  font-family: var(--font-mono-stack);
-  font-size: 0.72rem;
-  font-weight: 700;
-  letter-spacing: 0.2em;
-  text-transform: uppercase;
-  color: var(--color-accent-ink);
-  margin: 0.9rem 0 1.25rem;
-}
-
-.student-briefing .story-grid {
-  margin-bottom: 0;
+.onboarding,
+.legal,
+.status-page {
+  max-width: 42rem;
+  margin: 0 auto;
 }
 
 .onboarding {
-  max-width: 38rem;
+  display: grid;
+  gap: var(--space-xl);
+}
+
+.onboarding h1,
+.legal h1,
+.status-page h1 {
+  font-size: var(--text-h1);
+  letter-spacing: -0.03em;
+}
+
+.onboarding > p,
+.onboarding__hint {
+  color: var(--text-secondary);
 }
 
 .onboarding__fieldset {
-  border: 2px solid var(--color-rule);
-  border-radius: 0;
-  padding: 1.5rem;
-  margin: 2rem 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+  margin: 0;
+  padding: 20px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-card);
 }
 
 .onboarding__fieldset legend {
-  font-family: var(--font-mono-stack);
-  font-size: 0.72rem;
+  padding: 0 6px;
   font-weight: 700;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  background: var(--color-accent);
-  color: var(--color-accent-contrast);
-  padding: 0.3rem 0.6rem;
-}
-
-.onboarding__radio {
-  display: flex;
-  align-items: center;
-  gap: 0.65rem;
-  padding: 0.5rem 0;
-  cursor: pointer;
-}
-
-.onboarding__radio input {
-  width: 1.05rem;
-  height: 1.05rem;
-  accent-color: var(--color-accent-ink);
 }
 
 .onboarding__hint {
-  font-family: var(--font-mono-stack);
-  font-size: 0.74rem;
-  letter-spacing: 0.03em;
-  color: var(--color-faint);
-  margin: 0 0 0.9rem;
+  flex-basis: 100%;
+  font-size: var(--text-small);
+}
+
+.onboarding__radio {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-sm);
+  min-height: 40px;
+  padding: 0 14px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-pill);
+  font-size: var(--text-small);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.onboarding__radio:hover {
+  border-color: var(--border-control);
+}
+
+.onboarding__radio:has(input:checked) {
+  border-color: var(--action-primary);
+  background: var(--action-primary-soft);
+  color: var(--action-text);
 }
 
 .onboarding__field {
-  display: flex;
-  flex-direction: column;
-  gap: 0.45rem;
-  margin-bottom: 1.35rem;
-}
-
-.onboarding__field label {
-  font-family: var(--font-mono-stack);
-  font-size: 0.7rem;
-  font-weight: 500;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--color-faint);
-}
-
-.onboarding__field input {
-  padding: 0.75rem 0.9rem;
-  border: 2px solid var(--color-rule);
-  border-radius: 0;
-  font-family: var(--font-body);
-  font-size: 1rem;
-  background: var(--color-surface);
-  color: var(--color-text);
+  display: grid;
+  gap: 6px;
+  font-weight: 600;
 }
 
 .onboarding__actions {
   display: flex;
-  gap: 1rem;
-  margin-top: 2rem;
   flex-wrap: wrap;
+  gap: var(--space-md);
 }
 
-.onboarding__actions button {
-  border: 2px solid var(--color-rule);
-  background: var(--color-accent);
-  color: var(--color-accent-contrast);
-  border-radius: 0;
-  padding: 0.8rem 1.4rem;
-  font-family: var(--font-mono-stack);
-  font-size: 0.78rem;
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  cursor: pointer;
-  box-shadow: var(--shadow-hard-sm);
-}
-
-.onboarding__skip {
-  background: transparent !important;
-  color: var(--color-text) !important;
-  box-shadow: none !important;
-}
-
-.onboarding__skip:hover {
-  transform: none !important;
-  background: var(--color-surface-sunken) !important;
-}
-
-/* Legal / about: a comfortable single measure, no display bombast. */
 .legal {
-  max-width: 42rem;
+  display: grid;
+  gap: var(--space-lg);
 }
 
-/* Policy pages get the same lime slab rule but not the all-caps shout — these
-   are read, not scanned. */
-.legal h1 {
-  font-size: clamp(2rem, 5vw, 2.9rem);
-  text-transform: none;
-  letter-spacing: -0.035em;
-}
-
-.legal h2,
-.legal h3 {
-  margin: 2.5rem 0 0.75rem;
-  font-size: 1.35rem;
-  text-transform: none;
+.legal h2 {
+  margin-top: var(--space-lg);
+  font-size: var(--text-h2);
 }
 
 .legal p,
 .legal li {
-  color: var(--color-muted);
+  color: var(--text-secondary);
+  line-height: 1.7;
 }
 
 .legal ul,
@@ -1260,585 +1472,254 @@ main button:disabled {
   padding-left: 1.25rem;
 }
 
-.legal li {
-  margin-bottom: 0.4rem;
+.legal button {
+  justify-self: start;
 }
 
-/* ------------------------------ 10. Motion + narrow viewports */
+.status-page {
+  display: grid;
+  justify-items: center;
+  gap: var(--space-md);
+  padding: 48px 0;
+  text-align: center;
+}
+
+.status-page__code {
+  color: var(--action-primary);
+  font-size: clamp(4rem, 12vw, 7rem);
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: -0.05em;
+}
+
+.status-page p {
+  color: var(--text-secondary);
+}
+
+.status-page__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--space-sm);
+  margin-top: var(--space-sm);
+}
+
+.skeleton {
+  display: block;
+  height: 14px;
+  border-radius: 6px;
+  background: linear-gradient(90deg, var(--surface-subtle) 25%, color-mix(in srgb, var(--surface-subtle) 40%, var(--surface)) 50%, var(--surface-subtle) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s linear infinite;
+}
+
+.skeleton--meta {
+  width: 30%;
+  height: 10px;
+}
+
+.skeleton--title {
+  height: 20px;
+}
+
+.skeleton--heading {
+  width: 45%;
+  height: 36px;
+}
+
+.skeleton--display {
+  height: 44px;
+}
+
+.skeleton--block {
+  height: 96px;
+  margin-top: var(--space-md);
+}
+
+.skeleton--short {
+  width: 60%;
+}
+
+.skeleton-card,
+.skeleton-header,
+.skeleton-article {
+  display: grid;
+  gap: 12px;
+}
+
+.skeleton-header {
+  margin-bottom: 32px;
+}
+
+.skeleton-card--lead {
+  min-height: 320px;
+  align-content: start;
+}
+
+.skeleton-card--lead .skeleton--title {
+  height: 36px;
+}
+
+.front-grid__side .skeleton-card + .skeleton-card {
+  margin-top: 20px;
+}
+
+@keyframes shimmer {
+  to {
+    background-position: -200% 0;
+  }
+}
 
 @media (prefers-reduced-motion: reduce) {
-  .story-list .story-card {
-    animation: none;
-  }
-
-  .page-hero__cta:hover,
-  main button:hover,
-  .site-header__brand:hover .site-header__mark {
-    transform: none;
-  }
-
-  * {
-    animation-duration: 0.001ms !important;
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
-    transition-duration: 0.001ms !important;
+    transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
+  }
+
+  .story-grid .story-card--brief:hover,
+  .topic-tile:hover {
+    transform: none;
   }
 }
 
-@media (max-width: 760px) {
-  main {
-    padding: 1.75rem 1.1rem 4rem;
-  }
+/* ---------------------------------------------------- Responsive */
 
-  .page-hero {
-    padding: 2.5rem 1.25rem 2.5rem;
-    margin: -1.75rem -1.1rem 2.5rem;
-  }
-
-  /* The ledger index gutter costs too much width on a phone. */
-  .story-list .story-card {
-    padding-left: 0;
-  }
-
-  .story-list .story-card::before {
+@media (max-width: 1080px) {
+  .brand__tag {
     display: none;
   }
 
-  .onboarding__fieldset {
-    padding: 1.1rem;
+  .site-nav a {
+    padding: 8px 10px;
   }
 }
-
-@media (max-width: 560px) {
-  .site-header__utility,
-  .site-header__nameplate {
-    padding-inline: 1rem;
-  }
-
-  .site-header__utility-controls {
-    gap: 0.5rem;
-  }
-
-  .search-form {
-    flex-wrap: wrap;
-    border-radius: 14px;
-  }
-
-  .search-form button {
-    flex: 1;
-    margin: 0 0.25rem 0.25rem;
-  }
-}
-
-.story-card__date, .story-card__recommendation { font-size: 0.85rem; color: var(--color-muted); }
-.site-nav a[aria-current="page"] { text-decoration: underline; text-underline-offset: 0.4rem; }
-.pagination { display: flex; flex-wrap: wrap; gap: 1.5rem; margin-block: 2rem; }
-@media (max-width: 560px) {
-  .site-nav ul { gap: 1rem; justify-content: flex-start; }
-  .story-card { padding-inline: 0; }
-  .site-nav a, .language-toggle button, .theme-toggle button { min-height: 44px; display: inline-flex; align-items: center; }
-}
-
-/* ---------------------------------------------------------------- 12. Semantic color roles
-   Navigation, selection, utility actions, and editorial status deliberately
-   use different roles. This prevents a reader from interpreting every blue
-   or filled chip as equally important. */
-a:focus-visible,
-button:focus-visible,
-input:focus-visible,
-[tabindex]:focus-visible {
-  outline: 3px solid var(--action-primary);
-  outline-offset: 2px;
-}
-
-/* .pill and .pill--topic carry their own tinted-pill background/color
-   (declared above, section 7/6) — this block only adds the semantic hover/
-   focus state, it no longer overrides the resting paint with a bordered
-   surface (round 3: soft rounded tags, not bordered boxes). */
-.pill--topic:hover,
-.pill--topic:focus-visible {
-  background: var(--action-primary);
-  color: var(--action-primary-text);
-}
-
-a.pill:hover,
-a.pill:focus-visible {
-  background: var(--action-primary);
-  color: var(--action-primary-text);
-}
-
-/* Resting paint (soft rounded pill, tinted surface) lives with the base
-   rules above — this block only layers the semantic hover/press states. */
-.story-card__actions button {
-  color: var(--text-secondary);
-}
-
-.story-card__actions button:hover {
-  background: var(--action-primary);
-  color: var(--action-primary-text);
-}
-
-.story-card__actions [role="group"] button[aria-pressed="true"] {
-  background: var(--action-primary-soft);
-  color: var(--action-text);
-}
-
-.story-card__action--save[aria-pressed="true"] {
-  background: var(--success-soft) !important;
-  border-color: var(--success) !important;
-  color: var(--success) !important;
-}
-
-.story-card__action--report {
-  border-color: var(--border-subtle) !important;
-}
-
-.story-card__notice--updated {
-  background: var(--action-primary-soft);
-  color: var(--action-text);
-}
-
-.story-card__reviewed {
-  background: var(--success-soft);
-  border-color: var(--success);
-  color: var(--success);
-}
-
-.story-card__notice--retracted,
-.story-card__report [role="alert"] {
-  background: var(--danger-soft);
-  color: var(--danger);
-}
-
-/* Story detail: a plain editorial article, not a card. The bordered-card
-   treatment stays for feed items only. */
-.story-detail {
-  width: min(100%, var(--measure));
-  margin: 0 auto;
-}
-.story-detail .story-card {
-  padding: 0;
-  border: 0;
-  border-radius: 0;
-  background: none;
-  box-shadow: none;
-}
-.story-detail .story-card__headline {
-  max-width: 18ch;
-  font-size: clamp(2.5rem, 6vw, 4.5rem);
-  line-height: 0.98;
-  letter-spacing: -0.03em;
-}
-.story-detail .story-card__date {
-  padding-bottom: 1rem;
-  margin-bottom: 1.5rem;
-  border-bottom: 1px solid var(--border-subtle);
-  color: var(--text-secondary);
-  font-family: var(--font-mono-stack);
-  font-size: .78rem;
-  letter-spacing: .04em;
-}
-.story-detail .story-card > p:not([class]) {
-  max-width: var(--measure);
-  font-size: clamp(1.08rem, 1.8vw, 1.28rem);
-  line-height: 1.65;
-}
-.story-detail .story-card__why {
-  border-left: 5px solid var(--color-hot);
-  padding-left: 1.25rem;
-  font-size: 1.05rem;
-}
-
-/* ---------------------------------------------------------------- 13. Newsroom shell
-   Lead + briefs: the top story reads as a lead newspaper story (no card
-   chrome, oversized headline, thick rust rule on the pull-quote); the rest
-   sit in a denser grid below a rule-and-label section break. */
-.briefing-header {
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 1.5rem;
-  margin: 0 0 2rem;
-  padding: 0 0 1.35rem;
-  border-bottom: 1px solid var(--border-subtle);
-}
-.briefing-header h1 {
-  margin: 0.1rem 0 0.25rem;
-  max-width: none;
-  font-size: clamp(1.75rem, 3vw, 2.25rem);
-  line-height: 1.02;
-  letter-spacing: -0.035em;
-  text-transform: none;
-}
-.briefing-header h1::after { display: none; }
-.briefing-header > div > p:last-child { margin: 0; color: var(--text-secondary); }
-.briefing-kicker { margin: 0 0 .2rem; color: var(--action-text); font-family: var(--font-mono-stack); font-size: .68rem; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; }
-.briefing-header .page-hero__cta { flex: none; }
-
-/* Front page: lead story + a rail of secondary stories beside it, so a wide
-   viewport shows several stories in the first screen instead of one
-   oversized headline. Caps replace the old newspaper-scale hero. */
-.front-grid {
-  display: grid;
-  grid-template-columns: minmax(0, 1.6fr) minmax(17rem, 1fr);
-  gap: 0 2.75rem;
-  align-items: start;
-  margin-bottom: 2rem;
-}
-.front-grid__lead .story-card { padding: 0; border: 0; background: none; box-shadow: none; align-items: stretch; }
-.front-grid__lead .story-card__headline {
-  max-width: none;
-  font-size: clamp(1.9rem, 3.2vw, 2.75rem);
-  line-height: 1.03;
-  letter-spacing: -0.03em;
-}
-.front-grid__lead .story-card__headline a { background: none; }
-.front-grid__lead .story-card__headline a:hover,
-.front-grid__lead .story-card__headline a:focus-visible { color: var(--action-text); }
-.front-grid__lead .story-card > p:not([class]) {
-  max-width: 55ch;
-  font-size: 1rem;
-  -webkit-line-clamp: 2;
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-.front-grid__lead .story-card__why {
-  max-width: 50ch;
-  border-left: 5px solid var(--color-hot);
-  padding: 0.2rem 0 0.2rem 1.25rem;
-  font-size: 0.95rem;
-  margin: 0.9rem 0 0.8rem;
-}
-.front-grid__lead .story-card__why strong { color: var(--color-hot); }
-.front-grid__lead .story-card__actions { margin-top: 1rem; }
-
-/* Rail: up to five compact secondary dispatches beside the lead. Sized a
-   notch above the "more stories" grid below (it's the second-highest
-   priority slot on the page, not a tertiary one), but with every field that
-   isn't essential-at-a-glance trimmed for height: why-matters is dropped and
-   actions collapse to plain text links (.story-card--brief, below). */
-.front-grid__rail {
-  list-style: none;
-  margin: 0;
-  padding: 0 0 0 1.75rem;
-  border-left: 1px solid var(--border-subtle);
-}
-.front-grid__rail > li {
-  border-bottom: 1px solid var(--border-subtle);
-  padding: 0 0 0.9rem;
-  margin: 0 0 0.9rem;
-}
-.front-grid__rail > li:last-child { border-bottom: 0; margin-bottom: 0; padding-bottom: 0; }
-.front-grid__rail .story-card { padding: 0; }
-.front-grid__rail .story-card__labels { margin-bottom: 0.5rem; }
-.front-grid__rail .story-card__headline { font-size: clamp(1.05rem, 1.5vw, 1.3rem); max-width: none; margin-bottom: 0.4rem; }
-.front-grid__rail .story-card > p:not([class]) {
-  font-size: 0.86rem;
-  margin-bottom: 0;
-  -webkit-line-clamp: 2;
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-.front-grid__rail .story-card__why { display: none; }
-.front-grid__rail .story-card__source-link { font-size: 0.7rem; }
 
 @media (max-width: 900px) {
-  .front-grid { grid-template-columns: 1fr; }
-  .front-grid__rail {
-    border-left: 0;
-    border-top: 1px solid var(--border-subtle);
-    padding: 1.5rem 0 0;
-    margin-top: 0.5rem;
+  :root {
+    --header-h: 56px;
   }
-}
 
-.section-rule {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  margin: 0 0 1.25rem;
-  padding-top: 1.25rem;
-  border-top: 1px solid var(--border-subtle);
-}
-.section-rule span {
-  font-family: var(--font-mono-stack);
-  font-size: 0.68rem;
-  font-weight: 700;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-  color: var(--text-tertiary);
-}
-
-.story-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(13.5rem, 1fr));
-  gap: 0 2.25rem;
-  list-style: none;
-  margin: 0 0 3rem;
-  padding: 0;
-  border-top: 0;
-}
-.story-grid > li {
-  border-bottom: 1px solid var(--border-subtle);
-  padding: 1.15rem 0;
-}
-.story-grid .story-card { padding: 0; }
-.story-grid .story-card__labels { margin-bottom: 0.6rem; }
-.story-grid .story-card__headline { font-size: clamp(1.05rem, 1.5vw, 1.22rem); max-width: none; margin-bottom: 0.5rem; }
-.story-grid .story-card > p:not([class]) { font-size: 0.88rem; margin-bottom: 0; -webkit-line-clamp: 2; display: -webkit-box; -webkit-box-orient: vertical; overflow: hidden; }
-.story-grid .story-card__why { display: none; }
-.story-grid .story-card__source-link { font-size: 0.72rem; }
-
-/* .story-card--brief covers every secondary/tertiary slot (front-grid rail,
-   story-grid, StudentBriefing): same information, far less chrome. Per
-   ADR-014, StoryBrief's only inline action is Save (Share/Report move to
-   story detail) — the single biggest lever for showing more stories without
-   scrolling, on top of the action itself dropping its bordered-pill
-   treatment for a plain underlined text link. Stays a real <button> element
-   with a full click/tap target; only the paint changes. */
-.story-card--brief .story-card__actions {
-  gap: 0.15rem 0.9rem;
-  margin-top: 0.7rem;
-}
-.story-card--brief .story-card__actions button {
-  display: inline-flex;
-  align-items: center;
-  border: 0;
-  background: none;
-  padding: 0.2rem 0;
-  min-height: 1.6rem;
-  font-size: 0.66rem;
-  letter-spacing: 0.08em;
-  text-decoration: underline;
-  text-decoration-color: transparent;
-  text-underline-offset: 3px;
-}
-.story-card--brief .story-card__actions button:hover {
-  background: none;
-  color: var(--action-text);
-  text-decoration-color: currentColor;
-}
-.story-card--brief .story-card__action--save[aria-pressed="true"] {
-  background: none !important;
-  border-color: transparent !important;
-  color: var(--success) !important;
-  text-decoration-color: currentColor;
-}
-
-@media (max-width: 640px) {
-  .briefing-header { align-items: flex-start; flex-direction: column; gap: .75rem; }
-  .briefing-header .page-hero__cta { align-self: flex-start; }
-  .story-grid { grid-template-columns: 1fr; }
-}
-
-/* Touch targets: the compact brief actions have no visible box, but on a
-   touch-primary viewport the tap area still needs to meet 44px per WCAG
-   2.5.5 / the design system's own mobile rule for nav/toggle buttons. */
-@media (max-width: 760px) {
-  .story-card--brief .story-card__actions button {
-    min-height: 44px;
-    padding-inline: 0.15rem;
+  /* Phones and small tablets: primary navigation moves to the bottom tab
+     bar, and the header scrolls away instead of eating vertical space. */
+  .site-header {
+    position: relative;
   }
-}
 
-/* ---------------------------------------------------------------- 14. Reader-first refresh
-   A daily briefing needs to get out of the reader's way. These rules replace
-   the multi-band masthead and repeated card chrome with one quiet navigation
-   row and a deliberate lead → supporting-stories rhythm. */
-.site-header {
-  position: sticky;
-  background: color-mix(in srgb, var(--color-surface) 94%, transparent);
-  border-bottom: 1px solid var(--border-subtle);
-  color: var(--color-text);
-}
+  .site-nav,
+  .site-header__tools > .icon-button[href="/search"] {
+    display: none;
+  }
 
-.site-header__inner {
-  max-width: var(--page-max);
-  min-height: 4rem;
-  margin: 0 auto;
-  padding: 0 1.25rem;
-  display: flex;
-  align-items: center;
-  gap: 1.5rem;
-}
+  .site-header__inner {
+    gap: var(--space-md);
+  }
 
-.site-header__brand {
-  flex: none;
-  color: var(--color-text);
-}
+  body {
+    padding-bottom: calc(var(--bottom-nav-h) + env(safe-area-inset-bottom));
+  }
 
-.site-header__brand:hover { color: var(--color-text); }
-.site-header__wordmark { gap: 0; }
-.site-header__brand-en { font-size: 1.25rem; letter-spacing: -0.045em; }
-.site-header__brand-te { display: none; }
-
-.site-nav {
-  flex: 1;
-  min-width: 0;
-  border: 0;
-}
-
-.site-nav ul {
-  max-width: none;
-  justify-content: flex-start;
-  gap: 1.25rem;
-  padding: 0;
-  flex-wrap: nowrap;
-}
-
-.site-nav a {
-  display: inline-flex;
-  align-items: center;
-  min-height: 2.75rem;
-  padding: 0;
-  color: var(--text-secondary);
-  font-family: var(--font-body);
-  font-size: 0.92rem;
-  font-weight: 500;
-  letter-spacing: normal;
-  text-transform: none;
-  border: 0;
-}
-
-.site-nav a:hover,
-.site-nav a[aria-current="page"] {
-  color: var(--color-text);
-  text-decoration-color: var(--color-accent);
-}
-
-.site-header__utility-controls { margin-left: auto; gap: 0.35rem; }
-.theme-toggle,
-.language-toggle { border-color: var(--border-subtle); border-radius: var(--radius-lg); }
-.theme-toggle button,
-.language-toggle button { color: var(--text-secondary); }
-.theme-toggle button + button,
-.language-toggle button + button { border-left-color: var(--border-subtle); }
-.theme-toggle button:hover:not([aria-pressed="true"]),
-.language-toggle button:hover:not([aria-pressed="true"]) { background: var(--color-surface-sunken); color: var(--color-text); }
-
-.briefing-header {
-  align-items: center;
-  gap: 1rem;
-  margin-bottom: 1.5rem;
-  padding-bottom: 1rem;
-}
-.briefing-header h1 { font-size: clamp(1.65rem, 2.6vw, 2.15rem); }
-.briefing-kicker { color: var(--text-tertiary); }
-.briefing-cta {
-  display: inline-flex;
-  align-items: center;
-  min-height: 2.6rem;
-  padding: 0.45rem 0.75rem;
-  border: 1px solid var(--border-control);
-  border-radius: var(--radius-md);
-  color: var(--action-text);
-  font-size: 0.88rem;
-  font-weight: 500;
-  text-decoration: none;
-}
-.briefing-cta:hover { background: var(--action-primary-soft); color: var(--action-text); }
-
-.topic-rail { margin-bottom: 2rem; }
-.topic-rail::before { content: none; }
-.topic-rail__heading {
-  margin: 0 0 0.55rem;
-  color: var(--text-secondary);
-  font-size: 0.88rem;
-  font-weight: 500;
-}
-.topic-rail__list { gap: 0.45rem; padding: 0; }
-.pill--topic {
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-md);
-  background: transparent;
-  color: var(--text-secondary);
-  font-family: var(--font-body);
-  font-size: 0.84rem;
-  font-weight: 500;
-  letter-spacing: normal;
-  text-transform: none;
-  padding: 0.45rem 0.7rem;
-}
-
-.front-grid { grid-template-columns: minmax(0, 1.7fr) minmax(15rem, 0.8fr); gap: 0 2.25rem; }
-.front-grid__lead .story-card__headline { font-size: clamp(2rem, 3.3vw, 2.85rem); }
-.front-grid__lead .story-card > p:not([class]) { -webkit-line-clamp: unset; }
-.front-grid__rail { padding-left: 1.5rem; }
-.front-grid__rail > li { padding-bottom: 0.75rem; margin-bottom: 0.75rem; }
-.front-grid__rail .story-card > p:not([class]),
-.front-grid__rail .story-card__source-link { display: none; }
-
-.story-card__labels { gap: 0.35rem; margin-bottom: 0.6rem; }
-.pill {
-  padding: 0;
-  background: transparent;
-  color: var(--text-secondary);
-  font-family: var(--font-body);
-  font-size: 0.78rem;
-  font-weight: 500;
-  letter-spacing: normal;
-  text-transform: none;
-}
-.pill + .pill::before { content: "·"; padding-right: 0.35rem; color: var(--text-tertiary); }
-.story-card__date { color: var(--text-tertiary); }
-.story-card__why { border-left-color: var(--color-hot); }
-.story-card__why strong { color: var(--text-secondary); }
-.story-card__actions { margin-top: 0.8rem; }
-.story-card__actions button {
-  min-height: 2.4rem;
-  padding: 0.35rem 0.6rem;
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-md);
-  background: transparent;
-  color: var(--text-secondary);
-  font-family: var(--font-body);
-  font-size: 0.82rem;
-  font-weight: 500;
-  letter-spacing: normal;
-  text-transform: none;
-}
-.story-card__actions button:hover { background: var(--color-surface-sunken); color: var(--color-text); }
-.story-card--brief .story-card__actions { margin-top: 0.45rem; }
-.story-card--brief .story-card__actions button { font-family: var(--font-body); font-size: 0.78rem; letter-spacing: normal; text-transform: none; }
-.story-card--brief .story-card__source-link { display: none; }
-
-.section-rule { margin-top: 0.25rem; }
-.story-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 1.75rem; }
-.story-grid > li { padding: 1.25rem 0; }
-.feed-more { margin-top: -1.5rem; }
-.feed-more a { font-weight: 500; }
-
-@media (max-width: 900px) {
-  .front-grid { grid-template-columns: 1fr; }
-  .front-grid__rail {
-    padding: 1.25rem 0 0;
-    margin-top: 1.25rem;
-    border-left: 0;
+  .bottom-nav {
+    display: block;
+    position: fixed;
+    inset: auto 0 0;
+    z-index: 60;
+    padding-bottom: env(safe-area-inset-bottom);
     border-top: 1px solid var(--border-subtle);
+    background: color-mix(in srgb, var(--canvas) 90%, transparent);
+    -webkit-backdrop-filter: saturate(180%) blur(14px);
+    backdrop-filter: saturate(180%) blur(14px);
+  }
+
+  .bottom-nav ul {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    height: var(--bottom-nav-h);
+    list-style: none;
+  }
+
+  .bottom-nav a {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    height: 100%;
+    color: var(--text-tertiary);
+    font-size: 0.6875rem;
+    font-weight: 600;
+    text-decoration: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .bottom-nav a[aria-current="page"] {
+    color: var(--action-text);
+  }
+
+  .front-grid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 32px;
+  }
+
+  .site-footer__inner {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .site-footer__about {
+    grid-column: 1 / -1;
+    max-width: none;
   }
 }
 
 @media (max-width: 640px) {
-  .site-header__inner { min-height: auto; gap: 0.6rem; padding: 0.45rem 1rem; flex-wrap: wrap; }
-  .site-header__utility-controls { order: 1; margin-left: auto; }
-  .site-nav { order: 2; flex-basis: 100%; overflow-x: auto; }
-  .site-nav ul { gap: 1.1rem; }
-  .site-nav a { min-height: 2.25rem; font-size: 0.88rem; }
-  .briefing-header { align-items: flex-start; }
-  .story-grid { grid-template-columns: 1fr; }
+  .personalize-card {
+    max-width: none;
+    width: 100%;
+  }
+
+  .edition {
+    align-items: stretch;
+  }
+
+  .story-card--lead {
+    margin-inline: calc(var(--gutter) * -0.5);
+  }
+
+  .story-card__detail-meta .segmented {
+    margin-left: 0;
+  }
+
+  .search-form .button {
+    padding: 0 16px;
+  }
+
+  .site-footer__inner {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
-/* ADR-014 "StoryLead always above the fold" at short viewports: 200% zoom on
-   a laptop (≈640×400 CSS px) or a landscape phone. The briefing intro and
-   topic rail otherwise push the lead headline below the fold; drop the
-   decorative dek and the rail's visible heading (the nav keeps its
-   aria-label) and keep the CTA beside the title instead of stacked. */
+@media (max-width: 380px) {
+  .brand__name {
+    font-size: 0.9375rem;
+  }
+
+  .personalize-card__text {
+    display: none;
+  }
+}
+
+/* ADR-014 "StoryLead always above the fold" at short viewports (200% zoom
+   on a laptop): tighten the edition header so the lead headline fits. */
 @media (max-height: 560px) {
-  .briefing-header { flex-direction: row; align-items: center; margin-bottom: 0.75rem; padding-bottom: 0.5rem; }
-  .briefing-header > div > p:last-child { display: none; }
-  .briefing-header h1 { font-size: 1.5rem; }
-  .topic-rail { margin-bottom: 1rem; }
-  .topic-rail__heading { display: none; }
+  .edition__lede,
+  .personalize-card__text {
+    display: none;
+  }
+
+  .edition {
+    margin-bottom: var(--space-md);
+  }
 }

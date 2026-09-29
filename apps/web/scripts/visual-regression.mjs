@@ -139,14 +139,18 @@ async function journeys(browser) {
   await page.goto(BASE_URL, { waitUntil: "networkidle" });
   check((await leadAboveFold(page)) === true, "journey: first story visible above the fold on first visit (390px)");
 
-  // 2. Topic discovery: header nav → topic index → a topic page with a heading and content/empty state.
-  await page.getByRole("navigation", { name: "Main navigation" }).getByRole("link", { name: "Topics" }).click();
+  // 2. Topic discovery: primary nav → topic index → a topic page with a heading and content/empty state.
+  // At phone width the primary nav is the bottom tab bar (ADR-017); the header link row is desktop-only.
+  await page.getByRole("navigation", { name: "Quick navigation" }).getByRole("link", { name: "Topics" }).click();
   await page.waitForURL(/\/topics$/);
+  await page.locator("main h1").waitFor();
   const topicLink = page.locator('main a[href^="/topic/"]').first();
   check((await topicLink.count()) > 0, "journey: topic index lists at least one topic");
   if (await topicLink.count()) {
     await topicLink.click();
     await page.waitForURL(/\/topic\//);
+    // The route streams a skeleton (loading.tsx) first; wait for the real page.
+    await page.locator("main h1").waitFor();
     const hasContent = (await page.locator(".story-grid li, .empty-state").count()) > 0;
     check((await page.locator("h1").count()) === 1 && hasContent, "journey: topic page renders a heading and stories or an empty state");
   }

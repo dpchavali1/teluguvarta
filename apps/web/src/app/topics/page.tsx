@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
+import { Icon } from "@/components/Icon";
+import { PageHeader } from "@/components/StoryGrid";
 import { getConfig } from "@/lib/api";
 
 export const revalidate = 3600;
@@ -22,15 +24,17 @@ export default async function TopicsPage() {
 
   return (
     <>
-      <h1>Topics</h1>
+      <PageHeader eyebrow="Browse" title="Topics">Follow the subjects that matter to you — immigration, money, jobs, community and news from home.</PageHeader>
       {topics.length === 0 ? (
-        <p className="empty-state">No topics yet.</p>
+        <div className="empty-state">No topics yet.</div>
       ) : (
-        <ul className="story-list">
+        <ul className="topic-grid">
           {topics.map((topic) => (
             <li key={topic.slug}>
-              <Link href={`/topic/${topic.slug}`} className="pill pill--topic">
-                {topic.name}
+              <Link href={`/topic/${topic.slug}`} className="topic-tile">
+                <span className="topic-tile__initial" aria-hidden="true">{topic.name.charAt(0)}</span>
+                <span className="topic-tile__name">{topic.name}</span>
+                <Icon name="arrowRight" size={18} />
               </Link>
             </li>
           ))}

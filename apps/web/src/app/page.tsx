@@ -1,10 +1,10 @@
 import Link from "next/link";
 
-
-import { OnboardingCta } from "@/components/OnboardingCta";
 import { HomeFeed } from "@/components/HomeFeed";
+import { Icon } from "@/components/Icon";
+import { OnboardingCta } from "@/components/OnboardingCta";
 import { StudentBriefing } from "@/components/StudentBriefing";
-
+import { EditionDate } from "@/components/EditionDate";
 import { getHome } from "@/lib/api";
 
 export const revalidate = 60;
@@ -14,34 +14,34 @@ export default async function HomePage() {
   const { top_stories: topStories, topics } = await getHome();
 
   return (
-    <>
-      <section className="briefing-header" aria-labelledby="briefing-title">
-        <div>
-          <p className="briefing-kicker">Today</p>
+    <div className="home">
+      <section className="edition" aria-labelledby="briefing-title">
+        <div className="edition__text">
+          <p className="eyebrow"><EditionDate /></p>
           <h1 id="briefing-title">What matters today</h1>
-          <p>Clear updates for life here and back home.</p>
+          <p className="edition__lede">Clear, sourced updates for Telugu life here and back home.</p>
         </div>
         <OnboardingCta />
       </section>
 
-      {topics.length > 0 && (
-        <nav aria-label="Topics" className="topic-rail">
-          <p className="topic-rail__heading">Explore a topic</p>
-          <ul className="topic-rail__list">
-            {topics.slice(0, 5).map((topic) => (
-              <li key={topic.slug}>
-                <Link className="pill pill--topic" href={`/topic/${topic.slug}`}>
-                  {topic.name}
-                </Link>
-              </li>
-            ))}
-            <li><Link className="pill pill--topic" href="/topics">All topics →</Link></li>
-          </ul>
-        </nav>
-      )}
-
       <HomeFeed initialStories={topStories} />
       <StudentBriefing />
-    </>
+
+      {topics.length > 0 && (
+        <section className="explore" aria-labelledby="explore-title">
+          <div className="section-head">
+            <h2 id="explore-title">Explore topics</h2>
+            <Link className="section-head__more" href="/topics">All topics <Icon name="arrowRight" size={16} /></Link>
+          </div>
+          <ul className="chip-list">
+            {topics.map((topic) => (
+              <li key={topic.slug}>
+                <Link className="chip" href={`/topic/${topic.slug}`}>{topic.name}</Link>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+    </div>
   );
 }
