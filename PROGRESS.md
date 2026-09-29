@@ -348,6 +348,17 @@ Mirrors `docs/adr/README.md` — keep both in sync.
 
 (newest first — one line per ticket completion)
 
+- 2026-09-28: **App icon.** Brand mark is a cream **తె** (Kohinoor Telugu
+  Bold) on indigo `#332c6d` with a rust full stop `#e0703f`, an editor's
+  period for "The Telugu Edit". Mobile: `apps/mobile/assets/` (`icon.png`,
+  Android adaptive foreground/monochrome, web favicon), wired in `app.json`.
+  Web and admin: `src/app/icon.png` + `apple-icon.png` (Next file
+  convention). The assets are rendered from HTML in headless Brave because
+  local Pillow has no raqm, so it can't shape Telugu. Checked on a Samsung
+  device (squircle mask): the glyph and dot are not clipped. Note:
+  `expo prebuild` recreates `android/` and removes `local.properties`
+  (`sdk.dir=~/Library/Android/sdk`).
+
 - 2026-09-28: **Admin redesign, slice 9: browser check + fixes.** First real
   look at every admin page: headless Chromium at 1280 and 390 px, light and
   dark, with a locally minted ADMIN token. Review pages were checked against

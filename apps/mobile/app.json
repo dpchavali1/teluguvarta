@@ -7,12 +7,21 @@
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "scheme": "tte",
+    "icon": "./assets/icon.png",
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "org.teluguglobal.app"
     },
     "android": {
-      "package": "org.teluguglobal.app"
+      "package": "org.teluguglobal.app",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "monochromeImage": "./assets/adaptive-icon-monochrome.png",
+        "backgroundColor": "#332c6d"
+      }
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
     },
     "plugins": ["expo-notifications"]
   }
