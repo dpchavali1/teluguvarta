@@ -1,0 +1,13 @@
+{
+	email {$ACME_EMAIL}
+}
+
+api.{$DOMAIN} {
+	encode zstd gzip
+	reverse_proxy api:8000
+}
+
+admin.{$DOMAIN} {
+	encode zstd gzip
+	reverse_proxy admin:3001
+}

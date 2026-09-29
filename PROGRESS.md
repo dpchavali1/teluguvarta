@@ -302,6 +302,15 @@ Mirrors `docs/adr/README.md` — keep both in sync.
 
 (newest first — one line per ticket completion)
 
+- 2026-09-28: **Single-VPS deploy scaffolding** (ad hoc; supersedes ADR-007's
+  Vercel/Render/Supabase split for now, no ADR yet). `infra/deploy/`:
+  `deploy.sh` (Docker, ufw, swap, generated secrets in `.env.prod`, build,
+  migrate, seed, up), `docker-compose.prod.yml` (postgres, api, worker, web,
+  admin, caddy), `api.Dockerfile`, `next.Dockerfile`, `Caddyfile`. `seed.py`
+  honors `SEED_DEMO_STORY=0`. **Untested**: no Docker locally, never run on
+  the VPS. Not covered: encrypted backups (`backup.sh` needs
+  `BACKUP_AGE_RECIPIENT`), AI keys, Sentry, mobile.
+
 - 2026-09-28: **Admin UI: source category field.** New `/sources` page
   (`apps/admin/src/app/sources/page.tsx`, nav link added) lists sources and
   edits `category` via `PATCH /v1/admin/sources/{id}` (empty → null), with a

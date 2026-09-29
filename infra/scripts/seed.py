@@ -186,6 +186,10 @@ def main() -> int:
         db.commit()
         print(f"Seeded {len(all_topics)} topics ({len(STUDENT_SEED_TOPICS)} student).")
 
+    if os.environ.get("SEED_DEMO_STORY", "1") == "0":
+        print("SEED_DEMO_STORY=0 — skipping demo story.")
+        return 0
+
     with Session(engine) as db:
         story = db.scalar(select(Story).where(Story.canonical_slug == DEMO_STORY_SLUG))
         if story is not None:

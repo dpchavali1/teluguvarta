@@ -1,0 +1,62 @@
+# Production stack for a single VPS. Driven by infra/deploy/deploy.sh:
+#   docker compose -f infra/deploy/docker-compose.prod.yml --env-file .env.prod up -d
+name: teluguvarta
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: teluguvarta
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: teluguvarta
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ../postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U teluguvarta -d teluguvarta"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  api:
+    build: { context: ../.., dockerfile: infra/deploy/api.Dockerfile }
+    restart: unless-stopped
+    env_file: ../../.env.prod
+    depends_on: { postgres: { condition: service_healthy } }
+
+  worker:
+    build: { context: ../.., dockerfile: infra/deploy/api.Dockerfile }
+    restart: unless-stopped
+    command: ["python", "-m", "app.jobs.worker"]
+    env_file: ../../.env.prod
+    depends_on: { postgres: { condition: service_healthy } }
+
+  admin:
+    build:
+      context: ../..
+      dockerfile: infra/deploy/next.Dockerfile
+      args:
+        APP: admin
+        PORT: "3001"
+        NEXT_PUBLIC_API_URL: https://api.${DOMAIN}
+        NEXT_PUBLIC_WEB_URL: ${WEB_URL}
+        NEXT_PUBLIC_SENTRY_DSN: ${NEXT_PUBLIC_SENTRY_DSN:-}
+    restart: unless-stopped
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports: ["80:80", "443:443"]
+    environment:
+      DOMAIN: ${DOMAIN}
+      ACME_EMAIL: ${ACME_EMAIL}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on: [api, admin]
+
+volumes:
+  pgdata:
+  caddy_data:
+  caddy_config:

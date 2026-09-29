@@ -58,7 +58,11 @@ export default function SourcesPage() {
         const body = (await response.json().catch(() => null)) as { error?: { message?: string } } | null;
         throw new Error(body?.error?.message ?? "Failed to save category");
       }
-      setDrafts(({ [source.id]: _saved, ...rest }) => rest);
+      setDrafts((prev) => {
+        const next = { ...prev };
+        delete next[source.id];
+        return next;
+      });
       load();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to save category");

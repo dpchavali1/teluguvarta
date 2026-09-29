@@ -1,0 +1,2 @@
+# deploy.sh writes a DATABASE_URL template using the shell variable $pg_pass (generated at deploy time, no real secret).
+infra/deploy/deploy.sh:database-url-secret:66
