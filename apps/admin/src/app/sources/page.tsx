@@ -27,6 +27,16 @@ interface Source {
   rights_evidence: RightsEvidence;
   category: string | null;
   active: boolean;
+  fail_count: number;
+  last_success_at: string | null;
+  last_error_at: string | null;
+}
+
+interface FeedTest {
+  ok: boolean;
+  item_count: number;
+  headlines: string[];
+  error: string | null;
 }
 
 // ADR-015 decision 3 allowlist (apps/api/app/ai/privacy.py ALLOWLIST_V1). Only
@@ -76,9 +86,23 @@ function AddSourcePanel({ onCreated, onClose }: { onCreated: () => void; onClose
   const [busy, setBusy] = useState(false);
   const [preset, setPreset] = useState<string | null>(null);
   const [form, setForm] = useState(BLANK_FORM);
+  const [testing, setTesting] = useState(false);
+  const [test, setTest] = useState<FeedTest | null>(null);
 
   const set = (key: keyof typeof BLANK_FORM) => (e: { target: { value: string } }) =>
     setForm((prev) => ({ ...prev, [key]: key === "refresh_minutes" ? Number(e.target.value) : e.target.value }));
+
+  async function testFeed() {
+    setTesting(true);
+    setTest(null);
+    try {
+      setTest((await api("/sources/test-feed", "POST", { feed_url: form.feed_url })) as FeedTest);
+    } catch (err) {
+      toast("danger", err instanceof Error ? err.message : "Feed test failed");
+    } finally {
+      setTesting(false);
+    }
+  }
 
   function applyPreset(p: Preset) {
     setPreset(p.label);
@@ -127,7 +151,7 @@ function AddSourcePanel({ onCreated, onClose }: { onCreated: () => void; onClose
           <input id="new-name" required value={form.name} onChange={set("name")} />
         </Field>
         <Field label="Feed URL (RSS/Atom)" htmlFor="new-feed">
-          <input id="new-feed" type="url" required value={form.feed_url} onChange={set("feed_url")} placeholder="https://…/feed.xml" />
+          <input id="new-feed" type="url" required value={form.feed_url} onChange={(e) => { setTest(null); set("feed_url")(e); }} placeholder="https://…/feed.xml" />
         </Field>
         <Field label="Site URL" htmlFor="new-base">
           <input id="new-base" type="url" value={form.base_url} onChange={set("base_url")} />
@@ -152,7 +176,24 @@ function AddSourcePanel({ onCreated, onClose }: { onCreated: () => void; onClose
           <input id="new-cat" list="source-categories" value={form.category} onChange={set("category")} />
         </Field>
       </div>
+      {test ? (
+        test.ok ? (
+          <div className="test-result" role="status">
+            <Badge tone="ok">{test.item_count} items found</Badge>
+            <ul>
+              {test.headlines.map((h) => (
+                <li key={h}>{h}</li>
+              ))}
+            </ul>
+          </div>
+        ) : (
+          <p role="alert">{test.error}</p>
+        )
+      ) : null}
       <div className="card__foot">
+        <button type="button" className="button-secondary" disabled={testing || form.feed_url.trim() === ""} onClick={testFeed}>
+          {testing ? "Testing…" : "Test feed"}
+        </button>
         <button type="submit" disabled={busy}>
           {busy ? "Adding…" : "Add source"}
         </button>
@@ -287,10 +328,17 @@ function SourceCard({ source, onChanged }: { source: Source; onChanged: () => vo
         <span className="pill-row">
           <Badge tone={enabled ? "ok" : "warn"}>{source.rights_status}</Badge>
           <Badge tone={source.active ? "ok" : "neutral"}>{source.active ? "active" : "inactive"}</Badge>
+          {source.fail_count > 0 ? <Badge tone="danger">failing</Badge> : null}
           <Badge tone={freeTier ? "ok" : "neutral"}>{freeTier ? "free AI tier" : "paid AI only"}</Badge>
         </span>
       </div>
       <p className="card__meta">{source.feed_url ?? source.base_url ?? "No feed URL"}</p>
+      {enabled ? (
+        <p className="card__meta">
+          {source.last_success_at ? `Last fetched ${new Date(source.last_success_at).toLocaleString()}` : "Never fetched"}
+          {source.fail_count > 0 ? ` · ${source.fail_count} consecutive failures` : ""}
+        </p>
+      ) : null}
       {!enabled ? (
         <p className="card__prompt">Needs a rights review before it can ingest — add the evidence URL and your name.</p>
       ) : null}

@@ -25,6 +25,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
 
+from app.adapters.feed_probe import probe_feed
 from app.ai.budget import (
     cost_by_task_and_day,
     is_over_monthly_budget,
@@ -56,6 +57,8 @@ from app.schemas import (
     AdminAuditEventOut,
     AdminCorrectionOut,
     AdminCorrectionRequest,
+    AdminFeedTestOut,
+    AdminFeedTestRequest,
     AdminJobOut,
     AdminRejectRequest,
     AdminSourceCreate,
@@ -126,6 +129,15 @@ def _source_out(source: Source) -> AdminSourceOut:
 def list_sources(db: Session = Depends(get_db)) -> list[AdminSourceOut]:
     sources = db.scalars(select(Source).order_by(Source.name)).all()
     return [_source_out(s) for s in sources]
+
+
+@router.post("/sources/test-feed")
+def test_feed(body: AdminFeedTestRequest) -> AdminFeedTestOut:
+    """Preview a candidate feed URL (read-only; nothing is saved)."""
+    result = probe_feed(body.feed_url.strip())
+    return AdminFeedTestOut(
+        ok=result.ok, item_count=result.item_count, headlines=result.headlines, error=result.error
+    )
 
 
 @router.post("/sources", status_code=201)

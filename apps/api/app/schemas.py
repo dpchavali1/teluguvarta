@@ -504,3 +504,14 @@ class ObservabilityOut(BaseModel):
     job_queue: JobQueueHealthOut
     ai_cost: AiCostSummaryOut
     x_cost: XCostSummaryOut
+
+
+class AdminFeedTestRequest(BaseModel):
+    feed_url: str
+
+
+class AdminFeedTestOut(BaseModel):
+    ok: bool
+    item_count: int
+    headlines: list[str]
+    error: str | None

@@ -320,8 +320,20 @@ Mirrors `docs/adr/README.md` — keep both in sync.
   language/refresh/category only — rights evidence stays human-supplied,
   ADR-002). Rights save logic unchanged. Admin `tsc` + `next lint` pass.
   **Not yet done:** browser check of any page (needs a logged-in session),
-  last-fetch/fail-count on cards (API doesn't return them), Test-feed
-  endpoint, dashboard, review queue, other pages on the shared components.
+  dashboard, review queue, other pages on the shared components.
+
+- 2026-09-28: **Admin redesign, slice 2: test-feed.** `POST
+  /v1/admin/sources/test-feed` (`app/adapters/feed_probe.py`): fetches a
+  candidate feed and returns item count + first 5 headlines; read-only, saves
+  nothing, doesn't touch the rights gate. SSRF-hardened (http/https only, all
+  resolved IPs must be public, redirects not followed, 2 MB cap, 10 s
+  timeout). `tests/test_feed_probe.py` (10 tests, no DB) + ruff pass. The
+  route itself has no HTTP-level test (needs Postgres, unavailable here).
+  Known gap: DNS is resolved once for the check and again by httpx, so a
+  DNS-rebinding host could differ between the two — acceptable for an
+  ADMIN-only, read-only preview, but pin the IP if this ever widens. UI: Test
+  feed button in the add panel; cards show last fetched / consecutive
+  failures / "failing" badge (fields were already in the API).
 
 - 2026-09-29: **Admin UI: add-source and rights forms** on `/sources`
   (`apps/admin/src/app/sources/page.tsx`). "Add source" → `POST /v1/admin/sources`
