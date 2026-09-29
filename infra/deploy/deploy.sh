@@ -14,13 +14,23 @@
 #
 # First run: installs Docker, opens ports 22/80/443, generates secrets into
 # .env.prod, builds, migrates, seeds an admin user, starts everything.
-# Re-runs: rebuild + migrate + restart with the existing .env.prod (secrets
+# Re-runs: git pull, rebuild + migrate + restart with the existing .env.prod (secrets
 # are never regenerated). With your own DOMAIN, first point A records for
 # api and admin at this server (Cloudflare SSL mode: Full (strict)).
 set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$repo_root"
+
+# Pull the latest main first (skip with NO_PULL=1, or when not a git checkout).
+# Re-exec afterwards because this very script may have just been updated.
+if [ -d .git ] && [ "${NO_PULL:-0}" != "1" ] && [ -z "${DEPLOY_PULLED:-}" ]; then
+  echo "==> Pulling latest from origin/main"
+  git fetch --quiet origin main
+  git reset --hard --quiet origin/main
+  echo "    now at $(git log -1 --format='%h %s')"
+  DEPLOY_PULLED=1 exec "$repo_root/infra/deploy/deploy.sh" "$@"
+fi
 ENV_FILE="$repo_root/.env.prod"
 COMPOSE=(docker compose -f infra/deploy/docker-compose.prod.yml --env-file "$ENV_FILE")
 

@@ -41,3 +41,6 @@ coverage/
 
 # Local backup dumps (infra/scripts/backup.sh default output dir)
 /backups/
+
+# Deploy state on the server
+.seeded
