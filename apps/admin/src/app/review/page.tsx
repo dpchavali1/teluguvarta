@@ -144,7 +144,10 @@ export default function ReviewQueuePage() {
                 className={index === active ? "row-active" : undefined}
                 onClick={() => setActive(index)}
               >
-                <td><Link href={`/review/${item.story_id}`}>{item.headline ?? "Draft headline pending"}</Link></td>
+                <td>
+                  <Link href={`/review/${item.story_id}`}>{item.headline ?? item.source_title ?? "Untitled story"}</Link>
+                  {item.headline ? null : <span className="card__meta"> · no draft yet</span>}
+                </td>
                 <td className="col-wide-only">{item.source_names?.join(", ") || "No source linked"}</td>
                 <td>
                   {/* `reason` is a comma-joined list when a story trips more
@@ -164,7 +167,7 @@ export default function ReviewQueuePage() {
                 </td>
                 <td title={new Date(item.created_at).toLocaleString()}>{age(item.created_at)}</td>
                 <td className="col-wide-only">
-                  <Link href={`/review/${item.story_id}`} aria-label={`Review: ${item.headline ?? item.story_id}`}>Review</Link>
+                  <Link href={`/review/${item.story_id}`} aria-label={`Review: ${item.headline ?? item.source_title ?? item.story_id}`}>Review</Link>
                 </td>
               </tr>
             ))}

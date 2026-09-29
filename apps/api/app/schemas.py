@@ -362,6 +362,9 @@ class AdminXAccountUpdate(BaseModel):
 
 class ReviewQueueItemOut(BaseModel):
     headline: str | None = None
+    # The primary source item's own title, so a story with no draft yet is
+    # still identifiable in the queue.
+    source_title: str | None = None
     source_names: list[str] = Field(default_factory=list)
     id: UUID
     story_id: UUID

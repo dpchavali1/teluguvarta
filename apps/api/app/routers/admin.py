@@ -408,7 +408,11 @@ def get_review_queue(db: Session = Depends(get_db)) -> list[ReviewQueueItemOut]:
         en = next((v for v in loaded.variants[task.story_id] if v.language == "en"), None)
         item.headline = en.headline if en is not None else None
         names = []
-        for link in loaded.links[task.story_id]:
+        links = loaded.links[task.story_id]
+        primary = next((link for link in links if link.role == "PRIMARY"), links[0] if links else None)
+        primary_item = loaded.items.get(primary.source_item_id) if primary else None
+        item.source_title = primary_item.title if primary_item else None
+        for link in links:
             source_item = loaded.items.get(link.source_item_id)
             source = loaded.sources.get(source_item.source_id) if source_item else None
             if source is not None and source.name not in names:

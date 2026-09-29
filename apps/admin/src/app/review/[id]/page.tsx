@@ -76,6 +76,21 @@ async function postAction(storyId: string, action: string, body: Record<string, 
   }
 }
 
+// Next pending story in the queue page's order (always-human-reviewed first,
+// then oldest). Null on any failure, so the caller falls back to the queue.
+async function nextQueueStory(currentId: string): Promise<string | null> {
+  try {
+    const response = await fetch(`${apiUrl()}/v1/admin/review-queue`, { headers: { Authorization: `Bearer ${getToken()}` } });
+    if (!response.ok) return null;
+    const items = (await response.json()) as { story_id: string; reason: string }[];
+    const isDanger = (item: { reason: string }) => item.reason.split(",").some((r) => reasonTone(r.trim()) === "danger");
+    const rest = items.filter((item) => item.story_id !== currentId);
+    return (rest.find(isDanger) ?? rest[0])?.story_id ?? null;
+  } catch {
+    return null;
+  }
+}
+
 async function putDraft(storyId: string, language: "en" | "te", body: Record<string, unknown>): Promise<void> {
   const token = getToken();
   const response = await fetch(`${apiUrl()}/v1/admin/stories/${storyId}/variants/${language}`, {
@@ -96,18 +111,22 @@ function DraftEditor({
   storyId,
   language,
   variant,
+  sourceTitle,
   reason,
   onSaved
 }: {
   storyId: string;
   language: "en" | "te";
   variant: StoryVariant | undefined;
+  // Pre-fills a new English headline so the editor edits rather than types.
+  sourceTitle?: string | null;
   reason: string;
   onSaved: () => void;
 }) {
   const toast = useToast();
   const [open, setOpen] = useState(false);
-  const [headline, setHeadline] = useState(variant?.headline ?? "");
+  const prefilled = !variant && Boolean(sourceTitle);
+  const [headline, setHeadline] = useState(variant?.headline ?? sourceTitle ?? "");
   const [summary, setSummary] = useState(variant?.summary ?? "");
   const [whyMatters, setWhyMatters] = useState(variant?.why_matters ?? "");
   const [saving, setSaving] = useState(false);
@@ -153,6 +172,11 @@ function DraftEditor({
       <Field label="Why it matters (optional)" htmlFor={`${id}-why`}>
         <textarea id={`${id}-why`} rows={2} value={whyMatters} onChange={(event) => setWhyMatters(event.target.value)} />
       </Field>
+      {prefilled ? (
+        <p className="field__hint" lang="en">
+          Headline pre-filled from the source. Rewrite it in our own words, and summarise only what the source says.
+        </p>
+      ) : null}
       {language === "en" ? (
         <p className="field__hint" lang="en">
           Saving replaces any Telugu version, which must then be rewritten or re-translated.
@@ -234,13 +258,15 @@ export default function StoryReviewPage() {
       const body = action === "reject" ? { reason: reason || null, archive } : { reason: reason || null };
       await postAction(storyId, action, body);
       setReason("");
+      setArchive(false); // the next story reuses this page, so don't carry the choice over
       if (action === "retract") {
         toast("ok", "Story retracted.");
         load();
       } else {
-        // Straight back to the queue so triage is one decision after another.
+        // Straight on to the next story so triage is one decision after another.
         toast("ok", action === "approve" ? "Approved." : archive ? "Rejected and archived." : "Rejected — sent back to draft.");
-        router.push("/review");
+        const next = await nextQueueStory(storyId);
+        router.push(next ? `/review/${next}` : "/review");
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Action failed");
@@ -301,6 +327,7 @@ export default function StoryReviewPage() {
   const reasonRequired = isAlwaysReviewed && reason.trim().length === 0;
   const statusNotice = STATUS_NOTICE[story.status];
   const heldReasons = story.review_task ? story.review_task.reason.split(",").map((r) => r.trim()) : [];
+  const primarySourceTitle = (story.sources.find((s) => s.role === "PRIMARY") ?? story.sources[0])?.title ?? null;
 
   return (
     <main>
@@ -308,7 +335,7 @@ export default function StoryReviewPage() {
         <Link href="/review">← Back to review queue</Link>
       </p>
       <PageHeader
-        title={en?.headline ?? story.canonical_slug}
+        title={en?.headline ?? primarySourceTitle ?? story.canonical_slug}
         subtitle={`Importance ${story.importance.toFixed(2)}`}
         actions={
           <span className="pill-row">
@@ -378,9 +405,9 @@ export default function StoryReviewPage() {
             {story.status === "REVIEW_REQUIRED" ? (
               <div>
                 {/* Keyed on the saved text so an open editor never shows stale copy after a save. */}
-                <DraftEditor key={`en-${en?.headline}`} storyId={story.id} language="en" variant={en} reason={reason} onSaved={load} />
+                <DraftEditor key={`en-${story.id}-${en?.headline}`} storyId={story.id} language="en" variant={en} sourceTitle={primarySourceTitle} reason={reason} onSaved={load} />
                 {en ? (
-                  <DraftEditor key={`te-${te?.headline}`} storyId={story.id} language="te" variant={te} reason={reason} onSaved={load} />
+                  <DraftEditor key={`te-${story.id}-${te?.headline}`} storyId={story.id} language="te" variant={te} reason={reason} onSaved={load} />
                 ) : null}
               </div>
             ) : null}

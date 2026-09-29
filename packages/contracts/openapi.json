@@ -182,6 +182,49 @@
         "title": "AdminCorrectionRequest",
         "type": "object"
       },
+      "AdminDraftRequest": {
+        "description": "An editor-written story variant for a story still in review \u2014 the\nfallback when no AI route may draft it (e.g. NO_PAID_PROVIDER).",
+        "properties": {
+          "headline": {
+            "minLength": 1,
+            "title": "Headline",
+            "type": "string"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          },
+          "summary": {
+            "minLength": 1,
+            "title": "Summary",
+            "type": "string"
+          },
+          "why_matters": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Why Matters"
+          }
+        },
+        "required": [
+          "headline",
+          "summary"
+        ],
+        "title": "AdminDraftRequest",
+        "type": "object"
+      },
       "AdminFeedTestOut": {
         "properties": {
           "error": {
@@ -2146,6 +2189,17 @@
             "title": "Source Names",
             "type": "array"
           },
+          "source_title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Title"
+          },
           "status": {
             "enum": [
               "PENDING",
@@ -4065,6 +4119,89 @@
           }
         },
         "summary": "Retract Story",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/v1/admin/stories/{story_id}/variants/{language}": {
+      "put": {
+        "description": "Editor-written draft for a story still in review: the fallback when no\nAI route may draft it (NO_PAID_PROVIDER, budget exhausted, outage).\nPublished stories go through /correct instead, which records a\nCorrection. English stays canonical (NON_NEGOTIABLES #7): Telugu needs an\nEnglish variant to derive from, must pass the same QA as machine\ntranslation, and is invalidated whenever the English is rewritten.",
+        "operationId": "write_story_draft_v1_admin_stories__story_id__variants__language__put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "story_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Story Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "language",
+            "required": true,
+            "schema": {
+              "enum": [
+                "en",
+                "te"
+              ],
+              "title": "Language",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdminDraftRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminActionResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Write Story Draft",
         "tags": [
           "admin"
         ]

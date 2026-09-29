@@ -369,6 +369,31 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/admin/stories/{story_id}/variants/{language}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Write Story Draft
+         * @description Editor-written draft for a story still in review: the fallback when no
+         *     AI route may draft it (NO_PAID_PROVIDER, budget exhausted, outage).
+         *     Published stories go through /correct instead, which records a
+         *     Correction. English stays canonical (NON_NEGOTIABLES #7): Telugu needs an
+         *     English variant to derive from, must pass the same QA as machine
+         *     translation, and is invalidated whenever the English is rewritten.
+         */
+        put: operations["write_story_draft_v1_admin_stories__story_id__variants__language__put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/admin/x-accounts": {
         parameters: {
             query?: never;
@@ -709,6 +734,21 @@ export interface components {
             reason: string;
             /** Summary */
             summary?: string | null;
+            /** Why Matters */
+            why_matters?: string | null;
+        };
+        /**
+         * AdminDraftRequest
+         * @description An editor-written story variant for a story still in review — the
+         *     fallback when no AI route may draft it (e.g. NO_PAID_PROVIDER).
+         */
+        AdminDraftRequest: {
+            /** Headline */
+            headline: string;
+            /** Reason */
+            reason?: string | null;
+            /** Summary */
+            summary: string;
             /** Why Matters */
             why_matters?: string | null;
         };
@@ -1326,6 +1366,8 @@ export interface components {
             reason: string;
             /** Source Names */
             source_names?: string[];
+            /** Source Title */
+            source_title?: string | null;
             /**
              * Status
              * @enum {string}
@@ -2299,6 +2341,44 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["AdminActionRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminActionResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    write_story_draft_v1_admin_stories__story_id__variants__language__put: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                story_id: string;
+                language: "en" | "te";
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminDraftRequest"];
             };
         };
         responses: {

@@ -27,6 +27,22 @@ write one, and approve didn't check for English, so an empty story could be publ
 - Admin review page: "Write/Edit English|Telugu draft" forms; Approve is disabled until English exists.
 - Verified: ruff, admin `tsc`, full API suite 307 passed against local Postgres (1 setup error in untouched
   `test_cluster.py` from psycopg, passes on rerun). The admin UI has not been checked in a browser yet.
+- **Deployed and verified on the VPS (2026-09-29):** two NO_PAID_PROVIDER stories were drafted and approved in
+  admin, and both reached the phone via the publish job (runs every 2 minutes).
+- **Faster triage (2026-09-29):**
+  - `ReviewQueueItemOut.source_title` (the PRIMARY source item's title) is shown in the queue for stories with
+    no draft yet, instead of "Draft headline pending".
+  - A new English draft's headline is pre-filled from that title, with a hint to rewrite it.
+  - After approve or reject, admin opens the next queued story (always-human-reviewed first).
+  - Deliberately **no bulk approve**: the queue page's "nothing decided unseen" rule stands.
+  - Contracts regenerated. This also picks up the draft endpoint, which the previous commit missed.
+- **Automation plan agreed with owner:**
+  1. Faster triage (above).
+  2. ADR: paid Gemini route, so AI drafts every story.
+  3. ADR-011: auto-publish lane for "link-first briefs" (headline plus a one-liner limited to what the
+     source title says, plus the source link). Only for rights-reviewed, `sensitivity=NONE`, high-confidence
+     stories, with a daily cap.
+  4. Rights-review the public-domain government feeds so their RSS description can be stored as evidence.
 - **Next steps in the plan:** separate `gemini_free`/`gemini_paid` routing (needs an ADR, since ADR-015 assumes
   one Gemini tier); make `AI_TRANSLATION_ENABLED` actually stop `ai_translate`; the pinned-model limiter and
   quota accounting; a mobile `EXPO_PUBLIC_WEB_URL` (blocked on the web deploy); one rights-reviewed

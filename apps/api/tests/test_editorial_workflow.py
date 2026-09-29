@@ -18,7 +18,10 @@ from app.models import (
     AuditEvent,
     Correction,
     ReviewTask,
+    Source,
+    SourceItem,
     Story,
+    StorySource,
     StoryVariant,
 )
 from tests.conftest import requires_postgres
@@ -327,6 +330,27 @@ def test_review_queue_lists_pending_tasks(client, db_session):
     assert response.status_code == 200
     ids = [item["story_id"] for item in response.json()]
     assert str(story.id) in ids
+
+
+def test_review_queue_shows_source_title_for_undrafted_story(client, db_session):
+    token = _token(client, db_session)
+    story = _make_review_required_story(db_session, with_english=False)
+    source = Source(name="S", feed_url=f"https://example.org/{uuid.uuid4()}.xml", rights_status="LINK_ONLY", active=True)
+    db_session.add(source)
+    db_session.flush()
+    item = SourceItem(
+        source_id=source.id, external_id="a", url="https://example.org/a", title="Agency updates travel advisory",
+        raw_hash="hash-a", ingest_status="REVIEW",
+    )
+    db_session.add(item)
+    db_session.flush()
+    db_session.add(StorySource(story_id=story.id, source_item_id=item.id, role="PRIMARY", evidence_rank=1))
+    db_session.commit()
+
+    response = client.get("/v1/admin/review-queue", headers=_auth(token))
+    row = next(r for r in response.json() if r["story_id"] == str(story.id))
+    assert row["headline"] is None
+    assert row["source_title"] == "Agency updates travel advisory"
 
 
 def test_auto_publish_disabled_routes_to_review_queue_not_publish(db_session, monkeypatch):
