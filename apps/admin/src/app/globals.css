@@ -319,6 +319,43 @@ td button {
   transform: none;
 }
 
+/* Theme toggle: which label shows follows the same rules as tokens.css. */
+.theme-toggle span {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+}
+
+.theme-toggle svg {
+  width: 0.95rem;
+  height: 0.95rem;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.theme-toggle__to-light,
+:root[data-theme="dark"] .theme-toggle__to-dark {
+  display: none !important;
+}
+
+:root[data-theme="dark"] .theme-toggle__to-light {
+  display: inline-flex !important;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .theme-toggle__to-dark {
+    display: none !important;
+  }
+
+  :root:not([data-theme="light"]) .theme-toggle__to-light {
+    display: inline-flex !important;
+  }
+}
+
 @media (max-width: 720px) {
   .admin-shell {
     flex-direction: column;

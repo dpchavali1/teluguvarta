@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
+import ThemeToggle from "@/components/ThemeToggle";
 import { clearSession, getRole, getToken } from "@/lib/auth";
 
 const LINKS = [
@@ -41,6 +42,7 @@ export default function AdminNav() {
       </div>
       <div className="admin-nav__footer">
         {role ? <span className="admin-nav__role">{role}</span> : null}
+        <ThemeToggle />
         <button
           type="button"
           onClick={() => {

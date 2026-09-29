@@ -38,6 +38,11 @@ const fontTelugu = Noto_Sans_Telugu({
   display: "swap",
 });
 
+// Same as apps/web: apply a saved theme before hydration so there's no flash.
+// Shares the "tg-theme" key, but admin and web are separate origins in prod,
+// so each remembers its own choice.
+const THEME_INIT_SCRIPT = `(function(){try{var t=localStorage.getItem("tg-theme");if(t==="light"||t==="dark"){document.documentElement.setAttribute("data-theme",t);}}catch(e){}})();`;
+
 export const metadata = {
   title: "TTE Admin",
   description: "Internal admin console."
@@ -48,7 +53,13 @@ export default function RootLayout({ children }: { children: ReactNode }) {
     <html
       lang="en"
       className={`${fontDisplay.variable} ${fontSans.variable} ${fontMono.variable} ${fontTelugu.variable}`}
+      // THEME_INIT_SCRIPT sets data-theme before hydration, so this attribute
+      // intentionally differs from the server-rendered HTML.
+      suppressHydrationWarning
     >
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
+      </head>
       <body>
         <ErrorTrackingBoot />
         <ToastProvider>
