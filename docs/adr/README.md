@@ -44,3 +44,6 @@ accepted. Add ad-hoc ADRs below this table as they're written.
   ad hoc, owner-requested | **accepted** — see
   [ADR-017](ADR-017-web-modern-newsroom-redesign.md) (ADR-016 is reserved
   by the Gemini/Hetzner plan)
+- ADR-018 | Paid Gemini route so AI drafts every story (amends ADR-001,
+  ADR-015) | automation plan step 2 | **proposed** (2026-09-29) — see
+  [ADR-018](ADR-018-gemini-paid-route.md)

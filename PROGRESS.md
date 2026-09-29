@@ -58,7 +58,9 @@ write one, and approve didn't check for English, so an empty story could be publ
     No confirm/required-reason friction was added on purpose, since every held story would get it.
 - **Automation plan agreed with owner:**
   1. Faster triage (above).
-  2. ADR: paid Gemini route, so AI drafts every story.
+  2. ADR: paid Gemini route, so AI drafts every story. **ADR-018 written, proposed (2026-09-29).** It is
+     blocked on the owner's three decisions at the end of the ADR (separate paid project or not, monthly
+     cap, who grades 10 Telugu outputs). No code until it's accepted.
   3. ADR-011: auto-publish lane for "link-first briefs" (headline plus a one-liner limited to what the
      source title says, plus the source link). Only for rights-reviewed, `sensitivity=NONE`, high-confidence
      stories, with a daily cap.
