@@ -6,7 +6,7 @@ import { useParams, useRouter } from "next/navigation";
 
 import { Badge, EmptyState, Field, PageHeader, useToast } from "@/components/ui";
 import { apiUrl, clearSession, getToken } from "@/lib/auth";
-import { reasonHelp, reasonTone } from "@/lib/reviewReasons";
+import { isUnclassified, reasonHelp, reasonTone } from "@/lib/reviewReasons";
 
 interface StoryVariant {
   language: "en" | "te";
@@ -327,7 +327,8 @@ export default function StoryReviewPage() {
   const reasonRequired = isAlwaysReviewed && reason.trim().length === 0;
   const statusNotice = STATUS_NOTICE[story.status];
   const heldReasons = story.review_task ? story.review_task.reason.split(",").map((r) => r.trim()) : [];
-  const primarySourceTitle = (story.sources.find((s) => s.role === "PRIMARY") ?? story.sources[0])?.title ?? null;
+  const unclassified = story.sensitivity === "NONE" && story.review_task !== null && isUnclassified(story.review_task.reason);
+  const primarySourceTitle =(story.sources.find((s) => s.role === "PRIMARY") ?? story.sources[0])?.title ?? null;
 
   return (
     <main>
@@ -340,7 +341,7 @@ export default function StoryReviewPage() {
         actions={
           <span className="pill-row">
             <Badge tone={statusNotice?.tone ?? "neutral"}>{story.status}</Badge>
-            <Badge tone={isAlwaysReviewed ? "danger" : "warn"}>{story.sensitivity}</Badge>
+            <Badge tone={isAlwaysReviewed ? "danger" : "warn"}>{unclassified ? "UNCLASSIFIED" : story.sensitivity}</Badge>
           </span>
         }
       />

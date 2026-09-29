@@ -5,7 +5,7 @@ import Link from "next/link";
 import type { components } from "@teluguvarta/contracts";
 import { useRouter } from "next/navigation";
 
-import { humanize, reasonHelp, reasonTone } from "@/lib/reviewReasons";
+import { humanize, isUnclassified, reasonHelp, reasonTone } from "@/lib/reviewReasons";
 import { EmptyState, PageHeader } from "@/components/ui";
 import { apiUrl, clearSession, getToken } from "@/lib/auth";
 import { age } from "@/lib/time";
@@ -102,12 +102,13 @@ export default function ReviewQueuePage() {
   useEffect(() => setActive(0), [dangerOnly]);
 
   const dangerCount = (items ?? []).filter((item) => item.reason.split(",").some((r) => reasonTone(r.trim()) === "danger")).length;
+  const unclassifiedCount = (items ?? []).filter((item) => isUnclassified(item.reason)).length;
 
   return (
     <main>
       <PageHeader
         title="Review queue"
-        subtitle={items ? `${items.length} waiting · ${dangerCount} always-human-reviewed · press j / k to move, Enter to open` : undefined}
+        subtitle={items ? `${items.length} waiting · ${dangerCount} always-human-reviewed · ${unclassifiedCount} unclassified · press j / k to move, Enter to open` : undefined}
       />
       {error ? <div role="alert"><p>{error}</p><button onClick={() => setRevision((value) => value + 1)}>Try again</button></div> : null}
       {items !== null && items.length > 0 && (

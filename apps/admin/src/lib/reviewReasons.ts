@@ -25,8 +25,13 @@ const REASON_HELP: Record<string, string> = {
   LOW_CONFIDENCE_CLASSIFICATION: "The AI wasn't confident about the category.",
   LOW_CONFIDENCE_GENERATION: "The AI wasn't confident in its summary.",
   SIMILARITY_TO_SOURCE: "The summary is too close to the source text — rewrite it.",
-  NO_PAID_PROVIDER: "This source's category needs paid AI and none is configured, so no draft was written."
+  NO_PAID_PROVIDER:
+    "This source's category needs paid AI and none is configured, so no draft was written and the story was never classified. Check the source yourself for immigration, legal, financial or breaking content."
 };
+
+// A NO_PAID_PROVIDER hold skips classification, so its stored sensitivity is a
+// default NONE, not a finding. Show it as unclassified instead.
+export const isUnclassified = (reason: string) => reason.split(",").some((r) => r.trim() === "NO_PAID_PROVIDER");
 
 export const reasonHelp = (reason: string) => REASON_HELP[reason.trim()] ?? humanize(reason.trim());
 

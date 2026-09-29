@@ -37,10 +37,14 @@ write one, and approve didn't check for English, so an empty story could be publ
   - Deliberately **no bulk approve**: the queue page's "nothing decided unseen" rule stands.
   - Contracts regenerated. This also picks up the draft endpoint, which the previous commit missed.
 - **Open issues seen in the prod queue after deploy (2026-09-29, not fixed):**
-  - **FEMA title "1": open.** `https://www.fema.gov/feeds/disasters.rss` returns an Akamai "Access Denied"
+  - **FEMA title "1": open, and possibly not FEMA.** `https://www.fema.gov/feeds/disasters.rss` returns an Akamai "Access Denied"
     HTML page to `curl` from both the dev Mac and the VPS. That page isn't valid XML, so it can't be what
-    produced the "1" items. Next step: read the stored `source_items.raw` for a FEMA item on prod to see what the
-    worker actually received. Likely fix: move FEMA to the OpenFEMA JSON API
+    produced the "1" items. Re-checked 2026-09-29 with the worker's own client (plain `httpx`): FEMA gives
+    403 → `raise_for_status` fails the fetch, so FEMA ingests nothing. The live NPR (10 items) and State Dept
+    (218) feeds parse with no title under 6 chars, and no code path builds a numeric title. So the "1" rows
+    need a prod lookup (couldn't be done from Claude Code: prod reads are blocked):
+    `SELECT s.name, si.title, si.url, si.created_at FROM source_items si JOIN sources s ON s.id = si.source_id WHERE length(si.title) < 4;`
+    and, for a story headline, `SELECT story_id, language, headline FROM story_variants WHERE length(headline) < 4;`. Likely fix: move FEMA to the OpenFEMA JSON API
     (`DisasterDeclarationsSummaries`), and treat a non-feed/HTML response as a fetch failure.
   - **State Dept duplicated titles: fixed.** The upstream feed itself sends "Israel - Level 3: Reconsider
     Travel - Level 3: Reconsider Travel". `rss._clean_title` collapses whitespace and drops a repeated trailing
@@ -48,6 +52,10 @@ write one, and approve didn't check for English, so an empty story could be publ
   - NO_PAID_PROVIDER holds are never classified, so their sensitivity stays `NONE`. The queue says
     "0 always-human-reviewed" even for a terror-plot story, and there is no confirm/required-reason friction.
     Step 2 (paid route) fixes this; until then, treat every held story as unclassified.
+    **Interim fix (2026-09-29):** admin now shows these holds as unclassified. The queue header counts them
+    ("N unclassified"), the story page's sensitivity badge reads `UNCLASSIFIED` instead of `NONE`, and the
+    NO_PAID_PROVIDER help tells the reviewer to check the source for the always-reviewed categories.
+    No confirm/required-reason friction was added on purpose, since every held story would get it.
 - **Automation plan agreed with owner:**
   1. Faster triage (above).
   2. ADR: paid Gemini route, so AI drafts every story.
