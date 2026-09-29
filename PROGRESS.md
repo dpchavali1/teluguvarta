@@ -37,15 +37,16 @@ write one, and approve didn't check for English, so an empty story could be publ
   - Deliberately **no bulk approve**: the queue page's "nothing decided unseen" rule stands.
   - Contracts regenerated. This also picks up the draft endpoint, which the previous commit missed.
 - **Open issues seen in the prod queue after deploy (2026-09-29, not fixed):**
-  - **FEMA title "1": open, and possibly not FEMA.** `https://www.fema.gov/feeds/disasters.rss` returns an Akamai "Access Denied"
-    HTML page to `curl` from both the dev Mac and the VPS. That page isn't valid XML, so it can't be what
-    produced the "1" items. Re-checked 2026-09-29 with the worker's own client (plain `httpx`): FEMA gives
-    403 → `raise_for_status` fails the fetch, so FEMA ingests nothing. The live NPR (10 items) and State Dept
-    (218) feeds parse with no title under 6 chars, and no code path builds a numeric title. So the "1" rows
-    need a prod lookup (couldn't be done from Claude Code: prod reads are blocked):
-    `SELECT s.name, si.title, si.url, si.created_at FROM source_items si JOIN sources s ON s.id = si.source_id WHERE length(si.title) < 4;`
-    and, for a story headline, `SELECT story_id, language, headline FROM story_variants WHERE length(headline) < 4;`. Likely fix: move FEMA to the OpenFEMA JSON API
-    (`DisasterDeclarationsSummaries`), and treat a non-feed/HTML response as a fetch failure.
+  - **FEMA title "1": root cause found in prod (2026-09-29), not fixed.** The FEMA feed does work from the VPS; the
+    403 only happened on direct `curl` checks. It sends bare disaster numbers as titles (`1`, `100`, `1000`, …) with
+    `published_at` in 2004, and those items sit in `REVIEW`. Found with
+    `SELECT s.name, si.title, si.url, si.published_at, si.ingest_status FROM source_items si JOIN sources s ON s.id = si.source_id WHERE length(si.title) < 4;`.
+    Fix:
+    - Move FEMA to the OpenFEMA JSON API (`DisasterDeclarationsSummaries`, which has real titles and dates).
+    - Reject items whose title is only digits, and skip stale items.
+    - Clean up the existing FEMA rows and stories.
+
+    Until then, set FEMA inactive in admin so it stops filling the queue.
   - **State Dept duplicated titles: fixed.** The upstream feed itself sends "Israel - Level 3: Reconsider
     Travel - Level 3: Reconsider Travel". `rss._clean_title` collapses whitespace and drops a repeated trailing
     " - " segment. It only applies to newly ingested items; existing rows keep the old titles.
@@ -135,6 +136,8 @@ write one, and approve didn't check for English, so an empty story could be publ
      (b) In admin → Sources → State Dept, set "Public-domain basis" to
          `U.S. federal government work, 17 U.S.C. §105`, tick "Store feed text as evidence", and save as an ADMIN.
          The seed won't do this, because it only runs on the first deploy.
+     **Live and verified in prod (2026-09-29):** after the 22:00 UTC fetch, State Dept has 216 items with a stored
+     description (max 4,000 chars); every other source has 0.
      New fetches store the text from then on. The first State Dept fetch after the flag fills existing items too,
      because the upsert updates `description`. FEMA stays off until it moves to the OpenFEMA API.
 - **Next steps in the plan:** separate `gemini_free`/`gemini_paid` routing (needs an ADR, since ADR-015 assumes
