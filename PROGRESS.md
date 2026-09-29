@@ -30,9 +30,15 @@ with `CORS_ALLOWED_ORIGINS=http://localhost:3000` or the Saved journey fails. Li
   - `/story/[slug]` renders on first request, then serves from cache (`x-nextjs-cache`
     MISS then HIT, `s-maxage=60`).
   - `/latest`, `/topic`, `/country` stay dynamic because they read `?cursor`.
-  - **Open:** a missing story returns HTTP **200**. The not-found UI does render with
-    `noindex`. Seen in dev mode too; the cause is likely `story/[slug]/loading.tsx`
-    streaming before `notFound()`, but no comparison build of the old code was done.
+  - **Missing story now returns 404** (was a 200 with the not-found UI):
+    - **Cause:** any `loading.tsx` above the page, including the root
+      `app/loading.tsx`, flushed the response before `notFound()` ran.
+    - **Fix:** the root skeleton moved into per-route `loading.tsx` files
+      (`ListingSkeleton`), and `story/[slug]/layout.tsx` checks the story exists
+      outside the loading boundary.
+    - **Verified in a production build:** `/story/nope` returns 404.
+    - **Same bug remains:** `/topic/<unknown>` still returns 200, because its new
+      `loading.tsx` sits above the page's `notFound()`.
 - **Prod backups** (`5cc533d`):
   - `infra/deploy/backup-prod.sh`: nightly age-encrypted dump, 14 days local, 30 days on
     a Hetzner Storage Box.
