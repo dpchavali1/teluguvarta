@@ -262,6 +262,9 @@ class RightsEvidence(BaseModel):
     territory: str | None = None
     expires_at: datetime | None = None
     notes: str | None = None
+    # ADR-020: why the feed text is public domain; required to turn on
+    # `description_evidence`.
+    public_domain_basis: str | None = None
 
 
 class AdminSourceOut(BaseModel):
@@ -277,6 +280,7 @@ class AdminSourceOut(BaseModel):
     rights_reviewed_at: datetime | None = None
     reviewer: str | None = None
     rights_evidence: RightsEvidence = Field(default_factory=RightsEvidence)
+    description_evidence: bool = False
     refresh_minutes: int | None = None
     category: str | None = None
     active: bool
@@ -316,6 +320,8 @@ class AdminSourceUpdate(BaseModel):
     rights_reviewed_at: datetime | None = None
     reviewer: str | None = None
     rights_evidence: RightsEvidence | None = None
+    # ADR-020: ADMIN only; needs LINK_ONLY + rights_evidence.public_domain_basis.
+    description_evidence: bool | None = None
     refresh_minutes: int | None = None
     category: str | None = None
     active: bool | None = None
@@ -418,6 +424,8 @@ class AdminStorySourceOut(BaseModel):
     published_at: datetime | None = None
     source_name: str
     source_rights_status: RightsStatus
+    # ADR-020: stored feed description (public-domain sources only). Admin only.
+    description: str | None = None
 
 
 class AdminCorrectionOut(BaseModel):

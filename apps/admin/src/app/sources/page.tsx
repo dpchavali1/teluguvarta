@@ -14,6 +14,7 @@ interface RightsEvidence {
   territory: string | null;
   expires_at: string | null;
   notes: string | null;
+  public_domain_basis: string | null;
 }
 
 interface Source {
@@ -26,6 +27,7 @@ interface Source {
   rights_reviewed_at: string | null;
   reviewer: string | null;
   rights_evidence: RightsEvidence;
+  description_evidence: boolean;
   category: string | null;
   active: boolean;
   fail_count: number;
@@ -278,8 +280,10 @@ function RightsForm({ source, onSaved }: { source: Source; onSaved: () => void }
           restrictions: text("restrictions"),
           territory: text("territory"),
           expires_at: ev.expires_at,
-          notes: text("notes")
+          notes: text("notes"),
+          public_domain_basis: text("public_domain_basis")
         },
+        description_evidence: form.get("description_evidence") === "on",
         active: form.get("active") === "on"
       });
       toast("ok", `Saved rights for ${source.name}.`);
@@ -329,6 +333,13 @@ function RightsForm({ source, onSaved }: { source: Source; onSaved: () => void }
       <Field label="Notes" htmlFor={id("notes")}>
         <textarea id={id("notes")} name="notes" defaultValue={ev.notes ?? ""} />
       </Field>
+      <Field label="Public-domain basis" htmlFor={id("pdbasis")} hint="Needed to store feed text, e.g. U.S. federal government work, 17 U.S.C. §105">
+        <input id={id("pdbasis")} name="public_domain_basis" defaultValue={ev.public_domain_basis ?? ""} />
+      </Field>
+      <label htmlFor={id("descev")}>
+        <input id={id("descev")} name="description_evidence" type="checkbox" defaultChecked={source.description_evidence} />
+        Store feed text as evidence (ADR-020: ADMIN only, LINK_ONLY + public-domain basis; never shown to readers)
+      </label>
       <label htmlFor={id("active")}>
         <input id={id("active")} name="active" type="checkbox" defaultChecked={source.active} />
         Active (fetch this source)

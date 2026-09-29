@@ -51,3 +51,7 @@ accepted. Add ad-hoc ADRs below this table as they're written.
   NON_NEGOTIABLES #15; narrows ADR-011 for briefs only) | automation plan
   step 3 | **accepted and implemented** (2026-09-29) — see
   [ADR-019](ADR-019-link-first-brief-auto-publish.md)
+- ADR-020 | Store public-domain government feed descriptions as internal
+  evidence (amends ADR-002 / NON_NEGOTIABLES #15) | automation plan step 4 |
+  **accepted and implemented** (2026-09-29) — see
+  [ADR-020](ADR-020-government-description-evidence.md)

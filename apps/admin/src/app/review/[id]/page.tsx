@@ -23,6 +23,8 @@ interface StorySource {
   published_at: string | null;
   source_name: string;
   source_rights_status: string;
+  // ADR-020: stored feed text (public-domain sources only); never shown to readers.
+  description: string | null;
 }
 
 // Same always-human-reviewed set as the review queue list page's
@@ -429,6 +431,12 @@ export default function StoryReviewPage() {
                     {source.title ?? source.url}
                   </a>
                   <span className="card__meta">{source.source_name}</span>
+                  {source.description ? (
+                    <details>
+                      <summary>Source text (evidence only, not for readers)</summary>
+                      <p className="field__hint">{source.description}</p>
+                    </details>
+                  ) : null}
                 </li>
               ))}
             </ul>

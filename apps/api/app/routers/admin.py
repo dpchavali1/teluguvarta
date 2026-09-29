@@ -22,7 +22,7 @@ from typing import Any
 from uuid import UUID
 
 from fastapi import APIRouter, Depends
-from sqlalchemy import delete, func, select
+from sqlalchemy import delete, func, select, update
 from sqlalchemy.orm import Session
 
 from app.adapters.feed_probe import probe_feed
@@ -132,6 +132,24 @@ def _enforce_enable_gate(admin: AdminPrincipal, new_status: str, evidence: dict[
         )
 
 
+def _enforce_description_evidence_gate(admin: AdminPrincipal, source: Source, *, turning_on: bool) -> None:
+    """ADR-020: storing a feed description needs an ADMIN, a LINK_ONLY source
+    and a recorded public-domain basis. A source that stops meeting that while
+    flagged (e.g. moved to DISABLED) has the flag cleared."""
+    allowed = source.rights_status == "LINK_ONLY" and bool((source.rights_evidence or {}).get("public_domain_basis"))
+    if turning_on:
+        if admin.role != "ADMIN":
+            raise APIError(403, "FORBIDDEN", "Only an ADMIN can turn on description evidence")
+        if not allowed:
+            raise APIError(
+                422,
+                "DESCRIPTION_EVIDENCE_NOT_ALLOWED",
+                "Description evidence needs a LINK_ONLY source and rights_evidence.public_domain_basis (ADR-020)",
+            )
+    elif source.description_evidence and not allowed:
+        source.description_evidence = False
+
+
 def _source_out(source: Source) -> AdminSourceOut:
     return AdminSourceOut(
         id=source.id,
@@ -146,6 +164,7 @@ def _source_out(source: Source) -> AdminSourceOut:
         rights_reviewed_at=source.rights_reviewed_at,
         reviewer=source.reviewer,
         rights_evidence=RightsEvidence(**source.rights_evidence),
+        description_evidence=source.description_evidence,
         refresh_minutes=source.refresh_minutes,
         category=source.category,
         active=source.active,
@@ -246,10 +265,17 @@ def update_source(
         merged: dict[str, Any] = {field: updates.get(field, getattr(source, field)) for field in REQUIRED_EVIDENCE_FIELDS}
         _enforce_enable_gate(admin, new_rights_status, merged)
 
+    was_describing = source.description_evidence
     for field, value in updates.items():
         setattr(source, field, value)
     if rights_evidence is not None:
         source.rights_evidence = rights_evidence
+    _enforce_description_evidence_gate(
+        admin, source, turning_on=updates.get("description_evidence") is True and not was_describing
+    )
+    if not source.description_evidence:
+        # ADR-020: turning the flag off (or leaving LINK_ONLY) drops stored text.
+        db.execute(update(SourceItem).where(SourceItem.source_id == source.id).values(description=None))
 
     audit_metadata = body.model_dump(exclude_unset=True, mode="json")
     _write_audit_event(db, admin.email, "SOURCE_UPDATED", "source", source.id, audit_metadata)
@@ -487,6 +513,7 @@ def get_story_detail(story_id: UUID, db: Session = Depends(get_db)) -> AdminStor
                 published_at=item.published_at,
                 source_name=source.name if source else "unknown",
                 source_rights_status=source.rights_status if source else "DISABLED",
+                description=item.description,
             )
         )
 

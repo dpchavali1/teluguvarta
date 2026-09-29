@@ -4,6 +4,7 @@ into the gateway, same pattern as `test_ai_gateway.py`, since these tests
 care about T11's routing/state-machine logic, not real model output.
 """
 
+import uuid
 from datetime import UTC, datetime
 
 from sqlalchemy import create_engine, select
@@ -321,3 +322,31 @@ def test_generate_stories_is_idempotent(migrated_database, monkeypatch):
         # No new fake responses queued — a second pass touching the same
         # story would raise IndexError, proving it's skipped.
         assert generate_stories(db) == 0
+
+
+# ADR-020: stored descriptions in evidence and the verbatim-run copy guard.
+
+
+def test_evidence_block_includes_description_unless_excluded():
+    import json
+
+    from app.jobs.generate import _evidence_block
+    from app.models import SourceItem
+
+    item = SourceItem(id=uuid.uuid4(), url="https://x.gov/a", title="T", description="Advisory text.")
+    assert json.loads(_evidence_block([item]))[0]["description"] == "Advisory text."
+    assert "description" not in json.loads(_evidence_block([item], include_description=False))[0]
+    item.description = None
+    assert "description" not in json.loads(_evidence_block([item]))[0]
+
+
+def test_summary_sharing_twelve_words_with_description_is_flagged():
+    from app.jobs.generate import _summary_too_similar_to_source
+    from app.models import SourceItem
+
+    advisory = "Do not travel to the region due to active armed conflict and the risk of missile attacks near the border."
+    item = SourceItem(id=uuid.uuid4(), url="https://x.gov/a", title="Ukraine Travel Advisory", description=advisory)
+    copied = "Officials said: do not travel to the region due to active armed conflict and the risk of missiles."
+    original = "The State Department told Americans to stay away from the area because fighting continues there."
+    assert _summary_too_similar_to_source(copied, [item])
+    assert not _summary_too_similar_to_source(original, [item])

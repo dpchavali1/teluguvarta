@@ -42,7 +42,9 @@ plus the one relevant `docs/tickets/Txx.md` should be enough.
     summary + "why this matters" + attribution + a link to the original,
     or, under ADR-019, a link-first brief (original headline + one sentence
     bounded by the source title's facts + attribution + link) — never
-    reproduced headline text, article text, or images. The branded
+    reproduced headline text, article text, or images. Under ADR-020, an
+    ADMIN may flag a public-domain `LINK_ONLY` source so its feed description
+    is stored (capped) as internal evidence only — never shown to readers. The branded
     "Share Card" image feature is deferred until a future ADR revisits this.
 
 ## Stop conditions (halt and write an ADR instead of guessing)

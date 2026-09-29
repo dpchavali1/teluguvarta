@@ -103,6 +103,40 @@ write one, and approve didn't check for English, so an empty story could be publ
      `AUTO_PUBLISH_BRIEFS_DAILY_CAP=20` to `.env.prod` (`deploy.sh` only writes them on first run), set
      `rights_reviewed_at` and `rights_evidence_url` on the sources you want in the lane, and re-run `deploy.sh`.
   4. Rights-review the public-domain government feeds so their RSS description can be stored as evidence.
+     **ADR-020 accepted and implemented (2026-09-29).** Owner decisions: no new rights tier, so sources stay
+     `LINK_ONLY` with an ADMIN-only per-source flag; internal evidence only; State Dept only; HTML stripped and capped
+     at 4,000 chars. The live feed's descriptions are the whole advisory: 421–39,270 chars, median 3,058.
+     - Migration `a7d3f5b9c2e1` adds `sources.description_evidence` (default false) and
+       `source_items.description`.
+     - `adapters/base.clean_description` strips and caps the text. `emit` stores it only for a flagged
+       `LINK_ONLY` source and overwrites it on re-fetch.
+     - `PATCH /v1/admin/sources/{id}` with `description_evidence: true`:
+       - Only an ADMIN can turn it on (off→on); anyone else gets 403.
+       - It needs `LINK_ONLY` + `rights_evidence.public_domain_basis`, or it returns 422
+         `DESCRIPTION_EVIDENCE_NOT_ALLOWED`.
+       - Turning the flag off, or losing either condition, clears the flag and deletes the stored descriptions.
+     - Where the description goes:
+       - It is added to the classify/summary evidence block and to `classify_privacy`, where it can only
+         tighten.
+       - The brief lane still gets titles only (`include_description=False`).
+       - A summary sharing 12+ consecutive words with a description gets `SIMILARITY_TO_SOURCE`.
+       - Admin: the review page has a collapsed "Source text" block, and the sources form has a
+         public-domain basis field plus the flag checkbox. No public schema includes it.
+     - The seed flags State Dept for new installs.
+     - Verified:
+       - Full API suite: 352 passed, 1 setup error. That was the known local Postgres flake;
+         `test_editorial_workflow.py` passes 21/21 on its own.
+       - Later edits: the 5 related test files pass 86/86.
+       - `ruff` clean; mypy still 71; the migration upgrades, downgrades and upgrades again.
+       - Admin `tsc` + eslint clean; contracts regenerated.
+       - Not checked: the admin pages in a browser.
+     **Not live yet — owner steps on the VPS:**
+     (a) Run `deploy.sh`; it runs the migration.
+     (b) In admin → Sources → State Dept, set "Public-domain basis" to
+         `U.S. federal government work, 17 U.S.C. §105`, tick "Store feed text as evidence", and save as an ADMIN.
+         The seed won't do this, because it only runs on the first deploy.
+     New fetches store the text from then on. The first State Dept fetch after the flag fills existing items too,
+     because the upsert updates `description`. FEMA stays off until it moves to the OpenFEMA API.
 - **Next steps in the plan:** separate `gemini_free`/`gemini_paid` routing (needs an ADR, since ADR-015 assumes
   one Gemini tier); make `AI_TRANSLATION_ENABLED` actually stop `ai_translate`; the pinned-model limiter and
   quota accounting; a mobile `EXPO_PUBLIC_WEB_URL` (blocked on the web deploy); one rights-reviewed

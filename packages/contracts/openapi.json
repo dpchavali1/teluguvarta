@@ -704,6 +704,11 @@
             ],
             "title": "Country"
           },
+          "description_evidence": {
+            "default": false,
+            "title": "Description Evidence",
+            "type": "boolean"
+          },
           "fail_count": {
             "title": "Fail Count",
             "type": "integer"
@@ -888,6 +893,17 @@
               }
             ],
             "title": "Country"
+          },
+          "description_evidence": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description Evidence"
           },
           "feed_url": {
             "anyOf": [
@@ -1124,6 +1140,17 @@
       },
       "AdminStorySourceOut": {
         "properties": {
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
           "published_at": {
             "anyOf": [
               {
@@ -2356,6 +2383,17 @@
             },
             "title": "Permitted Fields",
             "type": "array"
+          },
+          "public_domain_basis": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Public Domain Basis"
           },
           "restrictions": {
             "anyOf": [

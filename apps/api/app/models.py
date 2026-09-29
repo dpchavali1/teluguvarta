@@ -80,6 +80,9 @@ class Source(Base):
     # Structured §5.1 evidence record beyond the first-class columns above:
     # terms_url, permitted_fields, restrictions, territory, expires_at, notes.
     rights_evidence: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
+    # ADR-020: ADMIN-set, public-domain LINK_ONLY sources only — store each
+    # item's feed description as internal evidence (never shown to readers).
+    description_evidence: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="false")
     refresh_minutes: Mapped[int | None] = mapped_column(Integer, nullable=True)
     active: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="false")
     fail_count: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
@@ -146,6 +149,9 @@ class SourceItem(Base):
     url: Mapped[str] = mapped_column(Text, nullable=False)
     title: Mapped[str | None] = mapped_column(Text, nullable=True)
     published_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    # ADR-020: HTML-stripped, capped feed description; set only while the
+    # source has `description_evidence` on. Internal evidence, never public.
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
     # Fingerprint for near-duplicate detection (T09): sha256 of the
     # normalized title text, not the raw fetch bytes — see
     # `app/adapters/base.py::normalize()`.

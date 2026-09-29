@@ -47,6 +47,7 @@ def _from_rss_item(entry: ET.Element) -> RawItem:
         title=_clean_title(entry.findtext("title")),
         published_at=_parse_rfc822(entry.findtext("pubDate")),
         raw_bytes=ET.tostring(entry, encoding="utf-8"),
+        description=entry.findtext("description"),
     )
 
 
@@ -61,6 +62,7 @@ def _from_atom_entry(entry: ET.Element) -> RawItem:
         title=_clean_title(entry.findtext(f"{ATOM_NS}title")),
         published_at=_parse_iso8601(published),
         raw_bytes=ET.tostring(entry, encoding="utf-8"),
+        description=entry.findtext(f"{ATOM_NS}summary") or entry.findtext(f"{ATOM_NS}content"),
     )
 
 

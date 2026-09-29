@@ -175,7 +175,7 @@ def _brief_prompt(items: list[SourceItem]) -> str:
         "causes, or context. List each factual claim with the source_ref(s) "
         "whose title states it. Give a confidence from 0 to 1 that the "
         "sentence adds nothing beyond the titles. Evidence items:\n"
-        + _untrusted_data_block(_evidence_block(items))
+        + _untrusted_data_block(_evidence_block(items, include_description=False))
     )
 
 

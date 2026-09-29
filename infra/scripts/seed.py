@@ -95,7 +95,10 @@ SEED_SOURCES = [
             "permitted_fields": ["title", "url", "summary"],
             "restrictions": "US government work — link + original summary only (ADR-002)",
             "territory": "Global",
+            "public_domain_basis": "U.S. federal government work, 17 U.S.C. §105",
         },
+        # ADR-020: store the advisory text as internal evidence (never shown).
+        "description_evidence": True,
     },
     {
         "name": "FEMA Disaster Declarations",
@@ -170,6 +173,7 @@ def main() -> int:
             source.rights_reviewed_at = now
             source.reviewer = spec["reviewer"]
             source.rights_evidence = spec["rights_evidence"]
+            source.description_evidence = spec.get("description_evidence", False)
             source.active = True
         db.commit()
         print(f"Seeded {len(SEED_SOURCES)} LINK_ONLY sources.")

@@ -69,9 +69,10 @@ FALLBACK_SENSITIVITY = "BREAKING"
 P1_REVIEW_ENV_VAR = "AI_REVIEW_P1_STORIES"
 
 # ADR-002: summary must be original text, never a close paraphrase of the
-# source's own wording. Only the source *title* is available to compare
-# against (SourceItem never stores full article text, per ADR-002/§5's
-# "never copy full articles"), so this is a title-similarity flag, not a
+# source's own wording. Usually only the source *title* is available to
+# compare against (SourceItem never stores full article text, per ADR-002/§5's
+# "never copy full articles"; ADR-020's capped public-domain description gets
+# its own verbatim-run check), so this is a title-similarity flag, not a
 # full paraphrase detector — good enough to catch a near-verbatim headline
 # reuse, not a substitute for editorial review.
 SUMMARY_SIMILARITY_FLAG_THRESHOLD = 0.6
@@ -111,15 +112,20 @@ def _evidence_item_ids(items: list[SourceItem]) -> frozenset[str]:
     return frozenset(str(item.id) for item in items)
 
 
-def _evidence_block(items: list[SourceItem]) -> str:
-    payload = [
-        {
+def _evidence_block(items: list[SourceItem], *, include_description: bool = True) -> str:
+    """ADR-020: a stored description (public-domain sources only) rides along
+    as extra evidence. The ADR-019 brief lane passes False: it stays
+    title-bounded."""
+    payload = []
+    for item in items:
+        entry = {
             "source_ref": str(item.id),
             "title": (item.title or "")[:_EVIDENCE_TITLE_MAX_LEN],
             "url": item.url[:_EVIDENCE_URL_MAX_LEN],
         }
-        for item in items
-    ]
+        if include_description and item.description:
+            entry["description"] = item.description
+        payload.append(entry)
     return json.dumps(payload, ensure_ascii=False)
 
 
@@ -165,7 +171,28 @@ def _summary_too_similar_to_source(summary_en: str, items: list[SourceItem]) -> 
             continue
         if difflib.SequenceMatcher(None, summary_key, title_key).ratio() >= SUMMARY_SIMILARITY_FLAG_THRESHOLD:
             return True
+        if _shares_verbatim_run(summary_en, item.description):
+            return True
     return False
+
+
+# ADR-020: a summary sharing this many consecutive words with a stored
+# description is flagged as copied, since ADR-002 requires original text.
+VERBATIM_RUN_FLAG_WORDS = 12
+_WORD_RE = re.compile(r"[a-z0-9']+")
+
+
+def _shares_verbatim_run(text: str, description: str | None) -> bool:
+    if not description:
+        return False
+    words = _WORD_RE.findall(text.lower())
+    source = _WORD_RE.findall(description.lower())
+    if len(words) < VERBATIM_RUN_FLAG_WORDS or len(source) < VERBATIM_RUN_FLAG_WORDS:
+        return False
+    grams = {tuple(source[i : i + VERBATIM_RUN_FLAG_WORDS]) for i in range(len(source) - VERBATIM_RUN_FLAG_WORDS + 1)}
+    return any(
+        tuple(words[i : i + VERBATIM_RUN_FLAG_WORDS]) in grams for i in range(len(words) - VERBATIM_RUN_FLAG_WORDS + 1)
+    )
 
 
 def _link_entities(db: Session, story: Story, names: list[str]) -> None:
@@ -219,7 +246,8 @@ def _resolve_privacy(db: Session, story: Story, items: list[SourceItem]) -> Priv
         (db.get(Source, item.source_id).category if db.get(Source, item.source_id) else None) for item in items
     }
     category = next(iter(categories)) if len(categories) == 1 else None
-    computed = classify_privacy(category, *(item.title for item in items))
+    # ADR-020: descriptions only add text, so they can only tighten this.
+    computed = classify_privacy(category, *(item.title for item in items), *(item.description for item in items))
     first_generation = db.scalars(select(StoryVariant.id).where(StoryVariant.story_id == story.id)).first() is None
     decision = computed if first_generation else tighten(coerce(story.privacy_decision), computed)
     story.privacy_decision = decision.value

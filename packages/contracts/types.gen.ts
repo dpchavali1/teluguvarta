@@ -926,6 +926,11 @@ export interface components {
             category?: string | null;
             /** Country */
             country?: string | null;
+            /**
+             * Description Evidence
+             * @default false
+             */
+            description_evidence: boolean;
             /** Fail Count */
             fail_count: number;
             /** Feed Url */
@@ -970,6 +975,8 @@ export interface components {
             category?: string | null;
             /** Country */
             country?: string | null;
+            /** Description Evidence */
+            description_evidence?: boolean | null;
             /** Feed Url */
             feed_url?: string | null;
             /** Language */
@@ -1036,6 +1043,8 @@ export interface components {
         };
         /** AdminStorySourceOut */
         AdminStorySourceOut: {
+            /** Description */
+            description?: string | null;
             /** Published At */
             published_at?: string | null;
             /**
@@ -1462,6 +1471,8 @@ export interface components {
             notes?: string | null;
             /** Permitted Fields */
             permitted_fields?: string[];
+            /** Public Domain Basis */
+            public_domain_basis?: string | null;
             /** Restrictions */
             restrictions?: string | null;
             /** Terms Url */

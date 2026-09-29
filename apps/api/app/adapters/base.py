@@ -6,6 +6,8 @@ format parsing differs per source/adapter subclass (§6.3).
 from __future__ import annotations
 
 import hashlib
+import html
+import re
 from dataclasses import dataclass, field
 from datetime import datetime
 
@@ -15,6 +17,10 @@ from sqlalchemy.orm import Session
 
 from app.models import Source, SourceItem
 
+# ADR-020: stored description text is capped; the full text stays at the link.
+DESCRIPTION_MAX_CHARS = 4000
+_TAG_RE = re.compile(r"<[^>]*>")
+
 
 @dataclass
 class RawItem:
@@ -23,6 +29,7 @@ class RawItem:
     title: str | None
     published_at: datetime | None
     raw_bytes: bytes
+    description: str | None = None
 
 
 @dataclass
@@ -37,6 +44,7 @@ class NormalizedItem:
     title: str | None
     published_at: datetime | None
     raw_hash: str
+    description: str | None = None
 
 
 @dataclass
@@ -73,6 +81,7 @@ class SourceAdapter:
             # with differently worded headlines are still caught by T09's
             # lexical-similarity pass, not this exact hash.
             raw_hash=hashlib.sha256((title or "").strip().lower().encode("utf-8")).hexdigest(),
+            description=clean_description(raw_item.description),
         )
 
     def validate(self, item: NormalizedItem) -> ValidationResult:
@@ -100,6 +109,9 @@ class SourceAdapter:
         advanced past NORMALIZED (dedup/cluster/...).
         """
         ingest_status = "NORMALIZED" if self.source.rights_status == "LINK_ONLY" else "RIGHTS_BLOCKED"
+        # ADR-020: the description is kept only for a flagged LINK_ONLY source.
+        store_description = self.source.description_evidence and self.source.rights_status == "LINK_ONLY"
+        description = item.description if store_description else None
         stmt = (
             pg_insert(SourceItem)
             .values(
@@ -109,6 +121,7 @@ class SourceAdapter:
                 title=item.title,
                 published_at=item.published_at,
                 raw_hash=item.raw_hash,
+                description=description,
                 ingest_status=ingest_status,
             )
             .on_conflict_do_update(
@@ -118,6 +131,7 @@ class SourceAdapter:
                     "title": item.title,
                     "published_at": item.published_at,
                     "raw_hash": item.raw_hash,
+                    "description": description,
                 },
             )
             .returning(SourceItem.id)
@@ -127,3 +141,17 @@ class SourceAdapter:
         source_item = db.get(SourceItem, source_item_id)
         assert source_item is not None  # just inserted/updated above
         return source_item
+
+
+def clean_description(value: str | None) -> str | None:
+    """ADR-020: strips tags, decodes entities, collapses whitespace, and caps
+    the text at DESCRIPTION_MAX_CHARS on a word boundary. Tags are stripped
+    before and after decoding so escaped markup (`&lt;p&gt;`) goes too."""
+    if not value:
+        return None
+    text = _TAG_RE.sub(" ", html.unescape(_TAG_RE.sub(" ", value)))
+    text = " ".join(text.split())
+    if len(text) > DESCRIPTION_MAX_CHARS:
+        cut = text[: DESCRIPTION_MAX_CHARS + 1]
+        text = cut[: cut.rfind(" ")] if " " in cut else cut[:DESCRIPTION_MAX_CHARS]
+    return text or None

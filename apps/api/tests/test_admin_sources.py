@@ -251,3 +251,83 @@ def test_failed_gate_creates_no_source(client, db_session):
 
     names = [s["name"] for s in client.get("/v1/admin/sources", headers=_auth(token)).json()]
     assert "Ghost" not in names
+
+
+# ADR-020: description evidence flag.
+
+
+def _link_only_source(client, token, **rights_evidence):
+    source_id = client.post("/v1/admin/sources", json={"name": "State Dept"}, headers=_auth(token)).json()["id"]
+    response = client.patch(
+        f"/v1/admin/sources/{source_id}",
+        json={
+            "rights_status": "LINK_ONLY",
+            "rights_evidence_url": "https://travel.state.gov/content/travel/en/copyright.html",
+            "rights_reviewed_at": datetime.now(UTC).isoformat(),
+            "reviewer": ADMIN_EMAIL,
+            "rights_evidence": rights_evidence,
+        },
+        headers=_auth(token),
+    )
+    assert response.status_code == 200
+    return source_id
+
+
+BASIS = {"public_domain_basis": "U.S. federal government work, 17 U.S.C. §105"}
+
+
+def test_description_evidence_requires_public_domain_basis(client, db_session):
+    token = _token(client, db_session)
+    source_id = _link_only_source(client, token)
+
+    response = client.patch(f"/v1/admin/sources/{source_id}", json={"description_evidence": True}, headers=_auth(token))
+    assert response.status_code == 422
+    assert response.json()["error"]["code"] == "DESCRIPTION_EVIDENCE_NOT_ALLOWED"
+
+
+def test_editor_cannot_turn_on_description_evidence(client, db_session):
+    admin_token = _token(client, db_session)
+    source_id = _link_only_source(client, admin_token, **BASIS)
+    editor_token = _token(client, db_session, role="EDITOR", email=EDITOR_EMAIL)
+
+    response = client.patch(
+        f"/v1/admin/sources/{source_id}", json={"description_evidence": True}, headers=_auth(editor_token)
+    )
+    assert response.status_code == 403
+
+
+def test_turning_description_evidence_off_clears_stored_text(client, db_session):
+    from app.models import Source, SourceItem
+
+    token = _token(client, db_session)
+    source_id = _link_only_source(client, token, **BASIS)
+    response = client.patch(f"/v1/admin/sources/{source_id}", json={"description_evidence": True}, headers=_auth(token))
+    assert response.status_code == 200
+    assert response.json()["description_evidence"] is True
+
+    db_session.add(
+        SourceItem(source_id=uuid.UUID(source_id), external_id="a", url="https://x.gov/a", title="T", raw_hash="h", description="Advisory text.")
+    )
+    db_session.commit()
+
+    response = client.patch(f"/v1/admin/sources/{source_id}", json={"rights_status": "DISABLED"}, headers=_auth(token))
+    assert response.status_code == 200
+    assert response.json()["description_evidence"] is False
+    db_session.expire_all()
+    assert db_session.get(Source, uuid.UUID(source_id)).description_evidence is False
+    assert db_session.scalars(select(SourceItem.description).where(SourceItem.source_id == uuid.UUID(source_id))).all() == [None]
+
+
+def test_editor_resaving_a_flagged_source_keeps_the_flag(client, db_session):
+    admin_token = _token(client, db_session)
+    source_id = _link_only_source(client, admin_token, **BASIS)
+    client.patch(f"/v1/admin/sources/{source_id}", json={"description_evidence": True}, headers=_auth(admin_token))
+    editor_token = _token(client, db_session, role="EDITOR", email=EDITOR_EMAIL)
+
+    response = client.patch(
+        f"/v1/admin/sources/{source_id}",
+        json={"description_evidence": True, "rights_evidence": BASIS},
+        headers=_auth(editor_token),
+    )
+    assert response.status_code == 200
+    assert response.json()["description_evidence"] is True

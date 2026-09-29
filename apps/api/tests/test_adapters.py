@@ -7,6 +7,7 @@ the network, so only the transport is faked, not the parsing logic.
 from pathlib import Path
 
 import httpx
+import pytest
 from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session
 
@@ -180,3 +181,44 @@ def test_emit_is_idempotent_on_rerun(migrated_database):
 
         rows = db.scalars(select(SourceItem).where(SourceItem.source_id == source.id)).all()
         assert len(rows) == 2
+
+
+# ADR-020: public-domain feed descriptions as internal evidence.
+
+
+def test_clean_description_strips_html_and_caps_on_word_boundary():
+    from app.adapters.base import DESCRIPTION_MAX_CHARS, clean_description
+
+    assert clean_description(None) is None
+    assert clean_description("  <p> </p> ") is None
+    assert clean_description("<p>Do&nbsp;not <b>travel</b></p>\n\n to X.") == "Do not travel to X."
+    assert clean_description("&lt;p&gt;escaped&lt;/p&gt;") == "escaped"
+    long = clean_description("word " * 2000)
+    assert long is not None and len(long) <= DESCRIPTION_MAX_CHARS and long.endswith("word")
+
+
+def test_rss_parse_carries_description():
+    adapter = RssFeedAdapter(_make_source())
+    raw_items = adapter.fetch(_client_for_fixture("state_travel_advisories.xml"))
+    normalized = [adapter.normalize(raw) for raw in raw_items.items]
+    assert normalized[0].description == "Exercise increased caution in India due to crime and terrorism."
+
+
+@requires_postgres
+@pytest.mark.parametrize(
+    ("flag", "rights_status", "stored"),
+    [(True, "LINK_ONLY", True), (False, "LINK_ONLY", False), (True, "DISABLED", False)],
+)
+def test_emit_stores_description_only_for_flagged_link_only_source(migrated_database, flag, rights_status, stored):
+    engine = create_engine(migrated_database)
+    with Session(engine) as db:
+        source = _make_source(description_evidence=flag, rights_status=rights_status)
+        db.add(source)
+        db.commit()
+
+        adapter = RssFeedAdapter(source)
+        raw_items = adapter.fetch(_client_for_fixture("state_travel_advisories.xml"))
+        rows = [adapter.emit(db, adapter.normalize(raw)) for raw in raw_items.items]
+        db.commit()
+
+        assert all((row.description is not None) is stored for row in rows)
