@@ -141,6 +141,18 @@ def test_rpd_exhaustion_defers_without_calling_provider(migrated_database, monke
 
 
 @requires_postgres
+def test_free_tier_model_without_limits_is_unavailable_not_deferred(migrated_database, monkeypatch):
+    provider = _Boom()
+    monkeypatch.setitem(ROUTING, Task.SUMMARY, TaskRoute(provider="gemini", default_model="gemini-9.9-flash"))
+    monkeypatch.setattr(gateway_module, "_resolve_provider", lambda name: provider)
+    with Session(create_engine(migrated_database)) as db:
+        outcome = AiGateway(db).run_task(Task.SUMMARY, "x", story_id=_story(db), privacy_decision=ALLOWED)
+        assert outcome.status == GatewayStatus.UNAVAILABLE
+        assert [(r.status, r.model) for r in db.query(AiCallLog).all()] == [("UNAVAILABLE", "gemini-9.9-flash")]
+    assert provider.calls == 0
+
+
+@requires_postgres
 def test_requests_today_counts_pacific_day_and_model_only(migrated_database):
     now = datetime(2026, 9, 28, 20, tzinfo=UTC)  # Pacific day began 07:00 UTC
     with Session(create_engine(migrated_database)) as db:

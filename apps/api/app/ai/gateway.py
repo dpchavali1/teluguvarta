@@ -19,13 +19,16 @@ from app.ai.contracts import GenerationResult
 from app.ai.privacy import PrivacyDecision, coerce
 from app.ai.providers.base import Provider, ProviderQuotaError, ProviderUnavailableError
 from app.ai.providers.null_provider import NullProvider
-from app.ai.ratelimit import acquire
+from app.ai.ratelimit import acquire, has_limits
 from app.ai.tasks import (
     DEGRADABLE_ON_BUDGET_BREACH,
     Task,
     pricing_for,
     route_for,
 )
+from app.observability.logging import get_logger
+
+logger = get_logger("ai.gateway")
 
 # §7.5: "low confidence -> review queue." Below this, a syntactically valid
 # result still isn't trusted enough to auto-publish. Only applies to
@@ -172,6 +175,16 @@ class AiGateway:
 
         if route.provider == "gemini":
             self._guard_free_tier(story_id, privacy_decision, editor_authored)
+            # A model with no FREE_TIER_LIMITS entry (e.g. a pinned id set via
+            # AI_GEMINI_*_MODEL) can never run. That's misconfiguration, not a
+            # quota wait, so record it as UNAVAILABLE for the alert to catch.
+            if not has_limits(route.default_model):
+                logger.error("free-tier model %r has no FREE_TIER_LIMITS entry; refusing", route.default_model)
+                record_call(
+                    self._db, task=task, provider="gemini", model=route.default_model,
+                    status="UNAVAILABLE", story_id=story_id,
+                )
+                return GatewayOutcome(status=GatewayStatus.UNAVAILABLE)
             if not acquire(self._db, route.default_model):
                 record_call(
                     self._db, task=task, provider="gemini", model=route.default_model,

@@ -77,6 +77,10 @@ def requests_today(db: Session, model: str, now: datetime | None = None) -> int:
     return int(count or 0)
 
 
+def has_limits(model: str | None) -> bool:
+    return model is not None and model in FREE_TIER_LIMITS
+
+
 def acquire(db: Session, model: str, now: datetime | None = None) -> bool:
     """True if a free-tier call to `model` may proceed now. Models with no
     configured limits are refused: an unknown model must not run unmetered."""

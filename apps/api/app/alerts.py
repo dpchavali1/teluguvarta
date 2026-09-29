@@ -18,7 +18,7 @@ from sqlalchemy.orm import Session
 
 from app.ai.budget import is_over_monthly_budget, month_to_date_cost_usd, today_cost_usd
 from app.jobs.source_fetch import CIRCUIT_BREAKER_THRESHOLD
-from app.models import Job, Source
+from app.models import AiCallLog, Job, Source
 from app.observability.logging import get_logger
 
 logger = get_logger("alerts")
@@ -29,6 +29,7 @@ logger = get_logger("alerts")
 JOB_ERROR_RATE_WINDOW = timedelta(hours=1)
 JOB_ERROR_RATE_THRESHOLD = 0.5
 JOB_ERROR_RATE_MIN_SAMPLES = 5
+AI_REFUSAL_WINDOW = timedelta(hours=1)
 
 
 def default_channel(severity: str, message: str) -> None:
@@ -118,9 +119,32 @@ def check_job_error_rate_alert(db: Session, *, now: datetime | None = None, chan
     return ["JOB_ERROR_RATE"]
 
 
+def check_ai_model_refusal_alerts(db: Session, *, now: datetime | None = None, channel=None) -> list[str]:
+    """Fires once per provider/model the gateway refused as misconfigured
+    within AI_REFUSAL_WINDOW: a free-tier model with no FREE_TIER_LIMITS entry
+    (ADR-015) or an unpriced/alias paid model (ADR-018). Only those refusals
+    are recorded as UNAVAILABLE, and stories wait on them indefinitely."""
+    now = now or datetime.now(UTC)
+    rows = db.execute(
+        select(AiCallLog.provider, AiCallLog.model, func.count())
+        .where(AiCallLog.status == "UNAVAILABLE", AiCallLog.created_at >= now - AI_REFUSAL_WINDOW)
+        .group_by(AiCallLog.provider, AiCallLog.model)
+    ).all()
+    fired = []
+    for provider, model, count in rows:
+        send_alert(
+            f"AI gateway refused {count} call(s) to {provider} model '{model}' in the last "
+            f"{AI_REFUSAL_WINDOW}: no quota limits or pricing configured for it",
+            channel=channel,
+        )
+        fired.append(f"AI_MODEL_REFUSED:{provider}:{model}")
+    return fired
+
+
 def check_all(db: Session, *, now: datetime | None = None, channel=None) -> list[str]:
     fired: list[str] = []
     fired += check_budget_alerts(db, now=now, channel=channel)
     fired += check_circuit_breaker_alerts(db, channel=channel)
     fired += check_job_error_rate_alert(db, now=now, channel=channel)
+    fired += check_ai_model_refusal_alerts(db, now=now, channel=channel)
     return fired

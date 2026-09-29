@@ -129,3 +129,26 @@ def test_job_error_rate_alert_ignores_stale_jobs_outside_window(migrated_databas
 
         channel = _FakeChannel()
         assert alerts.check_job_error_rate_alert(db, now=now, channel=channel) == []
+
+
+@requires_postgres
+def test_ai_model_refusal_alert_fires_once_per_model(migrated_database):
+    with Session(create_engine(migrated_database)) as db:
+        for _ in range(2):
+            budget.record_call(db, task=Task.SUMMARY, provider="gemini", model="gemini-9.9-flash", status="UNAVAILABLE")
+        budget.record_call(db, task=Task.SUMMARY, provider="gemini", model="gemini-flash-lite-latest", status="DEFERRED")
+        db.commit()
+
+        channel = _FakeChannel()
+        fired = alerts.check_ai_model_refusal_alerts(db, channel=channel)
+        assert fired == ["AI_MODEL_REFUSED:gemini:gemini-9.9-flash"]
+        assert "2 call(s)" in channel.calls[0][1]
+
+
+@requires_postgres
+def test_no_ai_model_refusal_alert_outside_window(migrated_database):
+    with Session(create_engine(migrated_database)) as db:
+        budget.record_call(db, task=Task.SUMMARY, provider="gemini", model="gemini-9.9-flash", status="UNAVAILABLE")
+        db.commit()
+        later = datetime.now(UTC) + alerts.AI_REFUSAL_WINDOW + timedelta(minutes=1)
+        assert alerts.check_ai_model_refusal_alerts(db, now=later, channel=_FakeChannel()) == []

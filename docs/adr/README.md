@@ -55,3 +55,6 @@ accepted. Add ad-hoc ADRs below this table as they're written.
   evidence (amends ADR-002 / NON_NEGOTIABLES #15) | automation plan step 4 |
   **accepted and implemented** (2026-09-29) — see
   [ADR-020](ADR-020-government-description-evidence.md)
+- ADR-021 | Free-tier quota accounting for pinned Gemini models (amends
+  ADR-015 decision 6) | automation plan follow-up | **proposed** (2026-09-29)
+  — see [ADR-021](ADR-021-free-tier-pinned-model-quota.md)
