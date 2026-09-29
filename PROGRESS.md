@@ -36,6 +36,14 @@ write one, and approve didn't check for English, so an empty story could be publ
   - After approve or reject, admin opens the next queued story (always-human-reviewed first).
   - Deliberately **no bulk approve**: the queue page's "nothing decided unseen" rule stands.
   - Contracts regenerated. This also picks up the draft endpoint, which the previous commit missed.
+- **Open issues seen in the prod queue after deploy (2026-09-29, not fixed):**
+  - The FEMA source item title is "1", probably the disaster number instead of its name. Fix the FEMA
+    adapter/feed parsing. It also breaks the headline pre-fill.
+  - State Dept titles repeat the level ("Israel - Level 3: Reconsider Travel - Level 3: Reconsider Travel").
+    Check whether the feed or our parser causes it.
+  - NO_PAID_PROVIDER holds are never classified, so their sensitivity stays `NONE`. The queue says
+    "0 always-human-reviewed" even for a terror-plot story, and there is no confirm/required-reason friction.
+    Step 2 (paid route) fixes this; until then, treat every held story as unclassified.
 - **Automation plan agreed with owner:**
   1. Faster triage (above).
   2. ADR: paid Gemini route, so AI drafts every story.
