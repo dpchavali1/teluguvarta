@@ -37,8 +37,8 @@ with `CORS_ALLOWED_ORIGINS=http://localhost:3000` or the Saved journey fails. Li
       (`ListingSkeleton`), and `story/[slug]/layout.tsx` checks the story exists
       outside the loading boundary.
     - **Verified in a production build:** `/story/nope` returns 404.
-    - **Same bug remains:** `/topic/<unknown>` still returns 200, because its new
-      `loading.tsx` sits above the page's `notFound()`.
+    - **Same fix for topics:** `topic/[slug]/layout.tsx` makes `/topic/<unknown>`
+      return 404 (verified in a production build).
 - **Prod backups** (`5cc533d`):
   - `infra/deploy/backup-prod.sh`: nightly age-encrypted dump, 14 days local, 30 days on
     a Hetzner Storage Box.
