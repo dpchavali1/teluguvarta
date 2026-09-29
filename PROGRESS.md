@@ -302,6 +302,14 @@ Mirrors `docs/adr/README.md` — keep both in sync.
 
 (newest first — one line per ticket completion)
 
+- 2026-09-28: **Admin UI: source category field.** New `/sources` page
+  (`apps/admin/src/app/sources/page.tsx`, nav link added) lists sources and
+  edits `category` via `PATCH /v1/admin/sources/{id}` (empty → null), with a
+  datalist of the ADR-015 allowlist and an Eligible/Paid-only indicator. The
+  allowlist is duplicated client-side from `app/ai/privacy.py` (display only;
+  the backend stays authoritative). Admin typecheck passes; not exercised in a
+  browser, no UI tests.
+
 - 2026-09-28: **T22 follow-up — ADR-015 wiring** (ad hoc; no ticket file).
   `generate.py` computes the privacy decision on a story's first generation
   (single shared source category + item titles), persists it, and tightens it
