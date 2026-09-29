@@ -175,8 +175,33 @@ write one, and approve didn't check for English, so an empty story could be publ
   change isn't needed. The refusal alert is the only guard. Reopen it if someone pins a free-tier model.
 - **Next steps in the plan:** (separate `gemini`/`gemini_paid` routing is done: ADR-018's `PAID_GEMINI_ROUTING`
   in `app/ai/tasks.py`, so no new ADR is needed.) The pinned-model limiter and
-  quota accounting (done: refusal alert; ADR-021 rejected as not needed); a mobile `EXPO_PUBLIC_WEB_URL` (blocked on the web deploy); one rights-reviewed
-  sports/entertainment/community source.
+  quota accounting (done: refusal alert; ADR-021 rejected as not needed); a mobile `EXPO_PUBLIC_WEB_URL` (blocked on the web deploy
+  — the prod compose has no `web` service; owner to choose host + domain); one rights-reviewed
+  sports/entertainment/community source (**Telugu360 Movies seeded, see below**).
+- **Telugu360 Movies source added to the seed (2026-09-29).**
+  - Source research, all feeds fetched 2026-09-29:
+    - No official cricket body (ICC, BCCI, USA Cricket, MLC) and no US Telugu association (TANA, ATA, NATS)
+      publishes an RSS feed.
+    - BBC's terms need a licence for business use of its RSS.
+    - ESPNcricinfo falls under Disney-style terms that ban commercial and automated use.
+    - Telugu Times (USA NRI news, the only working community feed) says "may not reproduce… without prior written
+      consent". Asking them for permission is the way to get community coverage.
+    - 123telugu has no terms page.
+  - Owner picked Telugu360 because its terms (`https://www.telugu360.com/terms-of-use/`) explicitly allow sharing
+    links. Open question for the owner: whether "commercially reusing protected material requires permission" covers
+    showing its headline in the app.
+  - Feed: `https://www.telugu360.com/category/movies/feed/`. The site-wide `/feed/` is only "Video :" posts.
+    Seeded as `LINK_ONLY`, country `IN`, refreshed every 30 min, `category` `entertainment` (on the ADR-015 allowlist,
+    so its stories can use the Gemini free tier). The seed now sets `category` when a spec gives one; the other
+    three specs don't, so their existing category is left alone.
+  - Verified: `probe_feed` returns ok; all 10 items pass `normalize`+`validate` through `RssFeedAdapter` with no
+    redirects; local seed run loads 4 sources.
+  - Brief lane: enabling a source requires `rights_reviewed_at`, so once active this source can get into the ADR-019
+    auto-brief lane (nothing in the lane excludes `entertainment`). If the open terms question worries you, keep
+    `AUTO_PUBLISH_BRIEFS` off until it's settled.
+  - **Not live — owner steps in prod admin** (the seed only runs on the first deploy): Sources → New, fill in the
+    fields from `infra/scripts/seed.py` (name, base/feed URL, category `entertainment`, `LINK_ONLY`, evidence URL,
+    reviewer), then set it active as an ADMIN.
 
 **Web redesign, ADR-017 (2026-09-28)**: `apps/web` presentation-only rewrite. It adds a sticky header with a
 topic bar, a mobile bottom tab bar, card-based StoryLead/StoryBrief (ADR-014 contract unchanged), and a story

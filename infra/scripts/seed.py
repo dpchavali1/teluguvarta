@@ -117,6 +117,32 @@ SEED_SOURCES = [
             "territory": "US",
         },
     },
+    {
+        # Movies category feed, not the site-wide /feed/, which carries only
+        # "Video :" posts. Terms allow linking; whether a headline in a
+        # commercial app is "commercially reusing" is an open owner call
+        # (researched 2026-09-29). Never store its body text.
+        "name": "Telugu360 Movies",
+        "base_url": "https://www.telugu360.com",
+        "feed_url": "https://www.telugu360.com/category/movies/feed/",
+        "source_type": "news",
+        # ADR-015 allowlist: stories from this source may use the Gemini free tier.
+        "category": "entertainment",
+        "country": "IN",
+        "language": "en",
+        "refresh_minutes": 30,
+        "rights_evidence_url": "https://www.telugu360.com/terms-of-use/",
+        "reviewer": "seed-script",
+        "rights_evidence": {
+            "terms_url": "https://www.telugu360.com/terms-of-use/",
+            "permitted_fields": ["title", "url", "summary"],
+            "restrictions": (
+                "Terms: 'You may read the website and share links to our pages.' Commercial reuse "
+                "of protected material needs permission — link + original summary only (ADR-002)"
+            ),
+            "territory": "Global",
+        },
+    },
 ]
 
 
@@ -174,6 +200,8 @@ def main() -> int:
             source.reviewer = spec["reviewer"]
             source.rights_evidence = spec["rights_evidence"]
             source.description_evidence = spec.get("description_evidence", False)
+            if "category" in spec:
+                source.category = spec["category"]
             source.active = True
         db.commit()
         print(f"Seeded {len(SEED_SOURCES)} LINK_ONLY sources.")
