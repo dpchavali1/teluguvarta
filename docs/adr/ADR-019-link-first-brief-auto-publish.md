@@ -1,6 +1,6 @@
 # ADR-019: Auto-publish lane for link-first briefs
 
-- **Status**: proposed
+- **Status**: accepted (2026-09-29; owner accepted every proposed default)
 - **Date**: 2026-09-29
 - **Ticket**: automation plan step 3 (`PROGRESS.md`); amends ADR-002 / NON_NEGOTIABLES #15, narrows ADR-011 for this lane only
 
@@ -37,7 +37,7 @@ Why this needs an ADR rather than a flag:
 3. **Auto-publish is a product/editorial decision.** Per NON_NEGOTIABLES #11 it
    needs a recorded decision, not an implicit one.
 
-## Decision (proposed; the owner decides the items marked **[Q]**)
+## Decision
 
 ### 1. What a brief is
 
@@ -45,7 +45,7 @@ Why this needs an ADR rather than a flag:
   similarity check against every source title in the cluster
   (`SUMMARY_SIMILARITY_FLAG_THRESHOLD`, applied to the headline too). A near-copy
   of the source headline fails, and the story goes to the normal review queue.
-- `brief_en`: a single sentence of at most 30 words **[Q1: cap]**. It may only
+- `brief_en`: a single sentence of at most 30 words. It may only
   state facts in the source title(s). A deterministic check enforces this:
   - every number/date token in the sentence appears in a cited title;
   - every capitalized entity token (after stop-word removal) appears in a cited
@@ -56,7 +56,7 @@ Why this needs an ADR rather than a flag:
   `BRIEF_TITLE_MISMATCH`.
 - Attribution plus the source link, shown as the main action ("Read at
   {source}").
-- **No "why this matters"** **[Q2]**. This is the ADR-002 amendment: a brief is
+- **No "why this matters"**. This is the ADR-002 amendment: a brief is
   a permitted publish shape alongside the full story.
   NON_NEGOTIABLES #15 gets one sentence added: "…or, under ADR-019, a
   link-first brief (original headline + title-bounded sentence + attribution +
@@ -81,7 +81,7 @@ Why this needs an ADR rather than a flag:
   misclassification by the AI alone cannot open the lane. NON_NEGOTIABLES #5
   is unchanged: breaking (`urgency HIGH/URGENT`) is excluded.
 - **Confidence**: classification and brief-generation confidence both at least
-  0.8 **[Q3]**. The review threshold is 0.5, and this lane needs a higher bar.
+  0.8. The review threshold is 0.5, and this lane needs a higher bar.
 - **Clean route**: the normal generate pass produced no other review reason (no
   `LOW_CONFIDENCE_*`, `SIMILARITY_TO_SOURCE`, `HIGH_IMPORTANCE`,
   `SENSITIVE_CATEGORY`).
@@ -97,9 +97,9 @@ corroboration (ADR-011's option 1b) is not needed for this shape.
   `AUTO_PUBLISH_GLOBAL`, so the owner can open this lane without opening full
   auto-publish. The existing budget-breach gate (`AUTO_PUBLISH_DISABLE_ON_BUDGET_BREACH`)
   closes it too. The admin settings page shows its state next to the other flags.
-- **Daily cap**: `AUTO_PUBLISH_BRIEFS_DAILY_CAP`, default 20 **[Q4: number]**.
+- **Daily cap**: `AUTO_PUBLISH_BRIEFS_DAILY_CAP`, default 20.
   It counts `STORY_AUTO_APPROVED` audit events with
-  `reason = BRIEF_LANE` since midnight **[Q5: UTC or America/New_York]**. Stories
+  `reason = BRIEF_LANE` since midnight America/New_York. Stories
   past the cap go to the review queue with reason `BRIEF_DAILY_CAP`, in the
   normal queue order. They are not held for the next day.
 - **Audit**: every lane publish writes `AuditEvent(actor="system:brief_lane",
@@ -119,7 +119,7 @@ corroboration (ADR-011's option 1b) is not needed for this shape.
   `REVIEW_REQUIRED -> APPROVED -> SCHEDULED` like every auto-approved story, so
   the status trigger and audit trail are unchanged.
 - Readers: a brief shows a "Brief" label, and its main action is the source
-  link **[Q6: label wording, or no label]**. The label needs a story-format
+  link. The label needs a story-format
   field (`story.format ∈ {FULL, BRIEF}`, migration, default `FULL`) and a small
   ADR-014 component variant. The component contract itself does not change.
 

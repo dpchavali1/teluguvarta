@@ -39,8 +39,10 @@ plus the one relevant `docs/tickets/Txx.md` should be enough.
     in this build phase, alongside `DISABLED`. Do not enable
     `LICENSED_METADATA` or `LICENSED_REPURPOSE` for any source without a new
     ADR superseding ADR-002. Every published story is an original AI-drafted
-    summary + "why this matters" + attribution + a link to the original —
-    never reproduced headline text, article text, or images. The branded
+    summary + "why this matters" + attribution + a link to the original,
+    or, under ADR-019, a link-first brief (original headline + one sentence
+    bounded by the source title's facts + attribution + link) — never
+    reproduced headline text, article text, or images. The branded
     "Share Card" image feature is deferred until a future ADR revisits this.
 
 ## Stop conditions (halt and write an ADR instead of guessing)
