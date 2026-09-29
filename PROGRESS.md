@@ -312,6 +312,10 @@ Mirrors `docs/adr/README.md` — keep both in sync.
 | ADR-011 Claim evidence sufficiency for unattended publish | **proposed** |
 | ADR-012 First-login MFA enrollment flow | **accepted** |
 | ADR-013 Golden eval set trust tier (shrink to reviewed 30) | **accepted** |
+| ADR-014 Editorial component contract | **accepted** |
+| ADR-015 Gemini free tier as an AI provider | **accepted** |
+| ADR-016 Local inference service | reserved (Gemini/Hetzner plan), not written |
+| ADR-017 Web "modern newsroom" redesign | **accepted** |
 
 - 2026-09-16: **ADR-013 accepted** (product owner: "accept ADR-013 as-is,
   shrink golden set to 30") and implemented exactly as the ADR spelled out,

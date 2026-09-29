@@ -39,7 +39,7 @@ accepted. Add ad-hoc ADRs below this table as they're written.
   ad hoc, user-requested | **accepted** — see
   [ADR-014](ADR-014-editorial-component-contract.md)
 - ADR-015 | Gemini free tier as an AI provider (amends ADR-001) | Phase −1 |
-  **proposed** — see [ADR-015](ADR-015-gemini-free-tier.md)
+  **accepted** (2026-09-28) — see [ADR-015](ADR-015-gemini-free-tier.md)
 - ADR-017 | Web "modern newsroom" redesign (web presentation only) |
   ad hoc, owner-requested | **accepted** — see
   [ADR-017](ADR-017-web-modern-newsroom-redesign.md) (ADR-016 is reserved
