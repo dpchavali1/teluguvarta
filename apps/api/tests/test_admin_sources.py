@@ -189,3 +189,65 @@ def test_jobs_endpoint_lists_real_job_health(client, db_session):
     assert body[0]["status"] == "FAILED"
     assert body[0]["attempts"] == 5
     assert body[0]["last_error"] == "boom"
+
+
+def _enable_body(**overrides):
+    body = {
+        "name": "Preset Gov Feed",
+        "feed_url": "https://example.gov/feed.xml",
+        "rights_status": "LINK_ONLY",
+        "rights_evidence_url": "https://example.gov/terms",
+        "reviewer": ADMIN_EMAIL,
+        "active": True,
+    }
+    body.update(overrides)
+    return body
+
+
+def test_create_and_activate_in_one_call_with_evidence(client, db_session):
+    token = _token(client, db_session)
+
+    response = client.post("/v1/admin/sources", json=_enable_body(), headers=_auth(token))
+    assert response.status_code == 201
+    body = response.json()
+    assert body["rights_status"] == "LINK_ONLY"
+    assert body["active"] is True
+    assert body["reviewer"] == ADMIN_EMAIL
+    assert body["rights_reviewed_at"] is not None  # server-stamped
+
+
+def test_create_and_activate_requires_evidence_url_and_reviewer(client, db_session):
+    token = _token(client, db_session)
+
+    for missing in ("rights_evidence_url", "reviewer"):
+        response = client.post("/v1/admin/sources", json=_enable_body(**{missing: None}), headers=_auth(token))
+        assert response.status_code == 422
+        assert response.json()["error"]["code"] == "RIGHTS_EVIDENCE_REQUIRED"
+
+
+def test_editor_cannot_create_and_activate(client, db_session):
+    token = _token(client, db_session, role="EDITOR", email=EDITOR_EMAIL)
+
+    response = client.post("/v1/admin/sources", json=_enable_body(reviewer=EDITOR_EMAIL), headers=_auth(token))
+    assert response.status_code == 403
+    assert response.json()["error"]["code"] == "FORBIDDEN"
+
+
+def test_create_rejects_higher_rights_tiers_and_activating_while_disabled(client, db_session):
+    token = _token(client, db_session)
+
+    tier = client.post("/v1/admin/sources", json=_enable_body(rights_status="LICENSED_REPURPOSE"), headers=_auth(token))
+    assert tier.status_code == 422
+    assert tier.json()["error"]["code"] == "RIGHTS_TIER_NOT_ENABLED"
+
+    active_disabled = client.post("/v1/admin/sources", json={"name": "X", "active": True}, headers=_auth(token))
+    assert active_disabled.status_code == 422
+    assert active_disabled.json()["error"]["code"] == "SOURCE_NOT_ENABLED"
+
+
+def test_failed_gate_creates_no_source(client, db_session):
+    token = _token(client, db_session)
+    client.post("/v1/admin/sources", json=_enable_body(name="Ghost", reviewer=None), headers=_auth(token))
+
+    names = [s["name"] for s in client.get("/v1/admin/sources", headers=_auth(token)).json()]
+    assert "Ghost" not in names

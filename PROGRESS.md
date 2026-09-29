@@ -387,6 +387,23 @@ Mirrors `docs/adr/README.md` — keep both in sync.
   unverified in a real browser** (that is the next step, before more
   features). Remaining: preset add+activate (needs API), browser check.
 
+- 2026-09-28: **Admin redesign, slice 8: add + enable + activate in one
+  call.** `POST /v1/admin/sources` now optionally takes `rights_status`,
+  `rights_evidence_url`, `reviewer`, `rights_evidence`, `active`. The ADR-002
+  gate is now one helper (`_enforce_enable_gate` in `routers/admin.py`) used
+  by both create and PATCH: ADMIN only, only DISABLED/LINK_ONLY, evidence URL
+  + reviewer required; `rights_reviewed_at` is server-stamped on create. New:
+  `active: true` without enabling is rejected (`SOURCE_NOT_ENABLED`); a failed
+  gate creates nothing. 5 new tests in `test_admin_sources.py` (36 pass with
+  auth + contract tests), ruff clean. UI: unchecked "I have reviewed this
+  source's terms — enable and activate now" in the add panel (ADMIN only;
+  evidence URL + reviewer required), so the human step stays explicit.
+  Contracts regenerated (`openapi.json`, `types.gen.ts`) — this also picks up
+  the earlier test-feed schemas that were stale. Full admin build passes.
+  Note: PATCH still lets `active: true` be set on a DISABLED source (fetch
+  job is the backstop) — pre-existing, not changed here. Remaining: browser
+  check of the whole redesign.
+
 - 2026-09-29: **Admin UI: add-source and rights forms** on `/sources`
   (`apps/admin/src/app/sources/page.tsx`). "Add source" → `POST /v1/admin/sources`
   (starts DISABLED/inactive); per-row "Rights & status" → `PATCH` with

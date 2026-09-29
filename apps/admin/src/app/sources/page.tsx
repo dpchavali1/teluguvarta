@@ -4,7 +4,7 @@ import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { Badge, EmptyState, Field, PageHeader, useToast } from "@/components/ui";
-import { apiUrl, clearSession, getToken } from "@/lib/auth";
+import { apiUrl, clearSession, getRole, getToken } from "@/lib/auth";
 
 interface RightsEvidence {
   terms_url: string | null;
@@ -86,6 +86,10 @@ function AddSourcePanel({ onCreated, onClose }: { onCreated: () => void; onClose
   const [busy, setBusy] = useState(false);
   const [preset, setPreset] = useState<string | null>(null);
   const [form, setForm] = useState(BLANK_FORM);
+  const [enableNow, setEnableNow] = useState(false);
+  const [evidenceUrl, setEvidenceUrl] = useState("");
+  const [reviewer, setReviewer] = useState("");
+  const isAdmin = getRole() === "ADMIN";
   const [testing, setTesting] = useState(false);
   const [test, setTest] = useState<FeedTest | null>(null);
 
@@ -121,9 +125,30 @@ function AddSourcePanel({ onCreated, onClose }: { onCreated: () => void; onClose
         country: blankToNull(form.country),
         language: blankToNull(form.language),
         refresh_minutes: form.refresh_minutes,
-        category: blankToNull(form.category)
+        category: blankToNull(form.category),
+        // Same ADR-002 gate as the rights form: the API rejects this unless the
+        // caller is an ADMIN and evidence URL + reviewer are present.
+        ...(enableNow
+          ? {
+              rights_status: "LINK_ONLY",
+              rights_evidence_url: blankToNull(evidenceUrl),
+              reviewer: blankToNull(reviewer),
+              rights_evidence: {
+                terms_url: blankToNull(evidenceUrl),
+                permitted_fields: ["title", "url", "summary"],
+                restrictions: "Link + headline + short summary only (ADR-002)",
+                territory: null,
+                expires_at: null,
+                notes: null
+              },
+              active: true
+            }
+          : {})
       });
-      toast("ok", `Added ${form.name.trim()} — review its rights to enable it.`);
+      toast("ok", enableNow ? `Added ${form.name.trim()} — enabled and active.` : `Added ${form.name.trim()} — review its rights to enable it.`);
+      setEnableNow(false);
+      setEvidenceUrl("");
+      setReviewer("");
       setForm(BLANK_FORM);
       setPreset(null);
       onCreated();
@@ -176,6 +201,26 @@ function AddSourcePanel({ onCreated, onClose }: { onCreated: () => void; onClose
           <input id="new-cat" list="source-categories" value={form.category} onChange={set("category")} />
         </Field>
       </div>
+      <fieldset className="enable-now">
+        <legend>Rights</legend>
+        <label htmlFor="enable-now" className="checkbox-label">
+          <input id="enable-now" type="checkbox" checked={enableNow} disabled={!isAdmin} onChange={(e) => setEnableNow(e.target.checked)} style={{ width: "auto", marginRight: "0.5rem" }} />
+          I have reviewed this source&apos;s terms — enable (LINK_ONLY) and activate it now
+        </label>
+        {!isAdmin ? <p className="field__hint">Only an ADMIN can enable a source. It will be added disabled.</p> : null}
+        {enableNow ? (
+          <div className="field-grid">
+            <Field label="Evidence URL" htmlFor="new-evidence" hint="Terms or permission page (required)">
+              <input id="new-evidence" type="url" required value={evidenceUrl} onChange={(e) => setEvidenceUrl(e.target.value)} />
+            </Field>
+            <Field label="Reviewer" htmlFor="new-reviewer" hint="Your name (required)">
+              <input id="new-reviewer" required value={reviewer} onChange={(e) => setReviewer(e.target.value)} />
+            </Field>
+          </div>
+        ) : (
+          <p className="field__hint">Leave unchecked to add it disabled and review rights later.</p>
+        )}
+      </fieldset>
       {test ? (
         test.ok ? (
           <div className="test-result" role="status">
@@ -195,7 +240,7 @@ function AddSourcePanel({ onCreated, onClose }: { onCreated: () => void; onClose
           {testing ? "Testing…" : "Test feed"}
         </button>
         <button type="submit" disabled={busy}>
-          {busy ? "Adding…" : "Add source"}
+          {busy ? "Adding…" : enableNow ? "Add and activate" : "Add source"}
         </button>
         <button type="button" className="button-secondary" onClick={onClose}>
           Cancel

@@ -182,6 +182,57 @@
         "title": "AdminCorrectionRequest",
         "type": "object"
       },
+      "AdminFeedTestOut": {
+        "properties": {
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "headlines": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Headlines",
+            "type": "array"
+          },
+          "item_count": {
+            "title": "Item Count",
+            "type": "integer"
+          },
+          "ok": {
+            "title": "Ok",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "ok",
+          "item_count",
+          "headlines",
+          "error"
+        ],
+        "title": "AdminFeedTestOut",
+        "type": "object"
+      },
+      "AdminFeedTestRequest": {
+        "properties": {
+          "feed_url": {
+            "title": "Feed Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "feed_url"
+        ],
+        "title": "AdminFeedTestRequest",
+        "type": "object"
+      },
       "AdminJobOut": {
         "properties": {
           "attempts": {
@@ -337,6 +388,17 @@
       },
       "AdminSourceCreate": {
         "properties": {
+          "active": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Active"
+          },
           "base_url": {
             "anyOf": [
               {
@@ -347,6 +409,17 @@
               }
             ],
             "title": "Base Url"
+          },
+          "category": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category"
           },
           "country": {
             "anyOf": [
@@ -396,6 +469,67 @@
             ],
             "title": "Refresh Minutes"
           },
+          "reviewer": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reviewer"
+          },
+          "rights_evidence": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RightsEvidence"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "rights_evidence_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rights Evidence Url"
+          },
+          "rights_reviewed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rights Reviewed At"
+          },
+          "rights_status": {
+            "anyOf": [
+              {
+                "enum": [
+                  "DISABLED",
+                  "LINK_ONLY",
+                  "LICENSED_METADATA",
+                  "LICENSED_REPURPOSE"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rights Status"
+          },
           "source_type": {
             "anyOf": [
               {
@@ -430,6 +564,17 @@
               }
             ],
             "title": "Base Url"
+          },
+          "category": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category"
           },
           "country": {
             "anyOf": [
@@ -604,6 +749,17 @@
               }
             ],
             "title": "Base Url"
+          },
+          "category": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category"
           },
           "country": {
             "anyOf": [
@@ -3186,6 +3342,7 @@
         ]
       },
       "post": {
+        "description": "Create a source. With no rights fields it starts DISABLED/inactive. A\npreset flow may also pass rights fields to enable + activate in one call;\nthat goes through the same ADR-002 gate as PATCH (ADMIN only, evidence URL\nand reviewer required) \u2014 a human still supplies the evidence.",
         "operationId": "create_source_v1_admin_sources_post",
         "parameters": [
           {
@@ -3238,6 +3395,66 @@
           }
         },
         "summary": "Create Source",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/v1/admin/sources/test-feed": {
+      "post": {
+        "description": "Preview a candidate feed URL (read-only; nothing is saved).",
+        "operationId": "test_feed_v1_admin_sources_test_feed_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdminFeedTestRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminFeedTestOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Test Feed",
         "tags": [
           "admin"
         ]

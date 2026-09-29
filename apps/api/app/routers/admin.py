@@ -102,6 +102,30 @@ def _write_audit_event(db: Session, actor: str, action: str, entity_type: str, e
     db.add(AuditEvent(actor=actor, action=action, entity_type=entity_type, entity_id=entity_id, metadata_=metadata))
 
 
+def _enforce_enable_gate(admin: AdminPrincipal, new_status: str, evidence: dict[str, Any]) -> None:
+    """ADR-002 gate for moving a source off DISABLED — shared by create and
+    update so there is exactly one implementation. `evidence` maps each of
+    REQUIRED_EVIDENCE_FIELDS to its would-be value after the write."""
+    if new_status not in ENABLABLE_RIGHTS_STATUSES:
+        raise APIError(
+            422,
+            "RIGHTS_TIER_NOT_ENABLED",
+            f"'{new_status}' is not enabled in this build phase — only DISABLED and LINK_ONLY "
+            "are reachable per ADR-002",
+        )
+    if new_status == "DISABLED":
+        return
+    if admin.role != "ADMIN":
+        raise APIError(403, "FORBIDDEN", "Only an ADMIN can enable a source (move it off DISABLED)")
+    missing = [field for field in REQUIRED_EVIDENCE_FIELDS if not evidence.get(field)]
+    if missing:
+        raise APIError(
+            422,
+            "RIGHTS_EVIDENCE_REQUIRED",
+            f"Cannot enable source: missing rights evidence field(s) {', '.join(missing)}",
+        )
+
+
 def _source_out(source: Source) -> AdminSourceOut:
     return AdminSourceOut(
         id=source.id,
@@ -144,6 +168,25 @@ def test_feed(body: AdminFeedTestRequest) -> AdminFeedTestOut:
 def create_source(
     body: AdminSourceCreate, admin: AdminPrincipal = Depends(current_admin), db: Session = Depends(get_db)
 ) -> AdminSourceOut:
+    """Create a source. With no rights fields it starts DISABLED/inactive. A
+    preset flow may also pass rights fields to enable + activate in one call;
+    that goes through the same ADR-002 gate as PATCH (ADMIN only, evidence URL
+    and reviewer required) — a human still supplies the evidence."""
+    enabling = body.rights_status is not None and body.rights_status != "DISABLED"
+    if body.active and not enabling:
+        raise APIError(422, "SOURCE_NOT_ENABLED", "A source cannot be activated while its rights are DISABLED")
+    reviewed_at = body.rights_reviewed_at or (datetime.now(UTC) if enabling else None)
+    if body.rights_status is not None:
+        _enforce_enable_gate(
+            admin,
+            body.rights_status,
+            {
+                "rights_evidence_url": body.rights_evidence_url,
+                "rights_reviewed_at": reviewed_at,
+                "reviewer": body.reviewer,
+            },
+        )
+
     source = Source(
         name=body.name,
         base_url=body.base_url,
@@ -154,9 +197,20 @@ def create_source(
         refresh_minutes=body.refresh_minutes,
         category=body.category,
     )
+    if enabling:
+        source.rights_status = body.rights_status
+        source.rights_evidence_url = body.rights_evidence_url
+        source.rights_reviewed_at = reviewed_at
+        source.reviewer = body.reviewer
+        if body.rights_evidence is not None:
+            source.rights_evidence = body.rights_evidence.model_dump(mode="json")
+        source.active = bool(body.active)
     db.add(source)
     db.flush()
-    _write_audit_event(db, admin.email, "SOURCE_CREATED", "source", source.id, {"name": source.name})
+    audit = {"name": source.name}
+    if enabling:
+        audit.update(rights_status=source.rights_status, active=source.active, reviewer=source.reviewer)
+    _write_audit_event(db, admin.email, "SOURCE_CREATED", "source", source.id, audit)
     db.commit()
     db.refresh(source)
     return _source_out(source)
@@ -181,24 +235,10 @@ def update_source(
     new_rights_status = updates.get("rights_status")
 
     if new_rights_status is not None and new_rights_status not in ENABLABLE_RIGHTS_STATUSES:
-        raise APIError(
-            422,
-            "RIGHTS_TIER_NOT_ENABLED",
-            f"'{new_rights_status}' is not enabled in this build phase — only DISABLED and LINK_ONLY "
-            "are reachable per ADR-002",
-        )
-
+        _enforce_enable_gate(admin, new_rights_status, {})
     if new_rights_status is not None and new_rights_status != "DISABLED" and new_rights_status != source.rights_status:
-        if admin.role != "ADMIN":
-            raise APIError(403, "FORBIDDEN", "Only an ADMIN can enable a source (move it off DISABLED)")
         merged: dict[str, Any] = {field: updates.get(field, getattr(source, field)) for field in REQUIRED_EVIDENCE_FIELDS}
-        missing = [field for field, value in merged.items() if not value]
-        if missing:
-            raise APIError(
-                422,
-                "RIGHTS_EVIDENCE_REQUIRED",
-                f"Cannot enable source: missing rights evidence field(s) {', '.join(missing)}",
-            )
+        _enforce_enable_gate(admin, new_rights_status, merged)
 
     for field, value in updates.items():
         setattr(source, field, value)

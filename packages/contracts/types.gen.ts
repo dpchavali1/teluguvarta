@@ -190,8 +190,34 @@ export interface paths {
         /** List Sources */
         get: operations["list_sources_v1_admin_sources_get"];
         put?: never;
-        /** Create Source */
+        /**
+         * Create Source
+         * @description Create a source. With no rights fields it starts DISABLED/inactive. A
+         *     preset flow may also pass rights fields to enable + activate in one call;
+         *     that goes through the same ADR-002 gate as PATCH (ADMIN only, evidence URL
+         *     and reviewer required) — a human still supplies the evidence.
+         */
         post: operations["create_source_v1_admin_sources_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/admin/sources/test-feed": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Test Feed
+         * @description Preview a candidate feed URL (read-only; nothing is saved).
+         */
+        post: operations["test_feed_v1_admin_sources_test_feed_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -686,6 +712,22 @@ export interface components {
             /** Why Matters */
             why_matters?: string | null;
         };
+        /** AdminFeedTestOut */
+        AdminFeedTestOut: {
+            /** Error */
+            error: string | null;
+            /** Headlines */
+            headlines: string[];
+            /** Item Count */
+            item_count: number;
+            /** Ok */
+            ok: boolean;
+        };
+        /** AdminFeedTestRequest */
+        AdminFeedTestRequest: {
+            /** Feed Url */
+            feed_url: string;
+        };
         /** AdminJobOut */
         AdminJobOut: {
             /** Attempts */
@@ -756,8 +798,12 @@ export interface components {
         };
         /** AdminSourceCreate */
         AdminSourceCreate: {
+            /** Active */
+            active?: boolean | null;
             /** Base Url */
             base_url?: string | null;
+            /** Category */
+            category?: string | null;
             /** Country */
             country?: string | null;
             /** Feed Url */
@@ -768,6 +814,15 @@ export interface components {
             name: string;
             /** Refresh Minutes */
             refresh_minutes?: number | null;
+            /** Reviewer */
+            reviewer?: string | null;
+            rights_evidence?: components["schemas"]["RightsEvidence"] | null;
+            /** Rights Evidence Url */
+            rights_evidence_url?: string | null;
+            /** Rights Reviewed At */
+            rights_reviewed_at?: string | null;
+            /** Rights Status */
+            rights_status?: ("DISABLED" | "LINK_ONLY" | "LICENSED_METADATA" | "LICENSED_REPURPOSE") | null;
             /** Source Type */
             source_type?: string | null;
         };
@@ -777,6 +832,8 @@ export interface components {
             active: boolean;
             /** Base Url */
             base_url?: string | null;
+            /** Category */
+            category?: string | null;
             /** Country */
             country?: string | null;
             /** Fail Count */
@@ -819,6 +876,8 @@ export interface components {
             active?: boolean | null;
             /** Base Url */
             base_url?: string | null;
+            /** Category */
+            category?: string | null;
             /** Country */
             country?: string | null;
             /** Feed Url */
@@ -1886,6 +1945,41 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AdminSourceOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    test_feed_v1_admin_sources_test_feed_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminFeedTestRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminFeedTestOut"];
                 };
             };
             /** @description Validation Error */

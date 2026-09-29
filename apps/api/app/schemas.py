@@ -291,6 +291,14 @@ class AdminSourceCreate(BaseModel):
     language: str | None = None
     refresh_minutes: int | None = None
     category: str | None = None
+    # Optional: enable + activate in one call (preset flow). Same ADR-002 gate
+    # as PATCH; omitted → the source starts DISABLED/inactive as before.
+    rights_status: RightsStatus | None = None
+    rights_evidence_url: str | None = None
+    rights_reviewed_at: datetime | None = None
+    reviewer: str | None = None
+    rights_evidence: RightsEvidence | None = None
+    active: bool | None = None
 
 
 class AdminSourceUpdate(BaseModel):
