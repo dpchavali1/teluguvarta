@@ -104,6 +104,10 @@ AI_FREE_TIER_ENABLED=0
 X_API_BEARER_TOKEN=
 SENTRY_DSN=
 ALERT_WEBHOOK_URL=
+# Backups (infra/deploy/BACKUPS.md): nightly cron is installed once the age key is set.
+BACKUP_AGE_RECIPIENT=
+BACKUP_STORAGE_BOX=
+BACKUP_HEALTHCHECK_URL=
 EOF
   chmod 600 "$ENV_FILE"
   echo "==> Wrote $ENV_FILE (secrets generated; back this file up somewhere safe)"
@@ -124,7 +128,19 @@ echo "==> Building images (first build takes several minutes)"
 "${COMPOSE[@]}" build
 
 echo "==> Starting Postgres"
-"${COMPOSE[@]}" up -d postgres
+"${COMPOSE[@]}" up -d --wait postgres
+
+backups_on=0
+grep -qE '^BACKUP_AGE_RECIPIENT=.+' "$ENV_FILE" && backups_on=1
+if [ "$backups_on" -eq 1 ]; then
+  command -v age >/dev/null || apt-get install -y -qq age >/dev/null
+  # Snapshot before migrating, so a bad migration is always recoverable.
+  if [ -f "$repo_root/.seeded" ]; then
+    echo "==> Pre-migration backup"
+    "$repo_root/infra/deploy/backup-prod.sh"
+  fi
+fi
+
 "${COMPOSE[@]}" run --rm api alembic upgrade head
 
 if [ ! -f "$repo_root/.seeded" ]; then
@@ -142,6 +158,16 @@ fi
 
 echo "==> Starting all services"
 "${COMPOSE[@]}" up -d --remove-orphans
+
+if [ "$backups_on" -eq 1 ]; then
+  cat > /etc/cron.d/teluguvarta-backup <<EOF
+# Managed by infra/deploy/deploy.sh — nightly encrypted backup.
+30 3 * * * root $repo_root/infra/deploy/backup-prod.sh >> /var/log/teluguvarta-backup.log 2>&1
+EOF
+  echo "==> Nightly backup scheduled (03:30 server time, log /var/log/teluguvarta-backup.log)"
+else
+  echo "==> Backups NOT configured — set BACKUP_AGE_RECIPIENT in .env.prod (infra/deploy/BACKUPS.md)"
+fi
 
 # --- 4. verify ---------------------------------------------------------------
 echo "==> Configuring nginx + TLS"
