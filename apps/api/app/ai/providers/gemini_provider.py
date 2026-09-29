@@ -1,11 +1,10 @@
 """Gemini adapter — talks to the Gemini REST API over httpx, so unlike
 openai_provider.py/anthropic_provider.py it needs no provider SDK.
 
-NOT wired into `ROUTING` (app/ai/tasks.py). The Gemini free tier may use
-prompts/responses to improve Google's products, so routing any task to it
-is an ADR-011 decision (docs/plans/gemini-hetzner-telugu-plan.md §4) that
-must land together with a pre-call privacy gate; until then this adapter is
-only reachable by naming provider="gemini" explicitly.
+NOT in `ROUTING` (app/ai/tasks.py). The free tier may use prompts/responses
+to improve Google's products, so `gemini` is reachable only via
+FREE_TIER_ROUTING behind ADR-015's privacy gate. `gemini_paid` (ADR-018) is
+reachable only via PAID_GEMINI_ROUTING.
 """
 
 from __future__ import annotations
@@ -35,11 +34,12 @@ CONSTRAINED_SUFFIX = (
 
 class GeminiProvider:
     name = "gemini"
+    key_env = "AI_GEMINI_API_KEY"
 
     def __init__(self) -> None:
-        api_key = os.environ.get("AI_GEMINI_API_KEY")
+        api_key = os.environ.get(self.key_env)
         if not api_key:
-            raise ProviderUnavailableError("AI_GEMINI_API_KEY not set")
+            raise ProviderUnavailableError(f"{self.key_env} not set")
         self._api_key = api_key
 
     def complete(
@@ -76,3 +76,12 @@ class GeminiProvider:
             tokens_in=usage.get("promptTokenCount", 0) or 0,
             tokens_out=usage.get("candidatesTokenCount", 0) or 0,
         )
+
+
+class PaidGeminiProvider(GeminiProvider):
+    """ADR-018: the same API on a separate, billed Cloud project. Billing is
+    per project, so this key's calls are all paid tier (not used for
+    training), and they're logged and priced as `gemini_paid`."""
+
+    name = "gemini_paid"
+    key_env = "AI_GEMINI_PAID_API_KEY"

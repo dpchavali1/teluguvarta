@@ -1,6 +1,6 @@
 # ADR-018: Paid Gemini route so AI drafts every story (amends ADR-001, ADR-015)
 
-- **Status**: proposed
+- **Status**: accepted (2026-09-29, owner)
 - **Date**: 2026-09-29
 - **Ticket**: automation plan step 2 (PROGRESS.md, "Automation plan agreed with owner")
 
@@ -57,13 +57,17 @@ free for some stories and paid for others.
 5. **Cost accounting fails closed.** Pricing is looked up by `(provider, model)`, so
    `gemini_paid` calls can't inherit the free tier's $0. The gateway refuses a
    `gemini_paid` call that has no pricing entry. That call counts as unavailable, and
-   the story holds as it does today. Prices are copied from Google's pricing page when
-   billing is enabled, not guessed here. The existing `MONTHLY_AI_BUDGET_USD=150` /
-   `DAILY_AI_ALERT_USD=10` gate applies unchanged.
-6. **Separate rate-limit buckets.** `ratelimit.py` keys by provider, so free-tier RPD
-   counting covers only `gemini`. `gemini_paid` limits are read from AI Studio after
-   billing is enabled and set via env. A 429 is still a deferral, as in ADR-015
-   decision 6.
+   the story holds as it does today. Prices come from Google's pricing page
+   (`PAID_GEMINI_PRICING`, 2026-09-29): 3.5 Flash-Lite is $0.30/$2.50 per 1M input/output
+   tokens. 3.8 Flash uses its 2027 list price of $1.50/$7.50, not the lower 2026 promo,
+   so the budget over-counts. At roughly 4 calls per story, that's about $0.006 per
+   story. The owner lowered the budget to `MONTHLY_AI_BUDGET_USD=50` with
+   `DAILY_AI_ALERT_USD=3` (ADR-007's 1/15 ratio). On a breach, generation degrades to
+   classification-only, as before.
+6. **No local limiter on the paid route.** Free-tier RPD and RPM counting
+   (`ratelimit.py`) covers only `provider == "gemini"`. Paid limits are far above this
+   volume, so `gemini_paid` relies on Google's own 429 (a deferral, as in ADR-015
+   decision 6) and on the budget gate.
 7. **Pinned models on the paid route.** `AI_GEMINI_PAID_FLASH_MODEL` and
    `AI_GEMINI_PAID_FLASH_LITE_MODEL` must be pinned ids (for example `gemini-3.5-flash-lite`),
    not `-latest` aliases. This keeps pricing entries and Telugu-quality evidence tied to
@@ -80,16 +84,22 @@ free for some stories and paid for others.
   drafting. That's acceptable because the fallback is the current behavior (hold for a
   human). Adding an OpenAI or Anthropic key restores ADR-001's two-vendor routing without
   code changes.
-- Telugu quality evidence is weak. Spike 1's grade was a blanket 4/5 on a subset, and
-  translation has a Telugu QA gate plus human review. Acceptance should include a
-  row-by-row grade of at least 10 paid-route Telugu outputs, recorded in
-  `infra/scripts/spike1_results.json`.
+- Telugu quality: the owner accepted their earlier Spike 1 review (a blanket 4/5) as
+  sufficient and declined a separate grading pass. The safeguard is unchanged: every
+  Telugu variant goes through the automated Telugu QA gate and a human approval before
+  it publishes. Revisit if reviewers keep rewriting paid-route Telugu.
 - Unblocks automation plan step 3 (ADR-011 auto-publish lane), which needs real
   `sensitivity` values to exist.
-- Implementation work: `gemini_paid` provider registration, `(provider, model)` pricing
-  keys, the `PAID_GEMINI_ROUTING` table and selection, the extended
-  `paid_provider_configured()`, per-provider rate-limit keys, env vars in `.env.example`
-  and `docker-compose.prod.yml`, and tests for each fail-closed path.
+- Implemented 2026-09-29:
+  - `PaidGeminiProvider`, and route selection in `tasks.route_for`.
+  - Provider-aware pricing: `pricing_for` and `cost_usd(..., provider=)`.
+  - The gateway's fail-closed refusal.
+  - Env vars in `.env.example` and the `deploy.sh` template (prod compose already
+    loads `.env.prod` whole).
+  - `tests/test_paid_gemini_route.py`.
+
+  The escalation fields in `PAID_GEMINI_ROUTING` are declarative only, like every other
+  route: the gateway doesn't escalate today.
 
 ## Alternatives considered
 
@@ -105,8 +115,8 @@ free for some stories and paid for others.
 - **Keep holding everything for humans.** This is the status quo. It doesn't scale, and
   it leaves stories unclassified.
 
-## Owner decisions needed before acceptance
+## Owner decisions (2026-09-29)
 
-1. Separate paid project (recommended) or billing on the existing one.
-2. Confirm or change `MONTHLY_AI_BUDGET_USD` for the paid route.
-3. Who grades the 10 paid-route Telugu outputs.
+1. Separate paid project: yes.
+2. Monthly AI budget: $50 (daily alert $3).
+3. Telugu grading: not required; the earlier Spike 1 review stands.

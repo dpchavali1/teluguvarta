@@ -84,8 +84,46 @@ def free_tier_enabled() -> bool:
     return os.environ.get("AI_FREE_TIER_ENABLED", "").strip().lower() in ("1", "true", "yes")
 
 
-def paid_provider_configured() -> bool:
+def adr001_provider_configured() -> bool:
     return bool(os.environ.get("AI_OPENAI_API_KEY") or os.environ.get("AI_ANTHROPIC_API_KEY"))
+
+
+def paid_gemini_configured() -> bool:
+    return bool(os.environ.get("AI_GEMINI_PAID_API_KEY"))
+
+
+def paid_provider_configured() -> bool:
+    return adr001_provider_configured() or paid_gemini_configured()
+
+
+# ADR-018: the billed Gemini project, used only when no ADR-001 key is set
+# (see `route_for`). Pinned ids, never `-latest` aliases, so each call's
+# price and the Telugu-quality evidence refer to one model.
+GEMINI_PAID_FLASH = os.environ.get("AI_GEMINI_PAID_FLASH_MODEL") or "gemini-3.8-flash"
+GEMINI_PAID_FLASH_LITE = os.environ.get("AI_GEMINI_PAID_FLASH_LITE_MODEL") or "gemini-3.5-flash-lite"
+
+PAID_GEMINI_ROUTING: dict[Task, TaskRoute] = {
+    **{
+        task: TaskRoute(
+            provider="gemini_paid", default_model=GEMINI_PAID_FLASH_LITE,
+            escalation_provider="gemini_paid", escalation_model=GEMINI_PAID_FLASH,
+        )
+        for task in (Task.RELEVANCE_CATEGORIZATION, Task.SUMMARY, Task.WHY_MATTERS, Task.TRANSLATION_EN_TE)
+    },
+    Task.SENSITIVE_VALIDATION: TaskRoute(
+        provider="gemini_paid", default_model=GEMINI_PAID_FLASH, always_human_review=True,
+    ),
+}
+
+
+def route_for(task: Task, *, free_tier_allowed: bool) -> TaskRoute:
+    """ADR-015 free tier first for an allowed story, then ADR-001's ROUTING
+    when an OpenAI/Anthropic key is set, else the ADR-018 paid Gemini route."""
+    if free_tier_allowed and task in FREE_TIER_ROUTING and free_tier_enabled():
+        return FREE_TIER_ROUTING[task]
+    if not adr001_provider_configured() and paid_gemini_configured() and task in PAID_GEMINI_ROUTING:
+        return PAID_GEMINI_ROUTING[task]
+    return ROUTING[task]
 
 
 # Tasks that degrade to "classification-only mode" (§7.5) once the monthly
@@ -109,14 +147,28 @@ MODEL_PRICING: dict[str, ModelPricing] = {
     "gpt-4o": ModelPricing(0.0025, 0.01),
     "text-embedding-3-small": ModelPricing(0.00002, 0.0),
     "claude-3-5-sonnet-20241022": ModelPricing(0.003, 0.015),
-    # Free tier: $0 billed. Paid-tier rates to be added by ADR-011.
+    # Free tier: $0 billed.
     "gemini-flash-latest": ModelPricing(0.0, 0.0),
     "gemini-flash-lite-latest": ModelPricing(0.0, 0.0),
 }
 
+# ADR-018: the same model ids cost money on the billed project, so paid
+# Gemini is priced from its own table. From ai.google.dev/gemini-api/docs/pricing
+# (2026-09-29, standard text). 3.8 Flash uses its 2027 list price, not the
+# lower 2026 promo, so the budget gate over-counts rather than under-counts.
+PAID_GEMINI_PRICING: dict[str, ModelPricing] = {
+    "gemini-3.5-flash-lite": ModelPricing(0.0003, 0.0025),
+    "gemini-3.8-flash": ModelPricing(0.0015, 0.0075),
+}
 
-def cost_usd(model: str | None, tokens_in: int, tokens_out: int) -> float:
-    pricing = MODEL_PRICING.get(model or "")
+
+def pricing_for(provider: str | None, model: str | None) -> ModelPricing | None:
+    table = PAID_GEMINI_PRICING if provider == "gemini_paid" else MODEL_PRICING
+    return table.get(model or "")
+
+
+def cost_usd(model: str | None, tokens_in: int, tokens_out: int, *, provider: str | None = None) -> float:
+    pricing = pricing_for(provider, model)
     if pricing is None:
         return 0.0
     return round(

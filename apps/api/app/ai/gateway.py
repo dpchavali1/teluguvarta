@@ -22,10 +22,9 @@ from app.ai.providers.null_provider import NullProvider
 from app.ai.ratelimit import acquire
 from app.ai.tasks import (
     DEGRADABLE_ON_BUDGET_BREACH,
-    FREE_TIER_ROUTING,
-    ROUTING,
     Task,
-    free_tier_enabled,
+    pricing_for,
+    route_for,
 )
 
 # §7.5: "low confidence -> review queue." Below this, a syntactically valid
@@ -77,6 +76,13 @@ def _resolve_provider(name: str | None) -> Provider:
             from app.ai.providers.gemini_provider import GeminiProvider
 
             return GeminiProvider()
+        except ProviderUnavailableError:
+            return NullProvider()
+    if name == "gemini_paid":
+        try:
+            from app.ai.providers.gemini_provider import PaidGeminiProvider
+
+            return PaidGeminiProvider()
         except ProviderUnavailableError:
             return NullProvider()
     return NullProvider()
@@ -136,21 +142,33 @@ class AiGateway:
         privacy_decision: PrivacyDecision | str | None = None,
         editor_authored: bool = False,
     ) -> GatewayOutcome:
-        route = ROUTING[task]
-        if (
-            task in FREE_TIER_ROUTING
-            and free_tier_enabled()
-            and not editor_authored
-            and story_id is not None
-            and coerce(getattr(privacy_decision, "value", privacy_decision)) == PrivacyDecision.FREE_TIER_ALLOWED
-        ):
-            route = FREE_TIER_ROUTING[task]
+        route = route_for(
+            task,
+            free_tier_allowed=(
+                not editor_authored
+                and story_id is not None
+                and coerce(getattr(privacy_decision, "value", privacy_decision)) == PrivacyDecision.FREE_TIER_ALLOWED
+            ),
+        )
 
         if route.provider is None:
             raise ValueError(f"{task} has no provider route — call the deterministic helper instead")
 
         if task in DEGRADABLE_ON_BUDGET_BREACH and is_over_monthly_budget(self._db):
             return GatewayOutcome(status=GatewayStatus.CLASSIFICATION_ONLY)
+
+        # ADR-018 decisions 5 and 7: a paid call that can't be priced, or that
+        # names a moving alias, would slip past the budget gate. Refuse it.
+        if route.provider == "gemini_paid" and (
+            route.default_model is None
+            or route.default_model.endswith("-latest")
+            or pricing_for(route.provider, route.default_model) is None
+        ):
+            record_call(
+                self._db, task=task, provider="gemini_paid", model=route.default_model,
+                status="UNAVAILABLE", story_id=story_id,
+            )
+            return GatewayOutcome(status=GatewayStatus.UNAVAILABLE)
 
         if route.provider == "gemini":
             self._guard_free_tier(story_id, privacy_decision, editor_authored)

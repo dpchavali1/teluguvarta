@@ -36,7 +36,7 @@ def record_call(
         story_id=story_id,
         tokens_in=tokens_in,
         tokens_out=tokens_out,
-        cost_usd=cost_usd(model, tokens_in, tokens_out),
+        cost_usd=cost_usd(model, tokens_in, tokens_out, provider=provider),
     )
     db.add(row)
     db.commit()

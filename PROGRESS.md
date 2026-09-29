@@ -58,9 +58,22 @@ write one, and approve didn't check for English, so an empty story could be publ
     No confirm/required-reason friction was added on purpose, since every held story would get it.
 - **Automation plan agreed with owner:**
   1. Faster triage (above).
-  2. ADR: paid Gemini route, so AI drafts every story. **ADR-018 written, proposed (2026-09-29).** It is
-     blocked on the owner's three decisions at the end of the ADR (separate paid project or not, monthly
-     cap, who grades 10 Telugu outputs). No code until it's accepted.
+  2. ADR: paid Gemini route, so AI drafts every story. **ADR-018 accepted and implemented (2026-09-29).**
+     The owner chose a separate billed project, a $50/month AI budget ($3 daily alert), and no extra
+     Telugu grading. A new `gemini_paid` provider (`AI_GEMINI_PAID_API_KEY`) handles every story not on
+     the free-tier allowlist when no OpenAI/Anthropic key is set, so `NO_PAID_PROVIDER` holds stop.
+     Pinned `gemini-3.5-flash-lite` / `gemini-3.8-flash`, priced in `PAID_GEMINI_PRICING`. An unpriced or
+     alias model is refused (UNAVAILABLE, logged).
+     **Not live yet — owner steps on the VPS:**
+     (a) Create a new Cloud project with billing on, and make an API key there.
+     (b) In `.env.prod`, set `AI_GEMINI_PAID_API_KEY=` and change `MONTHLY_AI_BUDGET_USD=50` and
+         `DAILY_AI_ALERT_USD=3`. `deploy.sh` only writes those on the first run, so the existing file
+         still says 150/10.
+     (c) Re-run `deploy.sh`.
+     Stories already held as `NO_PAID_PROVIDER` stay held. Only new stories get drafted.
+     Verified: `pytest` 320 passed. One run had a Postgres `InsufficientResources` error on a different test
+     each time; it's local and flaky, and those tests pass on their own. `ruff` is clean. mypy has the same 68
+     errors before and after.
   3. ADR-011: auto-publish lane for "link-first briefs" (headline plus a one-liner limited to what the
      source title says, plus the source link). Only for rights-reviewed, `sensitivity=NONE`, high-confidence
      stories, with a daily cap.
