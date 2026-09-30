@@ -248,7 +248,9 @@ gate section is gone; do not reintroduce a pilot gate on any future ticket.
   decision panel is moved above the story with CSS `order: -1` (DOM order unchanged; `30c4812`, deployed
   2026-09-30, live CSS confirmed). A native admin app was declined for
   now (would need an ADR).
-- **Telugu sources + auto-publish, owner decision 2026-09-30 (prepared, NOT yet applied in prod):** the feed was
+- **Telugu sources + auto-publish, owner decision 2026-09-30 (APPLIED in prod 2026-09-30 ~23:08 UTC:
+  `15b3520` deployed, `AUTO_PUBLISH_GLOBAL=true`, script `--apply` with reviewer `admin@theteluguedit.com`
+  added all 11 and deactivated NPR):** the feed was
   mostly US news because 3 of 4 seeded sources were NPR/State Dept/FEMA. Owner approved 11 LINK_ONLY feeds from
   `docs/sources/telugu-source-candidates.md` (Namasthe Telangana main/Hyderabad/sports/business, NTV Telugu,
   Telugu360 main, Telangana State Portal, 123telugu, Telugu Times, USCIS news, Study in the States) and
