@@ -40,6 +40,13 @@ gate section is gone; do not reintroduce a pilot gate on any future ticket.
   malformed or blocked reply is logged with its usage and fails validation like any bad output. Transport
   errors log `PROVIDER_ERROR`, not `UNAVAILABLE`, so the misconfiguration alert isn't tripped. Not done:
   reconciling logged cost against the Cloud billing export (needs billing access). Full suite 384 passed.
+- **#4 done (2026-09-29): brief headline and per-claim evidence** (`app/jobs/brief_lane.py`). The headline now
+  goes through `title_match` like the sentence, so an invented name, number or negation in it sends the
+  story to review (`BRIEF_TITLE_MISMATCH`). Each claim is checked only against the titles it cites.
+  `title_match` also fails when negation is present in the text but not the titles, or the reverse, and when
+  two checked tokens appear in the opposite order from one title ("Smith sues Jones" → "Jones sues Smith").
+  Headlines get the order check on numbers only, since they reorder freely. Still lexical, not entailment: a
+  swapped verb with the same tokens gets through. Full suite 390 passed (1 flaky fixture error).
 
 **Manual drafting in admin (2026-09-29)**: step 1 of the free/low-cost AI plan (VPS is a CPX21, 3 vCPU/4 GB,
 so no local LLM; the plan is Gemini free for allowlisted categories, a capped paid Flash-Lite route, and manual

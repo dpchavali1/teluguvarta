@@ -45,6 +45,20 @@ def test_title_match_allows_cause_the_title_states():
     assert title_match("Flights stop after storm.", ["Flights stop after storm hits coast"]).ok
 
 
+# Review 2026-09-29 #4: negative cases the lane must send to review.
+def test_title_match_rejects_changed_negation():
+    assert not title_match("The court did not block the rule.", ["Court blocks rule"]).ok
+    assert not title_match("The court blocked the rule.", ["Court does not block rule"]).ok
+    assert title_match("The court did not block the rule.", ["Court does not block rule"]).ok
+
+
+def test_title_match_rejects_reversed_relationship():
+    assert not title_match("Jones sues Smith.", ["Smith sues Jones over contract"]).ok
+    assert not title_match("Fees rise from 10 to 5.", ["Fees rise from 5 to 10"]).ok
+    assert not title_match("Fees rise from 10 to 5.", ["Fees rise from 5 to 10"], order="numbers").ok
+    assert title_match("Smith sues Jones.", ["Smith sues Jones over contract"]).ok
+
+
 def test_single_sentence_check():
     assert is_single_sentence("Israel is at Level 3.")
     assert not is_single_sentence("Israel is at Level 3. Travelers should reconsider.")
@@ -61,7 +75,7 @@ def test_cap_day_starts_at_new_york_midnight():
 
 def _brief(item_id, **overrides):
     base = {
-        "headline_en": "US raises caution on travel to Israel",
+        "headline_en": "Travel caution raised for Israel",
         "brief_en": "Israel is now at Level 3: Reconsider Travel.",
         "confidence": 0.9,
         "claims": [{"text": "Israel is at Level 3", "source_refs": [str(item_id)]}],
@@ -141,6 +155,44 @@ def test_lane_off_by_default(db_session, lane_on, monkeypatch):
     db_session.refresh(story)
     assert story.status == "REVIEW_REQUIRED" and story.format == "FULL"
     assert _task(db_session, story).reason == "AUTO_PUBLISH_DISABLED"
+
+
+@pytest.mark.parametrize(
+    "overrides",
+    [
+        {"headline_en": "Caution for Israel trips moves up to 4"},  # invented number
+        {"headline_en": "Jordan and Israel travel caution"},  # invented name
+        {"headline_en": "Israel travel advice not changed"},  # added negation
+    ],
+)
+def test_headline_with_unsupported_fact_goes_to_review(db_session, lane_on, monkeypatch, overrides):
+    story, item = _story(db_session)
+    _fake(monkeypatch, [_brief(item.id, **overrides)])
+    auto_publish_stories(db_session)
+    db_session.refresh(story)
+    assert story.status == "REVIEW_REQUIRED"
+    assert "BRIEF_TITLE_MISMATCH" in _task(db_session, story).reason
+
+
+def test_claim_is_checked_against_its_own_citation(db_session, lane_on, monkeypatch):
+    """Claim 2 states a fact only item 2's title supports but cites item 1."""
+    story, item = _story(db_session)
+    other = SourceItem(
+        source_id=item.source_id, external_id=str(uuid.uuid4()), url="https://example.org/b",
+        title="Jordan - Level 2: Exercise Increased Caution", raw_hash=str(uuid.uuid4()), ingest_status="SCHEDULED",
+    )
+    db_session.add(other)
+    db_session.flush()
+    db_session.add(StorySource(story_id=story.id, source_item_id=other.id, role="SUPPORTING", evidence_rank=2))
+    db_session.commit()
+    _fake(monkeypatch, [_brief(item.id, claims=[
+        {"text": "Israel is at Level 3", "source_refs": [str(item.id)]},
+        {"text": "Jordan is at Level 2", "source_refs": [str(item.id)]},
+        {"text": "Jordan advisory exists", "source_refs": [str(other.id)]},
+    ])])
+    auto_publish_stories(db_session)
+    db_session.refresh(story)
+    assert story.status == "REVIEW_REQUIRED"
 
 
 @pytest.mark.parametrize(

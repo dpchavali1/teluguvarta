@@ -66,6 +66,10 @@ _STOP_WORDS = frozenset({
     "have", "had", "will", "new", "officials", "authorities",
 })
 
+# A negation the titles don't carry reverses a fact; one they carry and the
+# text drops reverses it the other way.
+_NEGATION_WORDS = frozenset({"not", "no", "never", "without", "nor", "neither", "none", "cannot"})
+
 _TOKEN_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9'’.,/-]*")
 _SENTENCE_BREAK_RE = re.compile(r"[.!?]\s+\S")
 
@@ -119,13 +123,45 @@ def _tokens(text: str) -> list[str]:
     return [t.strip(".,") for t in _TOKEN_RE.findall(text or "") if t.strip(".,")]
 
 
-def title_match(text: str, titles: list[str]) -> TitleMatch:
+def _is_negation(key: str) -> bool:
+    return key in _NEGATION_WORDS or key.endswith(("n't", "n’t"))
+
+
+def _has_negation(text: str) -> bool:
+    return any(_is_negation(_normalize(t)) for t in _tokens(text))
+
+
+def _order_inversions(checked_keys: list[str], titles: list[str]) -> list[str]:
+    """Adjacent checked tokens that `text` puts in the opposite order from a
+    single title: "Smith sues Jones" -> "Jones sues Smith", "from 5 to 10" ->
+    "from 10 to 5". A legitimate passive rewrite trips this too; that goes to
+    review, which is the safe side."""
+    inversions: list[str] = []
+    for title in titles:
+        positions: dict[str, int] = {}
+        for index, token in enumerate(_tokens(title)):
+            positions.setdefault(_normalize(token), index)
+        seen = [positions[k] for k in dict.fromkeys(checked_keys) if k in positions]
+        ordered = [k for k in dict.fromkeys(checked_keys) if k in positions]
+        for i in range(len(seen) - 1):
+            if seen[i] > seen[i + 1]:
+                inversions.append(f"ORDER:{ordered[i]}>{ordered[i + 1]}")
+    return inversions
+
+
+def title_match(text: str, titles: list[str], *, order: str = "all") -> TitleMatch:
     """Every number/date token and every capitalized non-stop-word in `text`
     must appear in one of `titles`, and a causal word may appear only if a
-    title uses it. Catches added facts, not dropped qualifiers (ADR-019)."""
+    title uses it. Catches added facts, not dropped qualifiers (ADR-019).
+    Review 2026-09-29 #4 adds two guards: negation must be present in `text`
+    exactly when a title has it, and checked tokens that share a title must
+    keep that title's order (`order="numbers"` limits that to numbers, for
+    headlines, which reorder freely). Still lexical: it can't prove
+    entailment."""
     title_words = {_normalize(t) for title in titles for t in _tokens(title)}
     matched: list[str] = []
     unmatched: list[str] = []
+    checked_keys: list[str] = []
     for token in _tokens(text):
         key = _normalize(token)
         if not key:
@@ -137,7 +173,13 @@ def title_match(text: str, titles: list[str]) -> TitleMatch:
         )
         if not checked:
             continue
+        checked_keys.append(key)
         (matched if key in title_words else unmatched).append(token)
+    if _has_negation(text) != any(_has_negation(title) for title in titles):
+        unmatched.append("NEGATION")
+    if order == "numbers":
+        checked_keys = [k for k in checked_keys if any(ch.isdigit() for ch in k)]
+    unmatched += _order_inversions(checked_keys, titles)
     return TitleMatch(ok=not unmatched, matched=matched, unmatched=unmatched)
 
 
@@ -191,12 +233,21 @@ def _check_brief(brief: BriefResult, items: list[SourceItem], evidence_ids: froz
     if not brief.claims or any(not c.source_refs or any(r not in evidence_ids for r in c.source_refs) for c in brief.claims):
         return LaneOutcome.REJECTED, None
 
-    cited = {ref for claim in brief.claims for ref in claim.source_refs}
-    cited_titles = [item.title or "" for item in items if str(item.id) in cited]
+    titles_by_id = {str(item.id): item.title or "" for item in items}
+
+    def titles_for(refs) -> list[str]:
+        return [titles_by_id[ref] for ref in dict.fromkeys(refs)]
+
+    cited_titles = titles_for(ref for claim in brief.claims for ref in claim.source_refs)
     match = title_match(text, cited_titles)
-    claim_matches = [title_match(c.text, cited_titles) for c in brief.claims]
-    if not match.ok or not all(m.ok for m in claim_matches):
-        return LaneOutcome.TITLE_MISMATCH, match
+    # Review 2026-09-29 #4: the headline is checked like the sentence (an
+    # original-looking headline can add a name or number too), and each claim
+    # only against the titles it cites, not every claim's citations.
+    headline_match = title_match(headline, cited_titles, order="numbers")
+    claim_matches = [title_match(c.text, titles_for(c.source_refs)) for c in brief.claims]
+    if not match.ok or not headline_match.ok or not all(m.ok for m in claim_matches):
+        failed = next(m for m in (match, headline_match, *claim_matches) if not m.ok)
+        return LaneOutcome.TITLE_MISMATCH, failed
     return None, match
 
 
