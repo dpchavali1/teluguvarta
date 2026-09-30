@@ -8,13 +8,13 @@ Also proposes clearer today/month/hard-cap AI spend, editorial/pipeline drilldow
 private reader-report handling and web/mobile visual improvements. Review only;
 no implementation ticket completed or production behavior changed. Admin beyond
 login and mobile were inspected through code, not authenticated/device journeys.
-- **R1 fixed (2026-09-30, `c76bda6`, not deployed):** Next hands dynamic params over still percent-encoded
+- **R1 fixed (2026-09-30, `c76bda6`, deployed; live Telugu slug now 200):** Next hands dynamic params over still percent-encoded
   and `getStory`/`getShareMeta` encode again, so Telugu slugs reached the API double-encoded (live: API 200,
   web 404). Story layout, page and metadata now decode once via `src/lib/pathParam.ts` (was `api.ts`
   `pathCursor`; cursor pages use it too); a malformed escape 404s. Verified with `next dev` against the prod
   API: Telugu slug 404 → 200, ASCII/missing/cursor unchanged. Separate, unfixed: Telugu slugs are generated
   with vowel signs stripped (`రేవంత్` → `రవత`), so they read as garbage. Existing slugs must stay stable.
-- **R2 fixed for new translations (2026-09-30, not deployed):** `qa.find_variant_qa_issues` adds
+- **R2 fixed for new translations (2026-09-30, `2c8f9d2`, deployed):** `qa.find_variant_qa_issues` adds
   `MIXED_SCRIPT:<field>` for any Devanagari/Bengali/Gurmukhi/Gujarati/Odia/Tamil/Kannada/Malayalam letter,
   unless the English field contains that same script (quoted text); dandas are allowed. The variant is FAILED,
   so readers get English. Dry run on the live API: 5 of 20 served Telugu variants would fail (`9f334ada`,
