@@ -201,6 +201,22 @@ gate section is gone; do not reintroduce a pilot gate on any future ticket.
   on the owner's Android device, with `api.theteluguedit.com` in the bundle: it launches and the home feed
   loads, no crash in logcat. This also ships #14. The old sslip.io nginx conf can go once no older install
   remains. Device checks of #14 (Latest, large text, TalkBack, offline, push) are still to do.
+- **#17 partly done (2026-09-30): CI checks what broke live.** CI now runs the web and admin production
+  builds. They were **failing on a fresh full-workspace install**: `next`'s own types resolved `react`
+  through pnpm's hidden hoist, which held mobile's `@types/react@19`, while web/admin use 18 (layout
+  `LayoutProps` error). Deploys were unaffected because `next.Dockerfile` installs one app only. Fixed with
+  a root `pnpm.packageExtensions` giving `next` an optional `@types/react` peer, so each app links its own.
+  `pnpm audit --audit-level=high` was also failing on main (new `brace-expansion` advisories, dev tooling
+  only); overrides pin the patched 1.x/2.x/5.x. API: runtime deps are locked with hashes in
+  `apps/api/requirements.lock` (uv, universal, Python 3.12); the image installs only from it, then the
+  package with `--no-deps`. CI checks the lock is current, installs from it, and now uses Python 3.12 like
+  the image (was 3.11). mypy is pinned (2.3.1) and ratcheted: CI fails above `apps/api/mypy-baseline.txt`
+  (71). Verified locally: both builds, lint, typecheck, web test 4, mobile jest 24, frozen install, pnpm
+  audit, ruff, mypy 71, `pip-audit` on the lock, lock install + `pip check` in a fresh 3.12 venv. Not
+  verified: the Docker image build (no Docker here; the next deploy builds it) and the CI run itself.
+  **Not done:** browser journeys (Playwright with BRIEF/zero/two/many/error fixtures), the capped
+  paid-model contract/Telugu eval (spends money: owner to approve a budget), cleaning mobile `act`
+  warnings, and actually reducing mypy debt.
 - **Waiting on the owner (proposed ADRs, nothing implemented):** ADR-023 rights revocation for published,
   mixed-source and scheduled stories (#7 follow-up); ADR-024 total AI spend ceiling (#2); ADR-025 audited
   recovery of `AI_RETRIES_EXHAUSTED`/exhausted-translation holds; ADR-026 minimum content per format (#6).

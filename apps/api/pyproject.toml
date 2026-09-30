@@ -25,7 +25,7 @@ dependencies = [
 dev = [
     "pytest>=8.3.0",
     "ruff>=0.7.0",
-    "mypy>=1.11.0",
+    "mypy==2.3.1",
     "openapi-spec-validator>=0.7.0",
     "pip-audit>=2.7.0",
     "bandit>=1.7.0"

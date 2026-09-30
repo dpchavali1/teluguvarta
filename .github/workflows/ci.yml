@@ -25,6 +25,10 @@ jobs:
       - run: pnpm run typecheck
       - run: pnpm --filter @teluguvarta/mobile run test
       - run: pnpm --filter @teluguvarta/web run test
+      # Production builds (review #17). No API is reachable here, so this
+      # also checks that the builds fall back instead of failing.
+      - run: pnpm --filter @teluguvarta/web run build
+      - run: pnpm --filter @teluguvarta/admin run build
       - name: Dependency scan (T19 §16 baseline)
         # Real gate as of the T20 Next.js 15 upgrade (was informational
         # while next@14.2.35 had no 14.x fix for its unauthenticated RCEs).
@@ -55,9 +59,30 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: "3.12" # matches infra/deploy/api.Dockerfile
+      - uses: astral-sh/setup-uv@v6
+      - name: Fail if requirements.lock is stale
+        run: |
+          uv pip compile pyproject.toml --universal --python-version 3.12 --generate-hashes -o requirements.lock -q
+          git diff --exit-code -- requirements.lock || {
+            echo "apps/api/requirements.lock is stale; rerun the command in its header and commit it." >&2
+            exit 1
+          }
+      # Runtime deps from the same hashed lock the image uses; dev tools on top.
+      - run: pip install --require-hashes -r requirements.lock
       - run: pip install -e ".[dev]"
       - run: ruff check .
+      - name: mypy may not add errors (baseline in mypy-baseline.txt)
+        run: |
+          n=$(mypy app | grep -c ': error:' || true)
+          base=$(cat mypy-baseline.txt)
+          echo "mypy errors: $n (baseline $base)"
+          if [ "$n" -gt "$base" ]; then
+            echo "New mypy errors; fix them (see 'mypy app')." >&2
+            exit 1
+          elif [ "$n" -lt "$base" ]; then
+            echo "::notice::mypy errors dropped to $n; lower mypy-baseline.txt."
+          fi
       - name: No provider SDK outside app/ai/providers (ADR-001)
         run: |
           if grep -rEn "^\s*(import|from)\s+(openai|anthropic)\b" app --include="*.py" \
