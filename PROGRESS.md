@@ -228,7 +228,10 @@ write one, and approve didn't check for English, so an empty story could be publ
   From outside: the apex returns 200 ("TTE — The Telugu Edit", real stories, `x-nextjs-cache: HIT`), `www` and
   `http://` 301 to `https://theteluguedit.com/`, api `/health` and admin return 200, and CORS allows the site's
   origin. `api.5-78-188-206.sslip.io` still answers for the old APK.
-  Still to do: (c)/(d) above. Optionally switch the records to Proxied with SSL mode Full (strict).
+  **Admin login moved (2026-09-30):** the only admin is now `admin@theteluguedit.com` (MFA unchanged), set with the new
+  `infra/scripts/reset_admin_password.py` (`--generate` prints a random password; usage in its docstring, runs with
+  the scripts dir mounted, no redeploy needed). The owner has signed in at `admin.theteluguedit.com`.
+  Still to do: (d) above. Optionally switch the records to Proxied with SSL mode Full (strict).
 
 **Web redesign, ADR-017 (2026-09-28)**: `apps/web` presentation-only rewrite. It adds a sticky header with a
 topic bar, a mobile bottom tab bar, card-based StoryLead/StoryBrief (ADR-014 contract unchanged), and a story
