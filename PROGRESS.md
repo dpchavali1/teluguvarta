@@ -134,7 +134,8 @@ gate section is gone; do not reintroduce a pilot gate on any future ticket.
   (`content.variants.dispatch_privacy`). Not done: whether generic explanations suffice at launch (removing
   the feature needs an owner decision); the cost-per-published-story metric isn't built yet, though these
   calls log `story_id`. Tests: 4 new in `tests/test_personalization_api.py`. Full API suite 416 passed
-  (1 flaky fixture error, passes alone); ruff clean; no new mypy errors in touched files. Not deployed.
+  (1 flaky fixture error, passes alone); ruff clean; no new mypy errors in touched files. **Deployed 2026-09-30 by the owner** (`ec6cd3b`); not checked live
+  (the cap only shows in the worker's `ai_summarize` jobs; no migration).
 - **Waiting on the owner (proposed ADRs, nothing implemented):** ADR-023 rights revocation for published,
   mixed-source and scheduled stories (#7 follow-up); ADR-024 total AI spend ceiling (#2); ADR-025 audited
   recovery of `AI_RETRIES_EXHAUSTED`/exhausted-translation holds; ADR-026 minimum content per format (#6).
