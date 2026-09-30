@@ -79,7 +79,10 @@ gate section is gone; do not reintroduce a pilot gate on any future ticket.
   evidence checklist: `infra/deploy/OPERATIONS.md`. **Still to do on the server, by the owner:**
   configure backups and the Storage Box, run a restore drill, keep `.env.prod` (MFA key) off-box, and set
   `MONITOR_HEALTHCHECK_URL` and test the alert. Tests: `tests/test_health.py` (8 passed; related suites
-  44 passed). `monitor.sh` was only dry-run locally (all checks failing, as expected with nothing running).
+  44 passed). **Deployed 2026-09-30 03:28 UTC at `62eea75`**: the deploy gate passed ("All healthy.") and
+  the api container reports `healthy`. The first deploy of it (`e684a1a`) hung at the gate: `docker
+  compose exec` under `timeout` was stopped reading the interactive tty. Fixed with `</dev/null` and a
+  wall-clock wait. Cron runs haven't been observed yet: check `/var/log/teluguvarta-monitor.log`.
 - **Waiting on the owner (proposed ADRs, nothing implemented):** ADR-023 rights revocation for published,
   mixed-source and scheduled stories (#7 follow-up); ADR-024 total AI spend ceiling (#2); ADR-025 audited
   recovery of `AI_RETRIES_EXHAUSTED`/exhausted-translation holds; ADR-026 minimum content per format (#6).
