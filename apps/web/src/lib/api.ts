@@ -74,18 +74,6 @@ export function duringBuild<T>(fallback: T): (err: unknown) => T {
   };
 }
 
-// Listing pages take their cursor from an `older/[cursor]` path segment, and
-// Next passes that param still percent-encoded (the base64 `=` arrives as %3D,
-// which the API reads as a bad cursor and silently serves page one). Returns
-// null for a malformed escape so the page can 404.
-export function pathCursor(raw: string): string | null {
-  try {
-    return decodeURIComponent(raw);
-  } catch {
-    return null;
-  }
-}
-
 export type HomeParams = { residenceCountry?: string; homeState?: string; homeCity?: string; topics?: string[]; segment?: string };
 export async function getHome(params: HomeParams = {}): Promise<HomeResponse> {
   const raw = await apiGet<components["schemas"]["HomeResponse"]>("/v1/home", {

@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
-import { pathCursor } from "@/lib/api";
+import { pathParam } from "@/lib/pathParam";
 
 import { TopicFeed, topicMetadata } from "../../TopicFeed";
 
@@ -20,7 +20,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function OlderTopicPage({ params }: Props) {
   const { slug, cursor: raw } = await params;
-  const cursor = pathCursor(raw);
+  const cursor = pathParam(raw);
   if (!cursor) notFound();
   return <TopicFeed slug={slug} cursor={cursor} />;
 }

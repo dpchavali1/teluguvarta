@@ -7,6 +7,7 @@ import { Icon } from "@/components/Icon";
 import { StoryCard } from "@/components/StoryCard";
 import { TrackEvent } from "@/components/TrackEvent";
 import { ApiNotFoundError, getShareMeta, getStory, listStories, storyUrl, type StoryOut } from "@/lib/api";
+import { pathParam } from "@/lib/pathParam";
 
 export const revalidate = 60;
 
@@ -19,7 +20,8 @@ export async function generateStaticParams() {
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const { slug } = await params;
+  const slug = pathParam((await params).slug);
+  if (slug === null) return {};
   try {
     const meta = await getShareMeta(slug);
     return {
@@ -71,7 +73,8 @@ function articleJsonLd(story: StoryOut): string {
 }
 
 export default async function StoryPage({ params }: Props) {
-  const { slug } = await params;
+  const slug = pathParam((await params).slug);
+  if (slug === null) notFound();
   let story;
   try {
     story = await getStory(slug);

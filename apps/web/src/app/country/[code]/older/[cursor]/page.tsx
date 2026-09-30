@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
-import { pathCursor } from "@/lib/api";
+import { pathParam } from "@/lib/pathParam";
 
 import { CountryFeed, countryMetadata } from "../../CountryFeed";
 
@@ -20,7 +20,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function OlderCountryPage({ params }: Props) {
   const { code, cursor: raw } = await params;
-  const cursor = pathCursor(raw);
+  const cursor = pathParam(raw);
   if (!cursor) notFound();
   return <CountryFeed code={code.toUpperCase()} cursor={cursor} />;
 }

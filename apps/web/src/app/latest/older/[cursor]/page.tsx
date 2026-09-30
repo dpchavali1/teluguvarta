@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 
-import { pathCursor } from "@/lib/api";
+import { pathParam } from "@/lib/pathParam";
 
 import { LatestFeed } from "../../LatestFeed";
 
@@ -13,7 +13,7 @@ export async function generateStaticParams() {
 }
 
 export default async function OlderLatestPage({ params }: { params: Promise<{ cursor: string }> }) {
-  const cursor = pathCursor((await params).cursor);
+  const cursor = pathParam((await params).cursor);
   if (!cursor) notFound();
   return <LatestFeed cursor={cursor} />;
 }
