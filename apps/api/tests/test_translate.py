@@ -255,6 +255,25 @@ def test_variant_qa_requires_fields_and_telugu_script():
     assert find_variant_qa_issues((en[0], en[1], None), (ok[0], ok[1], None)) == []
 
 
+def test_variant_qa_rejects_other_indic_scripts():
+    """Review 2026-09-30 R2: live variants had Kannada and Hindi words inside
+    Telugu text and still passed, since only Telugu and Latin were counted."""
+    en = ("USCIS raises fee", "The fee rises in 2026.", "Applicants pay more.")
+    ok = ("USCIS రుసుము పెంచింది", "2026లో రుసుము పెరుగుతుంది.", "దరఖాస్తుదారులు ఎక్కువ చెల్లిస్తారు.")
+    # Kannada letters inside a Telugu word (the live `9f334ada…` headline).
+    assert find_variant_qa_issues(en, ("ఇತ್ತೀಚಿನ USCIS రుసుము పెంచింది", ok[1], ok[2])) == ["MIXED_SCRIPT:headline"]
+    # One Hindi word in otherwise-Telugu text (the live `c3061756…` headline).
+    assert find_variant_qa_issues(en, (ok[0], "2026లో प्रस्तावित రుసుము పెరుగుతుంది.", ok[2])) == ["MIXED_SCRIPT:summary"]
+    # Tamil and Malayalam too, not just the two seen live.
+    assert find_variant_qa_issues(en, (ok[0], ok[1], "దరఖాస్తుదారులు அதிகம் చెల్లిస్తారు.")) == ["MIXED_SCRIPT:why_matters"]
+    assert find_variant_qa_issues(en, (ok[0], ok[1], "దరఖాస్తుదారులు കൂടുതൽ చెల్లిస్తారు.")) == ["MIXED_SCRIPT:why_matters"]
+    # The danda is shared Indic punctuation, not Hindi.
+    assert find_variant_qa_issues(en, (ok[0], "2026లో రుసుము పెరుగుతుంది।", ok[2])) == []
+    # Exception: script the English itself quotes may be kept.
+    quoted_en = (en[0], "The slogan “नया भारत” returns in 2026.", en[2])
+    assert find_variant_qa_issues(quoted_en, (ok[0], "2026లో “नया भारत” నినాదం తిరిగి వస్తుంది.", ok[2])) == []
+
+
 def test_resolve_display_variant_falls_back_to_english_when_te_missing():
     en = StoryVariantOut(language="en", headline="EN headline", summary="EN summary")
     resolved = resolve_display_variant({"en": en}, "te")

@@ -1,5 +1,27 @@
 # Progress tracker
 
+**Live product/admin review (2026-09-30):**
+`docs/reviews/2026-09-30-live-product-and-admin-plan.md` records the post-launch
+review and proposed improvement sequence. New live findings: Telugu-slug web
+story 404s despite API 200; mixed Kannada/Hindi script in PASSED Telugu variants.
+Also proposes clearer today/month/hard-cap AI spend, editorial/pipeline drilldowns,
+private reader-report handling and web/mobile visual improvements. Review only;
+no implementation ticket completed or production behavior changed. Admin beyond
+login and mobile were inspected through code, not authenticated/device journeys.
+- **R1 fixed (2026-09-30, `c76bda6`, not deployed):** Next hands dynamic params over still percent-encoded
+  and `getStory`/`getShareMeta` encode again, so Telugu slugs reached the API double-encoded (live: API 200,
+  web 404). Story layout, page and metadata now decode once via `src/lib/pathParam.ts` (was `api.ts`
+  `pathCursor`; cursor pages use it too); a malformed escape 404s. Verified with `next dev` against the prod
+  API: Telugu slug 404 → 200, ASCII/missing/cursor unchanged. Separate, unfixed: Telugu slugs are generated
+  with vowel signs stripped (`రేవంత్` → `రవత`), so they read as garbage. Existing slugs must stay stable.
+- **R2 fixed for new translations (2026-09-30, not deployed):** `qa.find_variant_qa_issues` adds
+  `MIXED_SCRIPT:<field>` for any Devanagari/Bengali/Gurmukhi/Gujarati/Odia/Tamil/Kannada/Malayalam letter,
+  unless the English field contains that same script (quoted text); dandas are allowed. The variant is FAILED,
+  so readers get English. Dry run on the live API: 5 of 20 served Telugu variants would fail (`9f334ada`,
+  `c3061756` headline; `ca1e69c2`, `9193cbbe` why-matters; `085b7508` summary). **These stay served until
+  re-translated**: no audited re-translate path exists for a PASSED variant yet (ADR-025 retry covers
+  EXHAUSTED only), so that needs an editor fix or an ADR.
+
 Update this file at the end of every ticket. This is the source of truth for
 "what's actually done" — trust it over assumptions, git log archaeology, or
 prior conversation history.

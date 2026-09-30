@@ -60,6 +60,20 @@ _LATIN_LETTER_RE = re.compile(r"[A-Za-z]")
 # Headlines keep acronyms and names in Latin ("USCIS", "H-1B"), so this only
 # asks that Telugu be a real share of the letters, not the majority.
 MIN_TELUGU_SCRIPT_SHARE = 0.25
+# Review 2026-09-30 R2: models slip Kannada or Hindi words into Telugu. Any
+# other Indic-script character fails the field, unless the English carries
+# that same script (a quoted name or slogan). The dandas U+0964/U+0965 are
+# shared punctuation, so they sit outside these ranges.
+_OTHER_INDIC_SCRIPT_RES = {
+    "DEVANAGARI": re.compile(r"[ऀ-ॣ०-ॿ]"),
+    "BENGALI": re.compile(r"[ঀ-৿]"),
+    "GURMUKHI": re.compile(r"[਀-੿]"),
+    "GUJARATI": re.compile(r"[઀-૿]"),
+    "ODIA": re.compile(r"[଀-୿]"),
+    "TAMIL": re.compile(r"[஀-௿]"),
+    "KANNADA": re.compile(r"[ಀ-೿]"),
+    "MALAYALAM": re.compile(r"[ഀ-ൿ]"),
+}
 
 
 def _normalize_number(match: str) -> str:
@@ -116,6 +130,13 @@ def _script_issue(field: str, te_text: str) -> str | None:
     return None
 
 
+def _mixed_script_issue(field: str, en_text: str, te_text: str) -> str | None:
+    for script_re in _OTHER_INDIC_SCRIPT_RES.values():
+        if script_re.search(te_text) and not script_re.search(en_text):
+            return f"MIXED_SCRIPT:{field}"
+    return None
+
+
 def find_variant_qa_issues(
     en: tuple[str, str, str | None], te: tuple[str | None, str | None, str | None]
 ) -> list[str]:
@@ -133,4 +154,6 @@ def find_variant_qa_issues(
         issues += find_qa_issues(en_text, te_text)
         if script_issue := _script_issue(field, te_text):
             issues.append(script_issue)
+        if mixed_issue := _mixed_script_issue(field, en_text, te_text):
+            issues.append(mixed_issue)
     return issues
