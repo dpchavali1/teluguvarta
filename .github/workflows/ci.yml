@@ -14,7 +14,7 @@ jobs:
           version: 10.4.1
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22 # matches infra/deploy/next.Dockerfile
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm run tokens:generate
@@ -107,7 +107,7 @@ jobs:
           version: 10.4.1
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22 # matches infra/deploy/next.Dockerfile
           cache: pnpm
       - uses: actions/setup-python@v5
         with:
