@@ -11,9 +11,15 @@ notification preferences are the first state that must be looked up outside
 a request (by the `notification_dispatch` job), so it can no longer be
 request-scoped like T16's query-param preferences.
 
+Review #15: the token must look like one a client mints (16–128 URL-safe
+characters: a UUID, or the older mobile fallback), and creating a user for a
+new token is rate-limited per client address.
+
 `current_admin` does real verification as of T05: a signed, short-lived JWT
 (see app/security.py) issued by `POST /v1/admin/auth/login`, carrying a
-`role` claim that must be `EDITOR` or `ADMIN`.
+`role` claim. Since review #15 the claim alone isn't trusted: every request
+re-reads the account, so a deleted or demoted account loses access at once
+instead of when its token expires, and the stored role is what's enforced.
 
 Per ADR-012, a login for an account with no `mfa_secret` yet gets a
 `scope: mfa_enrollment` token instead of `scope: full`. `current_admin`
@@ -21,6 +27,7 @@ rejects the enrollment scope outright; `current_admin_for_enrollment`
 (used only by `/mfa/setup` and `/mfa/enroll`) accepts either.
 """
 
+import re
 import uuid
 
 from fastapi import Depends, Header, Request
@@ -33,9 +40,11 @@ from app.db import get_db
 from app.errors import APIError
 from app.models import User
 from app.observability.logging import set_actor
+from app.rate_limit import rate_limit_new_user
 from app.security import decode_admin_access_token
 
 ADMIN_ROLES = {"EDITOR", "ADMIN"}
+CLIENT_TOKEN_PATTERN = re.compile(r"[A-Za-z0-9_-]{16,128}")
 
 
 class Principal:
@@ -57,11 +66,12 @@ def current_user(
     if not authorization or not authorization.startswith("Bearer "):
         raise APIError(401, "UNAUTHENTICATED", "Missing or invalid bearer token")
     token = authorization.removeprefix("Bearer ").strip()
-    if not token:
+    if not CLIENT_TOKEN_PATTERN.fullmatch(token):
         raise APIError(401, "UNAUTHENTICATED", "Missing or invalid bearer token")
 
     user = db.scalars(select(User).where(User.client_token == token)).first()
     if user is None:
+        rate_limit_new_user(request)
         # on_conflict_do_nothing + reselect (same pattern as
         # app/jobs/queue.py::enqueue_job) so two concurrent first-requests
         # for the same brand-new token can't race on the unique constraint.
@@ -86,25 +96,37 @@ def _decode_bearer_admin_token(authorization: str | None) -> dict:
         raise APIError(401, "UNAUTHENTICATED", "Invalid or expired token")
 
 
-def _admin_principal_from_claims(request: Request, claims: dict) -> AdminPrincipal:
-    role = claims.get("role")
-    if role not in ADMIN_ROLES:
+def _admin_principal_from_claims(request: Request, claims: dict, db: Session) -> AdminPrincipal:
+    if claims.get("role") not in ADMIN_ROLES:
         raise APIError(403, "FORBIDDEN", "This account does not have admin access")
-    request.state.actor = claims["email"]
-    set_actor(claims["email"])
-    return AdminPrincipal(user_id=claims["sub"], email=claims["email"], role=role)
+    try:
+        user_id = uuid.UUID(str(claims.get("sub")))
+    except ValueError:
+        raise APIError(401, "UNAUTHENTICATED", "Invalid or expired token")
+    user = db.get(User, user_id)
+    if user is None or user.deleted_at is not None:
+        raise APIError(401, "UNAUTHENTICATED", "Invalid or expired token")
+    if user.role not in ADMIN_ROLES:
+        raise APIError(403, "FORBIDDEN", "This account does not have admin access")
+    request.state.actor = user.email
+    set_actor(user.email)
+    return AdminPrincipal(user_id=str(user.id), email=user.email, role=user.role)
 
 
-def current_admin(request: Request, authorization: str | None = Header(default=None)) -> AdminPrincipal:
+def current_admin(
+    request: Request, authorization: str | None = Header(default=None), db: Session = Depends(get_db)
+) -> AdminPrincipal:
     claims = _decode_bearer_admin_token(authorization)
     if claims.get("scope") == "mfa_enrollment":
         raise APIError(403, "MFA_ENROLLMENT_REQUIRED", "Complete MFA enrollment before using this endpoint")
-    return _admin_principal_from_claims(request, claims)
+    return _admin_principal_from_claims(request, claims, db)
 
 
-def current_admin_for_enrollment(request: Request, authorization: str | None = Header(default=None)) -> AdminPrincipal:
+def current_admin_for_enrollment(
+    request: Request, authorization: str | None = Header(default=None), db: Session = Depends(get_db)
+) -> AdminPrincipal:
     """ADR-012: accepts a full session token or a restricted `mfa_enrollment`
     token — used only by `/mfa/setup` and `/mfa/enroll` so a privileged user
     with no `mfa_secret` can reach the endpoints that let them set one up."""
     claims = _decode_bearer_admin_token(authorization)
-    return _admin_principal_from_claims(request, claims)
+    return _admin_principal_from_claims(request, claims, db)

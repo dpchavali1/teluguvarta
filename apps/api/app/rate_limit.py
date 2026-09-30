@@ -30,6 +30,12 @@ SEARCH_WINDOW_SECONDS = 60.0
 ADMIN_MAX_REQUESTS = 120
 ADMIN_WINDOW_SECONDS = 60.0
 
+# Review #15: the first request with an unseen anonymous token creates a user
+# row, so this bounds row creation per client. Generous because a campus or
+# carrier NAT puts many real first launches behind one address.
+NEW_USER_MAX_REQUESTS = 30
+NEW_USER_WINDOW_SECONDS = 600.0
+
 
 def _check(key: str, *, max_requests: int, window_seconds: float) -> None:
     now = time.monotonic()
@@ -52,6 +58,10 @@ def rate_limit_search(request: Request) -> None:
 
 def rate_limit_admin(request: Request) -> None:
     _check(f"admin:{_client_ip(request)}", max_requests=ADMIN_MAX_REQUESTS, window_seconds=ADMIN_WINDOW_SECONDS)
+
+
+def rate_limit_new_user(request: Request) -> None:
+    _check(f"new_user:{_client_ip(request)}", max_requests=NEW_USER_MAX_REQUESTS, window_seconds=NEW_USER_WINDOW_SECONDS)
 
 
 def reset() -> None:

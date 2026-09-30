@@ -12,10 +12,13 @@ command -v certbot >/dev/null || apt-get install -y -qq certbot python3-certbot-
 # One file per domain, so a domain change adds a site instead of rewriting the
 # old one (older installs used teluguvarta.conf; delete it once nothing uses it).
 conf="/etc/nginx/conf.d/teluguvarta-$DOMAIN.conf"
+# X-Forwarded-For is set to the peer address, never appended to: uvicorn runs
+# with --forwarded-allow-ips "*" and takes the first entry as the client, so an
+# appended header let a client pick its own IP and dodge the per-IP limits.
 proxy_headers='
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-For $remote_addr;
         proxy_set_header X-Forwarded-Proto $scheme;'
 if [ ! -f "$conf" ]; then
   cat > "$conf" <<EOF
@@ -48,6 +51,8 @@ server {
 }
 EOF
 fi
+# Existing installs keep their file (certbot has edited it), so fix the header in place.
+sed -i 's/X-Forwarded-For \$proxy_add_x_forwarded_for;/X-Forwarded-For $remote_addr;/' "$conf"
 nginx -t
 systemctl reload nginx
 

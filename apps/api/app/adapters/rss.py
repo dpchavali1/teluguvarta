@@ -20,6 +20,7 @@ import httpx
 from defusedxml import ElementTree as ET
 
 from .base import RawItem, RawItems, SourceAdapter
+from .safe_fetch import fetch_public
 
 ATOM_NS = "{http://www.w3.org/2005/Atom}"
 
@@ -27,9 +28,7 @@ ATOM_NS = "{http://www.w3.org/2005/Atom}"
 class RssFeedAdapter(SourceAdapter):
     def fetch(self, client: httpx.Client) -> RawItems:
         assert self.source.feed_url, f"source {self.source.name!r} has no feed_url configured"
-        response = client.get(self.source.feed_url, timeout=10.0)
-        response.raise_for_status()
-        return self.parse(response.content)
+        return self.parse(fetch_public(client, self.source.feed_url))
 
     def parse(self, content: bytes) -> RawItems:
         root = ET.fromstring(content)

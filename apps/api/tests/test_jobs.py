@@ -11,6 +11,7 @@ import pytest
 from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session
 
+from app.adapters.safe_fetch import FeedFetchError
 from app.jobs import source_fetch
 from app.jobs.queue import (
     MAX_JOB_ATTEMPTS,
@@ -222,7 +223,7 @@ def test_run_source_fetch_failure_updates_source_health_and_raises(migrated_data
         db.add(job)
         db.commit()
 
-        with pytest.raises(httpx.HTTPStatusError):
+        with pytest.raises(FeedFetchError, match="HTTP 500"):
             source_fetch.run_source_fetch(db, job)
 
         db.refresh(source)

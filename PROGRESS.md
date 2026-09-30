@@ -172,6 +172,28 @@ gate section is gone; do not reintroduce a pilot gate on any future ticket.
   **owner:** rebuild and install the APK with the production domain URLs (the installed build still
   points at sslip.io), then device-test large text, TalkBack/VoiceOver, Telugu wrapping, safe areas,
   offline recovery, save/delete and real push; verified HTTPS app links would need an ADR.
+- **#15 code part done (2026-09-30): fetch, admin, token and proxy hardening.** New
+  `app/adapters/safe_fetch.py`: the scheduled RSS and OpenFEMA fetches now get the admin probe's
+  policy (http(s) only, every resolved address public, no redirects, body streamed and capped at 5 MB;
+  the probe keeps 2 MB). An HTTP error now raises `FeedFetchError("Feed returned HTTP n")` instead of
+  `httpx.HTTPStatusError`. Residual: DNS rebinding between the check and the connect. Tests stub DNS
+  globally (`tests/conftest.py::_no_real_dns`); before this, job tests resolved feeds.npr.org for real.
+  `current_admin` re-reads the account on every request: a deleted account gets 401, a demoted one 403,
+  and the stored role is enforced, not the JWT claim. Anonymous tokens must be 16–128 URL-safe
+  characters (UUIDs and the old mobile fallback both pass), and creating a user for an unseen token
+  is limited to 30 per 10 min per client IP (`rate_limit.rate_limit_new_user`). **Proxy bug fixed:**
+  nginx appended to the client's `X-Forwarded-For`, and uvicorn (`--forwarded-allow-ips "*"`)
+  takes the first entry, so a client could choose its own IP and dodge every per-IP limit.
+  `nginx-setup.sh` now sets it to `$remote_addr` and fixes existing confs in place on the next deploy.
+  Mobile: the device token comes from `expo-crypto` (OS CSPRNG; before this, Hermes could fall back to
+  `Math.random`) and is stored with `expo-secure-store`; a token already in AsyncStorage is moved over.
+  Both are new native modules, so they reach phones only in a rebuilt APK. No new `@types/react`
+  resolution. Admin session storage (`localStorage` token, no CSP) is **ADR-028, proposed**. Tests:
+  `tests/test_security_review_15.py` (7), mobile `src/__tests__/identity.test.ts` (3). Full API
+  suite 437 passed (1 flaky fixture error, passes on rerun); ruff clean; mobile jest 24 passed,
+  typecheck clean, both bundles export; web/admin typecheck clean. **Not done:** Next SSR calls the API
+  through nginx from the VPS's own IP, so server-rendered search shares one 30/min bucket (as before
+  this change).
 - **Waiting on the owner (proposed ADRs, nothing implemented):** ADR-023 rights revocation for published,
   mixed-source and scheduled stories (#7 follow-up); ADR-024 total AI spend ceiling (#2); ADR-025 audited
   recovery of `AI_RETRIES_EXHAUSTED`/exhausted-translation holds; ADR-026 minimum content per format (#6).

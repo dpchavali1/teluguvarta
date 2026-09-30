@@ -2,18 +2,13 @@
 before a source is saved. Read-only — nothing is persisted, no rights gate is
 touched, and headlines go only to the authenticated admin who asked.
 
-The URL is admin-supplied, so the fetch is SSRF-hardened: http(s) only, the
-host must resolve to public addresses only, redirects are not followed, and
-the body is size-capped.
+The URL is admin-supplied, so the fetch goes through `safe_fetch` (the same
+policy the scheduled source fetch uses), with a tighter 2 MB cap.
 """
 
 from __future__ import annotations
 
-import ipaddress
-import socket
-from collections.abc import Callable
 from dataclasses import dataclass, field
-from urllib.parse import urlparse
 from xml.etree.ElementTree import ParseError
 
 import httpx
@@ -22,12 +17,10 @@ from defusedxml.common import DefusedXmlException
 from app.models import Source
 
 from .rss import RssFeedAdapter
+from .safe_fetch import FeedFetchError, Resolver, fetch_public
 
 MAX_BYTES = 2_000_000
 PREVIEW_LIMIT = 5
-TIMEOUT_SECONDS = 10.0
-
-Resolver = Callable[[str], list[str]]
 
 
 @dataclass
@@ -38,41 +31,13 @@ class ProbeResult:
     error: str | None = None
 
 
-def _resolve(host: str) -> list[str]:
-    return [info[4][0] for info in socket.getaddrinfo(host, None)]
-
-
-def _check_url(url: str, resolve: Resolver) -> str | None:
-    parsed = urlparse(url)
-    if parsed.scheme not in ("http", "https") or not parsed.hostname:
-        return "URL must start with http:// or https://"
-    try:
-        addresses = resolve(parsed.hostname)
-    except OSError:
-        return "Could not resolve that host"
-    if not addresses or not all(ipaddress.ip_address(a).is_global for a in addresses):
-        return "That host is not a public address"
-    return None
-
-
-def probe_feed(url: str, client: httpx.Client | None = None, resolve: Resolver = _resolve) -> ProbeResult:
-    problem = _check_url(url, resolve)
-    if problem:
-        return ProbeResult(ok=False, error=problem)
-
+def probe_feed(url: str, client: httpx.Client | None = None, resolve: Resolver | None = None) -> ProbeResult:
     owns_client = client is None
-    client = client or httpx.Client(follow_redirects=False)
+    client = client or httpx.Client()
     try:
-        with client.stream("GET", url, timeout=TIMEOUT_SECONDS) as response:
-            if response.is_redirect:
-                return ProbeResult(ok=False, error="Feed redirects elsewhere — use the final URL")
-            if response.status_code >= 400:
-                return ProbeResult(ok=False, error=f"Feed returned HTTP {response.status_code}")
-            body = bytearray()
-            for chunk in response.iter_bytes():
-                body.extend(chunk)
-                if len(body) > MAX_BYTES:
-                    return ProbeResult(ok=False, error="Feed is larger than 2 MB")
+        body = fetch_public(client, url, max_bytes=MAX_BYTES, resolve=resolve)
+    except FeedFetchError as exc:
+        return ProbeResult(ok=False, error=str(exc))
     except httpx.HTTPError as exc:
         return ProbeResult(ok=False, error=f"Could not fetch feed ({type(exc).__name__})")
     finally:
@@ -80,7 +45,7 @@ def probe_feed(url: str, client: httpx.Client | None = None, resolve: Resolver =
             client.close()
 
     try:
-        items = RssFeedAdapter(Source(name="probe")).parse(bytes(body)).items
+        items = RssFeedAdapter(Source(name="probe")).parse(body).items
     except (ParseError, DefusedXmlException):
         return ProbeResult(ok=False, error="Response is not a valid RSS/Atom feed")
     if not items:

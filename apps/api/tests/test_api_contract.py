@@ -95,7 +95,7 @@ def test_error_envelope_on_validation_error(client):
 
 
 def test_authenticated_endpoint_succeeds_with_bearer_token(client):
-    response = client.get("/v1/me", headers={"Authorization": "Bearer test-token"})
+    response = client.get("/v1/me", headers={"Authorization": "Bearer test-token-0123456789"})
     assert response.status_code == 200
     assert "id" in response.json()
 

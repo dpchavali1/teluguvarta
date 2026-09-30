@@ -20,6 +20,7 @@ from sqlalchemy.orm import Session
 from app.models import Source, SourceItem, Story, StorySource
 
 from .base import RawItem, RawItems, SourceAdapter
+from .safe_fetch import fetch_public
 
 OPENFEMA_URL = "https://www.fema.gov/api/open/v1/FemaWebDisasterDeclarations"
 EXTERNAL_ID_PREFIX = "fema-disaster-"
@@ -48,9 +49,7 @@ class OpenFemaAdapter(SourceAdapter):
             "$top": str(PAGE_SIZE),
             "$select": _SELECT,
         }
-        response = client.get(self.source.feed_url, params=params, timeout=10.0)
-        response.raise_for_status()
-        return self.parse(response.content, now=_now())
+        return self.parse(fetch_public(client, self.source.feed_url, params=params), now=_now())
 
     def parse(self, content: bytes, now: datetime) -> RawItems:
         cutoff = now - timedelta(days=MAX_AGE_DAYS)

@@ -106,3 +106,11 @@ def db_session(migrated_database):
     with Session(engine) as session:
         yield session
     engine.dispose()
+
+
+@pytest.fixture(autouse=True)
+def _no_real_dns(monkeypatch):
+    """Feed fetches check the host resolves to public addresses
+    (app/adapters/safe_fetch.py). Tests use mock transports, so answer that
+    check without real DNS; SSRF tests override it."""
+    monkeypatch.setattr("app.adapters.safe_fetch._resolve", lambda host: ["93.184.216.34"])
