@@ -237,6 +237,14 @@ gate section is gone; do not reintroduce a pilot gate on any future ticket.
   to an existing `.env.prod` that lacks it. Admin cost card doesn't show the cap yet. **Owner still to do
   (option 6):** budget alert + quota cap on the paid Gemini Cloud project. Option 3 (reserve) deferred
   until a second worker exists.
+- **Next (owner chose 2026-09-30): make `apps/admin` an installable PWA** so review/approve works full-screen
+  from a phone home screen — web app manifest (name, icons from existing `apple-icon.png`/`icon.png`,
+  `display: standalone`, theme colour from `tokens.css`), viewport/theme-color meta in `layout.tsx`, and a check
+  that the review queue and review page are usable at phone width. No offline caching of admin data (auth'd,
+  must stay fresh); a service worker only if the install prompt needs it. A native admin app was declined for now
+  (would need an ADR). Also open: auto-publish is built but off in prod (`AUTO_PUBLISH_GLOBAL=false`,
+  `AUTO_PUBLISH_BRIEFS=false` in `.env.prod`) — owner decides whether to turn either on; until then every story
+  waits in the admin review queue.
 - **ADR-025 implemented 2026-09-30, not yet deployed:** `POST /v1/admin/stories/{id}/retry-ai`
   `{stage: GENERATE|TRANSLATE, reason}` — ADMIN only (403 otherwise), max 2 resets per story per stage (counted
   from `AI_RETRY_RESET` audit events; 409 `RETRY_LIMIT_REACHED`), 409 `NOT_AI_HELD` unless the story is actually
