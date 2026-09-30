@@ -8,6 +8,7 @@ import { useRouter } from "next/navigation";
 import { humanize, isUnclassified, reasonHelp, reasonTone } from "@/lib/reviewReasons";
 import { EmptyState, PageHeader } from "@/components/ui";
 import { apiUrl, clearSession, getToken } from "@/lib/auth";
+import { TranslationHolds } from "@/components/TranslationHolds";
 import { age } from "@/lib/time";
 
 type ReviewQueueItem = components["schemas"]["ReviewQueueItemOut"];
@@ -175,6 +176,7 @@ export default function ReviewQueuePage() {
           </tbody>
         </table></div>
       )}
+      <TranslationHolds />
     </main>
   );
 }

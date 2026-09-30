@@ -49,6 +49,70 @@
         "title": "AdminActionResponse",
         "type": "object"
       },
+      "AdminAiHoldOut": {
+        "properties": {
+          "headline": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Headline"
+          },
+          "last_status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Status"
+          },
+          "resets_left": {
+            "title": "Resets Left",
+            "type": "integer"
+          },
+          "resets_used": {
+            "title": "Resets Used",
+            "type": "integer"
+          },
+          "stage": {
+            "title": "Stage",
+            "type": "string"
+          },
+          "story_id": {
+            "format": "uuid",
+            "title": "Story Id",
+            "type": "string"
+          },
+          "story_status": {
+            "title": "Story Status",
+            "type": "string"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "story_id",
+          "stage",
+          "story_status",
+          "headline",
+          "last_status",
+          "updated_at",
+          "resets_used",
+          "resets_left"
+        ],
+        "title": "AdminAiHoldOut",
+        "type": "object"
+      },
       "AdminAuditEventOut": {
         "properties": {
           "action": {
@@ -567,6 +631,30 @@
           }
         },
         "title": "AdminRejectRequest",
+        "type": "object"
+      },
+      "AdminRetryAiRequest": {
+        "description": "ADR-025: `stage` is which AI stage to try again.",
+        "properties": {
+          "reason": {
+            "minLength": 1,
+            "title": "Reason",
+            "type": "string"
+          },
+          "stage": {
+            "enum": [
+              "GENERATE",
+              "TRANSLATE"
+            ],
+            "title": "Stage",
+            "type": "string"
+          }
+        },
+        "required": [
+          "stage",
+          "reason"
+        ],
+        "title": "AdminRetryAiRequest",
         "type": "object"
       },
       "AdminSourceCreate": {
@@ -3139,6 +3227,60 @@
         "summary": "Ready"
       }
     },
+    "/v1/admin/ai-holds": {
+      "get": {
+        "description": "Every story stage whose AI retries ran out, newest first. Exhausted\ntranslations are otherwise invisible: the story keeps serving English.",
+        "operationId": "list_ai_holds_v1_admin_ai_holds_get",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/AdminAiHoldOut"
+                  },
+                  "title": "Response List Ai Holds V1 Admin Ai Holds Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Ai Holds",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
     "/v1/admin/audit": {
       "get": {
         "operationId": "list_audit_events_v1_admin_audit_get",
@@ -4622,6 +4764,75 @@
           }
         },
         "summary": "Retract Story",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/v1/admin/stories/{story_id}/retry-ai": {
+      "post": {
+        "operationId": "retry_ai_v1_admin_stories__story_id__retry_ai_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "story_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Story Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdminRetryAiRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminActionResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Retry Ai",
         "tags": [
           "admin"
         ]

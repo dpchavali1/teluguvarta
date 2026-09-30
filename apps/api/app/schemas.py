@@ -390,6 +390,24 @@ class AdminActionRequest(BaseModel):
     reason: str | None = None
 
 
+class AdminRetryAiRequest(BaseModel):
+    """ADR-025: `stage` is which AI stage to try again."""
+
+    stage: Literal["GENERATE", "TRANSLATE"]
+    reason: str = Field(min_length=1)
+
+
+class AdminAiHoldOut(BaseModel):
+    story_id: UUID
+    stage: str
+    story_status: str
+    headline: str | None
+    last_status: str | None
+    updated_at: datetime
+    resets_used: int
+    resets_left: int
+
+
 class AdminRejectRequest(BaseModel):
     reason: str | None = None
     # False (default) sends the story back to DRAFT for reprocessing; True

@@ -54,9 +54,11 @@ from app.content.serialize import load_story_relations
 from app.content.variants import EDITOR_MODEL_VERSION
 from app.db import get_db
 from app.errors import APIError
+from app.jobs import ai_retry
 from app.jobs.brief_lane import BRIEF_ACTOR, briefs_enabled, daily_cap, published_today
 from app.jobs.source_fetch import CIRCUIT_BREAKER_THRESHOLD
 from app.models import (
+    AiWorkState,
     AuditEvent,
     Correction,
     Job,
@@ -75,6 +77,7 @@ from app.rate_limit import rate_limit_admin
 from app.schemas import (
     AdminActionRequest,
     AdminActionResponse,
+    AdminAiHoldOut,
     AdminAuditEventOut,
     AdminAutoBriefOut,
     AdminCorrectionOut,
@@ -86,6 +89,7 @@ from app.schemas import (
     AdminImportanceRequest,
     AdminJobOut,
     AdminRejectRequest,
+    AdminRetryAiRequest,
     AdminSourceCreate,
     AdminSourceOut,
     AdminSourceUpdate,
@@ -790,6 +794,99 @@ def reject_story(
     _resolve_review_task(db, story.id, "REJECTED")
     _write_audit_event(
         db, admin.email, "STORY_REJECTED", "story", story.id, {"reason": body.reason, "outcome": story.status}
+    )
+    db.commit()
+    db.refresh(story)
+    return AdminActionResponse(story_id=story.id, status=story.status)
+
+
+# ADR-025: an ADMIN can send a held story back through the AI a bounded
+# number of times, audited. It re-enters normal generation and review
+# routing, so review is never bypassed.
+AI_RETRY_RESET_ACTION = "AI_RETRY_RESET"
+MAX_AI_RETRY_RESETS = 2
+# Review reasons that mean "the AI couldn't finish", as opposed to an
+# editorial hold (sensitivity, confidence, content rules).
+_AI_HOLD_REASONS = ("AI_RETRIES_EXHAUSTED", "NO_PAID_PROVIDER")
+
+
+def _resets_used(db: Session, story_id: UUID, stage: str) -> int:
+    events = db.scalars(
+        select(AuditEvent).where(AuditEvent.entity_id == story_id, AuditEvent.action == AI_RETRY_RESET_ACTION)
+    ).all()
+    return sum(1 for e in events if (e.metadata_ or {}).get("stage") == stage)
+
+
+@router.get("/ai-holds")
+def list_ai_holds(admin: AdminPrincipal = Depends(current_admin), db: Session = Depends(get_db)) -> list[AdminAiHoldOut]:
+    """Every story stage whose AI retries ran out, newest first. Exhausted
+    translations are otherwise invisible: the story keeps serving English."""
+    states = db.scalars(
+        select(AiWorkState).where(AiWorkState.failure_class == "EXHAUSTED").order_by(AiWorkState.updated_at.desc())
+    ).all()
+    out = []
+    for state in states:
+        story = db.get(Story, state.story_id)
+        if story is None:
+            continue
+        en = _get_variant(db, story.id, "en")
+        used = _resets_used(db, story.id, state.stage)
+        out.append(
+            AdminAiHoldOut(
+                story_id=story.id, stage=state.stage, story_status=story.status,
+                headline=en.headline if en else None, last_status=state.last_status, updated_at=state.updated_at,
+                resets_used=used, resets_left=max(0, MAX_AI_RETRY_RESETS - used),
+            )
+        )
+    return out
+
+
+@router.post("/stories/{story_id}/retry-ai")
+def retry_ai(
+    story_id: UUID, body: AdminRetryAiRequest, admin: AdminPrincipal = Depends(current_admin), db: Session = Depends(get_db)
+) -> AdminActionResponse:
+    if admin.role != "ADMIN":
+        raise APIError(403, "FORBIDDEN", "Only an ADMIN can retry AI on a held story")
+    story = _get_story_or_404(db, story_id)
+    state = db.scalars(
+        select(AiWorkState).where(AiWorkState.story_id == story.id, AiWorkState.stage == body.stage)
+    ).first()
+
+    if body.stage == ai_retry.STAGE_GENERATE:
+        _require_status(story, "REVIEW_REQUIRED")
+        task = db.scalars(
+            select(ReviewTask).where(ReviewTask.story_id == story.id, ReviewTask.status == "PENDING")
+        ).first()
+        held_by_ai = task is not None and any(r in task.reason for r in _AI_HOLD_REASONS)
+        if not held_by_ai and (state is None or state.failure_class != "EXHAUSTED"):
+            raise APIError(409, "NOT_AI_HELD", "This story isn't waiting on the AI — approve, edit or reject it instead")
+    elif state is None or state.failure_class != "EXHAUSTED":
+        raise APIError(409, "NOT_AI_HELD", "This story's translation hasn't run out of AI retries")
+
+    used = _resets_used(db, story.id, body.stage)
+    if used >= MAX_AI_RETRY_RESETS:
+        raise APIError(
+            409, "RETRY_LIMIT_REACHED",
+            f"AI has already been retried {used} times for this story — write it by hand or reject it",
+        )
+
+    if state is not None:
+        db.delete(state)
+    if body.stage == ai_retry.STAGE_GENERATE:
+        story.status = "DRAFT"
+        db.flush()
+        items = db.scalars(
+            select(SourceItem).join(StorySource, StorySource.source_item_id == SourceItem.id)
+            .where(StorySource.story_id == story.id)
+        ).all()
+        for item in items:
+            item.ingest_status = "CLUSTERED"
+        _resolve_review_task(db, story.id, "REJECTED")
+    db.flush()
+
+    _write_audit_event(
+        db, admin.email, AI_RETRY_RESET_ACTION, "story", story.id,
+        {"stage": body.stage, "reason": body.reason, "reset_number": used + 1},
     )
     db.commit()
     db.refresh(story)

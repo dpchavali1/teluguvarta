@@ -237,8 +237,16 @@ gate section is gone; do not reintroduce a pilot gate on any future ticket.
   to an existing `.env.prod` that lacks it. Admin cost card doesn't show the cap yet. **Owner still to do
   (option 6):** budget alert + quota cap on the paid Gemini Cloud project. Option 3 (reserve) deferred
   until a second worker exists.
-- **Accepted 2026-09-30, not yet implemented:** ADR-025 options 1+3 — ADMIN "Retry AI" (audited `AI_RETRY_RESET`, max 2 per
-  story) plus an admin list of EXHAUSTED translations.
+- **ADR-025 implemented 2026-09-30, not yet deployed:** `POST /v1/admin/stories/{id}/retry-ai`
+  `{stage: GENERATE|TRANSLATE, reason}` — ADMIN only (403 otherwise), max 2 resets per story per stage (counted
+  from `AI_RETRY_RESET` audit events; 409 `RETRY_LIMIT_REACHED`), 409 `NOT_AI_HELD` unless the story is actually
+  AI-held (GENERATE: REVIEW_REQUIRED with an `AI_RETRIES_EXHAUSTED`/`NO_PAID_PROVIDER` review reason or an
+  EXHAUSTED state; TRANSLATE: EXHAUSTED state). GENERATE deletes the work state, moves the story
+  REVIEW_REQUIRED → DRAFT, items → CLUSTERED, closes the review task as REJECTED; it then re-enters normal
+  generation/review routing. TRANSLATE only deletes the state. `GET /v1/admin/ai-holds` lists every EXHAUSTED
+  state. Admin: "Retry AI" button on the review page (ADMIN, AI-held stories, uses the reason field) and a
+  "Telugu translations that failed" panel under the review queue with "Retry translation". No migration.
+  Option 2 (bulk reset) deferred until an outage needs it.
 - **ADR-026 (#6) implemented and deployed 2026-09-30 (`7628812`, CI green, API /health/ready ok):** `app/content/publication.py`
   `validate_for_publication` (FULL only; BRIEF keeps ADR-019's lane rules): (b) summary/headline
   similarity < 0.8, (c) summary ≥ 2 sentences or ≥ 25 words, (d) headline < 0.6 vs every source title;

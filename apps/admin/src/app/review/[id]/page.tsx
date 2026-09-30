@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 
 import { Badge, EmptyState, Field, PageHeader, useToast } from "@/components/ui";
-import { apiUrl, clearSession, getToken } from "@/lib/auth";
+import { apiUrl, clearSession, getRole, getToken } from "@/lib/auth";
 import { isUnclassified, reasonHelp, reasonTone } from "@/lib/reviewReasons";
 
 interface StoryVariant {
@@ -481,6 +481,28 @@ export default function StoryReviewPage() {
     }
   }
 
+  // ADR-025: send an AI-held story back through generation. ADMIN only,
+  // audited, at most 2 times per story — the API enforces all three.
+  async function retryAi() {
+    if (!reason.trim()) {
+      setError("Give a reason for retrying the AI (it's recorded in the audit log).");
+      return;
+    }
+    setSubmitting(true);
+    setError(null);
+    try {
+      await postAction(storyId, "retry-ai", { stage: "GENERATE", reason: reason.trim() });
+      setReason("");
+      toast("ok", "Sent back to the AI — it will return to the queue once drafted.");
+      const next = await nextQueueStory(storyId);
+      router.push(next ? `/review/${next}` : "/review");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Retry failed");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
   async function submitCorrection() {
     setSubmitting(true);
     setError(null);
@@ -533,6 +555,7 @@ export default function StoryReviewPage() {
   const reasonRequired = isAlwaysReviewed && reason.trim().length === 0;
   const statusNotice = STATUS_NOTICE[story.status];
   const heldReasons = story.review_task ? story.review_task.reason.split(",").map((r) => r.trim()) : [];
+  const heldByAi = heldReasons.some((r) => r === "AI_RETRIES_EXHAUSTED" || r === "NO_PAID_PROVIDER");
   const unclassified = story.sensitivity === "NONE" && story.review_task !== null && isUnclassified(story.review_task.reason);
   const primarySourceTitle =(story.sources.find((s) => s.role === "PRIMARY") ?? story.sources[0])?.title ?? null;
 
@@ -745,6 +768,11 @@ export default function StoryReviewPage() {
                     <button type="button" className="button-secondary" disabled={submitting} onClick={() => (isAlwaysReviewed ? setPendingAction("reject") : handleAction("reject"))}>
                       Reject
                     </button>
+                    {heldByAi && getRole() === "ADMIN" ? (
+                      <button type="button" className="button-secondary" disabled={submitting} onClick={retryAi}>
+                        Retry AI
+                      </button>
+                    ) : null}
                   </>
                 )}
               </div>

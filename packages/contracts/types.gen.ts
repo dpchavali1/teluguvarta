@@ -43,6 +43,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/admin/ai-holds": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Ai Holds
+         * @description Every story stage whose AI retries ran out, newest first. Exhausted
+         *     translations are otherwise invisible: the story keeps serving English.
+         */
+        get: operations["list_ai_holds_v1_admin_ai_holds_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/admin/audit": {
         parameters: {
             query?: never;
@@ -454,6 +475,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/admin/stories/{story_id}/retry-ai": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Retry Ai */
+        post: operations["retry_ai_v1_admin_stories__story_id__retry_ai_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/admin/stories/{story_id}/topics": {
         parameters: {
             query?: never;
@@ -788,6 +826,31 @@ export interface components {
              */
             story_id: string;
         };
+        /** AdminAiHoldOut */
+        AdminAiHoldOut: {
+            /** Headline */
+            headline: string | null;
+            /** Last Status */
+            last_status: string | null;
+            /** Resets Left */
+            resets_left: number;
+            /** Resets Used */
+            resets_used: number;
+            /** Stage */
+            stage: string;
+            /**
+             * Story Id
+             * Format: uuid
+             */
+            story_id: string;
+            /** Story Status */
+            story_status: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
         /** AdminAuditEventOut */
         AdminAuditEventOut: {
             /** Action */
@@ -994,6 +1057,19 @@ export interface components {
             archive: boolean;
             /** Reason */
             reason?: string | null;
+        };
+        /**
+         * AdminRetryAiRequest
+         * @description ADR-025: `stage` is which AI stage to try again.
+         */
+        AdminRetryAiRequest: {
+            /** Reason */
+            reason: string;
+            /**
+             * Stage
+             * @enum {string}
+             */
+            stage: "GENERATE" | "TRANSLATE";
         };
         /** AdminSourceCreate */
         AdminSourceCreate: {
@@ -1856,6 +1932,37 @@ export interface operations {
             };
         };
     };
+    list_ai_holds_v1_admin_ai_holds_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminAiHoldOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_audit_events_v1_admin_audit_get: {
         parameters: {
             query?: never;
@@ -2688,6 +2795,43 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["AdminActionRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminActionResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    retry_ai_v1_admin_stories__story_id__retry_ai_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                story_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminRetryAiRequest"];
             };
         };
         responses: {
