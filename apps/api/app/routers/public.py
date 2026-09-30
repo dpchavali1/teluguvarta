@@ -10,13 +10,14 @@ import os
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query
-from sqlalchemy import and_, or_, select
+from sqlalchemy import and_, func, or_, select
 from sqlalchemy.orm import Session
 
 from app import analytics
 from app.content.ranking import Preferences, rank_stories
 from app.content.serialize import (
     PUBLIC_STATUSES,
+    active_topics_out,
     load_story_relations,
     story_to_out,
     story_to_rankable,
@@ -195,8 +196,7 @@ def get_home(
             top_stories.append(out)
         db.commit()
 
-    topics = db.scalars(select(Topic).where(Topic.active.is_(True)).order_by(Topic.name)).all()
-    return HomeResponse(top_stories=top_stories, topics=[topic_out(t) for t in topics])
+    return HomeResponse(top_stories=top_stories, topics=active_topics_out(db))
 
 
 @router.get("/stories")
@@ -247,7 +247,8 @@ def get_topic(slug: str, cursor: str | None = Query(default=None), db: Session =
     if topic is None:
         raise APIError(404, "TOPIC_NOT_FOUND", f"No topic with slug '{slug}'")
     page = _list_page(db, topic_slug=slug, country=None, limit=DEFAULT_PAGE_SIZE, cursor=cursor)
-    return TopicDetailResponse(topic=topic_out(topic), stories=page.items, next_cursor=page.next_cursor)
+    count = db.scalar(select(func.count()).select_from(_published_query(topic_slug=slug).subquery())) or 0
+    return TopicDetailResponse(topic=topic_out(topic, count), stories=page.items, next_cursor=page.next_cursor)
 
 
 @router.get("/search", dependencies=[Depends(rate_limit_search)])
@@ -268,13 +269,12 @@ def search(
 
 @router.get("/config")
 def get_config(db: Session = Depends(get_db)) -> ConfigResponse:
-    topics = db.scalars(select(Topic).where(Topic.active.is_(True)).order_by(Topic.name)).all()
     return ConfigResponse(
         features={
             "ai_translation_enabled": _env_flag("AI_TRANSLATION_ENABLED", default=False),
             "push_notifications_enabled": _env_flag("PUSH_NOTIFICATIONS_ENABLED", default=False),
         },
-        topics=[topic_out(t) for t in topics],
+        topics=active_topics_out(db),
     )
 
 

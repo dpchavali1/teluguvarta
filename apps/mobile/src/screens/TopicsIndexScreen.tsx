@@ -14,7 +14,8 @@ import type { RootStackParamList } from "../navigation/types";
 // fix only got it as far as a row buried in Settings. It's now the Topics
 // tab itself (see MainTabs.tsx), an unmistakable first-class destination
 // rather than a fifth-tab overflow item. Lists the full catalog via
-// getConfig(), not getHome()'s personalized/ranked subset.
+// getConfig(), not getHome()'s personalized/ranked subset. The API lists
+// topics with stories first; each row shows its count (review #11).
 export function TopicsIndexScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { colors } = useAppTheme();
@@ -74,15 +75,23 @@ export function TopicsIndexScreen() {
         <Pressable
           onPress={() => navigation.navigate("Topic", { slug: topic.slug, name: topic.name })}
           accessibilityRole="button"
-          accessibilityLabel={`Browse topic: ${topic.name}`}
+          accessibilityLabel={`Browse topic: ${topic.name}, ${storyCountLabel(topic.story_count)}`}
           style={styles.row}
         >
-          <Text style={styles.rowLabel}>{topic.name}</Text>
+          <View style={styles.rowText}>
+            <Text style={styles.rowLabel}>{topic.name}</Text>
+            <Text style={styles.rowCount}>{storyCountLabel(topic.story_count)}</Text>
+          </View>
           <Text style={styles.chevron}>{"›"}</Text>
         </Pressable>
       )}
     />
   );
+}
+
+function storyCountLabel(count: number): string {
+  if (count === 0) return "No stories yet";
+  return count === 1 ? "1 story" : `${count} stories`;
 }
 
 function createStyles(colors: AppTheme["colors"]) {
@@ -99,7 +108,9 @@ function createStyles(colors: AppTheme["colors"]) {
       borderBottomWidth: 1,
       borderColor: colors.border,
     },
+    rowText: { flex: 1, gap: 2 },
     rowLabel: { ...typography.body, color: colors.text },
+    rowCount: { fontSize: 13, color: colors.muted },
     chevron: { fontSize: 18, color: colors.faint },
     // Ink-filled button, matching apps/web's main button.
     retryButton: {

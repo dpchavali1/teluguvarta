@@ -61,6 +61,7 @@ interface StoryDetail {
   importance: number;
   published_at: string | null;
   variants: Record<string, StoryVariant>;
+  topics?: string[];
   sources: StorySource[];
   review_task: { reason: string; status: string } | null;
   corrections: Correction[];
@@ -105,6 +106,85 @@ async function putDraft(storyId: string, language: "en" | "te", body: Record<str
     const errorBody = (await response.json().catch(() => null)) as { error?: { message?: string } } | null;
     throw new Error(errorBody?.error?.message ?? "Saving the draft failed");
   }
+}
+
+const MAX_TOPICS = 5;
+
+// Review #11: AI classification tags the stories it drafts; a hand-drafted
+// story gets topics only here, or it never shows on a topic page. Picks from
+// the existing active topics (the public config), in any story status.
+function TopicEditor({ storyId, current, reason, onSaved }: { storyId: string; current: string[]; reason: string; onSaved: () => void }) {
+  const toast = useToast();
+  const [topics, setTopics] = useState<{ slug: string; name: string }[] | null>(null);
+  const [selected, setSelected] = useState<string[]>(current);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetch(`${apiUrl()}/v1/config`)
+      .then((response) => (response.ok ? response.json() : Promise.reject(new Error("Couldn't load topics"))))
+      .then((body: { topics: { slug: string; name: string; active: boolean }[] }) =>
+        setTopics(body.topics.filter((t) => t.active).sort((a, b) => a.name.localeCompare(b.name)))
+      )
+      .catch((err) => setError(err instanceof Error ? err.message : "Couldn't load topics"));
+  }, []);
+
+  const changed = [...selected].sort().join(",") !== [...current].sort().join(",");
+
+  function toggle(slug: string, on: boolean) {
+    setSelected((prev) => (on ? [...prev, slug] : prev.filter((s) => s !== slug)));
+  }
+
+  async function save() {
+    setSaving(true);
+    setError(null);
+    try {
+      const response = await fetch(`${apiUrl()}/v1/admin/stories/${storyId}/topics`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${getToken()}` },
+        body: JSON.stringify({ topics: selected, reason: reason || null })
+      });
+      if (!response.ok) {
+        const errorBody = (await response.json().catch(() => null)) as { error?: { message?: string } } | null;
+        throw new Error(errorBody?.error?.message ?? "Saving topics failed");
+      }
+      toast("ok", "Topics saved.");
+      onSaved();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Saving topics failed");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  if (topics === null) return error ? <p role="alert">{error}</p> : <p>Loading topics…</p>;
+
+  return (
+    <fieldset className="enable-now">
+      <legend>Topics (up to {MAX_TOPICS})</legend>
+      {topics.map((topic) => {
+        const checked = selected.includes(topic.slug);
+        return (
+          <label key={topic.slug} htmlFor={`topic-${topic.slug}`}>
+            <input
+              id={`topic-${topic.slug}`}
+              type="checkbox"
+              checked={checked}
+              disabled={!checked && selected.length >= MAX_TOPICS}
+              onChange={(event) => toggle(topic.slug, event.target.checked)}
+            />
+            {topic.name}
+          </label>
+        );
+      })}
+      {error ? <p role="alert">{error}</p> : null}
+      <div className="card__foot">
+        <button type="button" disabled={saving || !changed} onClick={save}>
+          Save topics
+        </button>
+      </div>
+    </fieldset>
+  );
 }
 
 // Editor-written draft for a story still in review — the fallback when no AI
@@ -416,6 +496,11 @@ export default function StoryReviewPage() {
                 ) : null}
               </div>
             ) : null}
+          </section>
+
+          <section>
+            <h2>Topics</h2>
+            <TopicEditor key={(story.topics ?? []).join(",")} storyId={story.id} current={story.topics ?? []} reason={reason} onSaved={load} />
           </section>
 
           <section>

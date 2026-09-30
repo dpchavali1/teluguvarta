@@ -10,7 +10,9 @@ import { duringBuild, getHome } from "@/lib/api";
 export const revalidate = 60;
 
 export default async function HomePage() {
-  const { top_stories: topStories, topics } = await getHome().catch(duringBuild({ top_stories: [], topics: [] }));
+  const { top_stories: topStories, topics: allTopics } = await getHome().catch(duringBuild({ top_stories: [], topics: [] }));
+  // Chips lead to content; "All topics" keeps the empty ones reachable.
+  const topics = allTopics.filter((topic) => topic.story_count > 0);
 
   return (
     <div className="home">

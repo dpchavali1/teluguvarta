@@ -17,7 +17,7 @@ from collections import defaultdict
 from dataclasses import dataclass, field
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.content.ranking import RankableStory
@@ -122,8 +122,23 @@ def story_to_out(db: Session, story: Story, loaded: StoryRelations | None = None
     )
 
 
-def topic_out(topic: Topic) -> TopicOut:
-    return TopicOut(slug=topic.slug, name=topic.name, active=topic.active)
+def topic_out(topic: Topic, story_count: int = 0) -> TopicOut:
+    return TopicOut(slug=topic.slug, name=topic.name, active=topic.active, story_count=story_count)
+
+
+def active_topics_out(db: Session) -> list[TopicOut]:
+    """Every active topic with its published-story count, populated topics
+    first (most stories first), then the empty ones by name, so navigation
+    leads with what has content while the full taxonomy stays listed."""
+    counts = dict(db.execute(
+        select(StoryTopic.topic_id, func.count(func.distinct(StoryTopic.story_id)))
+        .join(Story, Story.id == StoryTopic.story_id)
+        .where(Story.status.in_(PUBLIC_STATUSES))
+        .group_by(StoryTopic.topic_id)
+    ).all())
+    topics = db.scalars(select(Topic).where(Topic.active.is_(True))).all()
+    ordered = sorted(topics, key=lambda t: (-counts.get(t.id, 0), t.name.casefold()))
+    return [topic_out(t, counts.get(t.id, 0)) for t in ordered]
 
 
 def story_to_rankable(db: Session, story: Story, loaded: StoryRelations | None = None) -> RankableStory:

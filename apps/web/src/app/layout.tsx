@@ -59,9 +59,11 @@ export const viewport: Viewport = {
 
 // The section nav is chrome, not content: if the API is briefly down the
 // page should still render (without the topic bar) rather than error out.
+// Only topics with stories: the bar leads to content, the header's Topics
+// link leads to the full list (review #11).
 async function navTopics(): Promise<TopicOut[]> {
   try {
-    return (await getConfig()).topics.filter((topic) => topic.active);
+    return (await getConfig()).topics.filter((topic) => topic.active && topic.story_count > 0);
   } catch {
     return [];
   }

@@ -50,8 +50,10 @@ from app.models import (
     SourceItem,
     Story,
     StorySource,
+    StoryTopic,
     StoryVariant,
     StoryWhyMattersCache,
+    Topic,
     XAccount,
 )
 from app.rate_limit import rate_limit_admin
@@ -72,6 +74,7 @@ from app.schemas import (
     AdminSourceUpdate,
     AdminStoryDetailOut,
     AdminStorySourceOut,
+    AdminTopicsRequest,
     AdminXAccountCreate,
     AdminXAccountOut,
     AdminXAccountUpdate,
@@ -540,6 +543,9 @@ def get_story_detail(story_id: UUID, db: Session = Depends(get_db)) -> AdminStor
             )
             for v in variants
         },
+        topics=sorted(db.scalars(
+            select(Topic.slug).join(StoryTopic, StoryTopic.topic_id == Topic.id).where(StoryTopic.story_id == story.id)
+        ).all()),
         sources=sources_out,
         review_task=_review_task_out(review_task) if review_task else None,
         corrections=[
@@ -642,6 +648,42 @@ def write_story_draft(
     )
     db.commit()
     db.refresh(story)
+    return AdminActionResponse(story_id=story.id, status=story.status)
+
+
+@router.put("/stories/{story_id}/topics")
+def set_story_topics(
+    story_id: UUID,
+    body: AdminTopicsRequest,
+    admin: AdminPrincipal = Depends(current_admin),
+    db: Session = Depends(get_db),
+) -> AdminActionResponse:
+    """Editor-set topics (review #11). AI classification tags the stories it
+    drafts; an editor-drafted story has no other way to get a topic, so it
+    never appears on a topic page. Only existing active topics: editors pick
+    from the taxonomy, they don't grow it. Topics are navigation metadata,
+    not story text, so this works in any status without a Correction."""
+
+    story = _get_story_or_404(db, story_id)
+    slugs = list(dict.fromkeys(s.strip() for s in body.topics if s.strip()))
+    topics = db.scalars(select(Topic).where(Topic.slug.in_(slugs), Topic.active.is_(True))).all() if slugs else []
+    unknown = sorted(set(slugs) - {t.slug for t in topics})
+    if unknown:
+        raise APIError(422, "UNKNOWN_TOPIC", f"Not an active topic: {', '.join(unknown)}")
+
+    old = sorted(db.scalars(
+        select(Topic.slug).join(StoryTopic, StoryTopic.topic_id == Topic.id).where(StoryTopic.story_id == story.id)
+    ).all())
+    db.execute(delete(StoryTopic).where(StoryTopic.story_id == story.id))
+    for topic in topics:
+        db.add(StoryTopic(story_id=story.id, topic_id=topic.id, weight=1))
+    db.flush()
+
+    _write_audit_event(
+        db, admin.email, "STORY_TOPICS_SET", "story", story.id,
+        {"old": old, "new": sorted(slugs), "reason": body.reason},
+    )
+    db.commit()
     return AdminActionResponse(story_id=story.id, status=story.status)
 
 

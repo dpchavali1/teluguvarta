@@ -12,7 +12,7 @@ type Props = { searchParams: Promise<{ q?: string }> };
 
 async function suggestedTopics(): Promise<TopicOut[]> {
   try {
-    return (await getConfig()).topics.filter((topic) => topic.active).slice(0, 12);
+    return (await getConfig()).topics.filter((topic) => topic.active && topic.story_count > 0).slice(0, 12);
   } catch {
     return [];
   }

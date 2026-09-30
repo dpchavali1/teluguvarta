@@ -21,6 +21,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/health/ready": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Ready
+         * @description Review 2026-09-29 #9: readiness, unlike `/health`, fails (503) when the
+         *     API can't reach Postgres. Used by the deploy health gate, the compose
+         *     healthcheck and `infra/deploy/monitor.sh`.
+         */
+        get: operations["ready_health_ready_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/admin/audit": {
         parameters: {
             query?: never;
@@ -383,6 +405,30 @@ export interface paths {
         put?: never;
         /** Retract Story */
         post: operations["retract_story_v1_admin_stories__story_id__retract_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/admin/stories/{story_id}/topics": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Set Story Topics
+         * @description Editor-set topics (review #11). AI classification tags the stories it
+         *     drafts; an editor-drafted story has no other way to get a topic, so it
+         *     never appears on a topic page. Only existing active topics: editors pick
+         *     from the taxonomy, they don't grow it. Topics are navigation metadata,
+         *     not story text, so this works in any status without a Correction.
+         */
+        put: operations["set_story_topics_v1_admin_stories__story_id__topics_put"];
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -1036,6 +1082,8 @@ export interface components {
              * @enum {string}
              */
             status: "DRAFT" | "AI_READY" | "REVIEW_REQUIRED" | "APPROVED" | "SCHEDULED" | "PUBLISHED" | "UPDATED" | "RETRACTED" | "CORRECTION_PENDING" | "ARCHIVED";
+            /** Topics */
+            topics?: string[];
             /** Variants */
             variants?: {
                 [key: string]: components["schemas"]["StoryVariantOut"];
@@ -1063,6 +1111,16 @@ export interface components {
             title?: string | null;
             /** Url */
             url: string;
+        };
+        /**
+         * AdminTopicsRequest
+         * @description The full set of topic slugs for a story (replaces what it had).
+         */
+        AdminTopicsRequest: {
+            /** Reason */
+            reason?: string | null;
+            /** Topics */
+            topics: string[];
         };
         /** AdminXAccountCreate */
         AdminXAccountCreate: {
@@ -1639,6 +1697,11 @@ export interface components {
             name: string;
             /** Slug */
             slug: string;
+            /**
+             * Story Count
+             * @default 0
+             */
+            story_count: number;
         };
         /** ValidationError */
         ValidationError: {
@@ -1681,6 +1744,28 @@ export interface components {
 export type $defs = Record<string, never>;
 export interface operations {
     health_health_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: string;
+                    };
+                };
+            };
+        };
+    };
+    ready_health_ready_get: {
         parameters: {
             query?: never;
             header?: never;
@@ -2460,6 +2545,43 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["AdminActionRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminActionResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    set_story_topics_v1_admin_stories__story_id__topics_put: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                story_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminTopicsRequest"];
             };
         };
         responses: {

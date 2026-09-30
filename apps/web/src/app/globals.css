@@ -1305,6 +1305,17 @@ button:disabled {
   color: var(--text-tertiary);
 }
 
+.topic-tile__count {
+  display: block;
+  color: var(--text-secondary);
+  font-size: 0.8125rem;
+  font-weight: 400;
+}
+
+.topics-empty {
+  margin-top: var(--space-xl);
+}
+
 .search-form {
   position: relative;
   display: flex;

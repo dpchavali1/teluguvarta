@@ -36,6 +36,9 @@ class TopicOut(BaseModel):
     slug: str
     name: str
     active: bool = True
+    # Published stories tagged with this topic (review #11: navigation shows
+    # populated topics first).
+    story_count: int = 0
 
 
 class StoryVariantOut(BaseModel):
@@ -402,6 +405,13 @@ class AdminCorrectionRequest(BaseModel):
     why_matters: str | None = None
 
 
+class AdminTopicsRequest(BaseModel):
+    """The full set of topic slugs for a story (replaces what it had)."""
+
+    topics: list[str] = Field(max_length=5)
+    reason: str | None = None
+
+
 class AdminDraftRequest(BaseModel):
     """An editor-written story variant for a story still in review — the
     fallback when no AI route may draft it (e.g. NO_PAID_PROVIDER)."""
@@ -449,6 +459,7 @@ class AdminStoryDetailOut(BaseModel):
     importance: float
     published_at: datetime | None = None
     variants: dict[Language, StoryVariantOut] = Field(default_factory=dict)
+    topics: list[str] = Field(default_factory=list)
     sources: list[AdminStorySourceOut] = Field(default_factory=list)
     review_task: ReviewQueueItemOut | None = None
     corrections: list[AdminCorrectionOut] = Field(default_factory=list)

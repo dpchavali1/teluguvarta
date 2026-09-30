@@ -1114,6 +1114,13 @@
             "title": "Status",
             "type": "string"
           },
+          "topics": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Topics",
+            "type": "array"
+          },
           "variants": {
             "additionalProperties": {
               "$ref": "#/components/schemas/StoryVariantOut"
@@ -1208,6 +1215,35 @@
           "source_rights_status"
         ],
         "title": "AdminStorySourceOut",
+        "type": "object"
+      },
+      "AdminTopicsRequest": {
+        "description": "The full set of topic slugs for a story (replaces what it had).",
+        "properties": {
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          },
+          "topics": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 5,
+            "title": "Topics",
+            "type": "array"
+          }
+        },
+        "required": [
+          "topics"
+        ],
+        "title": "AdminTopicsRequest",
         "type": "object"
       },
       "AdminXAccountCreate": {
@@ -2850,6 +2886,11 @@
           "slug": {
             "title": "Slug",
             "type": "string"
+          },
+          "story_count": {
+            "default": 0,
+            "title": "Story Count",
+            "type": "integer"
           }
         },
         "required": [
@@ -2973,6 +3014,29 @@
           }
         },
         "summary": "Health"
+      }
+    },
+    "/health/ready": {
+      "get": {
+        "description": "Review 2026-09-29 #9: readiness, unlike `/health`, fails (503) when the\nAPI can't reach Postgres. Used by the deploy health gate, the compose\nhealthcheck and `infra/deploy/monitor.sh`.",
+        "operationId": "ready_health_ready_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "title": "Response Ready Health Ready Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Ready"
       }
     },
     "/v1/admin/audit": {
@@ -4318,6 +4382,76 @@
           }
         },
         "summary": "Retract Story",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/v1/admin/stories/{story_id}/topics": {
+      "put": {
+        "description": "Editor-set topics (review #11). AI classification tags the stories it\ndrafts; an editor-drafted story has no other way to get a topic, so it\nnever appears on a topic page. Only existing active topics: editors pick\nfrom the taxonomy, they don't grow it. Topics are navigation metadata,\nnot story text, so this works in any status without a Correction.",
+        "operationId": "set_story_topics_v1_admin_stories__story_id__topics_put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "story_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Story Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdminTopicsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminActionResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Set Story Topics",
         "tags": [
           "admin"
         ]

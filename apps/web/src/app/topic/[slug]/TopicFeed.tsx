@@ -29,7 +29,7 @@ export async function TopicFeed({ slug, cursor }: { slug: string; cursor?: strin
   return (
     <>
       <PageHeader eyebrow="Topic" title={data.topic.name}>The latest {data.topic.name} stories, summarized with a link to every source.</PageHeader>
-      <StoryGrid stories={data.stories} empty={<>No published stories in this topic yet. <Link href="/topics">Browse other topics</Link>.</>} />
+      <StoryGrid stories={data.stories} empty={<>No published stories in this topic yet. See the <Link href="/latest">latest stories</Link> or <Link href="/topics">browse other topics</Link>.</>} />
       <nav className="pagination" aria-label="Story pages">
         {cursor && <Link className="button" href={`/topic/${slug}`}>Latest in this topic</Link>}
         {data.next_cursor && <Link className="button" href={`/topic/${slug}/older/${encodeURIComponent(data.next_cursor)}`}>Older stories →</Link>}

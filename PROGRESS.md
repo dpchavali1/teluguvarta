@@ -95,6 +95,21 @@ gate section is gone; do not reintroduce a pilot gate on any future ticket.
   production build with the API unreachable. **Deployed 2026-09-30, verified live:** robots.txt has the four
   disallows; the sitemap lists 9 static routes and both published stories, and no topics, since neither
   story has a topic yet (before this, all 26 topic pages were listed, most of them empty).
+- **#11 code part done (2026-09-30): populated topics first, editor topic tagging.** Topics were attached
+  only by AI classification (`generate._link_topics`), so hand-drafted stories (both live ones) had none
+  and every topic page was empty. `TopicOut.story_count` counts published stories;
+  `serialize.active_topics_out` orders `/v1/config` and `/v1/home` topics by count, then name, and
+  `/v1/topics/{slug}` returns its count too. New `PUT /v1/admin/stories/{id}/topics` (existing active
+  topics only, max 5, replaces the set, any status since topics aren't story text; 422 `UNKNOWN_TOPIC`;
+  audit `STORY_TOPICS_SET`); admin detail returns `topics`; the review page has a topic picker. Web: header
+  topic bar, home chips and search suggestions show only populated topics (the header's Topics link
+  still lists all); `/topics` shows populated topics with counts, then a "No stories yet" group; an empty
+  topic page links to Latest. Mobile: Topics tab rows show counts; Home chips are populated only.
+  Tests: `tests/test_topic_navigation.py` (3). Full API suite 411 passed (1 flaky fixture error, passes
+  alone); web/admin/mobile typecheck and lint, mobile jest 19 passed, web and admin production builds.
+  Not checked in a browser. **Not done (owner/editorial):** activating a balanced rights-reviewed source
+  set, a daily editorial target, and student topics shown prominently to students (needs the
+  onboarding profile in the header; not started). After deploy, tag the two live stories in admin.
 - **Waiting on the owner (proposed ADRs, nothing implemented):** ADR-023 rights revocation for published,
   mixed-source and scheduled stories (#7 follow-up); ADR-024 total AI spend ceiling (#2); ADR-025 audited
   recovery of `AI_RETRIES_EXHAUSTED`/exhausted-translation holds; ADR-026 minimum content per format (#6).

@@ -50,7 +50,8 @@ export function HomeScreen() {
       const home = await getHome(homeParams);
       if (current !== requestId.current) return;
       setStories(home.top_stories);
-      setTopics(home.topics);
+      // Chips lead to content; the Topics tab lists the empty ones too.
+      setTopics(home.topics.filter((topic) => topic.story_count > 0));
       put(home.top_stories);
       trackEvent("feed_view", { story_count: home.top_stories.length });
 
