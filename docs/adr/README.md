@@ -61,3 +61,15 @@ accepted. Add ad-hoc ADRs below this table as they're written.
 - ADR-022 | Public web on the VPS at theteluguedit.com (amends ADR-007) |
   web deploy | **accepted and implemented** (2026-09-29) — see
   [ADR-022](ADR-022-web-on-vps-theteluguedit.md)
+- ADR-023 | What revoking a source's rights does to published, mixed-source
+  and scheduled stories | review 2026-09-29 #7 | **proposed** (owner decision
+  needed) — see [ADR-023](ADR-023-source-rights-revocation.md)
+- ADR-024 | A total AI spend ceiling, not only a degradation threshold |
+  review 2026-09-29 #2 | **proposed** (owner decision needed) — see
+  [ADR-024](ADR-024-total-ai-spend-ceiling.md)
+- ADR-025 | Recovering stories held by AI failures (audited manual retry) |
+  review 2026-09-29 #1 | **proposed** (owner decision needed) — see
+  [ADR-025](ADR-025-held-story-recovery.md)
+- ADR-026 | Minimum content for a published story, by format | review
+  2026-09-29 #6 | **proposed** (owner decision needed) — see
+  [ADR-026](ADR-026-publication-content-validation.md)
