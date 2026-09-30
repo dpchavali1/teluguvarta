@@ -92,7 +92,9 @@ gate section is gone; do not reintroduce a pilot gate on any future ticket.
   ISR keeps the last good sitemap; at build it falls back to static routes, as before. Country pages
   stay out until geography is fixed (#10). Web now has a `test` script (node's test runner, 4 tests in
   `apps/web/tests/sitemap.test.mjs`) and CI runs it. Verified: web typecheck, lint, test, and
-  production build with the API unreachable. Not deployed.
+  production build with the API unreachable. **Deployed 2026-09-30, verified live:** robots.txt has the four
+  disallows; the sitemap lists 9 static routes and both published stories, and no topics, since neither
+  story has a topic yet (before this, all 26 topic pages were listed, most of them empty).
 - **Waiting on the owner (proposed ADRs, nothing implemented):** ADR-023 rights revocation for published,
   mixed-source and scheduled stories (#7 follow-up); ADR-024 total AI spend ceiling (#2); ADR-025 audited
   recovery of `AI_RETRIES_EXHAUSTED`/exhausted-translation holds; ADR-026 minimum content per format (#6).
