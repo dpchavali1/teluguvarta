@@ -12,6 +12,7 @@ from app.models import (
     Source,
     SourceItem,
     Story,
+    StoryCountry,
     StorySource,
     StoryTopic,
     StoryVariant,
@@ -23,9 +24,10 @@ pytestmark = requires_postgres
 
 
 def _seed_published_story(
-    db: Session, *, status: str = "PUBLISHED", te_qa: str | None = None, country: str = "US", topic_slug: str = "immigration"
+    db: Session, *, status: str = "PUBLISHED", te_qa: str | None = None, country: str | None = "US",
+    topic_slug: str = "immigration", publisher_country: str = "US",
 ) -> Story:
-    source = Source(name="Example Wire", base_url="https://example.com", rights_status="LINK_ONLY", country=country)
+    source = Source(name="Example Wire", base_url="https://example.com", rights_status="LINK_ONLY", country=publisher_country)
     db.add(source)
     db.flush()
     item = SourceItem(
@@ -43,6 +45,8 @@ def _seed_published_story(
     db.add(topic)
     db.flush()
     db.add(StoryTopic(story_id=story.id, topic_id=topic.id, weight=1))
+    if country is not None:
+        db.add(StoryCountry(story_id=story.id, country_code=country, role="EVENT"))  # ADR-027
     db.add(StoryVariant(story_id=story.id, language="en", headline="Original headline", summary="Original summary", why_matters="Why it matters"))
     if te_qa is not None:
         db.add(StoryVariant(story_id=story.id, language="te", headline="తెలుగు శీర్షిక", summary="తెలుగు సారాంశం", qa_status=te_qa))
@@ -135,6 +139,19 @@ def test_country_filter_on_stories_list(client, db_session):
     body = response.json()
     slugs = [s["canonical_slug"] for s in body["items"]]
     assert slugs == [us.canonical_slug]
+
+
+def test_event_country_not_publisher_country(client, db_session):
+    # ADR-027 (review #10): a UK event reported by a US publisher is a UK story.
+    uk = _seed_published_story(db_session, country="GB", publisher_country="US", topic_slug="uk-event")
+    unplaced = _seed_published_story(db_session, country=None, publisher_country="US", topic_slug="unplaced")
+
+    assert client.get(f"/v1/stories/{uk.canonical_slug}").json()["countries"] == ["GB"]
+    assert client.get(f"/v1/stories/{unplaced.canonical_slug}").json()["countries"] == []
+    gb = [s["canonical_slug"] for s in client.get("/v1/stories", params={"country": "GB"}).json()["items"]]
+    us = [s["canonical_slug"] for s in client.get("/v1/stories", params={"country": "US"}).json()["items"]]
+    assert gb == [uk.canonical_slug]
+    assert us == []
 
 
 def test_search_matches_headline(client, db_session):

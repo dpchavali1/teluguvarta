@@ -14,6 +14,7 @@ from sqlalchemy import and_, func, or_, select
 from sqlalchemy.orm import Session
 
 from app import analytics
+from app.content.geography import EVENT, normalize_country
 from app.content.ranking import Preferences, rank_stories
 from app.content.serialize import (
     PUBLIC_STATUSES,
@@ -29,10 +30,8 @@ from app.db import get_db
 from app.errors import APIError
 from app.jobs.why_matters import enqueue_why_matters
 from app.models import (
-    Source,
-    SourceItem,
     Story,
-    StorySource,
+    StoryCountry,
     StoryTopic,
     StoryVariant,
     Topic,
@@ -106,9 +105,12 @@ def _published_query(*, topic_slug: str | None = None, country: str | None = Non
             select(StoryTopic.story_id).join(Topic, Topic.id == StoryTopic.topic_id).where(Topic.slug == topic_slug)
         ))
     if country is not None:
+        # ADR-027: where the story happens, not where its publisher is.
         stmt = stmt.where(Story.id.in_(
-            select(StorySource.story_id).join(SourceItem, SourceItem.id == StorySource.source_item_id)
-            .join(Source, Source.id == SourceItem.source_id).where(Source.country == country)
+            select(StoryCountry.story_id).where(
+                StoryCountry.country_code == (normalize_country(country) or country.upper()),
+                StoryCountry.role == EVENT,
+            )
         ))
     return stmt.order_by(Story.published_at.desc().nulls_last(), Story.id)
 

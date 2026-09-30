@@ -98,6 +98,7 @@ def _to_notifiable(db: Session, story: Story) -> NotifiableStory:
         id=str(story.id),
         topics=_story_topic_slugs(db, story.id),
         importance=story.importance,
+        classification_confidence=story.classification_confidence,
         sensitivity=story.sensitivity,
         breaking_alert_approved=story.breaking_alert_approved_at is not None,
         avg_source_quality=_avg_source_quality(db, story.id),

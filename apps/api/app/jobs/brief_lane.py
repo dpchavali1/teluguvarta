@@ -195,7 +195,7 @@ def _ineligible(db: Session, story: Story, items: list[SourceItem]) -> str | Non
         return "sensitivity"
     if story.privacy_decision == "RESTRICTED":
         return "restricted signal"
-    if story.importance < MIN_CONFIDENCE:  # generate stores classification confidence here
+    if story.classification_confidence is None or story.classification_confidence < MIN_CONFIDENCE:
         return "classification confidence"
     for item in items:
         source = db.get(Source, item.source_id)

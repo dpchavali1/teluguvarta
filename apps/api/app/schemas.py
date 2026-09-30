@@ -412,6 +412,23 @@ class AdminTopicsRequest(BaseModel):
     reason: str | None = None
 
 
+ImportanceLevel = Literal["LOW", "NORMAL", "HIGH"]
+
+
+class AdminCountriesRequest(BaseModel):
+    """ADR-027: the full set of event countries for a story (replaces what it had)."""
+
+    countries: list[str] = Field(max_length=5)
+    reason: str | None = None
+
+
+class AdminImportanceRequest(BaseModel):
+    """ADR-027: an editor's importance level; null returns to the computed score."""
+
+    level: ImportanceLevel | None
+    reason: str | None = None
+
+
 class AdminDraftRequest(BaseModel):
     """An editor-written story variant for a story still in review — the
     fallback when no AI route may draft it (e.g. NO_PAID_PROVIDER)."""
@@ -457,9 +474,14 @@ class AdminStoryDetailOut(BaseModel):
     sensitivity: Sensitivity
     format: StoryFormat = "FULL"
     importance: float
+    # ADR-027: the editor's override, if any, and the model's confidence
+    # (None for a story no model classified).
+    importance_override: ImportanceLevel | None = None
+    classification_confidence: float | None = None
     published_at: datetime | None = None
     variants: dict[Language, StoryVariantOut] = Field(default_factory=dict)
     topics: list[str] = Field(default_factory=list)
+    countries: list[str] = Field(default_factory=list)
     sources: list[AdminStorySourceOut] = Field(default_factory=list)
     review_task: ReviewQueueItemOut | None = None
     corrections: list[AdminCorrectionOut] = Field(default_factory=list)

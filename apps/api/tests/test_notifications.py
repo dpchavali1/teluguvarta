@@ -52,7 +52,7 @@ from tests.conftest import requires_postgres
 
 def _story(**overrides) -> NotifiableStory:
     defaults = {
-        "id": "story-1", "topics": (), "importance": 0.9, "sensitivity": "NONE",
+        "id": "story-1", "topics": (), "importance": 0.9, "classification_confidence": 0.9, "sensitivity": "NONE",
         "breaking_alert_approved": False, "avg_source_quality": 0.8,
     }
     defaults.update(overrides)

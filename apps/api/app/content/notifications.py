@@ -31,6 +31,9 @@ class NotifiableStory:
     id: str
     topics: tuple[str, ...]
     importance: float
+    # ADR-027: None when no model classified the story (hand-drafted); the
+    # editor's breaking-alert approval is then the only confidence signal.
+    classification_confidence: float | None
     sensitivity: str
     breaking_alert_approved: bool
     avg_source_quality: float
@@ -74,7 +77,7 @@ def breaking_alert_eligible(story: NotifiableStory, prefs: UserNotificationPrefs
         return False
     if not prefs.breaking_alerts_enabled:
         return False
-    if story.importance < BREAKING_ALERT_MIN_CONFIDENCE:
+    if story.classification_confidence is not None and story.classification_confidence < BREAKING_ALERT_MIN_CONFIDENCE:
         return False
     return story.avg_source_quality >= BREAKING_ALERT_MIN_SOURCE_QUALITY
 

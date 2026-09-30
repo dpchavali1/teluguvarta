@@ -136,9 +136,29 @@ gate section is gone; do not reintroduce a pilot gate on any future ticket.
   calls log `story_id`. Tests: 4 new in `tests/test_personalization_api.py`. Full API suite 416 passed
   (1 flaky fixture error, passes alone); ruff clean; no new mypy errors in touched files. **Deployed 2026-09-30 by the owner** (`ec6cd3b`); not checked live
   (the cap only shows in the worker's `ai_summarize` jobs; no migration).
+- **#10 done (2026-09-30): event geography and importance (ADR-027, accepted).** Migration `d1a6e4f8b3c5`:
+  `stories.classification_confidence`, `urgency`, `importance_override`, and table `story_countries`
+  (role `EVENT`; `AUDIENCE` reserved). Generation stores the model's confidence and urgency, writes its
+  countries as EVENT rows (normalized to the 9 codes clients offer, unknown dropped;
+  `app/content/geography.py`), and scores importance deterministically (`app/content/importance.py`: 0.4,
+  +0.2 urgent, +0.1 per extra independent source up to +0.3, +0.1 for immigration/student topics). The score
+  is recomputed when cluster adds a source and when an editor sets topics. The brief lane reads
+  confidence (none → ineligible); the breaking-alert confidence check skips stories with no confidence, so
+  the editor's alert approval decides for hand-drafted ones. Public `countries`, the ranking residence
+  match and `?country=` use EVENT rows only, never `Source.country`. Admin: `PUT
+  /v1/admin/stories/{id}/countries` (422 `UNKNOWN_COUNTRY`, audit `STORY_COUNTRIES_SET`) and `PUT
+  .../importance` (`LOW`/`NORMAL`/`HIGH` = 0.2/0.5/0.8 or null to recompute, audit
+  `STORY_IMPORTANCE_SET`); detail returns countries, override and confidence; the review page has a
+  country picker and importance selector. Backfill: AI-written stories get their old importance as
+  confidence; every story's importance is recomputed (no urgency term, never stored); no story gets
+  countries. **After deploy:** the two live stories lose their US badge, so set their countries (and
+  topics) in admin. Tests: `tests/test_geography_importance.py` (12, including the migration backfill and
+  downgrade). Full API suite 429 passed; ruff clean; mypy 69 errors,
+  down from 71, none in new code; admin typecheck, lint and production build pass. Not checked in a
+  browser. Not done: country pages in the sitemap (left out until this, #16); formula weights untuned.
 - **Waiting on the owner (proposed ADRs, nothing implemented):** ADR-023 rights revocation for published,
   mixed-source and scheduled stories (#7 follow-up); ADR-024 total AI spend ceiling (#2); ADR-025 audited
-  recovery of `AI_RETRIES_EXHAUSTED`/exhausted-translation holds; ADR-026 minimum content per format (#6); ADR-027 event geography and importance separated from publisher country and model confidence (#10, written 2026-09-30; nothing implemented).
+  recovery of `AI_RETRIES_EXHAUSTED`/exhausted-translation holds; ADR-026 minimum content per format (#6).
   **Deployed to the VPS 2026-09-30 03:07 UTC at `5af512f`:** both migrations (`b8e4c2d6f1a3`,
   `c9f5d3e7a2b4`) applied, all services up, API healthy. Worker checked 03:14 UTC: every sweep job type
   running on schedule and `DONE`, none stuck, no worker errors, `ai_work_state` empty, no story missing

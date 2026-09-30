@@ -59,9 +59,12 @@ interface StoryDetail {
   sensitivity: string;
   format?: "FULL" | "BRIEF";
   importance: number;
+  importance_override?: ImportanceLevel | null;
+  classification_confidence?: number | null;
   published_at: string | null;
   variants: Record<string, StoryVariant>;
   topics?: string[];
+  countries?: string[];
   sources: StorySource[];
   review_task: { reason: string; status: string } | null;
   corrections: Correction[];
@@ -106,6 +109,126 @@ async function putDraft(storyId: string, language: "en" | "te", body: Record<str
     const errorBody = (await response.json().catch(() => null)) as { error?: { message?: string } } | null;
     throw new Error(errorBody?.error?.message ?? "Saving the draft failed");
   }
+}
+
+async function putStoryField(storyId: string, field: string, body: Record<string, unknown>, failure: string): Promise<void> {
+  const response = await fetch(`${apiUrl()}/v1/admin/stories/${storyId}/${field}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${getToken()}` },
+    body: JSON.stringify(body)
+  });
+  if (!response.ok) {
+    const errorBody = (await response.json().catch(() => null)) as { error?: { message?: string } } | null;
+    throw new Error(errorBody?.error?.message ?? failure);
+  }
+}
+
+type ImportanceLevel = "LOW" | "NORMAL" | "HIGH";
+
+// ADR-027: the countries the API accepts (app/content/geography.py).
+const EVENT_COUNTRIES: { code: string; name: string }[] = [
+  { code: "US", name: "United States" },
+  { code: "IN", name: "India" },
+  { code: "CA", name: "Canada" },
+  { code: "GB", name: "United Kingdom" },
+  { code: "AU", name: "Australia" },
+  { code: "AE", name: "United Arab Emirates" },
+  { code: "SG", name: "Singapore" },
+  { code: "NZ", name: "New Zealand" },
+  { code: "DE", name: "Germany" }
+];
+const MAX_COUNTRIES = 5;
+
+// ADR-027: where the story happens, not where the publisher is based. The
+// model's countries fill this for AI drafts; hand-drafted stories get it here.
+function CountryEditor({ storyId, current, reason, onSaved }: { storyId: string; current: string[]; reason: string; onSaved: () => void }) {
+  const toast = useToast();
+  const [selected, setSelected] = useState<string[]>(current);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const changed = [...selected].sort().join(",") !== [...current].sort().join(",");
+
+  async function save() {
+    setSaving(true);
+    setError(null);
+    try {
+      await putStoryField(storyId, "countries", { countries: selected, reason: reason || null }, "Saving countries failed");
+      toast("ok", "Countries saved.");
+      onSaved();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Saving countries failed");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <fieldset className="enable-now">
+      <legend>Where it happens (up to {MAX_COUNTRIES}; not the publisher&apos;s country)</legend>
+      {EVENT_COUNTRIES.map((country) => {
+        const checked = selected.includes(country.code);
+        return (
+          <label key={country.code} htmlFor={`country-${country.code}`}>
+            <input
+              id={`country-${country.code}`}
+              type="checkbox"
+              checked={checked}
+              disabled={!checked && selected.length >= MAX_COUNTRIES}
+              onChange={(event) =>
+                setSelected((prev) => (event.target.checked ? [...prev, country.code] : prev.filter((c) => c !== country.code)))
+              }
+            />
+            {country.name}
+          </label>
+        );
+      })}
+      {error ? <p role="alert">{error}</p> : null}
+      <div className="card__foot">
+        <button type="button" disabled={saving || !changed} onClick={save}>
+          Save countries
+        </button>
+      </div>
+    </fieldset>
+  );
+}
+
+// ADR-027: importance is scored from urgency, sources and topics; an editor's
+// level replaces the score until cleared.
+function ImportanceEditor({ storyId, current, reason, onSaved }: { storyId: string; current: ImportanceLevel | null; reason: string; onSaved: () => void }) {
+  const toast = useToast();
+  const [level, setLevel] = useState<ImportanceLevel | "">(current ?? "");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function save() {
+    setSaving(true);
+    setError(null);
+    try {
+      await putStoryField(storyId, "importance", { level: level || null, reason: reason || null }, "Saving importance failed");
+      toast("ok", "Importance saved.");
+      onSaved();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Saving importance failed");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div>
+      <label htmlFor="importance-level">Importance</label>{" "}
+      <select id="importance-level" value={level} onChange={(event) => setLevel(event.target.value as ImportanceLevel | "")}>
+        <option value="">Computed</option>
+        <option value="LOW">Low</option>
+        <option value="NORMAL">Normal</option>
+        <option value="HIGH">High</option>
+      </select>{" "}
+      <button type="button" disabled={saving || level === (current ?? "")} onClick={save}>
+        Save importance
+      </button>
+      {error ? <p role="alert">{error}</p> : null}
+    </div>
+  );
 }
 
 const MAX_TOPICS = 5;
@@ -420,7 +543,9 @@ export default function StoryReviewPage() {
       </p>
       <PageHeader
         title={en?.headline ?? primarySourceTitle ?? story.canonical_slug}
-        subtitle={`Importance ${story.importance.toFixed(2)}`}
+        subtitle={`Importance ${story.importance.toFixed(2)}${story.importance_override ? ` (set ${story.importance_override.toLowerCase()})` : ""} · Model confidence ${
+          story.classification_confidence == null ? "—" : story.classification_confidence.toFixed(2)
+        }`}
         actions={
           <span className="pill-row">
             <Badge tone={statusNotice?.tone ?? "neutral"}>{story.status}</Badge>
@@ -501,6 +626,12 @@ export default function StoryReviewPage() {
           <section>
             <h2>Topics</h2>
             <TopicEditor key={(story.topics ?? []).join(",")} storyId={story.id} current={story.topics ?? []} reason={reason} onSaved={load} />
+          </section>
+
+          <section>
+            <h2>Geography and importance</h2>
+            <CountryEditor key={(story.countries ?? []).join(",")} storyId={story.id} current={story.countries ?? []} reason={reason} onSaved={load} />
+            <ImportanceEditor key={story.importance_override ?? "computed"} storyId={story.id} current={story.importance_override ?? null} reason={reason} onSaved={load} />
           </section>
 
           <section>

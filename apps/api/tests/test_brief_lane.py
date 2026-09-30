@@ -84,7 +84,7 @@ def _brief(item_id, **overrides):
     return base
 
 
-def _story(db, *, reviewed=True, category=None, importance=0.9, sensitivity="NONE", title=TITLE):
+def _story(db, *, reviewed=True, category=None, confidence=0.9, sensitivity="NONE", title=TITLE):
     source = Source(
         name="State Dept", feed_url=f"https://example.org/{uuid.uuid4()}.xml", rights_status="LINK_ONLY", active=True,
         rights_reviewed_at=datetime.now(UTC) if reviewed else None,
@@ -99,7 +99,7 @@ def _story(db, *, reviewed=True, category=None, importance=0.9, sensitivity="NON
     )
     db.add(item)
     db.flush()
-    story = Story(canonical_slug=f"story-{uuid.uuid4()}", status="AI_READY", sensitivity=sensitivity, importance=importance)
+    story = Story(canonical_slug=f"story-{uuid.uuid4()}", status="AI_READY", sensitivity=sensitivity, classification_confidence=confidence)
     db.add(story)
     db.flush()
     db.add(StorySource(story_id=story.id, source_item_id=item.id, role="PRIMARY", evidence_rank=1))
@@ -197,7 +197,7 @@ def test_claim_is_checked_against_its_own_citation(db_session, lane_on, monkeypa
 
 @pytest.mark.parametrize(
     "kwargs",
-    [{"reviewed": False}, {"category": "immigration"}, {"importance": 0.7}, {"title": "Court indicts official"}],
+    [{"reviewed": False}, {"category": "immigration"}, {"confidence": 0.7}, {"title": "Court indicts official"}],
 )
 def test_ineligible_story_goes_to_review_without_ai_call(db_session, lane_on, monkeypatch, kwargs):
     story, _ = _story(db_session, **kwargs)

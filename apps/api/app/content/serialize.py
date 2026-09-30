@@ -3,12 +3,9 @@ shape since T04; only the data source changes here). Shared by every public
 router so the fallback/QA rules ([[resolve_display_variant]]) and the
 country/topic derivation are implemented once.
 
-Countries are not a first-class column on `Story` (§12 has no
-`story_countries` table) — deriving them from `Source.country` of every
-linked source is the deterministic, no-new-migration reading of "countries
-this story is about" per NON_NEGOTIABLES' "prefer deterministic code" and
-"don't invent requirements" (a real country/region taxonomy is future
-scope, not blocking T14's acceptance criteria).
+Countries are the story's event geography (ADR-027, `story_countries`
+role EVENT), never its publishers' `Source.country`: a UK event reported by
+a US outlet is a UK story. A story with no event countries has none.
 """
 
 from __future__ import annotations
@@ -20,6 +17,7 @@ from uuid import UUID
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from app.content.geography import event_countries_many
 from app.content.ranking import RankableStory
 from app.content.variants import resolve_display_variant
 from app.models import (
@@ -45,12 +43,13 @@ class StoryRelations:
     variants: dict = field(default_factory=lambda: defaultdict(list))
     links: dict = field(default_factory=lambda: defaultdict(list))
     topics: dict = field(default_factory=lambda: defaultdict(list))
+    countries: dict = field(default_factory=lambda: defaultdict(list))
     items: dict = field(default_factory=dict)
     sources: dict = field(default_factory=dict)
 
 
 def load_story_relations(db: Session, ids: list[UUID]) -> StoryRelations:
-    """Load a bounded page's associations in five queries, not per story."""
+    """Load a bounded page's associations in six queries, not per story."""
     loaded = StoryRelations()
     if not ids:
         return loaded
@@ -64,6 +63,8 @@ def load_story_relations(db: Session, ids: list[UUID]) -> StoryRelations:
     loaded.sources = {source.id: source for source in db.scalars(select(Source).where(Source.id.in_(source_ids)))}
     for story_id, slug in db.execute(select(StoryTopic.story_id, Topic.slug).join(Topic, Topic.id == StoryTopic.topic_id).where(StoryTopic.story_id.in_(ids))):
         loaded.topics[story_id].append(slug)
+    for story_id, codes in event_countries_many(db, ids).items():
+        loaded.countries[story_id] = codes
     return loaded
 
 
@@ -90,15 +91,12 @@ def story_to_out(db: Session, story: Story, loaded: StoryRelations | None = None
 
     links = loaded.links[story.id]
     sources_out: list[StorySourceOut] = []
-    countries: list[str] = []
     for link in links:
         item = loaded.items.get(link.source_item_id)
         if item is None:
             continue
         sources_out.append(StorySourceOut(url=item.url, title=item.title, published_at=item.published_at))
-        source = loaded.sources.get(item.source_id)
-        if source and source.country and source.country not in countries:
-            countries.append(source.country)
+    countries = list(loaded.countries[story.id])
 
     topics = loaded.topics[story.id]
 
@@ -150,7 +148,6 @@ def story_to_rankable(db: Session, story: Story, loaded: StoryRelations | None =
     loaded = loaded or load_story_relations(db, [story.id])
     topics = tuple(loaded.topics[story.id])
     links = loaded.links[story.id]
-    countries: list[str] = []
     quality_scores: list[float] = []
     for link in links:
         item = loaded.items.get(link.source_item_id)
@@ -159,15 +156,13 @@ def story_to_rankable(db: Session, story: Story, loaded: StoryRelations | None =
         source = loaded.sources.get(item.source_id)
         if source is None:
             continue
-        if source.country and source.country not in countries:
-            countries.append(source.country)
         quality_scores.append(source.quality_score)
 
     source_quality = sum(quality_scores) / len(quality_scores) if quality_scores else 0.5
 
     return RankableStory(
         id=str(story.id),
-        countries=tuple(countries),
+        countries=tuple(loaded.countries[story.id]),
         topics=topics,
         importance=story.importance,
         published_at=story.published_at,

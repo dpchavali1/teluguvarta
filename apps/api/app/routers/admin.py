@@ -33,6 +33,13 @@ from app.ai.budget import (
     today_cost_usd,
 )
 from app.auth import AdminPrincipal, current_admin
+from app.content.geography import (
+    event_countries_many,
+    normalize_countries,
+    normalize_country,
+    set_event_countries,
+)
+from app.content.importance import recompute_importance
 from app.content.qa import find_variant_qa_issues
 from app.content.rights import unpermitted_sources
 from app.content.serialize import load_story_relations
@@ -64,9 +71,11 @@ from app.schemas import (
     AdminAutoBriefOut,
     AdminCorrectionOut,
     AdminCorrectionRequest,
+    AdminCountriesRequest,
     AdminDraftRequest,
     AdminFeedTestOut,
     AdminFeedTestRequest,
+    AdminImportanceRequest,
     AdminJobOut,
     AdminRejectRequest,
     AdminSourceCreate,
@@ -535,6 +544,8 @@ def get_story_detail(story_id: UUID, db: Session = Depends(get_db)) -> AdminStor
         sensitivity=story.sensitivity,
         format=story.format,
         importance=story.importance,
+        importance_override=story.importance_override,  # type: ignore[arg-type]
+        classification_confidence=story.classification_confidence,
         published_at=story.published_at,
         variants={
             v.language: StoryVariantOut(
@@ -546,6 +557,7 @@ def get_story_detail(story_id: UUID, db: Session = Depends(get_db)) -> AdminStor
         topics=sorted(db.scalars(
             select(Topic.slug).join(StoryTopic, StoryTopic.topic_id == Topic.id).where(StoryTopic.story_id == story.id)
         ).all()),
+        countries=event_countries_many(db, [story.id])[story.id],
         sources=sources_out,
         review_task=_review_task_out(review_task) if review_task else None,
         corrections=[
@@ -679,9 +691,61 @@ def set_story_topics(
         db.add(StoryTopic(story_id=story.id, topic_id=topic.id, weight=1))
     db.flush()
 
+    recompute_importance(db, story)  # ADR-027: priority topics score higher
+
     _write_audit_event(
         db, admin.email, "STORY_TOPICS_SET", "story", story.id,
         {"old": old, "new": sorted(slugs), "reason": body.reason},
+    )
+    db.commit()
+    return AdminActionResponse(story_id=story.id, status=story.status)
+
+
+@router.put("/stories/{story_id}/countries")
+def set_story_countries(
+    story_id: UUID,
+    body: AdminCountriesRequest,
+    admin: AdminPrincipal = Depends(current_admin),
+    db: Session = Depends(get_db),
+) -> AdminActionResponse:
+    """ADR-027: where the story happens. Generation stores the model's
+    countries; editors correct them, and set them for a hand-drafted story.
+    Supported codes only. Like topics, this is metadata, not story text."""
+
+    story = _get_story_or_404(db, story_id)
+    requested = list(dict.fromkeys(c.strip() for c in body.countries if c.strip()))
+    codes = normalize_countries(requested)
+    unknown = [c for c in requested if normalize_country(c) is None]
+    if unknown:
+        raise APIError(422, "UNKNOWN_COUNTRY", f"Not a supported country: {', '.join(unknown)}")
+
+    old = event_countries_many(db, [story.id])[story.id]
+    set_event_countries(db, story.id, codes)
+    _write_audit_event(
+        db, admin.email, "STORY_COUNTRIES_SET", "story", story.id,
+        {"old": old, "new": sorted(codes), "reason": body.reason},
+    )
+    db.commit()
+    return AdminActionResponse(story_id=story.id, status=story.status)
+
+
+@router.put("/stories/{story_id}/importance")
+def set_story_importance(
+    story_id: UUID,
+    body: AdminImportanceRequest,
+    admin: AdminPrincipal = Depends(current_admin),
+    db: Session = Depends(get_db),
+) -> AdminActionResponse:
+    """ADR-027: an editor's Low/Normal/High takes precedence over the
+    computed score; null clears it and recomputes."""
+
+    story = _get_story_or_404(db, story_id)
+    old = {"level": story.importance_override, "importance": story.importance}
+    story.importance_override = body.level
+    recompute_importance(db, story)
+    _write_audit_event(
+        db, admin.email, "STORY_IMPORTANCE_SET", "story", story.id,
+        {"old": old, "new": {"level": body.level, "importance": story.importance}, "reason": body.reason},
     )
     db.commit()
     return AdminActionResponse(story_id=story.id, status=story.status)

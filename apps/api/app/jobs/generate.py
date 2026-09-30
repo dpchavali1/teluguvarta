@@ -37,6 +37,8 @@ from app.ai import AiGateway, GatewayStatus, Task
 from app.ai.contracts import GenerationResult
 from app.ai.privacy import PrivacyDecision, classify_privacy, coerce, tighten
 from app.ai.tasks import free_tier_enabled, paid_provider_configured
+from app.content.geography import normalize_countries, set_event_countries
+from app.content.importance import recompute_importance
 from app.jobs import ai_retry
 from app.jobs.cluster import normalized_title_key
 from app.jobs.queue import enqueue_job, renew_lease
@@ -390,7 +392,10 @@ def _generate_story(db: Session, story: Story) -> bool:
 
     ai_retry.clear(db, state)
     story.sensitivity = sensitivity
-    story.importance = classification.confidence
+    # ADR-027: confidence is how sure the model was; importance is scored
+    # below from urgency, sources and topics.
+    story.classification_confidence = classification.confidence
+    story.urgency = "HIGH" if classification.urgency.strip().upper() in ("HIGH", "URGENT") else "NORMAL"
     db.add(
         StoryVariant(
             story_id=story.id,
@@ -404,6 +409,8 @@ def _generate_story(db: Session, story: Story) -> bool:
     )
     _link_entities(db, story, classification.entities)
     _link_topics(db, story, classification.categories)
+    set_event_countries(db, story.id, normalize_countries(classification.countries))
+    recompute_importance(db, story)
 
     # P0-1 audit trail: persist what the gateway decided per claim, so a
     # silent-strip decision is reviewable after the fact.

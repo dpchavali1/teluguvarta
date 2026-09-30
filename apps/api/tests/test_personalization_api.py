@@ -21,6 +21,7 @@ from app.models import (
     Source,
     SourceItem,
     Story,
+    StoryCountry,
     StorySource,
     StoryTopic,
     StoryVariant,
@@ -92,6 +93,7 @@ def _seed_published_story(
         db.add(topic)
         db.flush()
     db.add(StoryTopic(story_id=story.id, topic_id=topic.id, weight=1))
+    db.add(StoryCountry(story_id=story.id, country_code=country, role="EVENT"))  # ADR-027
     db.add(StoryVariant(story_id=story.id, language="en", headline=headline, summary="Original summary", why_matters="Why it matters"))
     db.flush()
 

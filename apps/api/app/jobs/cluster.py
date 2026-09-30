@@ -25,6 +25,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.ai import AiGateway, GatewayStatus, Task
+from app.content.importance import recompute_importance
 from app.jobs.queue import enqueue_job
 from app.models import Job, SourceItem, Story, StorySource
 
@@ -157,6 +158,11 @@ def cluster_normalized_items(db: Session) -> int:
             evidence_rank = len(existing_links) + 1
 
         db.add(StorySource(story_id=story_id, source_item_id=item.id, role=role, evidence_rank=evidence_rank))
+        if role == "SUPPORTING":
+            # ADR-027: another independent source can raise importance.
+            existing = db.get(Story, story_id)
+            if existing is not None:
+                recompute_importance(db, existing)
         item.ingest_status = "CLUSTERED"
         processed += 1
 

@@ -176,7 +176,13 @@ class Story(Base):
     sensitivity: Mapped[str] = mapped_column(Text, nullable=False, server_default="NONE")
     # ADR-015: 'FREE_TIER_ALLOWED' | 'RESTRICTED' | 'UNKNOWN' (see app/ai/privacy.py).
     privacy_decision: Mapped[str] = mapped_column(Text, nullable=False, server_default="UNKNOWN")
+    # ADR-027: a deterministic score (`app/content/importance.py`), or the
+    # editor's override. Model confidence lives in `classification_confidence`
+    # (NULL for a story no model classified, e.g. hand-drafted).
     importance: Mapped[float] = mapped_column(Float, nullable=False, server_default="0")
+    classification_confidence: Mapped[float | None] = mapped_column(Float, nullable=True)
+    urgency: Mapped[str | None] = mapped_column(Text, nullable=True)  # 'NORMAL' | 'HIGH'
+    importance_override: Mapped[str | None] = mapped_column(Text, nullable=True)  # 'LOW' | 'NORMAL' | 'HIGH'
     published_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     # T17: separate, always-manual editorial gate for *sending a breaking
     # push* — distinct from the publish approval that already guards
@@ -247,6 +253,17 @@ class StoryTopic(Base):
     story_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("stories.id", ondelete="CASCADE"), primary_key=True)
     topic_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("topics.id", ondelete="CASCADE"), primary_key=True)
     weight: Mapped[float] = mapped_column(Numeric(), nullable=False, server_default="1")
+
+
+class StoryCountry(Base):
+    """ADR-027: where the story happens (role EVENT), never where its
+    publisher is based. AUDIENCE is reserved and not written yet."""
+
+    __tablename__ = "story_countries"
+
+    story_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("stories.id", ondelete="CASCADE"), primary_key=True)
+    country_code: Mapped[str] = mapped_column(Text, primary_key=True)
+    role: Mapped[str] = mapped_column(Text, primary_key=True, server_default="EVENT")
 
 
 class Profile(Base):

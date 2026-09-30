@@ -1,6 +1,6 @@
 # ADR-027: Story geography and importance, separated from publisher origin and model confidence
 
-- **Status**: proposed (owner decision needed)
+- **Status**: accepted (owner, 2026-09-30); implemented 2026-09-30
 - **Date**: 2026-09-30
 - **Ticket**: review 2026-09-29 finding #10 (`docs/reviews/2026-09-29-comprehensive-review.md`)
 
@@ -46,8 +46,11 @@ behavior, so this needs an owner decision.
   confidence there, not to `importance`.
 - The brief lane and the breaking-alert confidence gate read
   `classification_confidence`. A story with no confidence (hand-drafted) is
-  not eligible for a breaking alert unless an editor marks it urgent, which is
-  already a reviewed path.
+  not eligible for the brief lane. For a breaking alert, the editor's
+  existing breaking-alert approval is then the only gate (a hand-drafted
+  story has no model confidence to check).
+- Urgency was never stored, so generation now stores it on
+  `stories.urgency` (`NORMAL` | `HIGH`) for the importance formula.
 - Migration: copy `importance` into `classification_confidence` for stories
   with an AI-generated English variant, then recompute `importance` as in 2.
 
@@ -65,7 +68,8 @@ clamped to [0, 1]
 
 The weights are a starting point, to be tuned against observed feeds.
 Hand-drafted stories get the same formula (base 0.4 plus their sources), not
-0. Admin gets a Low / Normal / High override (0.2 / 0.5 / 0.8). It is audited
+0. Admin gets a Low / Normal / High override (0.2 / 0.5 / 0.8), stored on
+`stories.importance_override`. It is audited
 like the other story edits and takes precedence over the formula.
 
 ### 3. Event geography is stored separately from publisher origin
@@ -74,7 +78,8 @@ like the other story edits and takes precedence over the formula.
   `EVENT` in V1; `AUDIENCE` is reserved for later and not written now.
 - Generation writes the model's `countries` as `EVENT` rows, after
   normalizing each to an ISO 3166-1 alpha-2 code that is in
-  the configured country list. Unknown values are dropped, not guessed.
+  the configured country list (the list clients offer in `packages/domain`:
+  US, IN, CA, GB, AU, AE, SG, NZ, DE). Unknown values are dropped, not guessed.
 - Editors can set event countries in admin, which replaces the set and is
   audited (the same pattern as `PUT /stories/{id}/topics`).
 - Badges, the residence-country ranking signal and `?country=` use `EVENT`
