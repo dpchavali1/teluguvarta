@@ -112,6 +112,16 @@ gate section is gone; do not reintroduce a pilot gate on any future ticket.
   onboarding profile in the header; not started). **Deployed 2026-09-30, verified live:** `/v1/config`
   returns `story_count` (all 26 topics at 0), `/topics` shows the "No topic has stories yet" state, and
   the admin topics endpoint is live (401 without a token). Next: tag the two live stories in admin.
+- **#12 partly done (2026-09-30): no translation of unsettled or dropped stories.** `translate_stories`
+  now picks only `TRANSLATABLE_STATUSES` (REVIEW_REQUIRED, APPROVED, SCHEDULED, PUBLISHED, UPDATED,
+  CORRECTION_PENDING). Skipped: DRAFT (includes rejected-to-draft), ARCHIVED, RETRACTED, and AI_READY,
+  which auto-publish moves on the same cycle and whose English the brief lane may replace (which
+  deleted the paid Telugu). A story rejected after translation keeps its Telugu row; a rejected one is
+  never translated again. **Not done (needs an ADR):** translating only after approval; REVIEW_REQUIRED
+  is still translated so Telugu is ready at approval, and an editor's English edit in review still
+  discards that Telugu. Also fixed: `tests/test_topic_navigation.py` (#11) failed `ruff check`, which CI
+  runs. Tests: `test_translation_skips_stories_whose_english_is_not_settled`. Full API suite 412 passed
+  (3 flaky fixture errors, pass on rerun); ruff clean. Not deployed.
 - **Waiting on the owner (proposed ADRs, nothing implemented):** ADR-023 rights revocation for published,
   mixed-source and scheduled stories (#7 follow-up); ADR-024 total AI spend ceiling (#2); ADR-025 audited
   recovery of `AI_RETRIES_EXHAUSTED`/exhausted-translation holds; ADR-026 minimum content per format (#6).

@@ -8,7 +8,7 @@ from sqlalchemy import select
 
 from app.models import AuditEvent, StoryTopic, Topic
 from tests.conftest import requires_postgres
-from tests.test_editorial_workflow import (  # noqa: F401 (fixtures)
+from tests.test_editorial_workflow import (  # noqa: F401  (fixtures)
     _auth,
     _make_review_required_story,
     _publish,
@@ -33,7 +33,7 @@ def _tag(db, story, *topics):
     db.commit()
 
 
-def test_config_lists_populated_topics_first_with_counts(client, db_session):
+def test_config_lists_populated_topics_first_with_counts(client, db_session):  # noqa: F811
     empty_a = _topic(db_session, "Aaa empty")
     one = _topic(db_session, "Zzz one story")
     two = _topic(db_session, "Mmm two stories")
@@ -55,7 +55,7 @@ def test_config_lists_populated_topics_first_with_counts(client, db_session):
     assert client.get(f"/v1/topics/{two.slug}").json()["topic"]["story_count"] == 2
 
 
-def test_editor_sets_topics_on_published_story(client, db_session):
+def test_editor_sets_topics_on_published_story(client, db_session):  # noqa: F811
     token = _token(client, db_session)
     visas, jobs = _topic(db_session, "Visas"), _topic(db_session, "Jobs")
     story = _make_review_required_story(db_session)
@@ -82,7 +82,7 @@ def test_editor_sets_topics_on_published_story(client, db_session):
     assert len(events) == 3
 
 
-def test_topics_must_be_existing_active_topics(client, db_session):
+def test_topics_must_be_existing_active_topics(client, db_session):  # noqa: F811
     token = _token(client, db_session)
     inactive = _topic(db_session, "Old", active=False)
     db_session.commit()

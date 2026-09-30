@@ -120,7 +120,7 @@ def test_restricted_title_beats_allowlisted_category(migrated_database, monkeypa
 def test_translation_of_corrected_story_never_uses_gemini(migrated_database, monkeypatch):
     monkeypatch.setenv("AI_FREE_TIER_ENABLED", "1")
     with Session(create_engine(migrated_database)) as db:
-        story = Story(canonical_slug="corrected", privacy_decision="FREE_TIER_ALLOWED")
+        story = Story(canonical_slug="corrected", privacy_decision="FREE_TIER_ALLOWED", status="PUBLISHED")
         db.add(story)
         db.flush()
         db.add(StoryVariant(story_id=story.id, language="en", headline="H", summary="S", qa_status="PENDING"))
@@ -141,7 +141,7 @@ def test_translation_of_corrected_story_never_uses_gemini(migrated_database, mon
 def test_translation_of_editor_drafted_story_never_uses_gemini(migrated_database, monkeypatch):
     monkeypatch.setenv("AI_FREE_TIER_ENABLED", "1")
     with Session(create_engine(migrated_database)) as db:
-        story = Story(canonical_slug="editor-drafted", privacy_decision="FREE_TIER_ALLOWED")
+        story = Story(canonical_slug="editor-drafted", privacy_decision="FREE_TIER_ALLOWED", status="REVIEW_REQUIRED")
         db.add(story)
         db.flush()
         db.add(

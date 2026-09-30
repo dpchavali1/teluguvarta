@@ -11,9 +11,9 @@ glossary-correct, QA, and (for a sampled subset of sensitive categories)
 route into the review queue — all in one gateway round-trip's worth of
 work, since none of these steps has independent retry value of its own.
 
-Runs for *every* story with an `en` variant and no `te` variant yet,
-regardless of `Story.status` — English is canonical and always exists
-first (T11), but a Telugu reader shouldn't wait for a story to reach
+Runs for every story with an `en` variant and no `te` variant yet whose
+status is in `TRANSLATABLE_STATUSES` — English is canonical and always
+exists first (T11), but a Telugu reader shouldn't wait for a story to reach
 `PUBLISHED` before translation starts. This is also what makes T12's
 correction hook ("delete the `te` variant to invalidate it") actually
 result in regeneration: the next sweep picks the story back up exactly
@@ -43,6 +43,16 @@ from app.jobs.queue import enqueue_job, renew_lease
 from app.models import Correction, Job, ReviewTask, Story, StoryVariant
 
 TRANSLATE_INTERVAL_MINUTES = 2
+
+# Review 2026-09-29 #12: only stories whose English is settled. Left out:
+# DRAFT (not generated, or rejected back to draft), ARCHIVED and RETRACTED
+# (never shown in Telugu), and AI_READY, which `auto_publish_stories` moves on
+# within a cycle and whose English the brief lane may still replace (deleting
+# the Telugu). REVIEW_REQUIRED stays in, so Telugu is ready when an editor
+# approves; translating only after approval changes the lifecycle (needs an ADR).
+TRANSLATABLE_STATUSES = (
+    "REVIEW_REQUIRED", "APPROVED", "SCHEDULED", "PUBLISHED", "UPDATED", "CORRECTION_PENDING",
+)
 
 # Same flag `/v1/config` reports as `ai_translation_enabled`. Off means no
 # `ai_translate` job is scheduled or run; readers get the English fallback and
@@ -165,7 +175,7 @@ def _translate_story(db: Session, story: Story, en: StoryVariant) -> bool:
 
 
 def translate_stories(db: Session, job: Job | None = None) -> int:
-    """Every `Story` with an `en` variant and no `te` variant yet — created
+    """Every `Story` in `TRANSLATABLE_STATUSES` with an `en` variant and no `te` variant yet — created
     fresh by T11's generation step, or re-created after T12's correction
     hook deletes a stale `te` variant. Idempotent: a story only leaves this
     set once a `te` variant row actually exists; one still backing off (or
@@ -179,7 +189,7 @@ def translate_stories(db: Session, job: Job | None = None) -> int:
         select(Story.id, en_variants.id)
         .join(en_variants, (en_variants.story_id == Story.id) & (en_variants.language == "en"))
         .outerjoin(te_variants, (te_variants.story_id == Story.id) & (te_variants.language == "te"))
-        .where(te_variants.id.is_(None))
+        .where(te_variants.id.is_(None), Story.status.in_(TRANSLATABLE_STATUSES))
         .order_by(Story.published_at.desc().nulls_last(), en_variants.generated_at.desc(), Story.id)
     ).all()
 

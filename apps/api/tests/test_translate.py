@@ -54,8 +54,10 @@ def _translation(**overrides):
     return base
 
 
-def _make_story_with_en_variant(db: Session, **variant_overrides) -> tuple[Story, StoryVariant]:
-    story = Story(canonical_slug="story-en-1")
+def _make_story_with_en_variant(
+    db: Session, *, status: str = "REVIEW_REQUIRED", slug: str = "story-en-1", **variant_overrides
+) -> tuple[Story, StoryVariant]:
+    story = Story(canonical_slug=slug, status=status)
     db.add(story)
     db.flush()
     variant = StoryVariant(
@@ -147,6 +149,25 @@ def test_translate_is_idempotent_and_reruns_after_invalidation(migrated_database
 
         _use_fake_provider(monkeypatch, [_translation()])
         assert translate_stories(db) == 1
+
+
+@requires_postgres
+def test_translation_skips_stories_whose_english_is_not_settled(migrated_database, monkeypatch):
+    """Review 2026-09-29 #12: rejected, archived and retracted stories never
+    pay for Telugu, and AI_READY waits, since the brief lane may still
+    rewrite its English and delete the Telugu."""
+    engine = create_engine(migrated_database)
+    with Session(engine) as db:
+        for status in ("DRAFT", "AI_READY", "ARCHIVED", "RETRACTED"):
+            _make_story_with_en_variant(db, status=status, slug=f"skip-{status.lower()}")
+        wanted, _en = _make_story_with_en_variant(db, status="PUBLISHED", slug="translate-me")
+        # One response only: a second provider call would raise IndexError.
+        _use_fake_provider(monkeypatch, [_translation()])
+
+        assert translate_stories(db) == 1
+
+        translated = db.scalars(select(StoryVariant.story_id).where(StoryVariant.language == "te")).all()
+        assert translated == [wanted.id]
 
 
 @requires_postgres
