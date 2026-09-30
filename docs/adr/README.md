@@ -73,3 +73,6 @@ accepted. Add ad-hoc ADRs below this table as they're written.
 - ADR-026 | Minimum content for a published story, by format | review
   2026-09-29 #6 | **proposed** (owner decision needed) — see
   [ADR-026](ADR-026-publication-content-validation.md)
+- ADR-027 | Story geography and importance, separated from publisher origin
+  and model confidence | review 2026-09-29 #10 | **proposed** (owner decision
+  needed) — see [ADR-027](ADR-027-story-geography-and-importance.md)

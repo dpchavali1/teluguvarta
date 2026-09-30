@@ -138,7 +138,7 @@ gate section is gone; do not reintroduce a pilot gate on any future ticket.
   (the cap only shows in the worker's `ai_summarize` jobs; no migration).
 - **Waiting on the owner (proposed ADRs, nothing implemented):** ADR-023 rights revocation for published,
   mixed-source and scheduled stories (#7 follow-up); ADR-024 total AI spend ceiling (#2); ADR-025 audited
-  recovery of `AI_RETRIES_EXHAUSTED`/exhausted-translation holds; ADR-026 minimum content per format (#6).
+  recovery of `AI_RETRIES_EXHAUSTED`/exhausted-translation holds; ADR-026 minimum content per format (#6); ADR-027 event geography and importance separated from publisher country and model confidence (#10, written 2026-09-30; nothing implemented).
   **Deployed to the VPS 2026-09-30 03:07 UTC at `5af512f`:** both migrations (`b8e4c2d6f1a3`,
   `c9f5d3e7a2b4`) applied, all services up, API healthy. Worker checked 03:14 UTC: every sweep job type
   running on schedule and `DONE`, none stuck, no worker errors, `ai_work_state` empty, no story missing
