@@ -10,7 +10,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 from datetime import UTC, datetime, timedelta
 
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.orm import Session
 
@@ -63,6 +63,12 @@ def enqueue_job(
     return db.get(Job, job_id)
 
 
+class LeaseLost(RuntimeError):
+    """This worker's lease on a job expired and another worker reclaimed it
+    (review 2026-09-29 #8). The handler must stop: the job is no longer ours
+    to continue, complete, or fail."""
+
+
 def claim_job(db: Session, job_types: Sequence[str]) -> Job | None:
     """Claims and returns at most one runnable job, or None if none are
     available. Safe for multiple worker processes to call concurrently
@@ -74,15 +80,29 @@ def claim_job(db: Session, job_types: Sequence[str]) -> Job | None:
     or if it's RUNNING but its lock has expired (a previous worker crashed
     mid-job) — that reclaim path is what keeps a crash from stalling a job
     forever without needing a separate sweep process.
+
+    An expired job that has already used `MAX_JOB_ATTEMPTS` is marked FAILED
+    instead of reclaimed, so a job that keeps outliving its lease (or crashing
+    the worker) still has a bounded number of runs.
     """
     now = _now()
+    db.execute(
+        update(Job)
+        .where(
+            Job.type.in_(job_types),
+            Job.status == "RUNNING",
+            Job.lock_expiry < now,
+            Job.attempts >= MAX_JOB_ATTEMPTS,
+        )
+        .values(status="FAILED", last_error="lease expired after the final attempt")
+    )
     stmt = (
         select(Job)
         .where(
             Job.type.in_(job_types),
             (
                 (Job.status == "PENDING") & (Job.run_after <= now)
-                | (Job.status == "RUNNING") & (Job.lock_expiry < now)
+                | (Job.status == "RUNNING") & (Job.lock_expiry < now) & (Job.attempts < MAX_JOB_ATTEMPTS)
             ),
         )
         .order_by(Job.run_after)
@@ -91,6 +111,7 @@ def claim_job(db: Session, job_types: Sequence[str]) -> Job | None:
     )
     job = db.scalars(stmt).first()
     if job is None:
+        db.commit()
         return None
 
     job.status = "RUNNING"
@@ -98,10 +119,43 @@ def claim_job(db: Session, job_types: Sequence[str]) -> Job | None:
     job.locked_at = now
     job.lock_expiry = now + timedelta(seconds=LOCK_TTL_SECONDS)
     db.commit()
+    # The claim's `locked_at` is this worker's ownership token. Kept as a
+    # plain attribute: mapped ones are reloaded from the row after a commit.
+    job.lease_token = now
     return job
 
 
+def _owns(db: Session, job: Job) -> bool:
+    """True unless this job was claimed by us and has since been reclaimed.
+    A job never claimed through `claim_job` (tests, scripts) has no token."""
+    token = getattr(job, "lease_token", None)
+    if token is None:
+        return True
+    row = db.execute(
+        select(Job.status, Job.locked_at).where(Job.id == job.id).with_for_update()
+    ).one_or_none()
+    return row is not None and row.status == "RUNNING" and row.locked_at == token
+
+
+def renew_lease(db: Session, job: Job | None) -> None:
+    """Extends a running job's lease, committing the caller's work so far.
+    Long handlers call it between units of work (per story), so the lease
+    only has to cover one unit. Raises `LeaseLost` if another worker has
+    reclaimed the job. With no job (a direct call) it only commits."""
+    if job is None:
+        db.commit()
+        return
+    if not _owns(db, job):
+        db.rollback()
+        raise LeaseLost(f"job {job.id} was reclaimed by another worker")
+    job.lock_expiry = _now() + timedelta(seconds=LOCK_TTL_SECONDS)
+    db.commit()
+
+
 def complete_job(db: Session, job: Job) -> None:
+    if not _owns(db, job):
+        db.rollback()
+        raise LeaseLost(f"job {job.id} was reclaimed by another worker")
     job.status = "DONE"
     job.last_error = None
     db.commit()
@@ -110,8 +164,11 @@ def complete_job(db: Session, job: Job) -> None:
 def fail_job(db: Session, job: Job, error: str) -> None:
     """Bounded retry with exponential backoff. After MAX_JOB_ATTEMPTS the
     job is left FAILED — a terminal, observable record — instead of being
-    rescheduled again.
+    rescheduled again. A job another worker has reclaimed is left to it.
     """
+    if not _owns(db, job):
+        db.rollback()
+        return
     job.last_error = error[:4000]
     if job.attempts >= MAX_JOB_ATTEMPTS:
         job.status = "FAILED"

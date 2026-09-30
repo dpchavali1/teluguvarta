@@ -271,7 +271,7 @@ def test_translation_flag_off_schedules_and_runs_nothing(migrated_database, monk
 
         # A job queued before the flag was turned off must not translate.
         called = []
-        monkeypatch.setattr(translate_module, "translate_stories", lambda _db: called.append(1))
+        monkeypatch.setattr(translate_module, "translate_stories", lambda _db, _job=None: called.append(1))
         run_ai_translate(db, Job(type="ai_translate", payload={}))
         assert called == []
 
@@ -284,6 +284,6 @@ def test_translation_flag_on_schedules_and_runs(migrated_database, monkeypatch):
         assert schedule_ai_translate(db) is not None
 
         called = []
-        monkeypatch.setattr(translate_module, "translate_stories", lambda _db: called.append(1))
+        monkeypatch.setattr(translate_module, "translate_stories", lambda _db, _job=None: called.append(1))
         run_ai_translate(db, Job(type="ai_translate", payload={}))
         assert called == [1]

@@ -39,7 +39,7 @@ from app.content.qa import find_variant_qa_issues
 from app.content.variants import EDITOR_MODEL_VERSION
 from app.jobs import ai_retry
 from app.jobs.generate import _env_flag
-from app.jobs.queue import enqueue_job
+from app.jobs.queue import enqueue_job, renew_lease
 from app.models import Correction, Job, ReviewTask, Story, StoryVariant
 
 TRANSLATE_INTERVAL_MINUTES = 2
@@ -94,13 +94,14 @@ def _translate_prompt(en: StoryVariant) -> str:
     )
 
 
-def _translate_story(db: Session, story: Story, en: StoryVariant) -> None:
+def _translate_story(db: Session, story: Story, en: StoryVariant) -> bool:
+    """Returns False when skipped for backoff, so it doesn't use the batch."""
     # Review 2026-09-29 #1: a corrected English variant is new input, so it
     # gets a fresh retry budget; an exhausted one keeps the English fallback.
     version = ai_retry.input_version([en.headline, en.summary, en.why_matters])
     state = ai_retry.load_state(db, story.id, ai_retry.STAGE_TRANSLATE, version)
     if not ai_retry.is_due(state):
-        return
+        return False
     gateway = AiGateway(db)
     # ADR-015: the persisted decision only; a sensitive story is never
     # FREE_TIER_ALLOWED, and text touched by an editor correction is staff
@@ -125,10 +126,10 @@ def _translate_story(db: Session, story: Story, en: StoryVariant) -> None:
         ai_retry.record_failure(
             db, state, story_id=story.id, stage=ai_retry.STAGE_TRANSLATE, version=version, status=outcome.status
         )
-        return
+        return True
     result = outcome.result
     if not isinstance(result, TranslationResult):
-        return  # OK carries a result_model-typed instance whenever status is OK
+        return True  # OK carries a result_model-typed instance whenever status is OK
 
     ai_retry.clear(db, state)
     headline_te = apply_glossary(en.headline, result.headline_te)
@@ -160,28 +161,43 @@ def _translate_story(db: Session, story: Story, en: StoryVariant) -> None:
         db.add(ReviewTask(story_id=story.id, reason="TELUGU_TRANSLATION_SAMPLE_REVIEW", status="PENDING"))
 
     db.flush()
+    return True
 
 
-def translate_stories(db: Session) -> int:
+def translate_stories(db: Session, job: Job | None = None) -> int:
     """Every `Story` with an `en` variant and no `te` variant yet — created
     fresh by T11's generation step, or re-created after T12's correction
     hook deletes a stale `te` variant. Idempotent: a story only leaves this
     set once a `te` variant row actually exists; one still backing off (or
-    out of retries) in `ai_work_state` is skipped without a provider call."""
+    out of retries) in `ai_work_state` is skipped without a provider call.
+
+    Bounded per sweep like `generate_stories` (review #8): published stories
+    first, newest first, one commit per story."""
     en_variants = aliased(StoryVariant)
     te_variants = aliased(StoryVariant)
     rows = db.execute(
-        select(Story, en_variants)
+        select(Story.id, en_variants.id)
         .join(en_variants, (en_variants.story_id == Story.id) & (en_variants.language == "en"))
         .outerjoin(te_variants, (te_variants.story_id == Story.id) & (te_variants.language == "te"))
         .where(te_variants.id.is_(None))
+        .order_by(Story.published_at.desc().nulls_last(), en_variants.generated_at.desc(), Story.id)
     ).all()
 
-    for story, en in rows:
-        _translate_story(db, story, en)
+    processed = 0
+    started = ai_retry.monotonic()
+    batch_size = ai_retry.sweep_batch_size()
+    for story_id, en_id in rows:
+        if processed >= batch_size or ai_retry.monotonic() - started >= ai_retry.SWEEP_TIME_BUDGET.total_seconds():
+            break
+        renew_lease(db, job)  # also commits the previous story
+        story, en = db.get(Story, story_id), db.get(StoryVariant, en_id)
+        if story is None or en is None:
+            continue
+        if _translate_story(db, story, en):
+            processed += 1
 
     db.commit()
-    return len(rows)
+    return processed
 
 
 def run_ai_translate(db: Session, job: Job) -> None:
@@ -189,7 +205,7 @@ def run_ai_translate(db: Session, job: Job) -> None:
     flag so a job queued before it was turned off does nothing."""
     if not translation_enabled():
         return
-    translate_stories(db)
+    translate_stories(db, job)
 
 
 def _translate_window(now: datetime) -> datetime:

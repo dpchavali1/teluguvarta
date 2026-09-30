@@ -18,7 +18,7 @@ from app.jobs.cluster import run_dedup_cluster, schedule_dedup_cluster
 from app.jobs.generate import run_ai_classify, schedule_ai_classify
 from app.jobs.notify import run_notification_dispatch, schedule_notification_dispatch
 from app.jobs.publish import run_publish_scheduler, schedule_publish_scheduler
-from app.jobs.queue import claim_job, complete_job, fail_job
+from app.jobs.queue import LeaseLost, claim_job, complete_job, fail_job
 from app.jobs.source_fetch import run_source_fetch, schedule_due_source_fetches
 from app.jobs.translate import run_ai_translate, schedule_ai_translate
 from app.jobs.why_matters import run_why_matters
@@ -68,17 +68,24 @@ def process_one(db: Session) -> bool:
     if job is None:
         return False
 
-    handler = JOB_HANDLERS[job.type]
+    job_id, job_type = job.id, job.type
+    handler = JOB_HANDLERS[job_type]
     story_id = job.payload.get("story_id") if isinstance(job.payload, dict) else None
-    with job_context(job.type, job_id=job.id, story_id=story_id):
+    with job_context(job_type, job_id=job_id, story_id=story_id):
         try:
             handler(db, job)
-        except Exception as exc:  # noqa: BLE001 - any handler failure must be retried/bounded, not crash the worker
-            logger.warning("job %s (%s) failed: %s", job.id, job.type, exc)
-            capture_exception(exc, job_id=str(job.id), job_type=job.type)
-            fail_job(db, job, str(exc))
-        else:
             complete_job(db, job)
+        except LeaseLost as exc:
+            # Another worker owns the job now; its run decides the outcome.
+            logger.warning("job %s (%s) abandoned: %s", job_id, job_type, exc)
+        except Exception as exc:  # noqa: BLE001 - any handler failure must be retried/bounded, not crash the worker
+            # Review 2026-09-29 #8: a failed flush leaves the session unusable
+            # (even reading `job.id`) until rolled back, and recording the
+            # failure needs it.
+            db.rollback()
+            logger.warning("job %s (%s) failed: %s", job_id, job_type, exc)
+            capture_exception(exc, job_id=str(job_id), job_type=job_type)
+            fail_job(db, job, str(exc))
     return True
 
 

@@ -47,6 +47,16 @@ gate section is gone; do not reintroduce a pilot gate on any future ticket.
   two checked tokens appear in the opposite order from one title ("Smith sues Jones" → "Jones sues Smith").
   Headlines get the order check on numbers only, since they reorder freely. Still lexical, not entailment: a
   swapped verb with the same tokens gets through. Full suite 390 passed (1 flaky fixture error).
+- **#8 done (2026-09-29): bounded AI sweeps and safe job leases.** `generate_stories`/`translate_stories`
+  attempt at most `AI_SWEEP_BATCH_SIZE` stories (default 10; backing-off stories don't count) and start none
+  after 120 s. Order: generate newest source item first; translate published first, then newest. Each
+  story commits on its own, so a crash doesn't repeat finished stories' paid calls. `queue.renew_lease`
+  runs before each story: it extends the 300 s lease, so the lease only has to cover one story (worst case
+  ~240 s), and raises `LeaseLost` if another worker has reclaimed the job. `complete_job`/`fail_job` also
+  check that the job is still ours (the token is the claim's `locked_at`). `claim_job` marks an
+  expired-lease job at `MAX_JOB_ATTEMPTS` FAILED instead of reclaiming it. The worker rolls back before
+  logging or `fail_job`; before this fix, a failed flush made it raise `PendingRollbackError`. Tests:
+  `tests/test_bounded_sweeps.py`. Full suite 396 passed (2 flaky fixture errors).
 
 **Manual drafting in admin (2026-09-29)**: step 1 of the free/low-cost AI plan (VPS is a CPX21, 3 vCPU/4 GB,
 so no local LLM; the plan is Gemini free for allowlisted categories, a capped paid Flash-Lite route, and manual

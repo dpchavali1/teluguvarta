@@ -30,7 +30,7 @@ import re
 import uuid
 from datetime import UTC, datetime, timedelta
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.ai import AiGateway, GatewayStatus, Task
@@ -39,7 +39,7 @@ from app.ai.privacy import PrivacyDecision, classify_privacy, coerce, tighten
 from app.ai.tasks import free_tier_enabled, paid_provider_configured
 from app.jobs import ai_retry
 from app.jobs.cluster import normalized_title_key
-from app.jobs.queue import enqueue_job
+from app.jobs.queue import enqueue_job, renew_lease
 from app.models import (
     Entity,
     EntityAlias,
@@ -301,21 +301,23 @@ def _record_failure(
         _hold_for_review(db, story, items, [*reasons, AI_RETRIES_EXHAUSTED_REASON])
 
 
-def _generate_story(db: Session, story: Story) -> None:
+def _generate_story(db: Session, story: Story) -> bool:
+    """Returns False when the story was skipped without any AI work (no
+    items, or still backing off), so it doesn't count against the batch."""
     items = _story_items(db, story)
     if not items:
-        return
+        return False
 
     version = _generate_input_version(items)
     state = ai_retry.load_state(db, story.id, ai_retry.STAGE_GENERATE, version)
     if not ai_retry.is_due(state):
-        return  # backing off (§7.5); retried once `next_attempt_at` passes
+        return False  # backing off (§7.5); retried once `next_attempt_at` passes
 
     evidence_item_ids = _evidence_item_ids(items)
     privacy = _resolve_privacy(db, story, items)
     if _must_hold_for_triage(privacy):
         _hold_for_triage(db, story, items, [])
-        return
+        return True
     gateway = AiGateway(db)
     cached = state.cached_classification if state is not None else None
     if cached is not None:
@@ -332,10 +334,10 @@ def _generate_story(db: Session, story: Story) -> None:
         if classify_outcome.status in (GatewayStatus.HOLD, GatewayStatus.UNAVAILABLE, GatewayStatus.DEFERRED):
             # queue for later (§7.5) — items stay CLUSTERED until the backoff passes
             _record_failure(db, story, items, state, version, classify_outcome.status, [])
-            return
+            return True
         classification = classify_outcome.result
         if classification is None:
-            return
+            return True
         classify_status = classify_outcome.status
         state = ai_retry.cache_classification(
             db, state, story_id=story.id, version=version, status=classify_status,
@@ -349,7 +351,7 @@ def _generate_story(db: Session, story: Story) -> None:
     if not classification.relevant:
         _archive(items)
         ai_retry.clear(db, state)
-        return
+        return True
 
     sensitivity = _normalize_sensitivity(classification.sensitivity)
     if sensitivity != "NONE":
@@ -360,7 +362,7 @@ def _generate_story(db: Session, story: Story) -> None:
         if _must_hold_for_triage(privacy):
             story.sensitivity = sensitivity
             _hold_for_triage(db, story, items, reasons)
-            return
+            return True
 
     p1_review_enabled = _env_flag(P1_REVIEW_ENV_VAR, default=True)
     if classification.urgency.strip().upper() in ("HIGH", "URGENT") and p1_review_enabled:
@@ -377,10 +379,10 @@ def _generate_story(db: Session, story: Story) -> None:
         # queue for later; classification alone doesn't advance the story
         story.sensitivity = sensitivity  # so an exhausted hold shows it to the editor
         _record_failure(db, story, items, state, version, generate_outcome.status, reasons)
-        return
+        return True
     generated = generate_outcome.result
     if generated is None:
-        return
+        return True
     if generate_outcome.status == GatewayStatus.REVIEW_QUEUE:
         reasons.append("LOW_CONFIDENCE_GENERATION")
     if _summary_too_similar_to_source(generated.summary_en, items):
@@ -429,31 +431,43 @@ def _generate_story(db: Session, story: Story) -> None:
         # actually published.
         for item in items:
             item.ingest_status = "SCHEDULED"
+    return True
 
 
-def generate_stories(db: Session) -> int:
+def generate_stories(db: Session, job: Job | None = None) -> int:
     """Processes every `Story` whose `SourceItem`s are all still `CLUSTERED`
     and which hasn't been generated yet (`status == DRAFT`). Idempotent per
     story: a story only leaves `DRAFT`/its items only leave `CLUSTERED` once
     generation actually succeeds, so a re-run with nothing new to do is a
     no-op. A story that failed/held/degraded is retried on a later sweep
     only once its `ai_work_state` backoff has passed, and goes to editorial
-    review once its retries are used up (`app/jobs/ai_retry.py`)."""
+    review once its retries are used up (`app/jobs/ai_retry.py`).
+
+    Bounded per sweep (review #8): newest stories first, at most
+    `AI_SWEEP_BATCH_SIZE` attempted, none started after the time budget;
+    the rest wait for the next sweep. Each story is committed on its own,
+    so a crash never repeats a finished story's paid calls."""
     story_ids = db.scalars(
         select(StorySource.story_id)
         .join(SourceItem, SourceItem.id == StorySource.source_item_id)
         .join(Story, Story.id == StorySource.story_id)
         .where(SourceItem.ingest_status == "CLUSTERED", Story.status == "DRAFT")
-        .distinct()
+        .group_by(StorySource.story_id)
+        .order_by(func.max(SourceItem.published_at).desc().nulls_last(), StorySource.story_id)
     ).all()
 
     processed = 0
+    started = ai_retry.monotonic()
+    batch_size = ai_retry.sweep_batch_size()
     for story_id in story_ids:
+        if processed >= batch_size or ai_retry.monotonic() - started >= ai_retry.SWEEP_TIME_BUDGET.total_seconds():
+            break
+        renew_lease(db, job)  # also commits the previous story
         story = db.get(Story, story_id)
         if story is None:
             continue
-        _generate_story(db, story)
-        processed += 1
+        if _generate_story(db, story):
+            processed += 1
 
     db.commit()
     return processed
@@ -461,7 +475,7 @@ def generate_stories(db: Session) -> int:
 
 def run_ai_classify(db: Session, job: Job) -> None:
     """Job handler wrapping `generate_stories` for the worker."""
-    generate_stories(db)
+    generate_stories(db, job)
 
 
 def _generate_window(now: datetime) -> datetime:

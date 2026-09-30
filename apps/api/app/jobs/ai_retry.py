@@ -24,6 +24,8 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
+import time
 from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import select
@@ -40,6 +42,28 @@ BACKOFF_MAX = timedelta(hours=6)
 # 2+4+...+256 min, then 6h steps: roughly three days of transient failure.
 MAX_TRANSIENT_FAILURES = 20
 MAX_INVALID_ATTEMPTS = 3
+
+# Review 2026-09-29 #8: one sweep job attempts at most this many stories,
+# and starts no new story after the time budget, so a backlog can't hold the
+# single worker (and publishing, push, alerts behind it) for long. Each story
+# gets a fresh job lease (`queue.renew_lease`), so the lease only has to
+# cover one story's worst case: two calls, each with one schema retry, at
+# the provider's 60 s timeout.
+SWEEP_BATCH_SIZE_ENV = "AI_SWEEP_BATCH_SIZE"
+DEFAULT_SWEEP_BATCH_SIZE = 10
+SWEEP_TIME_BUDGET = timedelta(seconds=120)
+
+
+def sweep_batch_size() -> int:
+    try:
+        return max(1, int(os.environ.get(SWEEP_BATCH_SIZE_ENV, DEFAULT_SWEEP_BATCH_SIZE)))
+    except ValueError:
+        return DEFAULT_SWEEP_BATCH_SIZE
+
+
+def monotonic() -> float:
+    return time.monotonic()
+
 
 TRANSIENT_STATUSES = frozenset(
     {GatewayStatus.DEFERRED, GatewayStatus.UNAVAILABLE, GatewayStatus.CLASSIFICATION_ONLY}
