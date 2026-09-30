@@ -109,7 +109,9 @@ gate section is gone; do not reintroduce a pilot gate on any future ticket.
   alone); web/admin/mobile typecheck and lint, mobile jest 19 passed, web and admin production builds.
   Not checked in a browser. **Not done (owner/editorial):** activating a balanced rights-reviewed source
   set, a daily editorial target, and student topics shown prominently to students (needs the
-  onboarding profile in the header; not started). After deploy, tag the two live stories in admin.
+  onboarding profile in the header; not started). **Deployed 2026-09-30, verified live:** `/v1/config`
+  returns `story_count` (all 26 topics at 0), `/topics` shows the "No topic has stories yet" state, and
+  the admin topics endpoint is live (401 without a token). Next: tag the two live stories in admin.
 - **Waiting on the owner (proposed ADRs, nothing implemented):** ADR-023 rights revocation for published,
   mixed-source and scheduled stories (#7 follow-up); ADR-024 total AI spend ceiling (#2); ADR-025 audited
   recovery of `AI_RETRIES_EXHAUSTED`/exhausted-translation holds; ADR-026 minimum content per format (#6).
