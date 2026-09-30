@@ -37,6 +37,7 @@ from app.ai.privacy import PrivacyDecision, coerce, tighten
 from app.content.glossary import apply_glossary
 from app.content.qa import find_qa_issues
 from app.content.variants import EDITOR_MODEL_VERSION
+from app.jobs import ai_retry
 from app.jobs.generate import _env_flag
 from app.jobs.queue import enqueue_job
 from app.models import Correction, Job, ReviewTask, Story, StoryVariant
@@ -94,6 +95,12 @@ def _translate_prompt(en: StoryVariant) -> str:
 
 
 def _translate_story(db: Session, story: Story, en: StoryVariant) -> None:
+    # Review 2026-09-29 #1: a corrected English variant is new input, so it
+    # gets a fresh retry budget; an exhausted one keeps the English fallback.
+    version = ai_retry.input_version([en.headline, en.summary, en.why_matters])
+    state = ai_retry.load_state(db, story.id, ai_retry.STAGE_TRANSLATE, version)
+    if not ai_retry.is_due(state):
+        return
     gateway = AiGateway(db)
     # ADR-015: the persisted decision only; a sensitive story is never
     # FREE_TIER_ALLOWED, and text touched by an editor correction is staff
@@ -114,11 +121,16 @@ def _translate_story(db: Session, story: Story, en: StoryVariant) -> None:
         editor_authored=editor_authored,
     )
     if outcome.status in (GatewayStatus.HOLD, GatewayStatus.UNAVAILABLE, GatewayStatus.DEFERRED, GatewayStatus.CLASSIFICATION_ONLY):
-        return  # retried next sweep — no `te` variant created, per §7.5
+        # retried once the backoff passes — no `te` variant created, per §7.5
+        ai_retry.record_failure(
+            db, state, story_id=story.id, stage=ai_retry.STAGE_TRANSLATE, version=version, status=outcome.status
+        )
+        return
     result = outcome.result
     if not isinstance(result, TranslationResult):
         return  # OK carries a result_model-typed instance whenever status is OK
 
+    ai_retry.clear(db, state)
     headline_te = apply_glossary(en.headline, result.headline_te)
     summary_te = apply_glossary(en.summary, result.summary_te)
     why_matters_te = (
@@ -154,7 +166,8 @@ def translate_stories(db: Session) -> int:
     """Every `Story` with an `en` variant and no `te` variant yet — created
     fresh by T11's generation step, or re-created after T12's correction
     hook deletes a stale `te` variant. Idempotent: a story only leaves this
-    set once a `te` variant row actually exists."""
+    set once a `te` variant row actually exists; one still backing off (or
+    out of retries) in `ai_work_state` is skipped without a provider call."""
     en_variants = aliased(StoryVariant)
     te_variants = aliased(StoryVariant)
     rows = db.execute(

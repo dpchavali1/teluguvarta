@@ -34,8 +34,10 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.ai import AiGateway, GatewayStatus, Task
+from app.ai.contracts import GenerationResult
 from app.ai.privacy import PrivacyDecision, classify_privacy, coerce, tighten
 from app.ai.tasks import free_tier_enabled, paid_provider_configured
+from app.jobs import ai_retry
 from app.jobs.cluster import normalized_title_key
 from app.jobs.queue import enqueue_job
 from app.models import (
@@ -265,14 +267,38 @@ def _must_hold_for_triage(privacy: PrivacyDecision) -> bool:
     return free_tier_enabled() and not paid_provider_configured() and privacy != PrivacyDecision.FREE_TIER_ALLOWED
 
 
-def _hold_for_triage(db: Session, story: Story, items: list[SourceItem], reasons: list[str]) -> None:
+def _hold_for_review(db: Session, story: Story, items: list[SourceItem], reasons: list[str]) -> None:
     story.status = "AI_READY"  # the status trigger requires DRAFT -> AI_READY -> REVIEW_REQUIRED
     db.flush()
     story.status = "REVIEW_REQUIRED"
     db.flush()
-    db.add(ReviewTask(story_id=story.id, reason=",".join([*reasons, NO_PAID_PROVIDER_REASON]), status="PENDING"))
+    db.add(ReviewTask(story_id=story.id, reason=",".join(reasons), status="PENDING"))
     for item in items:
         item.ingest_status = "REVIEW"
+
+
+def _hold_for_triage(db: Session, story: Story, items: list[SourceItem], reasons: list[str]) -> None:
+    _hold_for_review(db, story, items, [*reasons, NO_PAID_PROVIDER_REASON])
+
+
+# Review 2026-09-29 #1: a story whose AI retries are used up leaves the
+# sweep for an editor — who can reject it or draft it by hand — instead of
+# being re-sent to the provider every sweep.
+AI_RETRIES_EXHAUSTED_REASON = "AI_RETRIES_EXHAUSTED"
+
+
+def _generate_input_version(items: list[SourceItem]) -> str:
+    return ai_retry.input_version([[str(item.id), item.title, item.url, item.description] for item in items])
+
+
+def _record_failure(
+    db: Session, story: Story, items: list[SourceItem], state, version: str, status: GatewayStatus, reasons: list[str]
+) -> None:
+    state = ai_retry.record_failure(
+        db, state, story_id=story.id, stage=ai_retry.STAGE_GENERATE, version=version, status=status
+    )
+    if state.failure_class == "EXHAUSTED":
+        _hold_for_review(db, story, items, [*reasons, AI_RETRIES_EXHAUSTED_REASON])
 
 
 def _generate_story(db: Session, story: Story) -> None:
@@ -280,31 +306,49 @@ def _generate_story(db: Session, story: Story) -> None:
     if not items:
         return
 
+    version = _generate_input_version(items)
+    state = ai_retry.load_state(db, story.id, ai_retry.STAGE_GENERATE, version)
+    if not ai_retry.is_due(state):
+        return  # backing off (§7.5); retried once `next_attempt_at` passes
+
     evidence_item_ids = _evidence_item_ids(items)
     privacy = _resolve_privacy(db, story, items)
     if _must_hold_for_triage(privacy):
         _hold_for_triage(db, story, items, [])
         return
     gateway = AiGateway(db)
-    classify_outcome = gateway.run_task(
-        Task.RELEVANCE_CATEGORIZATION,
-        _classify_prompt(items),
-        story_id=story.id,
-        evidence_item_ids=evidence_item_ids,
-        privacy_decision=privacy,
-    )
-    if classify_outcome.status in (GatewayStatus.HOLD, GatewayStatus.UNAVAILABLE, GatewayStatus.DEFERRED):
-        return  # queue for later (§7.5) — items stay CLUSTERED, retried next sweep
-    classification = classify_outcome.result
-    if classification is None:
-        return
+    cached = state.cached_classification if state is not None else None
+    if cached is not None:
+        classify_status = GatewayStatus(cached["status"])
+        classification = GenerationResult.model_validate(cached["result"])
+    else:
+        classify_outcome = gateway.run_task(
+            Task.RELEVANCE_CATEGORIZATION,
+            _classify_prompt(items),
+            story_id=story.id,
+            evidence_item_ids=evidence_item_ids,
+            privacy_decision=privacy,
+        )
+        if classify_outcome.status in (GatewayStatus.HOLD, GatewayStatus.UNAVAILABLE, GatewayStatus.DEFERRED):
+            # queue for later (§7.5) — items stay CLUSTERED until the backoff passes
+            _record_failure(db, story, items, state, version, classify_outcome.status, [])
+            return
+        classification = classify_outcome.result
+        if classification is None:
+            return
+        classify_status = classify_outcome.status
+        state = ai_retry.cache_classification(
+            db, state, story_id=story.id, version=version, status=classify_status,
+            result=classification.model_dump(mode="json"),
+        )
 
     reasons: list[str] = []
-    if classify_outcome.status == GatewayStatus.REVIEW_QUEUE:
+    if classify_status == GatewayStatus.REVIEW_QUEUE:
         reasons.append("LOW_CONFIDENCE_CLASSIFICATION")
 
     if not classification.relevant:
         _archive(items)
+        ai_retry.clear(db, state)
         return
 
     sensitivity = _normalize_sensitivity(classification.sensitivity)
@@ -330,7 +374,10 @@ def _generate_story(db: Session, story: Story) -> None:
         privacy_decision=privacy,
     )
     if generate_outcome.status in (GatewayStatus.HOLD, GatewayStatus.UNAVAILABLE, GatewayStatus.DEFERRED, GatewayStatus.CLASSIFICATION_ONLY):
-        return  # queue for later; classification alone doesn't advance the story
+        # queue for later; classification alone doesn't advance the story
+        story.sensitivity = sensitivity  # so an exhausted hold shows it to the editor
+        _record_failure(db, story, items, state, version, generate_outcome.status, reasons)
+        return
     generated = generate_outcome.result
     if generated is None:
         return
@@ -339,6 +386,7 @@ def _generate_story(db: Session, story: Story) -> None:
     if _summary_too_similar_to_source(generated.summary_en, items):
         reasons.append("SIMILARITY_TO_SOURCE")
 
+    ai_retry.clear(db, state)
     story.sensitivity = sensitivity
     story.importance = classification.confidence
     db.add(
@@ -388,8 +436,9 @@ def generate_stories(db: Session) -> int:
     and which hasn't been generated yet (`status == DRAFT`). Idempotent per
     story: a story only leaves `DRAFT`/its items only leave `CLUSTERED` once
     generation actually succeeds, so a re-run with nothing new to do is a
-    no-op, and a story that failed/held/degraded is simply retried next
-    sweep — no separate retry bookkeeping needed."""
+    no-op. A story that failed/held/degraded is retried on a later sweep
+    only once its `ai_work_state` backoff has passed, and goes to editorial
+    review once its retries are used up (`app/jobs/ai_retry.py`)."""
     story_ids = db.scalars(
         select(StorySource.story_id)
         .join(SourceItem, SourceItem.id == StorySource.source_item_id)

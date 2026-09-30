@@ -13,6 +13,19 @@ signup capture) has been deleted, including its `pilot_signups` DB table
 the full list of removed files. `docs/BUILD_ORDER.md`'s pre-build validation
 gate section is gone; do not reintroduce a pilot gate on any future ticket.
 
+**Review backlog (`docs/reviews/2026-09-29-comprehensive-review.md`)**: worked in the owner's order
+#1 → #5 → #3 → #4 → #8 → #7; #2 (budget ceiling), held-story recovery and product/UX items wait on ADRs.
+- **#1 done (2026-09-29): bounded AI retries across sweeps.** New table `ai_work_state` (migration
+  `b8e4c2d6f1a3`), one row per (story, `GENERATE`|`TRANSLATE`), keyed to a hash of the stage's input.
+  `app/jobs/ai_retry.py`: DEFERRED/UNAVAILABLE/CLASSIFICATION_ONLY back off 2 min doubling to a 6 h cap and give
+  up after 20; HOLD (invalid output) gives up after 3. A successful classification is cached for its input
+  version, so a failed summary no longer re-pays classification. Exhausted generation goes to review with
+  reason `AI_RETRIES_EXHAUSTED` (editor rejects or drafts by hand); exhausted translation stops and English
+  keeps serving. New evidence or corrected English resets the count; the row is deleted on success. No
+  manual reset of an exhausted row yet (recovery ADR). Provider Retry-After isn't surfaced by the gateway,
+  so quota deferrals use the same backoff. Tests: `tests/test_ai_retry.py`. Full suite: 371 passed; 2
+  setup errors from the local fixture's `pg_terminate_backend` permission, different tests each run, pass alone.
+
 **Manual drafting in admin (2026-09-29)**: step 1 of the free/low-cost AI plan (VPS is a CPX21, 3 vCPU/4 GB,
 so no local LLM; the plan is Gemini free for allowlisted categories, a capped paid Flash-Lite route, and manual
 drafting as the fallback). Before this, a `NO_PAID_PROVIDER` story sat in review with "No draft yet" and no way to

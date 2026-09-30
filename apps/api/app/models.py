@@ -336,6 +336,27 @@ class ReviewTask(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
 
 
+class AiWorkState(Base):
+    """Review 2026-09-29 #1: durable retry state for one story's AI stage
+    across sweeps (`app/jobs/ai_retry.py`). Deleted once the stage succeeds."""
+
+    __tablename__ = "ai_work_state"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    story_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("stories.id", ondelete="CASCADE"), nullable=False)
+    # 'GENERATE' | 'TRANSLATE' per `ck_ai_work_state_stage`.
+    stage: Mapped[str] = mapped_column(Text, nullable=False)
+    input_version: Mapped[str] = mapped_column(Text, nullable=False)
+    invalid_attempts: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    transient_failures: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    next_attempt_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    last_status: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # 'TRANSIENT' | 'INVALID_OUTPUT' | 'EXHAUSTED' per `ck_ai_work_state_failure_class`.
+    failure_class: Mapped[str | None] = mapped_column(Text, nullable=True)
+    cached_classification: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+
+
 class Correction(Base):
     """T12: one row per applied correction (`old_text_hash`/`new_text_hash`
     over the English variant's headline+summary+why_matters, not a full
