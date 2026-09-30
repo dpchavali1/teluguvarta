@@ -194,6 +194,13 @@ gate section is gone; do not reintroduce a pilot gate on any future ticket.
   typecheck clean, both bundles export; web/admin typecheck clean. **Not done:** Next SSR calls the API
   through nginx from the VPS's own IP, so server-rendered search shares one 30/min bucket (as before
   this change).
+  **Deployed 2026-09-30 by the owner** (`e403f6f`, no migration). Verified live: `/health/ready` 200,
+  `/v1/me` with a 5-character token 401 (it created a user before). The XFF fix isn't checked from outside;
+  on the server, `grep proxy_add_x_forwarded_for /etc/nginx/conf.d/teluguvarta-*.conf` should be empty.
+  **Release APK rebuilt and installed 2026-09-30** (after `expo prebuild` for the two new native modules)
+  on the owner's Android device, with `api.theteluguedit.com` in the bundle: it launches and the home feed
+  loads, no crash in logcat. This also ships #14. The old sslip.io nginx conf can go once no older install
+  remains. Device checks of #14 (Latest, large text, TalkBack, offline, push) are still to do.
 - **Waiting on the owner (proposed ADRs, nothing implemented):** ADR-023 rights revocation for published,
   mixed-source and scheduled stories (#7 follow-up); ADR-024 total AI spend ceiling (#2); ADR-025 audited
   recovery of `AI_RETRIES_EXHAUSTED`/exhausted-translation holds; ADR-026 minimum content per format (#6).
