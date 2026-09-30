@@ -34,6 +34,7 @@ from app.ai.budget import (
 )
 from app.auth import AdminPrincipal, current_admin
 from app.content.qa import find_variant_qa_issues
+from app.content.rights import unpermitted_sources
 from app.content.serialize import load_story_relations
 from app.content.variants import EDITOR_MODEL_VERSION
 from app.db import get_db
@@ -561,6 +562,14 @@ def approve_story(
     if en is None or not en.headline.strip() or not en.summary.strip():
         raise APIError(
             422, "NO_ENGLISH_DRAFT", "Write an English headline and summary before approving — English is canonical"
+        )
+    # Review 2026-09-29 #7: rights are rechecked at approval, not only ingest.
+    if blocked := unpermitted_sources(db, story.id):
+        raise APIError(
+            409,
+            "SOURCE_RIGHTS_REVOKED",
+            "A source behind this story is no longer approved for publication: "
+            + ", ".join(f"{s.name} ({s.rights_status})" for s in blocked),
         )
 
     story.status = "APPROVED"

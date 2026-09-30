@@ -57,6 +57,15 @@ gate section is gone; do not reintroduce a pilot gate on any future ticket.
   expired-lease job at `MAX_JOB_ATTEMPTS` FAILED instead of reclaiming it. The worker rolls back before
   logging or `fail_job`; before this fix, a failed flush made it raise `PendingRollbackError`. Tests:
   `tests/test_bounded_sweeps.py`. Full suite 396 passed (2 flaky fixture errors).
+- **#7 done (2026-09-29): rights rechecked at approval and publication.** `app/content/rights.py`
+  (`unpermitted_sources`; only `LINK_ONLY` is publishable under ADR-002; `active` is ignored, since not
+  polled ≠ revoked). Auto-publish (global and brief lane) sends such a story to review with
+  `SOURCE_RIGHTS_REVOKED`. Admin approve returns 409 `SOURCE_RIGHTS_REVOKED`. `publish_due_stories` leaves a
+  SCHEDULED story unpublished (the status trigger allows only SCHEDULED→PUBLISHED) and audits
+  `STORY_PUBLISH_BLOCKED_RIGHTS` once; it publishes if rights are restored. A story with any revoked
+  source is blocked, even if its other sources are fine. Revocation for published stories, mixed-source
+  stories, and a way back from SCHEDULED are open in ADR-023. Tests: `tests/test_rights_recheck.py`. Full
+  suite 401 passed (3 flaky fixture errors, pass on rerun).
 
 **Manual drafting in admin (2026-09-29)**: step 1 of the free/low-cost AI plan (VPS is a CPX21, 3 vCPU/4 GB,
 so no local LLM; the plan is Gemini free for allowlisted categories, a capped paid Flash-Lite route, and manual

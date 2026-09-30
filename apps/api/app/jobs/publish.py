@@ -43,6 +43,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.ai.budget import is_over_monthly_budget
+from app.content.rights import RIGHTS_REVOKED_REASON, unpermitted_sources
 from app.jobs.brief_lane import LaneOutcome, daily_cap, published_today, try_brief_lane
 from app.jobs.queue import enqueue_job
 from app.models import AuditEvent, Job, ReviewTask, Story
@@ -95,6 +96,15 @@ def auto_publish_stories(db: Session) -> int:
             count += 1
             continue
 
+        # Review 2026-09-29 #7: a source disabled since ingest blocks every
+        # automatic approval, brief lane included.
+        if unpermitted_sources(db, story.id):
+            story.status = "REVIEW_REQUIRED"
+            db.flush()
+            db.add(ReviewTask(story_id=story.id, reason=RIGHTS_REVOKED_REASON, status="PENDING"))
+            count += 1
+            continue
+
         if not enabled:
             lane = LaneOutcome.NOT_ATTEMPTED
             if brief_cap_left is not None:
@@ -141,6 +151,9 @@ def publish_due_stories(db: Session) -> int:
     stories = db.scalars(select(Story).where(Story.status == "SCHEDULED")).all()
     count = 0
     for story in stories:
+        if blocked := unpermitted_sources(db, story.id):
+            _hold_for_rights(db, story, blocked)
+            continue
         story.status = "PUBLISHED"
         story.published_at = _now()
         db.flush()
@@ -156,6 +169,30 @@ def publish_due_stories(db: Session) -> int:
         count += 1
     db.commit()
     return count
+
+
+RIGHTS_HOLD_ACTION = "STORY_PUBLISH_BLOCKED_RIGHTS"
+
+
+def _hold_for_rights(db: Session, story: Story, blocked: list) -> None:
+    """Review #7: an approved story whose source was disabled after approval
+    stays SCHEDULED and unpublished; the status machine has no way back to
+    review from SCHEDULED (see ADR-023, proposed). It publishes on
+    a later sweep if the rights are restored. Audited once per story."""
+    already = db.scalars(
+        select(AuditEvent.id).where(AuditEvent.entity_id == story.id, AuditEvent.action == RIGHTS_HOLD_ACTION)
+    ).first()
+    if already is None:
+        db.add(
+            AuditEvent(
+                actor="system:publish_scheduler",
+                action=RIGHTS_HOLD_ACTION,
+                entity_type="story",
+                entity_id=story.id,
+                metadata_={"source_ids": [str(s.id) for s in blocked], "rights": [s.rights_status for s in blocked]},
+            )
+        )
+        db.flush()
 
 
 def run_publish_scheduler(db: Session, job: Job) -> None:

@@ -17,7 +17,7 @@ holds across sweeps, not just within one job row:
 What happens to an exhausted story is the caller's call (generation routes
 it to editorial review; translation leaves the English fallback in place).
 Resetting an exhausted row by hand is not implemented here — see the
-held-story recovery ADR.
+held-story recovery ADR (ADR-025, proposed).
 """
 
 from __future__ import annotations
