@@ -245,7 +245,7 @@ gate section is gone; do not reintroduce a pilot gate on any future ticket.
   (would need an ADR). Also open: auto-publish is built but off in prod (`AUTO_PUBLISH_GLOBAL=false`,
   `AUTO_PUBLISH_BRIEFS=false` in `.env.prod`) — owner decides whether to turn either on; until then every story
   waits in the admin review queue.
-- **ADR-025 implemented 2026-09-30, not yet deployed:** `POST /v1/admin/stories/{id}/retry-ai`
+- **ADR-025 implemented and deployed 2026-09-30 (`6845dbc`):** `POST /v1/admin/stories/{id}/retry-ai`
   `{stage: GENERATE|TRANSLATE, reason}` — ADMIN only (403 otherwise), max 2 resets per story per stage (counted
   from `AI_RETRY_RESET` audit events; 409 `RETRY_LIMIT_REACHED`), 409 `NOT_AI_HELD` unless the story is actually
   AI-held (GENERATE: REVIEW_REQUIRED with an `AI_RETRIES_EXHAUSTED`/`NO_PAID_PROVIDER` review reason or an
