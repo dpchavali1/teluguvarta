@@ -16,7 +16,12 @@ import httpx
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.ai.budget import is_over_monthly_budget, month_to_date_cost_usd, today_cost_usd
+from app.ai.budget import (
+    is_over_hard_cap,
+    is_over_monthly_budget,
+    month_to_date_cost_usd,
+    today_cost_usd,
+)
 from app.jobs.source_fetch import CIRCUIT_BREAKER_THRESHOLD
 from app.models import AiCallLog, Job, Source
 from app.observability.logging import get_logger
@@ -55,7 +60,7 @@ def send_alert(message: str, *, severity: str = "ERROR", channel=None) -> None:
 
 
 def check_budget_alerts(db: Session, *, now: datetime | None = None, channel=None) -> list[str]:
-    """Fires when MONTHLY_AI_BUDGET_USD or DAILY_AI_ALERT_USD is crossed.
+    """Fires when MONTHLY_AI_BUDGET_USD, MONTHLY_AI_HARD_CAP_USD or DAILY_AI_ALERT_USD is crossed.
     Returns the list of thresholds that fired, for tests/callers."""
     now = now or datetime.now(UTC)
     fired: list[str] = []
@@ -65,6 +70,12 @@ def check_budget_alerts(db: Session, *, now: datetime | None = None, channel=Non
         budget = os.environ.get("MONTHLY_AI_BUDGET_USD")
         send_alert(f"AI spend ${mtd:.2f} has crossed the monthly budget of ${budget}", channel=channel)
         fired.append("MONTHLY_AI_BUDGET_USD")
+
+    if is_over_hard_cap(db, now):
+        mtd = month_to_date_cost_usd(db, now)
+        cap = os.environ.get("MONTHLY_AI_HARD_CAP_USD")
+        send_alert(f"AI spend ${mtd:.2f} has reached the monthly hard cap of ${cap}; all paid AI calls are stopped", channel=channel)
+        fired.append("MONTHLY_AI_HARD_CAP_USD")
 
     daily_limit = os.environ.get("DAILY_AI_ALERT_USD")
     if daily_limit:

@@ -15,7 +15,7 @@ from enum import Enum
 from pydantic import BaseModel, ValidationError
 from sqlalchemy.orm import Session
 
-from app.ai.budget import is_over_monthly_budget, record_call
+from app.ai.budget import is_over_hard_cap, is_over_monthly_budget, record_call
 from app.ai.contracts import GenerationResult
 from app.ai.privacy import PrivacyDecision, coerce
 from app.ai.providers.base import (
@@ -177,6 +177,15 @@ class AiGateway:
         if task in DEGRADABLE_ON_BUDGET_BREACH and is_over_monthly_budget(self._db):
             return GatewayOutcome(status=GatewayStatus.CLASSIFICATION_ONLY)
 
+        # ADR-024: past the hard cap no paid call runs, classification
+        # included. UNAVAILABLE is transient, so the story waits under
+        # review #1's backoff. Nothing is logged: no call was made, and the
+        # budget alert already reports the crossing.
+        paid = route.provider != "gemini"
+        if paid and is_over_hard_cap(self._db):
+            logger.warning("monthly AI hard cap reached; refusing paid %s call", task.value)
+            return GatewayOutcome(status=GatewayStatus.UNAVAILABLE)
+
         # ADR-018 decisions 5 and 7: a paid call that can't be priced, or that
         # names a moving alias, would slip past the budget gate. Refuse it.
         if route.provider == "gemini_paid" and (
@@ -255,6 +264,10 @@ class AiGateway:
         else:
             # A malformed or blocked reply is still billed: log its usage.
             _record(response.failure or "HOLD", response)
+            # ADR-024: the first call may have crossed the cap; re-check it
+            # before paying for the retry.
+            if paid and is_over_hard_cap(self._db):
+                return GatewayOutcome(status=GatewayStatus.UNAVAILABLE)
             # §7.5: retry once with a constrained prompt.
             retry_response = _call(constrained=True)
             if isinstance(retry_response, GatewayOutcome):

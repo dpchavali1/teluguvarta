@@ -4,7 +4,8 @@ every §7.5 failure mode, plus cost telemetry and the budget-breach degrade.
 
 from datetime import UTC, datetime
 
-from sqlalchemy import create_engine, select
+import pytest
+from sqlalchemy import create_engine, func, select
 from sqlalchemy.orm import Session
 
 from app.ai import budget
@@ -288,6 +289,62 @@ def test_cost_threshold_breach_degrades_to_classification_only(migrated_database
         _use_fake_provider(monkeypatch, [_valid_payload()])
         relevance_outcome = AiGateway(db).run_task(Task.RELEVANCE_CATEGORIZATION, "classify this")
         assert relevance_outcome.status == GatewayStatus.OK
+
+
+@requires_postgres
+def test_hard_cap_refuses_every_paid_call_including_classification(migrated_database, monkeypatch):
+    """ADR-024 option 1: past MONTHLY_AI_HARD_CAP_USD nothing paid runs, and
+    the refusal is transient so the story waits under backoff."""
+    engine = create_engine(migrated_database)
+    with Session(engine) as db:
+        monkeypatch.setenv("MONTHLY_AI_BUDGET_USD", "1.00")
+        monkeypatch.setenv("MONTHLY_AI_HARD_CAP_USD", "2.00")
+        budget.record_call(
+            db, task=Task.SUMMARY, provider="openai", model="gpt-4o-mini",
+            status="SUCCESS", tokens_in=2_000_000, tokens_out=4_000_000,
+        )
+        assert budget.is_over_hard_cap(db) is True
+
+        provider = _use_fake_provider(monkeypatch, [_valid_payload()])
+        outcome = AiGateway(db).run_task(Task.RELEVANCE_CATEGORIZATION, "classify this")
+
+        assert outcome.status == GatewayStatus.UNAVAILABLE
+        assert provider.prompts == []
+        assert db.scalar(select(func.count()).select_from(AiCallLog)) == 1
+
+
+@requires_postgres
+def test_hard_cap_rechecked_before_schema_retry(migrated_database, monkeypatch):
+    engine = create_engine(migrated_database)
+    with Session(engine) as db:
+        checks = iter([False, True])
+        monkeypatch.setattr(gateway_module, "is_over_hard_cap", lambda _db: next(checks))
+        provider = _use_fake_provider(monkeypatch, [{"not": "valid"}, _valid_payload()])
+
+        outcome = AiGateway(db).run_task(Task.RELEVANCE_CATEGORIZATION, "classify this")
+
+        assert outcome.status == GatewayStatus.UNAVAILABLE
+        assert len(provider.prompts) == 1
+
+
+def test_require_budget_config_only_in_production(monkeypatch):
+    for name in budget.BUDGET_CONFIG_REQUIRED:
+        monkeypatch.delenv(name, raising=False)
+    monkeypatch.delenv("APP_ENV", raising=False)
+    budget.require_budget_config()
+
+    monkeypatch.setenv("APP_ENV", "production")
+    with pytest.raises(RuntimeError, match="MONTHLY_AI_BUDGET_USD"):
+        budget.require_budget_config()
+
+    monkeypatch.setenv("MONTHLY_AI_BUDGET_USD", "50")
+    monkeypatch.setenv("DAILY_AI_ALERT_USD", "3")
+    monkeypatch.setenv("MONTHLY_AI_HARD_CAP_USD", "40")
+    with pytest.raises(RuntimeError, match="at or above"):
+        budget.require_budget_config()
+
+    monkeypatch.setenv("MONTHLY_AI_HARD_CAP_USD", "60")
+    budget.require_budget_config()
 
 
 @requires_postgres

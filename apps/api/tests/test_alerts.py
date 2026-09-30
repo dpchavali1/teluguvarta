@@ -48,6 +48,21 @@ def test_monthly_budget_alert_fires_once_crossed(migrated_database, monkeypatch)
         assert any("monthly budget" in message for _, message in channel.calls)
 
 
+def test_hard_cap_alert_fires_once_reached(migrated_database, monkeypatch):
+    engine = create_engine(migrated_database)
+    with Session(engine) as db:
+        monkeypatch.setenv("MONTHLY_AI_HARD_CAP_USD", "1.00")
+        budget.record_call(
+            db, task=Task.SUMMARY, provider="openai", model="gpt-4o-mini",
+            status="SUCCESS", tokens_in=2_000_000, tokens_out=2_000_000,
+        )
+        channel = _FakeChannel()
+        fired = alerts.check_budget_alerts(db, channel=channel)
+
+        assert "MONTHLY_AI_HARD_CAP_USD" in fired
+        assert any("hard cap" in message for _, message in channel.calls)
+
+
 def test_daily_alert_threshold_fires(migrated_database, monkeypatch):
     engine = create_engine(migrated_database)
     with Session(engine) as db:

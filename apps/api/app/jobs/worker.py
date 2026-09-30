@@ -13,6 +13,7 @@ import time
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 
+from app.ai.budget import require_budget_config
 from app.alerts import check_all
 from app.jobs.cluster import run_dedup_cluster, schedule_dedup_cluster
 from app.jobs.generate import run_ai_classify, schedule_ai_classify
@@ -91,6 +92,7 @@ def process_one(db: Session) -> bool:
 
 def run_forever() -> None:
     configure_logging()
+    require_budget_config()
     # Jobs themselves only log on failure, so this line is how `docker logs`
     # shows the worker (re)started.
     logger.info("worker started, handling %s", ", ".join(JOB_HANDLERS))

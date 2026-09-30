@@ -90,6 +90,7 @@ AI_TRANSLATION_ENABLED=true
 PUSH_NOTIFICATIONS_ENABLED=false
 AI_REVIEW_P1_STORIES=true
 MONTHLY_AI_BUDGET_USD=50
+MONTHLY_AI_HARD_CAP_USD=60
 DAILY_AI_ALERT_USD=3
 MONTHLY_INFRA_BUDGET_USD=200
 # Fill in, then re-run this script:
@@ -111,6 +112,13 @@ MONITOR_HEALTHCHECK_URL=
 EOF
   chmod 600 "$ENV_FILE"
   echo "==> Wrote $ENV_FILE (secrets generated; back this file up somewhere safe)"
+fi
+
+# ADR-024: the API and worker refuse to start in production without a hard
+# cap. Env files written before it existed get the owner's chosen $60.
+if ! grep -q '^MONTHLY_AI_HARD_CAP_USD=' "$ENV_FILE"; then
+  echo 'MONTHLY_AI_HARD_CAP_USD=60' >> "$ENV_FILE"
+  echo "==> Added MONTHLY_AI_HARD_CAP_USD=60 to $ENV_FILE (ADR-024)"
 fi
 
 # Every URL derives from DOMAIN. A DOMAIN given on a re-run replaces the stored one.

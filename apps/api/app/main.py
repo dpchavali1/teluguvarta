@@ -4,6 +4,7 @@ from fastapi import FastAPI, Response
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 
+from app.ai.budget import require_budget_config
 from app.db import _engine_for
 from app.errors import RequestIDMiddleware, register_error_handlers
 from app.observability.logging import configure_logging, get_logger
@@ -11,6 +12,7 @@ from app.routers import admin, admin_auth, me, public
 
 configure_logging()
 logger = get_logger(__name__)
+require_budget_config()
 
 app = FastAPI(title="TTE — The Telugu Edit API")
 

@@ -228,9 +228,16 @@ gate section is gone; do not reintroduce a pilot gate on any future ticket.
   warnings, and actually reducing mypy debt.
 - **Waiting on the owner (proposed ADR, nothing implemented):** ADR-023 rights revocation for published,
   mixed-source and scheduled stories (#7 follow-up).
-- **Accepted 2026-09-30, not yet implemented:** ADR-024 (#2) options 1+5+6 — `MONTHLY_AI_HARD_CAP_USD`
-  refuses every paid call incl. classification, prod refuses to start without budget vars, owner sets the
-  Gemini console quota/alert. ADR-025 options 1+3 — ADMIN "Retry AI" (audited `AI_RETRY_RESET`, max 2 per
+- **ADR-024 (#2) implemented 2026-09-30, not yet deployed:** `MONTHLY_AI_HARD_CAP_USD` (owner chose $60)
+  — `is_over_hard_cap` in `app/ai/budget.py`; the gateway refuses every non-free-tier call at/over it with
+  transient `UNAVAILABLE` (no `ai_call_log` row, so no migration) and re-checks before the schema retry;
+  `check_budget_alerts` fires `MONTHLY_AI_HARD_CAP_USD`. `require_budget_config()` makes the API and worker
+  refuse to start under `APP_ENV=production` unless `MONTHLY_AI_BUDGET_USD`, `MONTHLY_AI_HARD_CAP_USD`,
+  `DAILY_AI_ALERT_USD` are positive numbers and cap ≥ budget. `deploy.sh` appends `MONTHLY_AI_HARD_CAP_USD=60`
+  to an existing `.env.prod` that lacks it. Admin cost card doesn't show the cap yet. **Owner still to do
+  (option 6):** budget alert + quota cap on the paid Gemini Cloud project. Option 3 (reserve) deferred
+  until a second worker exists.
+- **Accepted 2026-09-30, not yet implemented:** ADR-025 options 1+3 — ADMIN "Retry AI" (audited `AI_RETRY_RESET`, max 2 per
   story) plus an admin list of EXHAUSTED translations. ADR-026 (#6) — `validate_for_publication` with FULL
   rules (b) summary/headline similarity < 0.8, (c) summary ≥ 2 sentences or ≥ 25 words, (d) headline < 0.6
   vs every source title; why-matters stays optional; manual drafts get the same rules (422 with the rule);

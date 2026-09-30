@@ -1,6 +1,7 @@
 """Cost telemetry (§19) and the MONTHLY_AI_BUDGET_USD guardrail (§7.5:
 crossing a configured cost threshold degrades to classification-only mode
-rather than continuing to spend).
+rather than continuing to spend), plus ADR-024's MONTHLY_AI_HARD_CAP_USD,
+which stops every paid call.
 """
 
 from __future__ import annotations
@@ -90,6 +91,38 @@ def is_over_monthly_budget(db: Session, now: datetime | None = None) -> bool:
     if not budget:
         return False
     return month_to_date_cost_usd(db, now) >= float(budget)
+
+
+def is_over_hard_cap(db: Session, now: datetime | None = None) -> bool:
+    """ADR-024: at or above MONTHLY_AI_HARD_CAP_USD every paid call is
+    refused, classification included. False when unset (dev/test only —
+    production refuses to start without it, see `require_budget_config`)."""
+    cap = os.environ.get("MONTHLY_AI_HARD_CAP_USD")
+    if not cap:
+        return False
+    return month_to_date_cost_usd(db, now) >= float(cap)
+
+
+BUDGET_CONFIG_REQUIRED = ("MONTHLY_AI_BUDGET_USD", "MONTHLY_AI_HARD_CAP_USD", "DAILY_AI_ALERT_USD")
+
+
+def require_budget_config() -> None:
+    """ADR-024 option 5: with APP_ENV=production, refuse to start unless every
+    budget variable is set to a positive number and the hard cap is at or
+    above the degradation budget. An unset budget means no guardrail."""
+    if os.environ.get("APP_ENV") != "production":
+        return
+    values: dict[str, float] = {}
+    for name in BUDGET_CONFIG_REQUIRED:
+        raw = os.environ.get(name, "").strip()
+        try:
+            values[name] = float(raw)
+        except ValueError:
+            raise RuntimeError(f"APP_ENV=production requires {name} to be a number (ADR-024)") from None
+        if values[name] <= 0:
+            raise RuntimeError(f"APP_ENV=production requires {name} > 0 (ADR-024)")
+    if values["MONTHLY_AI_HARD_CAP_USD"] < values["MONTHLY_AI_BUDGET_USD"]:
+        raise RuntimeError("MONTHLY_AI_HARD_CAP_USD must be at or above MONTHLY_AI_BUDGET_USD (ADR-024)")
 
 
 def cost_by_task_and_day(db: Session, task: Task | None = None) -> list[dict]:
