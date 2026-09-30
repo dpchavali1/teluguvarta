@@ -237,12 +237,16 @@ gate section is gone; do not reintroduce a pilot gate on any future ticket.
   to an existing `.env.prod` that lacks it. Admin cost card doesn't show the cap yet. **Owner still to do
   (option 6):** budget alert + quota cap on the paid Gemini Cloud project. Option 3 (reserve) deferred
   until a second worker exists.
-- **Next (owner chose 2026-09-30): make `apps/admin` an installable PWA** so review/approve works full-screen
-  from a phone home screen — web app manifest (name, icons from existing `apple-icon.png`/`icon.png`,
-  `display: standalone`, theme colour from `tokens.css`), viewport/theme-color meta in `layout.tsx`, and a check
-  that the review queue and review page are usable at phone width. No offline caching of admin data (auth'd,
-  must stay fresh); a service worker only if the install prompt needs it. A native admin app was declined for now
-  (would need an ADR). Also open: auto-publish is built but off in prod (`AUTO_PUBLISH_GLOBAL=false`,
+- **Admin installable PWA done 2026-09-30 (not yet deployed):** `apps/admin/src/app/manifest.ts` →
+  `/manifest.webmanifest` (`display: standalone`, `start_url: /review`, `--color-bg` theme/background), icons in
+  `apps/admin/public/icons/` (192/512 `any` from `icon.png`, plus full-bleed `maskable` variants on `#332c6d`),
+  `layout.tsx` exports `viewport` (device-width, per-scheme `themeColor` = `--color-bg`) and `appleWebApp` metadata.
+  No service worker (current Chrome/Safari install without one; admin data must stay fresh). Phone layout was
+  already in place (sticky two-row nav ≤720px, `.table-scroll` + `.col-wide-only`, review detail single-column
+  ≤960px); verified by build output + served HTML/manifest, **not** by a logged-in phone session — owner to
+  confirm "Add to Home Screen" on a real phone after deploy. Known rough edge: on phones the review page's
+  decision panel sits below the story content, so approve needs a scroll. A native admin app was declined for
+  now (would need an ADR). Also open: auto-publish is built but off in prod (`AUTO_PUBLISH_GLOBAL=false`,
   `AUTO_PUBLISH_BRIEFS=false` in `.env.prod`) — owner decides whether to turn either on; until then every story
   waits in the admin review queue.
 - **ADR-025 implemented and deployed 2026-09-30 (`6845dbc`):** `POST /v1/admin/stories/{id}/retry-ai`

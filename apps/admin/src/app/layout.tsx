@@ -1,3 +1,4 @@
+import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
 import { Bricolage_Grotesque, Inter_Tight, JetBrains_Mono, Noto_Sans_Telugu } from "next/font/google";
 
@@ -43,9 +44,22 @@ const fontTelugu = Noto_Sans_Telugu({
 // so each remembers its own choice.
 const THEME_INIT_SCRIPT = `(function(){try{var t=localStorage.getItem("tg-theme");if(t==="light"||t==="dark"){document.documentElement.setAttribute("data-theme",t);}}catch(e){}})();`;
 
-export const metadata = {
+export const metadata: Metadata = {
   title: "TTE Admin",
-  description: "Internal admin console."
+  description: "Internal admin console.",
+  // The manifest (app/manifest.ts) is linked automatically; this covers iOS,
+  // which ignores most of it when adding to the home screen.
+  appleWebApp: { capable: true, title: "TTE Admin", statusBarStyle: "default" }
+};
+
+// Browser chrome follows the page background (--color-bg) in each theme.
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#f6f2e8" },
+    { media: "(prefers-color-scheme: dark)", color: "#171410" }
+  ]
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
