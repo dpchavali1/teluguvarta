@@ -66,6 +66,20 @@ gate section is gone; do not reintroduce a pilot gate on any future ticket.
   source is blocked, even if its other sources are fine. Revocation for published stories, mixed-source
   stories, and a way back from SCHEDULED are open in ADR-023. Tests: `tests/test_rights_recheck.py`. Full
   suite 401 passed (3 flaky fixture errors, pass on rerun).
+- **#9 code done (2026-09-30), operator steps open: production readiness.** `GET /health/ready` returns
+  503 when Postgres is unreachable (`/health` stays static liveness); the api Compose service now has a
+  healthcheck on it. `app/jobs/monitor.py` is a worker liveness check that runs outside the worker (in the
+  api container): `WORKER_STALE` when no job has been claimed for 10 min and none holds a live lease,
+  `QUEUE_BACKLOG` when a due job has waited 15 min. `infra/deploy/monitor.sh` runs it plus readiness and
+  web/admin checks. Cron runs it every 5 min (installed by `deploy.sh`) and pings
+  `MONITOR_HEALTHCHECK_URL`, a healthchecks.io dead-man's switch, so a dead server alerts too; runs are
+  skipped while a deploy holds `/run/teluguvarta-deploying`. `deploy.sh` now **exits 1** if those checks
+  don't pass within 2 min (before this, it printed completion after a failed health loop). The worker
+  logs one line at start, since jobs log only on failure. Runbook with migration-aware rollback and the
+  evidence checklist: `infra/deploy/OPERATIONS.md`. **Still to do on the server, by the owner:**
+  configure backups and the Storage Box, run a restore drill, keep `.env.prod` (MFA key) off-box, and set
+  `MONITOR_HEALTHCHECK_URL` and test the alert. Tests: `tests/test_health.py` (8 passed; related suites
+  44 passed). `monitor.sh` was only dry-run locally (all checks failing, as expected with nothing running).
 - **Waiting on the owner (proposed ADRs, nothing implemented):** ADR-023 rights revocation for published,
   mixed-source and scheduled stories (#7 follow-up); ADR-024 total AI spend ceiling (#2); ADR-025 audited
   recovery of `AI_RETRIES_EXHAUSTED`/exhausted-translation holds; ADR-026 minimum content per format (#6).

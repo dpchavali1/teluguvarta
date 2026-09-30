@@ -91,6 +91,9 @@ def process_one(db: Session) -> bool:
 
 def run_forever() -> None:
     configure_logging()
+    # Jobs themselves only log on failure, so this line is how `docker logs`
+    # shows the worker (re)started.
+    logger.info("worker started, handling %s", ", ".join(JOB_HANDLERS))
     db = _session()
     loop_count = 0
     try:

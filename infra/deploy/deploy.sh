@@ -106,6 +106,8 @@ ALERT_WEBHOOK_URL=
 BACKUP_AGE_RECIPIENT=
 BACKUP_STORAGE_BOX=
 BACKUP_HEALTHCHECK_URL=
+# Health monitoring (infra/deploy/OPERATIONS.md): healthchecks.io-style ping URL.
+MONITOR_HEALTHCHECK_URL=
 EOF
   chmod 600 "$ENV_FILE"
   echo "==> Wrote $ENV_FILE (secrets generated; back this file up somewhere safe)"
@@ -126,6 +128,9 @@ sed -i -e "s|^DOMAIN=.*|DOMAIN=$d|" \
        -e "s|^NEXT_PUBLIC_API_URL=.*|NEXT_PUBLIC_API_URL=https://api.$d|" "$ENV_FILE"
 
 # --- 3. build, migrate, start ------------------------------------------------
+# monitor.sh stays quiet while this exists, so a deploy doesn't page anyone.
+touch /run/teluguvarta-deploying
+trap 'rm -f /run/teluguvarta-deploying' EXIT
 echo "==> Building images (first build takes several minutes)"
 # One image at a time: two parallel Next.js builds can run a 4 GB box out of memory.
 for svc in api worker admin web; do "${COMPOSE[@]}" build "$svc"; done
@@ -178,14 +183,31 @@ DOMAIN="$(grep '^DOMAIN=' "$ENV_FILE" | cut -d= -f2-)" \
 ACME_EMAIL="$(grep '^ACME_EMAIL=' "$ENV_FILE" | cut -d= -f2-)" \
   "$repo_root/infra/deploy/nginx-setup.sh"
 
-echo "==> Waiting for API health"
-for _ in $(seq 1 30); do
-  if "${COMPOSE[@]}" exec -T api python -c "import urllib.request as u; u.urlopen('http://localhost:8000/health')" 2>/dev/null; then
-    echo "API healthy."; break
+cat > /etc/cron.d/teluguvarta-monitor <<EOF
+# Managed by infra/deploy/deploy.sh — health check every 5 minutes (infra/deploy/OPERATIONS.md).
+*/5 * * * * root $repo_root/infra/deploy/monitor.sh >> /var/log/teluguvarta-monitor.log 2>&1
+EOF
+grep -qE '^MONITOR_HEALTHCHECK_URL=.+' "$ENV_FILE" \
+  || echo "==> External alerting NOT configured — set MONITOR_HEALTHCHECK_URL in .env.prod (infra/deploy/OPERATIONS.md)"
+
+# Review 2026-09-29 #9: the deploy fails unless API readiness, the worker, web
+# and admin all check out (the same checks cron runs).
+echo "==> Waiting for API, worker, web and admin"
+healthy=0
+for _ in $(seq 1 24); do
+  if check_out="$(MONITOR_NO_PING=1 "$repo_root/infra/deploy/monitor.sh")"; then
+    healthy=1; break
   fi
-  sleep 2
+  sleep 5
 done
 "${COMPOSE[@]}" ps
+if [ "$healthy" -ne 1 ]; then
+  echo "DEPLOY FAILED: health checks still failing after 2 minutes:" >&2
+  echo "$check_out" >&2
+  echo "Rollback steps: infra/deploy/OPERATIONS.md" >&2
+  exit 1
+fi
+echo "All healthy."
 
 domain="$(grep '^DOMAIN=' "$ENV_FILE" | cut -d= -f2-)"
 echo
