@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import difflib
 import re
+import unicodedata
 import uuid
 from datetime import UTC, datetime, timedelta
 
@@ -96,8 +97,19 @@ def _within_window(a: SourceItem, b: SourceItem) -> bool:
     return abs(a.published_at - b.published_at) <= CLUSTER_WINDOW
 
 
+def _slug_key(title: str) -> str:
+    """Like `normalized_title_key`, but keeps combining marks: Python's `\\w`
+    excludes them, so the dedupe key drops Telugu vowel signs and viramas
+    (`రేవంత్` -> `రవత`). Slugs only; the key stays as is, since changing it
+    would stop re-fetched items matching their stored fingerprints."""
+    kept = "".join(
+        ch for ch in title.lower() if ch.isalnum() or ch.isspace() or unicodedata.category(ch).startswith("M")
+    )
+    return _WHITESPACE_RE.sub(" ", kept).strip()
+
+
 def _slug_for(item: SourceItem) -> str:
-    key = normalized_title_key(item.title or "") or "story"
+    key = _slug_key(item.title or "") or "story"
     slug = re.sub(r"\s+", "-", key)[:150]
     return f"{slug}-{uuid.uuid4().hex[:8]}"
 

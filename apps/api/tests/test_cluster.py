@@ -125,3 +125,15 @@ def test_exact_title_fingerprint_clusters_across_punctuation_and_case(migrated_d
         processed = cluster_normalized_items(db)
         assert processed == 2
         assert len(db.scalars(select(Story)).all()) == 1
+
+
+def test_slug_keeps_telugu_vowel_signs():
+    """Review 2026-09-30: slugs were built from the dedupe key, which drops
+    combining marks, so `రేవంత్` became `రవత`."""
+    from app.jobs.cluster import _slug_for
+
+    slug = _slug_for(SourceItem(title="సీఎం రేవంత్ రెడ్డి: ఎప్పుడు వస్తారు?"))
+    assert slug.rsplit("-", 1)[0] == "సీఎం-రేవంత్-రెడ్డి-ఎప్పుడు-వస్తారు"
+    ascii_slug = _slug_for(SourceItem(title="Jailer 2: A or U/A? Team divided"))
+    assert ascii_slug.rsplit("-", 1)[0] == "jailer-2-a-or-ua-team-divided"
+    assert _slug_for(SourceItem(title="?!")).startswith("story-")

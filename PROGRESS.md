@@ -12,8 +12,9 @@ login and mobile were inspected through code, not authenticated/device journeys.
   and `getStory`/`getShareMeta` encode again, so Telugu slugs reached the API double-encoded (live: API 200,
   web 404). Story layout, page and metadata now decode once via `src/lib/pathParam.ts` (was `api.ts`
   `pathCursor`; cursor pages use it too); a malformed escape 404s. Verified with `next dev` against the prod
-  API: Telugu slug 404 → 200, ASCII/missing/cursor unchanged. Separate, unfixed: Telugu slugs are generated
-  with vowel signs stripped (`రేవంత్` → `రవత`), so they read as garbage. Existing slugs must stay stable.
+  API: Telugu slug 404 → 200, ASCII/missing/cursor unchanged. Slugs for new stories now keep vowel signs
+  (`cluster._slug_key`; they were built from the dedupe key, which drops combining marks: `రేవంత్` → `రవత`).
+  The dedupe key itself is unchanged, and existing slugs keep their URLs.
 - **R2 fixed for new translations (2026-09-30, `2c8f9d2`, deployed):** `qa.find_variant_qa_issues` adds
   `MIXED_SCRIPT:<field>` for any Devanagari/Bengali/Gurmukhi/Gujarati/Odia/Tamil/Kannada/Malayalam letter,
   unless the English field contains that same script (quoted text); dandas are allowed. The variant is FAILED,
