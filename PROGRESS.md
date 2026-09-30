@@ -237,7 +237,7 @@ gate section is gone; do not reintroduce a pilot gate on any future ticket.
   to an existing `.env.prod` that lacks it. Admin cost card doesn't show the cap yet. **Owner still to do
   (option 6):** budget alert + quota cap on the paid Gemini Cloud project. Option 3 (reserve) deferred
   until a second worker exists.
-- **Admin installable PWA done 2026-09-30 (not yet deployed):** `apps/admin/src/app/manifest.ts` →
+- **Admin installable PWA done and deployed 2026-09-30 (`fbc0e7e`; live manifest + icons confirmed):** `apps/admin/src/app/manifest.ts` →
   `/manifest.webmanifest` (`display: standalone`, `start_url: /review`, `--color-bg` theme/background), icons in
   `apps/admin/public/icons/` (192/512 `any` from `icon.png`, plus full-bleed `maskable` variants on `#332c6d`),
   `layout.tsx` exports `viewport` (device-width, per-scheme `themeColor` = `--color-bg`) and `appleWebApp` metadata.
