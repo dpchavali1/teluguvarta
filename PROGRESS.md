@@ -74,6 +74,20 @@ write one, and approve didn't check for English, so an empty story could be publ
     ("N unclassified"), the story page's sensitivity badge reads `UNCLASSIFIED` instead of `NONE`, and the
     NO_PAID_PROVIDER help tells the reviewer to check the source for the always-reviewed categories.
     No confirm/required-reason friction was added on purpose, since every held story would get it.
+- **Paid Gemini live, but every call HOLDed (2026-09-30): fixed in code, not yet deployed.**
+  - Owner turned billing on for the *existing* project instead of a separate one, so prod runs with one
+    billed key: `AI_GEMINI_PAID_API_KEY` set, `AI_FREE_TIER_ENABLED=false`, `AI_GEMINI_API_KEY` empty
+    (ADR-018's "enable billing on the existing project" alternative; the free route is off).
+  - After deploy, `ai_call_log` showed 12 `gemini_paid` translation calls, all `HOLD` (the model's JSON
+    failed schema validation twice). Cause: no task prompt names the output keys, and no provider sends a
+    schema, so the model picked its own names (e.g. `headline` instead of `headline_te`). The same would
+    have hit classify/summary/brief.
+  - Fix: `gateway._with_output_contract` appends the result model's JSON Schema to every prompt. All
+    provider calls go through the gateway, so every task gets it. Test:
+    `test_prompt_names_the_result_schema_keys`. Full suite 366 passed (known flaky teardown error in
+    `test_notifications.py`, passes on rerun); ruff clean.
+  - **Not verified against the real Gemini API** from here. After `deploy.sh`, check `ai_call_log` for
+    `SUCCESS` rows on `gemini_paid`.
 - **Automation plan agreed with owner:**
   1. Faster triage (above).
   2. ADR: paid Gemini route, so AI drafts every story. **ADR-018 accepted and implemented (2026-09-29).**

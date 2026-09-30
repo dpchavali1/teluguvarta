@@ -7,6 +7,7 @@ except by calling `AiGateway.run_task`.
 
 from __future__ import annotations
 
+import json
 import uuid
 from dataclasses import dataclass, field
 from enum import Enum
@@ -121,6 +122,17 @@ def _check_claims(
     return result, removed, fabricated
 
 
+def _with_output_contract(prompt: str, result_model: type[BaseModel]) -> str:
+    """Append the result model's JSON Schema. The task prompts only describe
+    the content, so without this a real model picks its own key names and
+    every call fails schema validation (prod, 2026-09-30)."""
+    schema = json.dumps(result_model.model_json_schema(), ensure_ascii=False)
+    return (
+        f"{prompt}\n\nRespond with one JSON object that conforms to this JSON Schema, "
+        f"using exactly these property names:\n{schema}"
+    )
+
+
 class AiGateway:
     def __init__(self, db: Session):
         self._db = db
@@ -194,6 +206,7 @@ class AiGateway:
 
         provider = _resolve_provider(route.provider)
         model = route.default_model
+        prompt = _with_output_contract(prompt, result_model)
 
         try:
             response = provider.complete(model=model, task=task, prompt=prompt)

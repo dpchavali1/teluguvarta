@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 
 from app.ai import budget
 from app.ai import gateway as gateway_module
+from app.ai.contracts import TranslationResult
 from app.ai.gateway import AiGateway, GatewayStatus
 from app.ai.language import detect_language
 from app.ai.providers.base import ProviderResponse
@@ -24,8 +25,10 @@ class FakeProvider:
 
     def __init__(self, responses):
         self._responses = list(responses)
+        self.prompts = []
 
     def complete(self, *, model, task, prompt, constrained=False):
+        self.prompts.append(prompt)
         item = self._responses.pop(0)
         if isinstance(item, Exception):
             raise item
@@ -96,6 +99,24 @@ def test_detect_language_empty_is_unknown():
 
 
 # --- gateway behavior (requires Postgres — telemetry writes) ---------------
+
+
+@requires_postgres
+def test_prompt_names_the_result_schema_keys(migrated_database, monkeypatch):
+    # Prod 2026-09-30: no prompt named the output keys, so real models
+    # returned e.g. {"headline": ...} and every translation HOLDed.
+    engine = create_engine(migrated_database)
+    with Session(engine) as db:
+        provider = _use_fake_provider(monkeypatch, [{"headline_te": "శీర్షిక", "summary_te": "సారాంశం"}])
+        outcome = AiGateway(db).run_task(
+            Task.TRANSLATION_EN_TE, "translate this", result_model=TranslationResult,
+        )
+
+        assert outcome.status == GatewayStatus.OK
+        sent = provider.prompts[0]
+        assert sent.startswith("translate this")
+        for key in TranslationResult.model_fields:
+            assert f'"{key}"' in sent
 
 
 @requires_postgres
