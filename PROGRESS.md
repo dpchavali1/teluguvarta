@@ -263,7 +263,7 @@ gate section is gone; do not reintroduce a pilot gate on any future ticket.
   evidence/confidence reasons. First fetch queued 817 drafts, mostly feed history; owner archived the 789
   CLUSTERED items of DRAFT stories whose newest item was >48h old (manual SQL, same effect as the classifier's
   not-relevant archive).
-- **First-fetch backlog cutoff (2026-09-30, not yet deployed):** `source_fetch.FIRST_FETCH_MAX_AGE` = 48h. On a
+- **First-fetch backlog cutoff (2026-09-30, `a642398`, deployed; Telugu stories confirmed auto-publishing on the public API from 23:15 UTC):** `source_fetch.FIRST_FETCH_MAX_AGE` = 48h. On a
   source's first successful fetch (`last_success_at IS NULL`), items older than that are emitted as `ARCHIVED`
   (`SourceAdapter.emit(archive=True)`) — stored for dedupe, never processed; undated items are kept; never lifts
   `RIGHTS_BLOCKED`. Not applied to X fetches, or to a source re-enabled after a long gap (it has a
