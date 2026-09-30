@@ -156,6 +156,8 @@ gate section is gone; do not reintroduce a pilot gate on any future ticket.
   downgrade). Full API suite 429 passed; ruff clean; mypy 69 errors,
   down from 71, none in new code; admin typecheck, lint and production build pass. Not checked in a
   browser. Not done: country pages in the sitemap (left out until this, #16); formula weights untuned.
+  **Deployed 2026-09-30 by the owner** (`fe59840`, migration `d1a6e4f8b3c5`); not checked live. Still to do
+  in admin: set countries and topics on the two live stories.
 - **Waiting on the owner (proposed ADRs, nothing implemented):** ADR-023 rights revocation for published,
   mixed-source and scheduled stories (#7 follow-up); ADR-024 total AI spend ceiling (#2); ADR-025 audited
   recovery of `AI_RETRIES_EXHAUSTED`/exhausted-translation holds; ADR-026 minimum content per format (#6).
