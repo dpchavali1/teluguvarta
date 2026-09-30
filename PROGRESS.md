@@ -69,8 +69,9 @@ gate section is gone; do not reintroduce a pilot gate on any future ticket.
 - **Waiting on the owner (proposed ADRs, nothing implemented):** ADR-023 rights revocation for published,
   mixed-source and scheduled stories (#7 follow-up); ADR-024 total AI spend ceiling (#2); ADR-025 audited
   recovery of `AI_RETRIES_EXHAUSTED`/exhausted-translation holds; ADR-026 minimum content per format (#6).
-  **Deploy note:** migrations `b8e4c2d6f1a3` (ai_work_state) and `c9f5d3e7a2b4` (ai_call_log detail) must
-  run before the new API/worker code starts.
+  **Deployed to the VPS 2026-09-30 03:07 UTC at `5af512f`:** both migrations (`b8e4c2d6f1a3`,
+  `c9f5d3e7a2b4`) applied, all services up, API healthy. Worker behaviour after deploy not yet checked.
+  Deploy still warns "Backups NOT configured" (`BACKUP_AGE_RECIPIENT`, review #9).
 
 **Manual drafting in admin (2026-09-29)**: step 1 of the free/low-cost AI plan (VPS is a CPX21, 3 vCPU/4 GB,
 so no local LLM; the plan is Gemini free for allowlisted categories, a capped paid Flash-Lite route, and manual
