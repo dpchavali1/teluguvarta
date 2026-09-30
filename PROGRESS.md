@@ -228,7 +228,7 @@ gate section is gone; do not reintroduce a pilot gate on any future ticket.
   warnings, and actually reducing mypy debt.
 - **Waiting on the owner (proposed ADR, nothing implemented):** ADR-023 rights revocation for published,
   mixed-source and scheduled stories (#7 follow-up).
-- **ADR-024 (#2) implemented 2026-09-30, not yet deployed:** `MONTHLY_AI_HARD_CAP_USD` (owner chose $60)
+- **ADR-024 (#2) implemented and deployed 2026-09-30 (`adc4c5f`, CI green, API /health/ready ok):** `MONTHLY_AI_HARD_CAP_USD` (owner chose $60)
   — `is_over_hard_cap` in `app/ai/budget.py`; the gateway refuses every non-free-tier call at/over it with
   transient `UNAVAILABLE` (no `ai_call_log` row, so no migration) and re-checks before the schema retry;
   `check_budget_alerts` fires `MONTHLY_AI_HARD_CAP_USD`. `require_budget_config()` makes the API and worker
