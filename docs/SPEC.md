@@ -1,4 +1,4 @@
-# Telugu Global — Condensed Master Specification (source: V5.2 Codex Master Spec)
+# TTE — The Telugu Edit (formerly Telugu Global) — Condensed Master Specification (source: V5.2 Codex Master Spec)
 
 This is a condensed, implementation-focused digest of the authoritative spec PDF
 (`Telugu_NRI_Global_Platform_Codex_Master_Specification_V5_2.pdf`). **This file,

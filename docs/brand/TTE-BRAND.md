@@ -4,8 +4,8 @@
 
 The public brand is **TTE**, expanded everywhere it needs context as **TTE — The Telugu Edit**.
 
-- Canonical website: `https://tte.news`
-- App/download domain: `https://tte.app`
+- Canonical website: `https://theteluguedit.com` (`www.` redirects to it)
+- API and admin: `api.theteluguedit.com`, `admin.theteluguedit.com`
 - Product descriptor: **The Telugu world, thoughtfully edited.**
 - Telugu lockup: **ది తెలుగు ఎడిట్** (use as a supporting wordmark, not as a replacement for the English name)
 
@@ -45,9 +45,9 @@ Preferred line: **“The Telugu world, thoughtfully edited.”**
 
 ## Digital identity
 
-`tte.news` is the canonical web origin. `tte.app` is reserved for app-focused
-campaigns and download/deep-link flows. Both domains should redirect to HTTPS
-and share the same wordmark, metadata, and social identity.
+`theteluguedit.com` is the only web origin, served over HTTPS; `www.theteluguedit.com`
+redirects to it. There is no separate app or short-link domain. Social handles should
+match the domain (`theteluguedit`) where available.
 
 ## Migration note
 

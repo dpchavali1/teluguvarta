@@ -58,3 +58,6 @@ accepted. Add ad-hoc ADRs below this table as they're written.
 - ADR-021 | Free-tier quota accounting for pinned Gemini models (amends
   ADR-015 decision 6) | automation plan follow-up | **rejected** (2026-09-29, not needed)
   — see [ADR-021](ADR-021-free-tier-pinned-model-quota.md)
+- ADR-022 | Public web on the VPS at theteluguedit.com (amends ADR-007) |
+  web deploy | **accepted and implemented** (2026-09-29) — see
+  [ADR-022](ADR-022-web-on-vps-theteluguedit.md)

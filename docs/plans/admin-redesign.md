@@ -16,7 +16,7 @@ removing these gates.
   tokens in `tokens.css` shared with web, nav in `src/components/AdminNav.tsx`).
 - Pages: `/` (near-empty), `/login`, `/review`, `/review/[id]`,
   `/observability`, `/sources` (new, forms just added).
-- Deployed on the VPS: https://admin.5-78-188-206.sslip.io ; deploy =
+- Deployed on the VPS: https://admin.theteluguedit.com ; deploy =
   push to main, then `./infra/deploy/deploy.sh` on the VPS (it git-pulls).
 - Not verified in a browser by Claude yet — start by looking at each page.
 

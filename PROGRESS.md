@@ -175,8 +175,8 @@ write one, and approve didn't check for English, so an empty story could be publ
   change isn't needed. The refusal alert is the only guard. Reopen it if someone pins a free-tier model.
 - **Next steps in the plan:** (separate `gemini`/`gemini_paid` routing is done: ADR-018's `PAID_GEMINI_ROUTING`
   in `app/ai/tasks.py`, so no new ADR is needed.) The pinned-model limiter and
-  quota accounting (done: refusal alert; ADR-021 rejected as not needed); a mobile `EXPO_PUBLIC_WEB_URL` (blocked on the web deploy
-  — the prod compose has no `web` service; owner to choose host + domain); one rights-reviewed
+  quota accounting (done: refusal alert; ADR-021 rejected as not needed); a mobile `EXPO_PUBLIC_WEB_URL` (**unblocked by
+  ADR-022, see below**: `https://theteluguedit.com`); one rights-reviewed
   sports/entertainment/community source (**Telugu360 Movies seeded, see below**).
 - **Telugu360 Movies source added to the seed (2026-09-29).**
   - Source research, all feeds fetched 2026-09-29:
@@ -202,6 +202,27 @@ write one, and approve didn't check for English, so an empty story could be publ
   - **Not live — owner steps in prod admin** (the seed only runs on the first deploy): Sources → New, fill in the
     fields from `infra/scripts/seed.py` (name, base/feed URL, category `entertainment`, `LINK_ONLY`, evidence URL,
     reviewer), then set it active as an ADMIN.
+
+**Web deployed on the VPS at theteluguedit.com, ADR-022 (2026-09-29, code done, not live)**: the owner picked
+`theteluguedit.com` and dropped `tte.news`/`tte.app`. Vercel is out.
+- `docker-compose.prod.yml` has a `web` service (`next.Dockerfile`, APP=web, localhost:13000).
+- `nginx-setup.sh` writes `/etc/nginx/conf.d/teluguvarta-$DOMAIN.conf` with the apex (web), `www` (301 to
+  the apex), `api` and `admin`, and asks certbot for all four with `--expand`. It leaves the old
+  `teluguvarta.conf` (the sslip.io names) alone, so the installed APK, which calls `api.5-78-188-206.sslip.io`,
+  keeps working. Delete that file after a new APK is out.
+- `deploy.sh` defaults `DOMAIN` to `theteluguedit.com` and rewrites `DOMAIN`, `WEB_URL`, `PUBLIC_WEB_URL`,
+  `NEXT_PUBLIC_*` and CORS in `.env.prod` from `DOMAIN` on every run, so `DOMAIN=...` on a re-run moves the
+  install. It builds the images one at a time (4 GB box). The sslip.io fallback and the `WEB_URL=` override are gone.
+- Brand doc, mobile README (release APK command), `.env.example`, and the CLAUDE/AGENTS/SPEC titles are updated.
+  Internal `teluguvarta` identifiers and the `org.teluguglobal.app` bundle id are unchanged on purpose.
+- Verified: `bash -n` on both scripts; the compose YAML parses; the `.env.prod` sync, run on a copy of the prod
+  shape, moves sslip.io to theteluguedit.com, and a second run changes nothing. **Not verified:** no local Docker,
+  so the web image build and the nginx/certbot steps have not run. They run for the first time on the VPS.
+- **Owner steps:** (a) in DNS, point A records for `@`, `www`, `api` and `admin` at 5.78.188.206. With Cloudflare,
+  use SSL mode Full (strict); certbot needs port 80 reachable. (b) Once they resolve, run
+  `sudo DOMAIN=theteluguedit.com ./infra/deploy/deploy.sh` on the VPS. (c) Log into the new
+  `admin.theteluguedit.com`. The admin login email is still `admin@5-78-188-206.sslip.io` (it's in the DB,
+  not derived from the domain). (d) Build the next APK with the README command (new API and web URLs).
 
 **Web redesign, ADR-017 (2026-09-28)**: `apps/web` presentation-only rewrite. It adds a sticky header with a
 topic bar, a mobile bottom tab bar, card-based StoryLead/StoryBrief (ADR-014 contract unchanged), and a story
@@ -525,6 +546,11 @@ Mirrors `docs/adr/README.md` — keep both in sync.
 | ADR-015 Gemini free tier as an AI provider | **accepted** |
 | ADR-016 Local inference service | reserved (Gemini/Hetzner plan), not written |
 | ADR-017 Web "modern newsroom" redesign | **accepted** |
+| ADR-018 Paid Gemini route | **accepted** |
+| ADR-019 Link-first brief auto-publish | **accepted** |
+| ADR-020 Government description evidence | **accepted** |
+| ADR-021 Free-tier pinned-model quota | **rejected** |
+| ADR-022 Web on the VPS at theteluguedit.com | **accepted** |
 
 - 2026-09-16: **ADR-013 accepted** (product owner: "accept ADR-013 as-is,
   shrink golden set to 30") and implemented exactly as the ADR spelled out,

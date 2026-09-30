@@ -3,20 +3,18 @@
 #
 #   sudo ACME_EMAIL=you@example.com ./infra/deploy/deploy.sh
 #
-# The public website (apps/web) is NOT deployed here: host it on Vercel.
-# This server runs Postgres, the API, the worker and the admin app in Docker,
-# routed through the host's nginx (nginx-setup.sh; certs via certbot).
-# Firewall changes are opt-in (UFW_SETUP=1) since the box may be shared.
-# DOMAIN is optional: without one, hostnames are derived from the server IP via
-# sslip.io (api.1-2-3-4.sslip.io), which still gets real HTTPS certificates.
-# After deploying the site on Vercel, tell the API its URL (CORS + share links):
-#   sudo WEB_URL=https://your-site.vercel.app ./infra/deploy/deploy.sh
+# This server runs Postgres, the API, the worker, the admin app and the public
+# website (apps/web) in Docker, routed through the host's nginx (nginx-setup.sh;
+# certs via certbot). Firewall changes are opt-in (UFW_SETUP=1) since the box may be shared.
+# DOMAIN defaults to theteluguedit.com: the site is https://$DOMAIN (www redirects),
+# plus api.$DOMAIN and admin.$DOMAIN. Point A records for @, www, api and admin at
+# this server first (Cloudflare SSL mode: Full (strict)). Re-running with a
+# different DOMAIN moves an existing install to it (all URLs derive from DOMAIN).
 #
 # First run: installs Docker, opens ports 22/80/443, generates secrets into
 # .env.prod, builds, migrates, seeds an admin user, starts everything.
 # Re-runs: git pull, rebuild + migrate + restart with the existing .env.prod (secrets
-# are never regenerated). With your own DOMAIN, first point A records for
-# api and admin at this server (Cloudflare SSL mode: Full (strict)).
+# are never regenerated).
 set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
@@ -60,12 +58,8 @@ first_run=0
 needs_seed=0
 if [ ! -f "$ENV_FILE" ]; then
   first_run=1
-  if [ -z "${DOMAIN:-}" ]; then
-    ip="$(curl -4 -fsS https://api.ipify.org)"
-    DOMAIN="${ip//./-}.sslip.io"
-    echo "==> No DOMAIN given; using $DOMAIN"
-  fi
-  WEB_URL="${WEB_URL:-http://localhost:3000}"
+  DOMAIN="${DOMAIN:-theteluguedit.com}"
+  WEB_URL="https://$DOMAIN"
   : "${ACME_EMAIL:?Set ACME_EMAIL=you@example.com}"
   pg_pass="$(openssl rand -hex 24)"
   admin_pass="$(openssl rand -base64 18 | tr -d '/+=')"
@@ -117,19 +111,24 @@ EOF
   echo "==> Wrote $ENV_FILE (secrets generated; back this file up somewhere safe)"
 fi
 
-# Point the API/admin at the Vercel site URL (any run with WEB_URL set).
-if [ "$first_run" -eq 0 ] && [ -n "${WEB_URL:-}" ]; then
-  d="$(grep '^DOMAIN=' "$ENV_FILE" | cut -d= -f2-)"
-  sed -i -e "s|^WEB_URL=.*|WEB_URL=$WEB_URL|" \
-         -e "s|^CORS_ALLOWED_ORIGINS=.*|CORS_ALLOWED_ORIGINS=https://admin.$d,$WEB_URL|" \
-         -e "s|^PUBLIC_WEB_URL=.*|PUBLIC_WEB_URL=$WEB_URL|" \
-         -e "s|^NEXT_PUBLIC_WEB_URL=.*|NEXT_PUBLIC_WEB_URL=$WEB_URL|" "$ENV_FILE"
-  echo "==> Web URL set to $WEB_URL"
+# Every URL derives from DOMAIN. A DOMAIN given on a re-run replaces the stored one.
+d="$(grep '^DOMAIN=' "$ENV_FILE" | cut -d= -f2-)"
+if [ -n "${DOMAIN:-}" ] && [ "$DOMAIN" != "$d" ]; then
+  echo "==> Moving from $d to $DOMAIN"
+  d="$DOMAIN"
 fi
+web="https://$d"
+sed -i -e "s|^DOMAIN=.*|DOMAIN=$d|" \
+       -e "s|^WEB_URL=.*|WEB_URL=$web|" \
+       -e "s|^CORS_ALLOWED_ORIGINS=.*|CORS_ALLOWED_ORIGINS=https://admin.$d,$web|" \
+       -e "s|^PUBLIC_WEB_URL=.*|PUBLIC_WEB_URL=$web|" \
+       -e "s|^NEXT_PUBLIC_WEB_URL=.*|NEXT_PUBLIC_WEB_URL=$web|" \
+       -e "s|^NEXT_PUBLIC_API_URL=.*|NEXT_PUBLIC_API_URL=https://api.$d|" "$ENV_FILE"
 
 # --- 3. build, migrate, start ------------------------------------------------
 echo "==> Building images (first build takes several minutes)"
-"${COMPOSE[@]}" build
+# One image at a time: two parallel Next.js builds can run a 4 GB box out of memory.
+for svc in api worker admin web; do "${COMPOSE[@]}" build "$svc"; done
 
 echo "==> Starting Postgres"
 "${COMPOSE[@]}" up -d --wait postgres
@@ -192,5 +191,4 @@ domain="$(grep '^DOMAIN=' "$ENV_FILE" | cut -d= -f2-)"
 echo
 echo "API:    https://api.$domain/health"
 echo "Admin:  https://admin.$domain"
-echo "Vercel (apps/web) env: NEXT_PUBLIC_API_URL=https://api.$domain"
-echo "  NEXT_PUBLIC_WEB_URL=<your vercel URL>; then re-run with WEB_URL=<that URL>"
+echo "Web:    https://$domain"

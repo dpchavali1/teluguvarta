@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-# Adds api.<DOMAIN> and admin.<DOMAIN> to the host's nginx (own file; existing
-# sites are untouched) and gets Let's Encrypt certs via certbot. Idempotent.
+# Adds <DOMAIN> (public web), www.<DOMAIN> (redirects to <DOMAIN>), api.<DOMAIN>
+# and admin.<DOMAIN> to the host's nginx in their own file (existing sites are
+# untouched) and gets Let's Encrypt certs via certbot. Idempotent.
 # Called by deploy.sh; needs DOMAIN and ACME_EMAIL in the environment.
 set -euo pipefail
 : "${DOMAIN:?}" "${ACME_EMAIL:?}"
@@ -8,30 +9,41 @@ set -euo pipefail
 command -v nginx >/dev/null || apt-get install -y -qq nginx
 command -v certbot >/dev/null || apt-get install -y -qq certbot python3-certbot-nginx
 
-conf=/etc/nginx/conf.d/teluguvarta.conf
+# One file per domain, so a domain change adds a site instead of rewriting the
+# old one (older installs used teluguvarta.conf; delete it once nothing uses it).
+conf="/etc/nginx/conf.d/teluguvarta-$DOMAIN.conf"
+proxy_headers='
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;'
 if [ ! -f "$conf" ]; then
   cat > "$conf" <<EOF
+server {
+    listen 80;
+    server_name $DOMAIN;
+    location / {
+        proxy_pass http://127.0.0.1:13000;$proxy_headers
+    }
+}
+server {
+    listen 80;
+    server_name www.$DOMAIN;
+    return 301 https://$DOMAIN\$request_uri;
+}
 server {
     listen 80;
     server_name api.$DOMAIN;
     client_max_body_size 10m;
     location / {
-        proxy_pass http://127.0.0.1:18000;
-        proxy_set_header Host \$host;
-        proxy_set_header X-Real-IP \$remote_addr;
-        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto \$scheme;
+        proxy_pass http://127.0.0.1:18000;$proxy_headers
     }
 }
 server {
     listen 80;
     server_name admin.$DOMAIN;
     location / {
-        proxy_pass http://127.0.0.1:13001;
-        proxy_set_header Host \$host;
-        proxy_set_header X-Real-IP \$remote_addr;
-        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto \$scheme;
+        proxy_pass http://127.0.0.1:13001;$proxy_headers
     }
 }
 EOF
@@ -39,7 +51,7 @@ fi
 nginx -t
 systemctl reload nginx
 
-# certbot --nginx adds the 443 blocks + redirect for these two names only.
-certbot --nginx --non-interactive --agree-tos -m "$ACME_EMAIL" --redirect \
-  -d "api.$DOMAIN" -d "admin.$DOMAIN"
+# certbot --nginx adds the 443 blocks + redirect for these names only.
+certbot --nginx --non-interactive --agree-tos -m "$ACME_EMAIL" --redirect --expand \
+  -d "$DOMAIN" -d "www.$DOMAIN" -d "api.$DOMAIN" -d "admin.$DOMAIN"
 nginx -t && systemctl reload nginx

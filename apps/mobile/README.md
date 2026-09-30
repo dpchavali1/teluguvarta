@@ -24,7 +24,8 @@ at bundle time, so a debug build with the default `localhost` shows nothing):
 ```sh
 cd apps/mobile/android   # after `npx expo prebuild -p android`; recreate
                          # local.properties with sdk.dir=~/Library/Android/sdk
-EXPO_PUBLIC_API_URL=https://api.5-78-188-206.sslip.io ./gradlew :app:assembleRelease
+EXPO_PUBLIC_API_URL=https://api.theteluguedit.com EXPO_PUBLIC_WEB_URL=https://theteluguedit.com \
+  ./gradlew :app:assembleRelease
 adb install -r app/build/outputs/apk/release/app-release.apk
 ```
 

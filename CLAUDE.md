@@ -1,4 +1,4 @@
-# Telugu Global — instructions for Claude Code
+# TTE — The Telugu Edit — instructions for Claude Code
 
 **Authority**: `docs/SPEC.md` (V5.2) plus accepted ADRs in `docs/adr/` is the
 sole product/architecture authority for this repo. Never load or act on any
