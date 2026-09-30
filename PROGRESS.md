@@ -83,6 +83,16 @@ gate section is gone; do not reintroduce a pilot gate on any future ticket.
   the api container reports `healthy`. The first deploy of it (`e684a1a`) hung at the gate: `docker
   compose exec` under `timeout` was stopped reading the interactive tty. Fixed with `</dev/null` and a
   wall-clock wait. Cron runs haven't been observed yet: check `/var/log/teluguvarta-monitor.log`.
+- **#16 done (2026-09-30): sitemap covers every published story** (`apps/web/src/lib/sitemap.ts`). The
+  sitemap follows `next_cursor` 100 at a time up to 49,000 stories (one sitemap file holds 50,000 URLs;
+  past that it needs a sitemap index). It lists only topics that have a published story, derived from the
+  stories themselves (so no `/v1/config` call), dated by their newest story; Home and Latest carry the
+  newest story's date. `/latest` was added. `/saved`, `/search`, `/onboarding` and `/account/` are
+  left out of the sitemap and disallowed in `robots.txt`. At runtime an API failure now throws, so
+  ISR keeps the last good sitemap; at build it falls back to static routes, as before. Country pages
+  stay out until geography is fixed (#10). Web now has a `test` script (node's test runner, 4 tests in
+  `apps/web/tests/sitemap.test.mjs`) and CI runs it. Verified: web typecheck, lint, test, and
+  production build with the API unreachable. Not deployed.
 - **Waiting on the owner (proposed ADRs, nothing implemented):** ADR-023 rights revocation for published,
   mixed-source and scheduled stories (#7 follow-up); ADR-024 total AI spend ceiling (#2); ADR-025 audited
   recovery of `AI_RETRIES_EXHAUSTED`/exhausted-translation holds; ADR-026 minimum content per format (#6).

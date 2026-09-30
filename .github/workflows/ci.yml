@@ -24,6 +24,7 @@ jobs:
       - run: pnpm run lint
       - run: pnpm run typecheck
       - run: pnpm --filter @teluguvarta/mobile run test
+      - run: pnpm --filter @teluguvarta/web run test
       - name: Dependency scan (T19 §16 baseline)
         # Real gate as of the T20 Next.js 15 upgrade (was informational
         # while next@14.2.35 had no 14.x fix for its unauthenticated RCEs).

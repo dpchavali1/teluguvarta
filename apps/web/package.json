@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
+    "test": "node --test tests/*.test.mjs",
     "test:a11y": "node scripts/a11y-check.mjs",
     "test:visual": "node scripts/visual-regression.mjs"
   },
