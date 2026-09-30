@@ -9,10 +9,10 @@ policy the scheduled source fetch uses), with a tighter 2 MB cap.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from xml.etree.ElementTree import ParseError
 
 import httpx
 from defusedxml.common import DefusedXmlException
+from defusedxml.ElementTree import ParseError
 
 from app.models import Source
 

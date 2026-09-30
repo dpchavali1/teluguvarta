@@ -256,6 +256,35 @@
         "title": "AdminCorrectionRequest",
         "type": "object"
       },
+      "AdminCountriesRequest": {
+        "description": "ADR-027: the full set of event countries for a story (replaces what it had).",
+        "properties": {
+          "countries": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 5,
+            "title": "Countries",
+            "type": "array"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          }
+        },
+        "required": [
+          "countries"
+        ],
+        "title": "AdminCountriesRequest",
+        "type": "object"
+      },
       "AdminDraftRequest": {
         "description": "An editor-written story variant for a story still in review \u2014 the\nfallback when no AI route may draft it (e.g. NO_PAID_PROVIDER).",
         "properties": {
@@ -348,6 +377,43 @@
           "feed_url"
         ],
         "title": "AdminFeedTestRequest",
+        "type": "object"
+      },
+      "AdminImportanceRequest": {
+        "description": "ADR-027: an editor's importance level; null returns to the computed score.",
+        "properties": {
+          "level": {
+            "anyOf": [
+              {
+                "enum": [
+                  "LOW",
+                  "NORMAL",
+                  "HIGH"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Level"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          }
+        },
+        "required": [
+          "level"
+        ],
+        "title": "AdminImportanceRequest",
         "type": "object"
       },
       "AdminJobOut": {
@@ -1032,11 +1098,29 @@
             "title": "Canonical Slug",
             "type": "string"
           },
+          "classification_confidence": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Classification Confidence"
+          },
           "corrections": {
             "items": {
               "$ref": "#/components/schemas/AdminCorrectionOut"
             },
             "title": "Corrections",
+            "type": "array"
+          },
+          "countries": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Countries",
             "type": "array"
           },
           "format": {
@@ -1056,6 +1140,22 @@
           "importance": {
             "title": "Importance",
             "type": "number"
+          },
+          "importance_override": {
+            "anyOf": [
+              {
+                "enum": [
+                  "LOW",
+                  "NORMAL",
+                  "HIGH"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Importance Override"
           },
           "published_at": {
             "anyOf": [
@@ -4244,6 +4344,146 @@
           }
         },
         "summary": "Correct Story",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/v1/admin/stories/{story_id}/countries": {
+      "put": {
+        "description": "ADR-027: where the story happens. Generation stores the model's\ncountries; editors correct them, and set them for a hand-drafted story.\nSupported codes only. Like topics, this is metadata, not story text.",
+        "operationId": "set_story_countries_v1_admin_stories__story_id__countries_put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "story_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Story Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdminCountriesRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminActionResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Set Story Countries",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/v1/admin/stories/{story_id}/importance": {
+      "put": {
+        "description": "ADR-027: an editor's Low/Normal/High takes precedence over the\ncomputed score; null clears it and recomputes.",
+        "operationId": "set_story_importance_v1_admin_stories__story_id__importance_put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "story_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Story Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdminImportanceRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminActionResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Set Story Importance",
         "tags": [
           "admin"
         ]

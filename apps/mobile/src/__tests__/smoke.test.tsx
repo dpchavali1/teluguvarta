@@ -35,7 +35,7 @@ function jsonResponse(body: unknown, status = 200) {
 
 beforeEach(() => {
   jest.spyOn(Share, "share").mockResolvedValue({ action: "sharedAction" } as never);
-  global.fetch = jest.fn((input: RequestInfo | URL) => {
+  globalThis.fetch = jest.fn((input: RequestInfo | URL) => {
     const url = typeof input === "string" ? input : input.toString();
     const path = new URL(url).pathname;
     if (path === "/v1/home") return jsonResponse({ top_stories: [STORY], topics: [] });

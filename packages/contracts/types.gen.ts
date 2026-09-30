@@ -377,6 +377,49 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/admin/stories/{story_id}/countries": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Set Story Countries
+         * @description ADR-027: where the story happens. Generation stores the model's
+         *     countries; editors correct them, and set them for a hand-drafted story.
+         *     Supported codes only. Like topics, this is metadata, not story text.
+         */
+        put: operations["set_story_countries_v1_admin_stories__story_id__countries_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/admin/stories/{story_id}/importance": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Set Story Importance
+         * @description ADR-027: an editor's Low/Normal/High takes precedence over the
+         *     computed score; null clears it and recomputes.
+         */
+        put: operations["set_story_importance_v1_admin_stories__story_id__importance_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/admin/stories/{story_id}/reject": {
         parameters: {
             query?: never;
@@ -834,6 +877,16 @@ export interface components {
             why_matters?: string | null;
         };
         /**
+         * AdminCountriesRequest
+         * @description ADR-027: the full set of event countries for a story (replaces what it had).
+         */
+        AdminCountriesRequest: {
+            /** Countries */
+            countries: string[];
+            /** Reason */
+            reason?: string | null;
+        };
+        /**
          * AdminDraftRequest
          * @description An editor-written story variant for a story still in review — the
          *     fallback when no AI route may draft it (e.g. NO_PAID_PROVIDER).
@@ -863,6 +916,16 @@ export interface components {
         AdminFeedTestRequest: {
             /** Feed Url */
             feed_url: string;
+        };
+        /**
+         * AdminImportanceRequest
+         * @description ADR-027: an editor's importance level; null returns to the computed score.
+         */
+        AdminImportanceRequest: {
+            /** Level */
+            level: ("LOW" | "NORMAL" | "HIGH") | null;
+            /** Reason */
+            reason?: string | null;
         };
         /** AdminJobOut */
         AdminJobOut: {
@@ -1052,8 +1115,12 @@ export interface components {
         AdminStoryDetailOut: {
             /** Canonical Slug */
             canonical_slug: string;
+            /** Classification Confidence */
+            classification_confidence?: number | null;
             /** Corrections */
             corrections?: components["schemas"]["AdminCorrectionOut"][];
+            /** Countries */
+            countries?: string[];
             /**
              * Format
              * @default FULL
@@ -1067,6 +1134,8 @@ export interface components {
             id: string;
             /** Importance */
             importance: number;
+            /** Importance Override */
+            importance_override?: ("LOW" | "NORMAL" | "HIGH") | null;
             /** Published At */
             published_at?: string | null;
             review_task?: components["schemas"]["ReviewQueueItemOut"] | null;
@@ -2471,6 +2540,80 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["AdminCorrectionRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminActionResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    set_story_countries_v1_admin_stories__story_id__countries_put: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                story_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminCountriesRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminActionResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    set_story_importance_v1_admin_stories__story_id__importance_put: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                story_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminImportanceRequest"];
             };
         };
         responses: {

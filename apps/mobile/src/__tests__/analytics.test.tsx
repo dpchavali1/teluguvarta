@@ -59,7 +59,7 @@ beforeEach(async () => {
     buttons?.find((b) => b.text === "Report")?.onPress?.();
   });
 
-  global.fetch = jest.fn((input: RequestInfo | URL, init?: RequestInit) => {
+  globalThis.fetch = jest.fn((input: RequestInfo | URL, init?: RequestInit) => {
     const url = typeof input === "string" ? input : input.toString();
     const path = new URL(url).pathname;
     if (path === "/v1/events" && init?.method === "POST") {
