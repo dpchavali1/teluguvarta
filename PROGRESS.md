@@ -239,7 +239,7 @@ gate section is gone; do not reintroduce a pilot gate on any future ticket.
   until a second worker exists.
 - **Accepted 2026-09-30, not yet implemented:** ADR-025 options 1+3 — ADMIN "Retry AI" (audited `AI_RETRY_RESET`, max 2 per
   story) plus an admin list of EXHAUSTED translations.
-- **ADR-026 (#6) implemented 2026-09-30, not yet deployed:** `app/content/publication.py`
+- **ADR-026 (#6) implemented and deployed 2026-09-30 (`7628812`, CI green, API /health/ready ok):** `app/content/publication.py`
   `validate_for_publication` (FULL only; BRIEF keeps ADR-019's lane rules): (b) summary/headline
   similarity < 0.8, (c) summary ≥ 2 sentences or ≥ 25 words, (d) headline < 0.6 vs every source title;
   why-matters stays optional. Enforced at admin approve and `/correct` (422 `CONTENT_RULES_FAILED` naming
