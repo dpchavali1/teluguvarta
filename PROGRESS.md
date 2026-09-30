@@ -203,7 +203,7 @@ write one, and approve didn't check for English, so an empty story could be publ
     fields from `infra/scripts/seed.py` (name, base/feed URL, category `entertainment`, `LINK_ONLY`, evidence URL,
     reviewer), then set it active as an ADMIN.
 
-**Web deployed on the VPS at theteluguedit.com, ADR-022 (2026-09-29, code done, not live)**: the owner picked
+**Web deployed on the VPS at theteluguedit.com, ADR-022 (2026-09-29, live 2026-09-30 01:37 UTC)**: the owner picked
 `theteluguedit.com` and dropped `tte.news`/`tte.app`. Vercel is out.
 - `docker-compose.prod.yml` has a `web` service (`next.Dockerfile`, APP=web, localhost:13000).
 - `nginx-setup.sh` writes `/etc/nginx/conf.d/teluguvarta-$DOMAIN.conf` with the apex (web), `www` (301 to
@@ -223,6 +223,12 @@ write one, and approve didn't check for English, so an empty story could be publ
   `sudo DOMAIN=theteluguedit.com ./infra/deploy/deploy.sh` on the VPS. (c) Log into the new
   `admin.theteluguedit.com`. The admin login email is still `admin@5-78-188-206.sslip.io` (it's in the DB,
   not derived from the domain). (d) Build the next APK with the README command (new API and web URLs).
+- **Live and verified (2026-09-30):** DNS is on Cloudflare with DNS-only A records to 5.78.188.206. `deploy.sh` built
+  all four images one at a time without running out of memory, and certbot issued one cert for all four names.
+  From outside: the apex returns 200 ("TTE — The Telugu Edit", real stories, `x-nextjs-cache: HIT`), `www` and
+  `http://` 301 to `https://theteluguedit.com/`, api `/health` and admin return 200, and CORS allows the site's
+  origin. `api.5-78-188-206.sslip.io` still answers for the old APK.
+  Still to do: (c)/(d) above. Optionally switch the records to Proxied with SSL mode Full (strict).
 
 **Web redesign, ADR-017 (2026-09-28)**: `apps/web` presentation-only rewrite. It adds a sticky header with a
 topic bar, a mobile bottom tab bar, card-based StoryLead/StoryBrief (ADR-014 contract unchanged), and a story
