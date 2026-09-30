@@ -24,7 +24,7 @@ from app.content.serialize import (
     topic_out,
 )
 from app.content.variants import resolve_display_variant
-from app.content.why_matters import get_cached_many
+from app.content.why_matters import generation_segment, get_cached_many
 from app.db import get_db
 from app.errors import APIError
 from app.jobs.why_matters import enqueue_why_matters
@@ -180,8 +180,9 @@ def get_home(
         rankable = [story_to_rankable(db, s, loaded) for s in candidates]
         ranked = rank_stories(rankable, prefs)[:HOME_PAGE_SIZE]
         stories_by_id = {str(s.id): s for s in candidates}
-        cached_why = get_cached_many(db, [s.id for s in candidates], segment)
+        cached_why = get_cached_many(db, [s.id for s in candidates], generation_segment(segment))
         top_stories = []
+        misses = []
         for scored in ranked:
             story = stories_by_id[scored.story_id]
             out = story_to_out(db, story, loaded)
@@ -189,11 +190,12 @@ def get_home(
             if why_matters is None:
                 en = next((v for v in loaded.variants[story.id] if v.language == "en"), None)
                 if en is not None:
-                    enqueue_why_matters(db, story, en, segment)
+                    misses.append((story, en))
             out.personalization = PersonalizationOut(
                 score=scored.score, explanation=scored.explanation, why_matters=why_matters,
             )
             top_stories.append(out)
+        enqueue_why_matters(db, misses, segment)
         db.commit()
 
     return HomeResponse(top_stories=top_stories, topics=active_topics_out(db))

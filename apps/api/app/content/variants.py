@@ -14,12 +14,31 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Protocol
 
+from sqlalchemy import select
+from sqlalchemy.orm import Session
+
+from app.ai.privacy import PrivacyDecision, coerce, tighten
+from app.models import Correction, Story, StoryVariant
 from app.schemas import Language
 
 # `StoryVariant.model_version` for text an editor wrote in admin rather than a
 # model generated. Editor-authored copy is staff pre-publication text, so the
 # translation job never sends it to the free tier (ADR-015).
 EDITOR_MODEL_VERSION = "editor"
+
+
+def dispatch_privacy(db: Session, story: Story, en: StoryVariant) -> tuple[PrivacyDecision, bool]:
+    """ADR-015 routing inputs for an AI call over a story's English text:
+    the persisted decision (tightened for a sensitive story) and whether the
+    text is editor-authored — written in admin or touched by a correction —
+    which never goes to the free tier."""
+    decision = coerce(story.privacy_decision)
+    if story.sensitivity != "NONE":
+        decision = tighten(decision, PrivacyDecision.RESTRICTED)
+    editor_authored = en.model_version == EDITOR_MODEL_VERSION or (
+        db.scalars(select(Correction.id).where(Correction.story_id == story.id)).first() is not None
+    )
+    return decision, editor_authored
 
 
 class VariantLike(Protocol):

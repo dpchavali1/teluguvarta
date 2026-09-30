@@ -33,14 +33,13 @@ from sqlalchemy.orm import Session, aliased
 
 from app.ai import AiGateway, GatewayStatus, Task
 from app.ai.contracts import TranslationResult
-from app.ai.privacy import PrivacyDecision, coerce, tighten
 from app.content.glossary import apply_glossary
 from app.content.qa import find_variant_qa_issues
-from app.content.variants import EDITOR_MODEL_VERSION
+from app.content.variants import dispatch_privacy
 from app.jobs import ai_retry
 from app.jobs.generate import _env_flag
 from app.jobs.queue import enqueue_job, renew_lease
-from app.models import Correction, Job, ReviewTask, Story, StoryVariant
+from app.models import Job, ReviewTask, Story, StoryVariant
 
 TRANSLATE_INTERVAL_MINUTES = 2
 
@@ -117,12 +116,7 @@ def _translate_story(db: Session, story: Story, en: StoryVariant) -> bool:
     # FREE_TIER_ALLOWED, and text touched by an editor correction is staff
     # pre-publication copy that never goes to the free tier — as is an
     # English draft an editor wrote in admin.
-    decision = coerce(story.privacy_decision)
-    if story.sensitivity != "NONE":
-        decision = tighten(decision, PrivacyDecision.RESTRICTED)
-    editor_authored = en.model_version == EDITOR_MODEL_VERSION or (
-        db.scalars(select(Correction.id).where(Correction.story_id == story.id)).first() is not None
-    )
+    decision, editor_authored = dispatch_privacy(db, story, en)
     outcome = gateway.run_task(
         Task.TRANSLATION_EN_TE,
         _translate_prompt(en),

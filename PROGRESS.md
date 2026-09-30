@@ -123,6 +123,18 @@ gate section is gone; do not reintroduce a pilot gate on any future ticket.
   runs. Tests: `test_translation_skips_stories_whose_english_is_not_settled`. Full API suite 412 passed
   (3 flaky fixture errors, pass on rerun); ruff clean. **Deployed 2026-09-30 by the owner** (`b28261b`);
   not checked live (no code path is visible from outside; check the next `ai_translate` runs in the worker).
+- **#13 done (2026-09-30): bounded segment explanations from public home requests.** `GET /v1/home` with
+  preferences still queues an `ai_summarize` job per uncached (story, segment, version), but at most
+  `WHY_MATTERS_DAILY_JOB_CAP` (default 50) per rolling 24 h, counted once per request
+  (`app/jobs/why_matters.py`); past it, readers see the approved generic text. Concurrent requests can
+  overshoot by a few. Segment `other` now reads and generates the `general` explanation (same audience
+  label, so it was a second paid call for the same text). The prompt JSON-encodes headline/summary inside a
+  random untrusted-data boundary, and the call passes the story's privacy decision and editor-authored flag,
+  so an allowed story can use the free route. That routing is now shared with translation
+  (`content.variants.dispatch_privacy`). Not done: whether generic explanations suffice at launch (removing
+  the feature needs an owner decision); the cost-per-published-story metric isn't built yet, though these
+  calls log `story_id`. Tests: 4 new in `tests/test_personalization_api.py`. Full API suite 416 passed
+  (1 flaky fixture error, passes alone); ruff clean; no new mypy errors in touched files. Not deployed.
 - **Waiting on the owner (proposed ADRs, nothing implemented):** ADR-023 rights revocation for published,
   mixed-source and scheduled stories (#7 follow-up); ADR-024 total AI spend ceiling (#2); ADR-025 audited
   recovery of `AI_RETRIES_EXHAUSTED`/exhausted-translation holds; ADR-026 minimum content per format (#6).
