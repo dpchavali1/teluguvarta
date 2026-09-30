@@ -121,7 +121,8 @@ gate section is gone; do not reintroduce a pilot gate on any future ticket.
   is still translated so Telugu is ready at approval, and an editor's English edit in review still
   discards that Telugu. Also fixed: `tests/test_topic_navigation.py` (#11) failed `ruff check`, which CI
   runs. Tests: `test_translation_skips_stories_whose_english_is_not_settled`. Full API suite 412 passed
-  (3 flaky fixture errors, pass on rerun); ruff clean. Not deployed.
+  (3 flaky fixture errors, pass on rerun); ruff clean. **Deployed 2026-09-30 by the owner** (`b28261b`);
+  not checked live (no code path is visible from outside; check the next `ai_translate` runs in the worker).
 - **Waiting on the owner (proposed ADRs, nothing implemented):** ADR-023 rights revocation for published,
   mixed-source and scheduled stories (#7 follow-up); ADR-024 total AI spend ceiling (#2); ADR-025 audited
   recovery of `AI_RETRIES_EXHAUSTED`/exhausted-translation holds; ADR-026 minimum content per format (#6).
