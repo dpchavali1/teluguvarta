@@ -86,8 +86,9 @@ write one, and approve didn't check for English, so an empty story could be publ
     provider calls go through the gateway, so every task gets it. Test:
     `test_prompt_names_the_result_schema_keys`. Full suite 366 passed (known flaky teardown error in
     `test_notifications.py`, passes on rerun); ruff clean.
-  - **Not verified against the real Gemini API** from here. After `deploy.sh`, check `ai_call_log` for
-    `SUCCESS` rows on `gemini_paid`.
+  - **Deployed (b8d8559) and verified for translation (2026-09-30 02:20 UTC):** first run after deploy
+    logged 2 `gemini_paid` translation `SUCCESS`, no HOLDs since; both published stories now serve `te`.
+    Classify/summary on real Gemini not yet observed (waits on the next hourly fetch).
 - **Automation plan agreed with owner:**
   1. Faster triage (above).
   2. ADR: paid Gemini route, so AI drafts every story. **ADR-018 accepted and implemented (2026-09-29).**
