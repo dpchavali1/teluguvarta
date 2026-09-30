@@ -35,7 +35,7 @@ from app.ai import AiGateway, GatewayStatus, Task
 from app.ai.contracts import TranslationResult
 from app.ai.privacy import PrivacyDecision, coerce, tighten
 from app.content.glossary import apply_glossary
-from app.content.qa import find_qa_issues
+from app.content.qa import find_variant_qa_issues
 from app.content.variants import EDITOR_MODEL_VERSION
 from app.jobs import ai_retry
 from app.jobs.generate import _env_flag
@@ -139,9 +139,9 @@ def _translate_story(db: Session, story: Story, en: StoryVariant) -> None:
         else result.why_matters_te
     )
 
-    issues = find_qa_issues(en.headline, headline_te) + find_qa_issues(en.summary, summary_te)
-    if en.why_matters and why_matters_te:
-        issues += find_qa_issues(en.why_matters, why_matters_te)
+    issues = find_variant_qa_issues(
+        (en.headline, en.summary, en.why_matters), (headline_te, summary_te, why_matters_te)
+    )
     qa_status = "FAILED" if issues else "PASSED"
 
     db.add(

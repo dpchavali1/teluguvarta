@@ -33,7 +33,7 @@ from app.ai.budget import (
     today_cost_usd,
 )
 from app.auth import AdminPrincipal, current_admin
-from app.content.qa import find_qa_issues
+from app.content.qa import find_variant_qa_issues
 from app.content.serialize import load_story_relations
 from app.content.variants import EDITOR_MODEL_VERSION
 from app.db import get_db
@@ -603,9 +603,7 @@ def write_story_draft(
     if language == "te":
         if en is None:
             raise APIError(409, "NO_ENGLISH_DRAFT", "Write the English draft first — Telugu is derived from it")
-        issues = find_qa_issues(en.headline, headline) + find_qa_issues(en.summary, summary)
-        if en.why_matters and why_matters:
-            issues += find_qa_issues(en.why_matters, why_matters)
+        issues = find_variant_qa_issues((en.headline, en.summary, en.why_matters), (headline, summary, why_matters))
         if issues:
             raise APIError(422, "TELUGU_QA_FAILED", f"Telugu draft doesn't match the English: {', '.join(issues)}")
 

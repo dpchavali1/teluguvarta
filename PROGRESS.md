@@ -25,6 +25,14 @@ gate section is gone; do not reintroduce a pilot gate on any future ticket.
   manual reset of an exhausted row yet (recovery ADR). Provider Retry-After isn't surfaced by the gateway,
   so quota deferrals use the same backoff. Tests: `tests/test_ai_retry.py`. Full suite: 371 passed; 2
   setup errors from the local fixture's `pg_terminate_backend` permission, different tests each run, pass alone.
+- **#5 done (2026-09-29): stricter Telugu QA** (`app/content/qa.py`). Numbers compare as whole tokens and as
+  a multiset, so a changed ("5"→"50") or added number fails (`UNEXPECTED_NUMBER`); Telugu digits and
+  Indian grouping normalize first. Currency compares by token. Negation also fails when Telugu adds one that
+  the English lacks (`UNEXPECTED_NEGATION`, unless the English has a negative-sense word like "denied").
+  New `find_variant_qa_issues` requires headline and summary, why-matters when English has it, and at least
+  25% Telugu script per field; used by `ai_translate` and the admin Telugu draft endpoint. Still a floor
+  check, not a fidelity check: the native-speaker sample review stays. Full suite 378 passed (same 2 flaky
+  fixture errors).
 
 **Manual drafting in admin (2026-09-29)**: step 1 of the free/low-cost AI plan (VPS is a CPX21, 3 vCPU/4 GB,
 so no local LLM; the plan is Gemini free for allowlisted categories, a capped paid Flash-Lite route, and manual

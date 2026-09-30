@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 from app.ai import gateway as gateway_module
 from app.ai.providers.base import ProviderResponse
 from app.content.glossary import apply_glossary
-from app.content.qa import find_qa_issues
+from app.content.qa import find_qa_issues, find_variant_qa_issues
 from app.content.variants import resolve_display_variant
 from app.jobs import translate as translate_module
 from app.jobs.translate import (
@@ -189,6 +189,49 @@ def test_qa_passes_when_number_date_and_url_survive():
     en = "On March 5, 2026, 40,000 visas were processed. See https://example.gov/notice."
     te = "మార్చి 5, 2026న 40,000 వీసాలు ప్రాసెస్ చేయబడ్డాయి. https://example.gov/notice."
     assert find_qa_issues(en, te) == []
+
+
+# Review 2026-09-29 #5: presence-by-substring let changed and added numbers through.
+def test_qa_rejects_changed_number():
+    assert "UNEXPECTED_NUMBER:50" in find_qa_issues("5 people", "50 మంది")
+    assert "MISSING_NUMBER:5" in find_qa_issues("5 people", "50 మంది")
+
+
+def test_qa_rejects_added_number():
+    assert find_qa_issues("5 people", "5 మంది, 100 కేసులు") == ["UNEXPECTED_NUMBER:100"]
+
+
+def test_qa_compares_repeated_numbers_as_a_multiset():
+    assert find_qa_issues("5 of 5 seats", "5 సీట్లు") == ["MISSING_NUMBER:5"]
+
+
+def test_qa_accepts_telugu_digits_and_regrouped_numbers():
+    assert find_qa_issues("40,000 visas", "౪౦౦౦౦ వీసాలు") == []
+    assert find_qa_issues("100,000 visas", "1,00,000 వీసాలు") == []
+
+
+def test_qa_rejects_changed_currency():
+    issues = find_qa_issues("The fee is $5.", "రుసుము $50.")
+    assert "MISSING_CURRENCY:$5" in issues
+
+
+def test_qa_rejects_dropped_and_added_negation():
+    assert find_qa_issues("The visa was not approved.", "వీసా ఆమోదించబడింది.") == ["MISSING_NEGATION"]
+    assert find_qa_issues("The court didn’t rule.", "కోర్టు తీర్పు ఇచ్చింది.") == ["MISSING_NEGATION"]
+    assert find_qa_issues("The visa was approved.", "వీసా ఆమోదించబడలేదు.") == ["UNEXPECTED_NEGATION"]
+    # A negative-sense English word may be rendered with a negation marker.
+    assert find_qa_issues("The visa was denied.", "వీసా ఆమోదించబడలేదు.") == []
+
+
+def test_variant_qa_requires_fields_and_telugu_script():
+    en = ("USCIS raises fee", "The fee rises in 2026.", "Applicants pay more.")
+    ok = ("USCIS రుసుము పెంచింది", "2026లో రుసుము పెరుగుతుంది.", "దరఖాస్తుదారులు ఎక్కువ చెల్లిస్తారు.")
+    assert find_variant_qa_issues(en, ok) == []
+    assert find_variant_qa_issues(en, (ok[0], ok[1], None)) == ["MISSING_FIELD:why_matters"]
+    assert find_variant_qa_issues(en, (ok[0], "", ok[2])) == ["MISSING_FIELD:summary"]
+    assert find_variant_qa_issues(en, (ok[0], "The fee rises in 2026.", ok[2])) == ["NOT_TELUGU_SCRIPT:summary"]
+    # No English why-matters: an empty Telugu one is fine.
+    assert find_variant_qa_issues((en[0], en[1], None), (ok[0], ok[1], None)) == []
 
 
 def test_resolve_display_variant_falls_back_to_english_when_te_missing():
