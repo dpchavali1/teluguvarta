@@ -1,6 +1,6 @@
 # ADR-026: Minimum content for a published story, by format
 
-- **Status**: proposed (owner decision needed)
+- **Status**: accepted (2026-09-30): FULL rules (b), (c) and (d), not (a); manual drafts follow the same rules; owner fixes the two live stories by hand
 - **Date**: 2026-09-29
 - **Ticket**: review 2026-09-29 finding #6 (`docs/reviews/2026-09-29-comprehensive-review.md`)
 

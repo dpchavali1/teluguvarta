@@ -226,9 +226,15 @@ gate section is gone; do not reintroduce a pilot gate on any future ticket.
   **Not done:** browser journeys (Playwright with BRIEF/zero/two/many/error fixtures), the capped
   paid-model contract/Telugu eval (spends money: owner to approve a budget), cleaning mobile `act`
   warnings, and actually reducing mypy debt.
-- **Waiting on the owner (proposed ADRs, nothing implemented):** ADR-023 rights revocation for published,
-  mixed-source and scheduled stories (#7 follow-up); ADR-024 total AI spend ceiling (#2); ADR-025 audited
-  recovery of `AI_RETRIES_EXHAUSTED`/exhausted-translation holds; ADR-026 minimum content per format (#6).
+- **Waiting on the owner (proposed ADR, nothing implemented):** ADR-023 rights revocation for published,
+  mixed-source and scheduled stories (#7 follow-up).
+- **Accepted 2026-09-30, not yet implemented:** ADR-024 (#2) options 1+5+6 — `MONTHLY_AI_HARD_CAP_USD`
+  refuses every paid call incl. classification, prod refuses to start without budget vars, owner sets the
+  Gemini console quota/alert. ADR-025 options 1+3 — ADMIN "Retry AI" (audited `AI_RETRY_RESET`, max 2 per
+  story) plus an admin list of EXHAUSTED translations. ADR-026 (#6) — `validate_for_publication` with FULL
+  rules (b) summary/headline similarity < 0.8, (c) summary ≥ 2 sentences or ≥ 25 words, (d) headline < 0.6
+  vs every source title; why-matters stays optional; manual drafts get the same rules (422 with the rule);
+  owner edits the two live stories by hand.
   **Deployed to the VPS 2026-09-30 03:07 UTC at `5af512f`:** both migrations (`b8e4c2d6f1a3`,
   `c9f5d3e7a2b4`) applied, all services up, API healthy. Worker checked 03:14 UTC: every sweep job type
   running on schedule and `DONE`, none stuck, no worker errors, `ai_work_state` empty, no story missing

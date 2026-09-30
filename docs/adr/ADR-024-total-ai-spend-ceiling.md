@@ -1,6 +1,6 @@
 # ADR-024: A total AI spend ceiling, not only a degradation threshold
 
-- **Status**: proposed (owner decision needed)
+- **Status**: accepted (2026-09-30): owner chose options 1, 5 and 6; add 3 only with a second worker
 - **Date**: 2026-09-29
 - **Ticket**: review 2026-09-29 finding #2 (`docs/reviews/2026-09-29-comprehensive-review.md`)
 

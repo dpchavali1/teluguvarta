@@ -1,6 +1,6 @@
 # ADR-025: Recovering stories held by AI failures
 
-- **Status**: proposed (owner decision needed)
+- **Status**: accepted (2026-09-30): owner chose options 1 and 3; add 2 after the first outage that needs it
 - **Date**: 2026-09-29
 - **Ticket**: review 2026-09-29 findings #1 and backlog item 1 (`docs/reviews/2026-09-29-comprehensive-review.md`)
 
