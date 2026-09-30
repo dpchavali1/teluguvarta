@@ -245,7 +245,8 @@ gate section is gone; do not reintroduce a pilot gate on any future ticket.
   already in place (sticky two-row nav ≤720px, `.table-scroll` + `.col-wide-only`, review detail single-column
   ≤960px); verified by build output + served HTML/manifest, **not** by a logged-in phone session — owner to
   confirm "Add to Home Screen" on a real phone after deploy. On single-column widths (≤960px) the review page's
-  decision panel is moved above the story with CSS `order: -1` (DOM order unchanged). A native admin app was declined for
+  decision panel is moved above the story with CSS `order: -1` (DOM order unchanged; `30c4812`, deployed
+  2026-09-30, live CSS confirmed). A native admin app was declined for
   now (would need an ADR). Also open: auto-publish is built but off in prod (`AUTO_PUBLISH_GLOBAL=false`,
   `AUTO_PUBLISH_BRIEFS=false` in `.env.prod`) — owner decides whether to turn either on; until then every story
   waits in the admin review queue.
