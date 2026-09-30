@@ -33,6 +33,13 @@ gate section is gone; do not reintroduce a pilot gate on any future ticket.
   25% Telugu script per field; used by `ai_translate` and the admin Telugu draft endpoint. Still a floor
   check, not a fidelity check: the native-speaker sample review stays. Full suite 378 passed (same 2 flaky
   fixture errors).
+- **#3 done (2026-09-29): AI usage telemetry.** Migration `c9f5d3e7a2b4`: `ai_call_log.tokens_thinking`,
+  `tokens_cached`, and statuses `PARSE_ERROR`, `BLOCKED`, `PROVIDER_ERROR`. Gemini `tokens_out` now includes
+  `thoughtsTokenCount` (billed as output), so cost counts it. Cached input is recorded but priced at the full
+  rate, which overestimates. Providers no longer raise on malformed JSON (`parse_json_output`); a
+  malformed or blocked reply is logged with its usage and fails validation like any bad output. Transport
+  errors log `PROVIDER_ERROR`, not `UNAVAILABLE`, so the misconfiguration alert isn't tripped. Not done:
+  reconciling logged cost against the Cloud billing export (needs billing access). Full suite 384 passed.
 
 **Manual drafting in admin (2026-09-29)**: step 1 of the free/low-cost AI plan (VPS is a CPX21, 3 vCPU/4 GB,
 so no local LLM; the plan is Gemini free for allowlisted categories, a capped paid Flash-Lite route, and manual

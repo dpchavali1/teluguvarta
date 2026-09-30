@@ -27,6 +27,8 @@ def record_call(
     tokens_in: int = 0,
     tokens_out: int = 0,
     story_id: uuid.UUID | None = None,
+    tokens_thinking: int = 0,
+    tokens_cached: int = 0,
 ) -> AiCallLog:
     row = AiCallLog(
         task=task.value,
@@ -36,6 +38,8 @@ def record_call(
         story_id=story_id,
         tokens_in=tokens_in,
         tokens_out=tokens_out,
+        tokens_thinking=tokens_thinking,
+        tokens_cached=tokens_cached,
         cost_usd=cost_usd(model, tokens_in, tokens_out, provider=provider),
     )
     db.add(row)

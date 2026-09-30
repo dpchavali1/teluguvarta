@@ -4,11 +4,14 @@ import the `openai` SDK (CI grep check enforces this; see ADR-001).
 
 from __future__ import annotations
 
-import json
 import os
 from typing import TYPE_CHECKING
 
-from app.ai.providers.base import ProviderResponse, ProviderUnavailableError
+from app.ai.providers.base import (
+    ProviderResponse,
+    ProviderUnavailableError,
+    parse_json_output,
+)
 
 if TYPE_CHECKING:
     from app.ai.tasks import Task
@@ -41,8 +44,10 @@ class OpenAiProvider:
         )
         content = response.choices[0].message.content or "{}"
         usage = response.usage
+        output, failure = parse_json_output(content)
         return ProviderResponse(
-            output=json.loads(content),
+            output=output,
             tokens_in=getattr(usage, "prompt_tokens", 0) or 0,
             tokens_out=getattr(usage, "completion_tokens", 0) or 0,
+            failure=failure,
         )

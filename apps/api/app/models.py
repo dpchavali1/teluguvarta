@@ -437,13 +437,18 @@ class AiCallLog(Base):
     task: Mapped[str] = mapped_column(Text, nullable=False)
     provider: Mapped[str] = mapped_column(Text, nullable=False)
     model: Mapped[str] = mapped_column(Text, nullable=False)
-    # 'SUCCESS' | 'RETRY_SUCCESS' | 'HOLD' | 'REVIEW_QUEUE' | 'UNAVAILABLE'
+    # 'SUCCESS' | 'RETRY_SUCCESS' | 'HOLD' | 'REVIEW_QUEUE' | 'UNAVAILABLE' | 'DEFERRED'
+    # | 'PARSE_ERROR' | 'BLOCKED' | 'PROVIDER_ERROR' per `ck_ai_call_log_status`.
     status: Mapped[str] = mapped_column(Text, nullable=False)
     story_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("stories.id", ondelete="SET NULL"), nullable=True
     )
     tokens_in: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
+    # Billed output, thinking included; `tokens_thinking` is the part of it
+    # that was thinking, `tokens_cached` the part of `tokens_in` served from cache.
     tokens_out: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
+    tokens_thinking: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
+    tokens_cached: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
     cost_usd: Mapped[float] = mapped_column(Numeric(12, 6), nullable=False, server_default="0")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
 

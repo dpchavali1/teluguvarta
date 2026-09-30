@@ -261,8 +261,9 @@ def test_provider_unavailable_never_invents_content(migrated_database, monkeypat
 
         assert outcome.status == GatewayStatus.UNAVAILABLE
         assert outcome.result is None
-        # Nothing was recorded — no provider call was ever made.
-        assert db.scalars(select(AiCallLog)).all() == []
+        # Review 2026-09-29 #3: the failure is logged, with no usage or cost.
+        rows = db.scalars(select(AiCallLog)).all()
+        assert [(r.status, r.tokens_in, float(r.cost_usd)) for r in rows] == [("PROVIDER_ERROR", 0, 0.0)]
 
 
 @requires_postgres
@@ -340,3 +341,64 @@ def test_ambiguous_pair_falls_back_to_no_match_without_a_provider(migrated_datab
 
         stories = db.scalars(select(Story)).all()
         assert len(stories) == 2
+
+
+class _ScriptedProvider:
+    """Returns prepared `ProviderResponse`s / raises prepared errors."""
+
+    name = "fake"
+
+    def __init__(self, items):
+        self._items = list(items)
+
+    def complete(self, *, model, task, prompt, constrained=False):
+        item = self._items.pop(0)
+        if isinstance(item, Exception):
+            raise item
+        return item
+
+
+# Review 2026-09-29 #3: billed failures are logged with their usage.
+@requires_postgres
+def test_malformed_then_blocked_replies_are_logged_with_usage(migrated_database, monkeypatch):
+    provider = _ScriptedProvider([
+        ProviderResponse(output={}, tokens_in=100, tokens_out=70, tokens_thinking=50, failure="PARSE_ERROR"),
+        ProviderResponse(output={}, tokens_in=100, tokens_out=5, tokens_cached=30, failure="BLOCKED"),
+    ])
+    monkeypatch.setattr(gateway_module, "_resolve_provider", lambda name: provider)
+    with Session(create_engine(migrated_database)) as db:
+        outcome = AiGateway(db).run_task(Task.SUMMARY, "summarize this")
+        assert outcome.status == GatewayStatus.HOLD
+        rows = db.scalars(select(AiCallLog).order_by(AiCallLog.created_at)).all()
+        assert [r.status for r in rows] == ["PARSE_ERROR", "BLOCKED"]
+        assert (rows[0].tokens_out, rows[0].tokens_thinking) == (70, 50)
+        assert rows[1].tokens_cached == 30
+        assert all(float(r.cost_usd) >= 0 for r in rows)
+
+
+@requires_postgres
+def test_failure_flag_is_never_treated_as_success(migrated_database, monkeypatch):
+    """Even output that would validate is discarded when the provider says
+    the reply failed."""
+    provider = _ScriptedProvider([
+        ProviderResponse(output=_valid_payload(), tokens_in=1, tokens_out=1, failure="BLOCKED"),
+        ProviderResponse(output=_valid_payload(), tokens_in=1, tokens_out=1),
+    ])
+    monkeypatch.setattr(gateway_module, "_resolve_provider", lambda name: provider)
+    with Session(create_engine(migrated_database)) as db:
+        outcome = AiGateway(db).run_task(Task.SUMMARY, "summarize this", evidence_item_ids=frozenset({"src-1"}))
+        assert outcome.status == GatewayStatus.OK
+        assert [r.status for r in db.scalars(select(AiCallLog).order_by(AiCallLog.created_at))] == [
+            "BLOCKED", "RETRY_SUCCESS",
+        ]
+
+
+@requires_postgres
+def test_transport_failure_is_logged_as_provider_error(migrated_database, monkeypatch):
+    from app.ai.providers.base import ProviderUnavailableError
+
+    _use_fake_provider(monkeypatch, [ProviderUnavailableError("HTTP 503")])
+    with Session(create_engine(migrated_database)) as db:
+        outcome = AiGateway(db).run_task(Task.SUMMARY, "summarize this")
+        assert outcome.status == GatewayStatus.UNAVAILABLE
+        assert [r.status for r in db.scalars(select(AiCallLog))] == ["PROVIDER_ERROR"]

@@ -4,11 +4,14 @@ import the `anthropic` SDK (CI grep check enforces this; see ADR-001).
 
 from __future__ import annotations
 
-import json
 import os
 from typing import TYPE_CHECKING
 
-from app.ai.providers.base import ProviderResponse, ProviderUnavailableError
+from app.ai.providers.base import (
+    ProviderResponse,
+    ProviderUnavailableError,
+    parse_json_output,
+)
 
 if TYPE_CHECKING:
     from app.ai.tasks import Task
@@ -40,8 +43,10 @@ class AnthropicProvider:
             messages=[{"role": "user", "content": text}],
         )
         content = "".join(block.text for block in response.content if getattr(block, "type", None) == "text")
+        output, failure = parse_json_output(content or "{}")
         return ProviderResponse(
-            output=json.loads(content or "{}"),
+            output=output,
             tokens_in=getattr(response.usage, "input_tokens", 0) or 0,
             tokens_out=getattr(response.usage, "output_tokens", 0) or 0,
+            failure=failure,
         )

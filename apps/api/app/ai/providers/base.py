@@ -6,6 +6,7 @@ directly. This file itself imports no SDK.
 
 from __future__ import annotations
 
+import json
 from typing import TYPE_CHECKING, Protocol
 
 from pydantic import BaseModel
@@ -17,7 +18,26 @@ if TYPE_CHECKING:
 class ProviderResponse(BaseModel):
     output: dict
     tokens_in: int
+    # Billed output tokens, including any thinking tokens.
     tokens_out: int
+    tokens_thinking: int = 0
+    tokens_cached: int = 0
+    # Set when the provider answered (and billed) but gave no usable JSON:
+    # 'PARSE_ERROR' or 'BLOCKED'. `output` is then `{}`, which fails schema
+    # validation in the gateway, so usage is still recorded (review #3).
+    failure: str | None = None
+
+
+def parse_json_output(content: str | None) -> tuple[dict, str | None]:
+    """Parses a provider's JSON text without raising, so a malformed reply
+    still reaches the gateway with its usage attached."""
+    try:
+        output = json.loads(content or "")
+    except (json.JSONDecodeError, TypeError):
+        return {}, "PARSE_ERROR"
+    if not isinstance(output, dict):
+        return {}, "PARSE_ERROR"
+    return output, None
 
 
 class ProviderUnavailableError(RuntimeError):

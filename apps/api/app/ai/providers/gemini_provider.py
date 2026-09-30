@@ -9,7 +9,6 @@ reachable only via PAID_GEMINI_ROUTING.
 
 from __future__ import annotations
 
-import json
 import os
 from typing import TYPE_CHECKING
 
@@ -19,6 +18,7 @@ from app.ai.providers.base import (
     ProviderQuotaError,
     ProviderResponse,
     ProviderUnavailableError,
+    parse_json_output,
 )
 
 if TYPE_CHECKING:
@@ -64,18 +64,44 @@ class GeminiProvider:
         except httpx.HTTPError as exc:
             # 429 (free-tier quota) and 5xx land here: queue for later, per §7.5.
             raise ProviderUnavailableError(f"Gemini request failed: {type(exc).__name__}") from exc
-        body = response.json()
         try:
-            parts = body["candidates"][0]["content"]["parts"]
-            content = "".join(p.get("text", "") for p in parts if not p.get("thought")) or "{}"
-        except (KeyError, IndexError, TypeError):
-            content = "{}"  # blocked/empty candidate: gateway's schema check handles it
-        usage = body.get("usageMetadata", {})
+            body = response.json()
+        except ValueError:
+            body = {}
+        usage = body.get("usageMetadata") or {}
+        # Review 2026-09-29 #3: thinking tokens are billed at the output rate
+        # but reported apart from candidatesTokenCount. Cached input is part of
+        # promptTokenCount; it's priced at the full rate (an overestimate).
+        thinking = usage.get("thoughtsTokenCount", 0) or 0
+        output, failure = _parse_body(body)
         return ProviderResponse(
-            output=json.loads(content),
+            output=output,
             tokens_in=usage.get("promptTokenCount", 0) or 0,
-            tokens_out=usage.get("candidatesTokenCount", 0) or 0,
+            tokens_out=(usage.get("candidatesTokenCount", 0) or 0) + thinking,
+            tokens_thinking=thinking,
+            tokens_cached=usage.get("cachedContentTokenCount", 0) or 0,
+            failure=failure,
         )
+
+
+# finishReason values meaning the model's answer was withheld, not truncated.
+_BLOCKED_FINISH_REASONS = frozenset(
+    {"SAFETY", "RECITATION", "BLOCKLIST", "PROHIBITED_CONTENT", "SPII", "IMAGE_SAFETY"}
+)
+
+
+def _parse_body(body: dict) -> tuple[dict, str | None]:
+    if (body.get("promptFeedback") or {}).get("blockReason"):
+        return {}, "BLOCKED"
+    try:
+        candidate = body["candidates"][0]
+    except (KeyError, IndexError, TypeError):
+        return {}, "BLOCKED"  # no candidate at all: nothing was returned
+    if candidate.get("finishReason") in _BLOCKED_FINISH_REASONS:
+        return {}, "BLOCKED"
+    parts = (candidate.get("content") or {}).get("parts") or []
+    content = "".join(p.get("text", "") for p in parts if isinstance(p, dict) and not p.get("thought"))
+    return parse_json_output(content)
 
 
 class PaidGeminiProvider(GeminiProvider):

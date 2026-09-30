@@ -18,7 +18,12 @@ from sqlalchemy.orm import Session
 from app.ai.budget import is_over_monthly_budget, record_call
 from app.ai.contracts import GenerationResult
 from app.ai.privacy import PrivacyDecision, coerce
-from app.ai.providers.base import Provider, ProviderQuotaError, ProviderUnavailableError
+from app.ai.providers.base import (
+    Provider,
+    ProviderQuotaError,
+    ProviderResponse,
+    ProviderUnavailableError,
+)
 from app.ai.providers.null_provider import NullProvider
 from app.ai.ratelimit import acquire, has_limits
 from app.ai.tasks import (
@@ -208,42 +213,57 @@ class AiGateway:
         model = route.default_model
         prompt = _with_output_contract(prompt, result_model)
 
-        try:
-            response = provider.complete(model=model, task=task, prompt=prompt)
-        except ProviderQuotaError:
-            record_call(self._db, task=task, provider=provider.name, model=model, status="DEFERRED", story_id=story_id)
-            return GatewayOutcome(status=GatewayStatus.DEFERRED)
-        except ProviderUnavailableError:
-            return GatewayOutcome(status=GatewayStatus.UNAVAILABLE)
+        def _record(status: str, response: ProviderResponse | None = None) -> None:
+            usage = {}
+            if response is not None:
+                usage = {
+                    "tokens_in": response.tokens_in, "tokens_out": response.tokens_out,
+                    "tokens_thinking": response.tokens_thinking, "tokens_cached": response.tokens_cached,
+                }
+            record_call(
+                self._db, task=task, provider=provider.name, model=model, status=status, story_id=story_id, **usage
+            )
 
-        try:
-            result = result_model.model_validate(response.output)
-            record_call(
-                self._db, task=task, provider=provider.name, model=model, status="SUCCESS",
-                tokens_in=response.tokens_in, tokens_out=response.tokens_out, story_id=story_id,
-            )
-        except ValidationError:
-            record_call(
-                self._db, task=task, provider=provider.name, model=model, status="HOLD",
-                tokens_in=response.tokens_in, tokens_out=response.tokens_out, story_id=story_id,
-            )
-            # §7.5: retry once with a constrained prompt.
+        def _call(constrained: bool) -> ProviderResponse | GatewayOutcome:
+            # Review 2026-09-29 #3: every provider failure is logged, so the
+            # failure rate is visible. PROVIDER_ERROR, not UNAVAILABLE: the
+            # refusal alert reads UNAVAILABLE as misconfiguration.
             try:
-                retry_response = provider.complete(model=model, task=task, prompt=prompt, constrained=True)
+                return provider.complete(model=model, task=task, prompt=prompt, constrained=constrained)
+            except ProviderQuotaError:
+                _record("DEFERRED")
+                return GatewayOutcome(status=GatewayStatus.DEFERRED)
             except ProviderUnavailableError:
+                _record("PROVIDER_ERROR")
                 return GatewayOutcome(status=GatewayStatus.UNAVAILABLE)
+
+        response = _call(constrained=False)
+        if isinstance(response, GatewayOutcome):
+            return response
+
+        def _validate(response: ProviderResponse) -> BaseModel | None:
+            if response.failure:
+                return None
             try:
-                result = result_model.model_validate(retry_response.output)
-                record_call(
-                    self._db, task=task, provider=provider.name, model=model, status="RETRY_SUCCESS",
-                    tokens_in=retry_response.tokens_in, tokens_out=retry_response.tokens_out, story_id=story_id,
-                )
+                return result_model.model_validate(response.output)
             except ValidationError:
-                record_call(
-                    self._db, task=task, provider=provider.name, model=model, status="HOLD",
-                    tokens_in=retry_response.tokens_in, tokens_out=retry_response.tokens_out, story_id=story_id,
-                )
+                return None
+
+        result = _validate(response)
+        if result is not None:
+            _record("SUCCESS", response)
+        else:
+            # A malformed or blocked reply is still billed: log its usage.
+            _record(response.failure or "HOLD", response)
+            # §7.5: retry once with a constrained prompt.
+            retry_response = _call(constrained=True)
+            if isinstance(retry_response, GatewayOutcome):
+                return retry_response
+            result = _validate(retry_response)
+            if result is None:
+                _record(retry_response.failure or "HOLD", retry_response)
                 return GatewayOutcome(status=GatewayStatus.HOLD)
+            _record("RETRY_SUCCESS", retry_response)
 
         # §7.2: sensitive validation always goes to human review in V1,
         # regardless of confidence.

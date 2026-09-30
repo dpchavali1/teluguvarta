@@ -62,3 +62,44 @@ def test_gemini_is_not_in_default_routing():
     assert all(
         "gemini" not in (r.provider, r.escalation_provider) for r in ROUTING.values()
     )
+
+
+# Review 2026-09-29 #3: usage survives a bad reply, and thinking is billed.
+def test_thinking_tokens_count_as_billed_output(monkeypatch):
+    monkeypatch.setenv("AI_GEMINI_API_KEY", "k")
+    _patch_post(monkeypatch, lambda r: httpx.Response(200, json={
+        "candidates": [{"content": {"parts": [{"text": "plan", "thought": True}, {"text": '{"a": 1}'}]}}],
+        "usageMetadata": {
+            "promptTokenCount": 100, "candidatesTokenCount": 20,
+            "thoughtsTokenCount": 300, "cachedContentTokenCount": 40,
+        },
+    }))
+    out = GeminiProvider().complete(model="m", task=Task.SUMMARY, prompt="hi")
+    assert out.output == {"a": 1}
+    assert (out.tokens_in, out.tokens_out, out.tokens_thinking, out.tokens_cached) == (100, 320, 300, 40)
+    assert out.failure is None
+
+
+def test_malformed_json_keeps_usage(monkeypatch):
+    monkeypatch.setenv("AI_GEMINI_API_KEY", "k")
+    _patch_post(monkeypatch, lambda r: httpx.Response(200, json={
+        "candidates": [{"content": {"parts": [{"text": '{"a": 1'}]}}],
+        "usageMetadata": {"promptTokenCount": 100, "candidatesTokenCount": 20},
+    }))
+    out = GeminiProvider().complete(model="m", task=Task.SUMMARY, prompt="hi")
+    assert out.output == {}
+    assert out.failure == "PARSE_ERROR"
+    assert (out.tokens_in, out.tokens_out) == (100, 20)
+
+
+def test_safety_block_is_reported_with_usage(monkeypatch):
+    monkeypatch.setenv("AI_GEMINI_API_KEY", "k")
+    _patch_post(monkeypatch, lambda r: httpx.Response(200, json={
+        "candidates": [{"finishReason": "SAFETY", "content": {"parts": [{"text": "{}"}]}}],
+        "usageMetadata": {"promptTokenCount": 100, "thoughtsTokenCount": 10},
+    }))
+    out = GeminiProvider().complete(model="m", task=Task.SUMMARY, prompt="hi")
+    assert out.failure == "BLOCKED"
+    assert (out.tokens_in, out.tokens_out, out.tokens_thinking) == (100, 10, 10)
+    _patch_post(monkeypatch, lambda r: httpx.Response(200, json={"promptFeedback": {"blockReason": "SAFETY"}}))
+    assert GeminiProvider().complete(model="m", task=Task.SUMMARY, prompt="hi").failure == "BLOCKED"
