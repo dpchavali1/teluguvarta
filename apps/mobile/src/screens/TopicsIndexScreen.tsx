@@ -45,7 +45,7 @@ export function TopicsIndexScreen() {
   if (error) {
     return (
       <View style={styles.center}>
-        <Text>{error}</Text>
+        <Text style={styles.message} accessibilityRole="alert">{error}</Text>
         <Pressable onPress={load} accessibilityRole="button" accessibilityLabel="Retry" style={styles.retryButton}>
           <Text style={styles.retryButtonText}>Retry</Text>
         </Pressable>
@@ -56,7 +56,7 @@ export function TopicsIndexScreen() {
   if (topics === null) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator accessibilityLabel="Loading topics" />
+        <ActivityIndicator accessibilityLabel="Loading topics" color={colors.text} />
       </View>
     );
   }
@@ -68,7 +68,7 @@ export function TopicsIndexScreen() {
       keyExtractor={(topic) => topic.slug}
       ListEmptyComponent={
         <View style={styles.center}>
-          <Text>No topics yet.</Text>
+          <Text style={styles.message}>No topics yet.</Text>
         </View>
       }
       renderItem={({ item: topic }) => (
@@ -98,6 +98,7 @@ function createStyles(colors: AppTheme["colors"]) {
   return StyleSheet.create({
     list: { backgroundColor: colors.bg },
     center: { flex: 1, alignItems: "center", justifyContent: "center", gap: spacing.md },
+    message: { color: colors.text, textAlign: "center", paddingHorizontal: spacing.lg },
     row: {
       minHeight: 44,
       flexDirection: "row",

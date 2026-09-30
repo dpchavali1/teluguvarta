@@ -38,7 +38,7 @@ export function LanguageScreen() {
             style={[styles.row, index < OPTIONS.length - 1 && styles.rowDivider, profile.language === option.value && styles.rowActive]}
           >
             <Text style={styles.label}>{option.label}</Text>
-            {profile.language === option.value && <Text>✓</Text>}
+            {profile.language === option.value && <Text style={styles.label}>✓</Text>}
           </Pressable>
         ))}
       </View>

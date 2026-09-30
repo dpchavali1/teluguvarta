@@ -158,6 +158,20 @@ gate section is gone; do not reintroduce a pilot gate on any future ticket.
   browser. Not done: country pages in the sitemap (left out until this, #16); formula weights untuned.
   **Deployed 2026-09-30 by the owner** (`fe59840`, migration `d1a6e4f8b3c5`); not checked live. Still to do
   in admin: set countries and topics on the two live stories.
+- **#14 code part done (2026-09-30): mobile freshness, Latest, dark-theme text.** Home reloads when the tab
+  regains focus or the app returns to the foreground, but only once the last successful load is
+  `HOME_STALE_MS` (5 min) old; a failed load is still retried by pull-to-refresh. New `Latest` stack screen
+  (`/v1/stories` newest first, "Older stories" by cursor, deep link `latest`), opened from an "All latest
+  stories" button at the end of Home. Topic and Latest share `components/PagedStoryList.tsx`; its buttons
+  are themed Pressables, not the native `Button`. Error/empty/notice text that used the default
+  (black) color now uses theme colors: StoryList, Topic, Topics, Search, Story detail, Saved, Language
+  check mark, and StoryCard's "Telugu isn't available" note. Tests: 2 new in
+  `src/__tests__/ux-reliability.test.tsx`; mobile jest 21 passed, typecheck clean, iOS and Android bundle
+  export pass. Not checked on a device. **Not done:** tab icons are still font glyphs
+  (`@expo/vector-icons` breaks web/admin builds via a second `@types/react`, see `MainTabs.tsx`);
+  **owner:** rebuild and install the APK with the production domain URLs (the installed build still
+  points at sslip.io), then device-test large text, TalkBack/VoiceOver, Telugu wrapping, safe areas,
+  offline recovery, save/delete and real push; verified HTTPS app links would need an ADR.
 - **Waiting on the owner (proposed ADRs, nothing implemented):** ADR-023 rights revocation for published,
   mixed-source and scheduled stories (#7 follow-up); ADR-024 total AI spend ceiling (#2); ADR-025 audited
   recovery of `AI_RETRIES_EXHAUSTED`/exhausted-translation holds; ADR-026 minimum content per format (#6).

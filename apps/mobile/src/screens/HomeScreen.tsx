@@ -1,8 +1,9 @@
-import { useNavigation } from "@react-navigation/native";
+import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  AppState,
   FlatList,
   Linking,
   Pressable,
@@ -20,6 +21,11 @@ import { radius, spacing, typography } from "../theme/tokens";
 import { useAppTheme, type AppTheme } from "../theme/useAppTheme";
 import type { RootStackParamList } from "../navigation/types";
 
+// Review #14: Home loaded only on mount and pull-to-refresh, so a feed left
+// open overnight stayed stale. Returning to the tab or the app reloads it,
+// but at most once per this interval.
+export const HOME_STALE_MS = 5 * 60 * 1000;
+
 export function HomeScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { colors, ui } = useAppTheme();
@@ -33,6 +39,7 @@ export function HomeScreen() {
   const [error, setError] = useState<string | null>(null);
 
   const requestId = useRef(0);
+  const loadedAt = useRef<number | null>(null);
 
   const load = useCallback(async () => {
     const current = ++requestId.current;
@@ -49,6 +56,7 @@ export function HomeScreen() {
       };
       const home = await getHome(homeParams);
       if (current !== requestId.current) return;
+      loadedAt.current = Date.now();
       setStories(home.top_stories);
       // Chips lead to content; the Topics tab lists the empty ones too.
       setTopics(home.topics.filter((topic) => topic.story_count > 0));
@@ -84,6 +92,21 @@ export function HomeScreen() {
     void load();
     return () => { requestId.current += 1; };
   }, [load]);
+
+  // Only after a successful load: the mount effect covers the first one, and
+  // a failed load is retried by pull-to-refresh, as its error copy says.
+  const refreshIfStale = useCallback(() => {
+    if (loadedAt.current !== null && Date.now() - loadedAt.current >= HOME_STALE_MS) void load();
+  }, [load]);
+
+  useFocusEffect(refreshIfStale);
+
+  useEffect(() => {
+    const subscription = AppState.addEventListener("change", (state) => {
+      if (state === "active") refreshIfStale();
+    });
+    return () => subscription.remove();
+  }, [refreshIfStale]);
 
   // The error copy tells the user to pull down to retry, so that gesture has
   // to actually exist — without it the error state is unrecoverable short of
@@ -138,7 +161,18 @@ export function HomeScreen() {
           accessibilityLabel="Refresh the feed"
         />
       }
-      ListEmptyComponent={!loading && !error ? <Text style={styles.error}>No stories yet. Browse topics or pull down to refresh.</Text> : null}
+      ListEmptyComponent={!loading && !error ? <Text style={styles.empty}>No stories yet. Browse topics or pull down to refresh.</Text> : null}
+      // Home is a bounded ranked set; Latest pages through everything.
+      ListFooterComponent={
+        <Pressable
+          onPress={() => navigation.navigate("Latest")}
+          accessibilityRole="button"
+          accessibilityHint="Opens every published story, newest first"
+          style={styles.latestLink}
+        >
+          <Text style={styles.latestLinkText}>All latest stories</Text>
+        </Pressable>
+      }
       ListHeaderComponent={
         <>
           <View style={styles.welcome} accessibilityLabel="Your daily briefing">
@@ -194,6 +228,19 @@ function createStyles(colors: AppTheme["colors"], ui: AppTheme["ui"]) {
   container: { paddingBottom: 24, backgroundColor: colors.bg },
   center: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: colors.bg },
   error: { color: ui.danger, padding: spacing.lg },
+  empty: { color: colors.muted, padding: spacing.lg },
+  latestLink: {
+    minHeight: 44,
+    justifyContent: "center",
+    alignItems: "center",
+    marginHorizontal: spacing.md,
+    marginTop: spacing.md,
+    borderRadius: radius.pill,
+    borderCurve: "continuous",
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  latestLinkText: { ...typography.meta, textTransform: "none", color: colors.text },
   welcome: {
     margin: spacing.md,
     marginBottom: spacing.sm,

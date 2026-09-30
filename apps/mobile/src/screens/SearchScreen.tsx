@@ -90,7 +90,7 @@ export function SearchScreen() {
         </View>
       ) : error ? (
         <View style={styles.center}>
-          <Text>{error}</Text>
+          <Text style={styles.message} accessibilityRole="alert">{error}</Text>
           <Pressable
             onPress={() => runSearch(query)}
             accessibilityRole="button"
@@ -113,6 +113,7 @@ export function SearchScreen() {
 function createStyles(colors: AppTheme["colors"], ui: AppTheme["ui"]) {
   return StyleSheet.create({
     container: { flex: 1, backgroundColor: colors.bg },
+    message: { color: colors.text, textAlign: "center", paddingHorizontal: spacing.lg },
     input: {
       minHeight: 44,
       margin: 12,

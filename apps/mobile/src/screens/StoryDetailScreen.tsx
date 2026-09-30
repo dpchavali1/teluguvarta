@@ -45,7 +45,7 @@ export function StoryDetailScreen({ route }: Props) {
   if (error) {
     return (
       <View style={styles.center}>
-        <Text>{error}</Text>
+        <Text style={styles.message} accessibilityRole="alert">{error}</Text>
         <Pressable
           onPress={() => setRetryKey((k) => k + 1)}
           accessibilityRole="button"
@@ -77,6 +77,7 @@ function createStyles(colors: AppTheme["colors"]) {
   return StyleSheet.create({
     container: { flex: 1, backgroundColor: colors.bg },
     center: { flex: 1, alignItems: "center", justifyContent: "center", gap: spacing.md, backgroundColor: colors.bg },
+    message: { color: colors.text, textAlign: "center", paddingHorizontal: spacing.lg },
     // Ink-filled button, matching apps/web's main button.
     retryButton: {
       minHeight: 44,

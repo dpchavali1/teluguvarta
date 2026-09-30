@@ -43,6 +43,7 @@ const linking: LinkingOptions<RootStackParamList> = {
         },
       },
       Topic: "topic/:slug",
+      Latest: "latest",
       StoryDetail: "story/:slug",
     },
   },

@@ -3,6 +3,7 @@ import React, { useEffect, useState } from "react";
 import { ActivityIndicator, View } from "react-native";
 
 import { LanguageScreen } from "../screens/LanguageScreen";
+import { LatestScreen } from "../screens/LatestScreen";
 import { NotificationPreferencesScreen } from "../screens/NotificationPreferencesScreen";
 import { NotificationsScreen } from "../screens/NotificationsScreen";
 import { OnboardingScreen } from "../screens/OnboardingScreen";
@@ -35,6 +36,7 @@ export function RootNavigator() {
       <Stack.Screen name="Onboarding" component={OnboardingScreen} options={{ headerShown: false }} />
       <Stack.Screen name="Main" component={MainTabs} options={{ headerShown: false }} />
       <Stack.Screen name="Topic" component={TopicScreen} options={({ route }) => ({ title: route.params.name ?? "Topic" })} />
+      <Stack.Screen name="Latest" component={LatestScreen} options={{ title: "Latest" }} />
       <Stack.Screen name="StoryDetail" component={StoryDetailScreen} options={{ title: "Story" }} />
       <Stack.Screen name="Notifications" component={NotificationsScreen} options={{ title: "Notifications" }} />
       <Stack.Screen

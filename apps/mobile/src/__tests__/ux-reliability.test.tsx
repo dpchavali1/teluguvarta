@@ -1,11 +1,13 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react-native";
 import React from "react";
-import { HomeScreen } from "../screens/HomeScreen";
+import { AppState, type AppStateStatus } from "react-native";
+import { HOME_STALE_MS, HomeScreen } from "../screens/HomeScreen";
+import { LatestScreen } from "../screens/LatestScreen";
 import { SavedScreen } from "../screens/SavedScreen";
 import { SearchScreen } from "../screens/SearchScreen";
 import { StoryCacheProvider } from "../lib/StoryCacheContext";
-import { getHome, getSavedStories, search, type StoryOut } from "../lib/api";
+import { getHome, getSavedStories, listStories, search, type StoryOut } from "../lib/api";
 
 jest.mock("@react-navigation/native", () => ({
   useNavigation: () => ({ navigate: jest.fn() }),
@@ -19,7 +21,7 @@ jest.mock("../components/StoryCard", () => ({
 }));
 jest.mock("../lib/api", () => ({
   ...jest.requireActual("../lib/api"),
-  getHome: jest.fn(), getSavedStories: jest.fn(), search: jest.fn(), trackEvent: jest.fn(),
+  getHome: jest.fn(), getSavedStories: jest.fn(), listStories: jest.fn(), search: jest.fn(), trackEvent: jest.fn(),
 }));
 const story = (headline: string): StoryOut => ({
   id: "11111111-1111-1111-1111-111111111111", canonical_slug: "example", status: "UPDATED", sensitivity: "NONE", format: "FULL",
@@ -85,4 +87,43 @@ test("late search results cannot replace a newer query or a cleared field", asyn
   await act(async () => { pending({ query: "third", items: [story("Third")] }); });
   await waitFor(() => expect(screen.getByText("Search for a story.")).toBeTruthy());
   expect(screen.queryByText("Third UPDATED")).toBeNull();
+});
+
+test("home reloads on resume only once the feed is stale", async () => {
+  let onChange: ((state: AppStateStatus) => void) | undefined;
+  jest.spyOn(AppState, "addEventListener").mockImplementation((_type, handler) => {
+    onChange = handler as (state: AppStateStatus) => void;
+    return { remove: jest.fn() };
+  });
+  let now = 1_000_000;
+  jest.spyOn(Date, "now").mockImplementation(() => now);
+  jest.mocked(getHome)
+    .mockResolvedValueOnce({ top_stories: [story("Morning")], topics: [] })
+    .mockResolvedValueOnce({ top_stories: [story("Evening")], topics: [] });
+  await render(<StoryCacheProvider><HomeScreen /></StoryCacheProvider>);
+  await screen.findByText("Morning UPDATED");
+
+  now += HOME_STALE_MS - 1;
+  await act(async () => { onChange?.("active"); });
+  expect(getHome).toHaveBeenCalledTimes(1);
+
+  now += 1;
+  await act(async () => { onChange?.("active"); });
+  await screen.findByText("Evening UPDATED");
+  expect(getHome).toHaveBeenCalledTimes(2);
+  jest.restoreAllMocks();
+});
+
+test("latest pages through every story by cursor", async () => {
+  const older = { ...story("Older"), id: "22222222-2222-2222-2222-222222222222" };
+  jest.mocked(listStories)
+    .mockResolvedValueOnce({ items: [story("Newest")], next_cursor: "c1" })
+    .mockResolvedValueOnce({ items: [older], next_cursor: null });
+  await render(<StoryCacheProvider><LatestScreen /></StoryCacheProvider>);
+  await screen.findByText("Newest UPDATED");
+  await fireEvent.press(screen.getByText("Older stories"));
+  await screen.findByText("Older UPDATED");
+  expect(listStories).toHaveBeenLastCalledWith({ cursor: "c1" });
+  expect(screen.getByText("Newest UPDATED")).toBeTruthy();
+  expect(screen.queryByText("Older stories")).toBeNull();
 });

@@ -140,7 +140,7 @@ export function StoryCard({
         </View>
 
         {story.published_at && <Text style={styles.date}>{new Date(story.published_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</Text>}
-        {language !== renderedLanguage && <Text>Telugu translation isn’t available yet. Showing English.</Text>}
+        {language !== renderedLanguage && <Text style={styles.date}>Telugu translation isn’t available yet. Showing English.</Text>}
         {story.personalization?.explanation && <Text style={styles.date}>{story.personalization.explanation}</Text>}
         {isHumanReviewed && (
           <View style={styles.reviewedBadge}>

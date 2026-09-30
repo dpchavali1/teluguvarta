@@ -18,6 +18,7 @@ export type RootStackParamList = {
   Onboarding: undefined;
   Main: NavigatorScreenParams<MainTabParamList>;
   Topic: { slug: string; name?: string };
+  Latest: undefined;
   StoryDetail: { slug: string };
   Notifications: undefined;
   NotificationPreferences: undefined;

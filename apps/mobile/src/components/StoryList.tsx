@@ -6,6 +6,7 @@ import { FlatList, Linking, StyleSheet, Text, View } from "react-native";
 import type { StoryOut } from "../lib/api";
 import type { RootStackParamList } from "../navigation/types";
 import { spacing } from "../theme/tokens";
+import { useAppTheme } from "../theme/useAppTheme";
 import { StoryCard } from "./StoryCard";
 
 export function StoryList({
@@ -22,6 +23,7 @@ export function StoryList({
   footer?: React.ReactElement;
 }) {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const { colors } = useAppTheme();
 
   return (
     <FlatList
@@ -40,7 +42,7 @@ export function StoryList({
       ListFooterComponent={footer}
       ListEmptyComponent={
         <View style={styles.empty}>
-          <Text>{emptyLabel}</Text>
+          <Text style={[styles.emptyText, { color: colors.muted }]}>{emptyLabel}</Text>
         </View>
       }
     />
@@ -49,4 +51,5 @@ export function StoryList({
 
 const styles = StyleSheet.create({
   empty: { padding: spacing.xl, alignItems: "center" },
+  emptyText: { textAlign: "center" },
 });
