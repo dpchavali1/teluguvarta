@@ -14,7 +14,7 @@ login and mobile were inspected through code, not authenticated/device journeys.
   `pathCursor`; cursor pages use it too); a malformed escape 404s. Verified with `next dev` against the prod
   API: Telugu slug 404 → 200, ASCII/missing/cursor unchanged. Slugs for new stories now keep vowel signs
   (`cluster._slug_key`; they were built from the dedupe key, which drops combining marks: `రేవంత్` → `రవత`).
-  The dedupe key itself is unchanged, and existing slugs keep their URLs. (`810f5f5`, **committed, not pushed**: owner held it
+  The dedupe key itself is unchanged, and existing slugs keep their URLs. (`810f5f5`, pushed 2026-09-30, **not deployed**; owner first held it
   2026-09-30 to batch with the rest of the review work.) Next: work the review plan in its stated order,
   R3–R12 (R1/R2 done).
 - **R2 fixed for new translations (2026-09-30, `2c8f9d2`, deployed):** `qa.find_variant_qa_issues` adds
