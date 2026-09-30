@@ -247,9 +247,18 @@ gate section is gone; do not reintroduce a pilot gate on any future ticket.
   confirm "Add to Home Screen" on a real phone after deploy. On single-column widths (≤960px) the review page's
   decision panel is moved above the story with CSS `order: -1` (DOM order unchanged; `30c4812`, deployed
   2026-09-30, live CSS confirmed). A native admin app was declined for
-  now (would need an ADR). Also open: auto-publish is built but off in prod (`AUTO_PUBLISH_GLOBAL=false`,
-  `AUTO_PUBLISH_BRIEFS=false` in `.env.prod`) — owner decides whether to turn either on; until then every story
-  waits in the admin review queue.
+  now (would need an ADR).
+- **Telugu sources + auto-publish, owner decision 2026-09-30 (prepared, NOT yet applied in prod):** the feed was
+  mostly US news because 3 of 4 seeded sources were NPR/State Dept/FEMA. Owner approved 11 LINK_ONLY feeds from
+  `docs/sources/telugu-source-candidates.md` (Namasthe Telangana main/Hyderabad/sports/business, NTV Telugu,
+  Telugu360 main, Telangana State Portal, 123telugu, Telugu Times, USCIS news, Study in the States) and
+  deactivating NPR. `infra/scripts/approve_sources.py` applies it (preview by default, `--apply` writes,
+  `--reviewer` = approving ADMIN; never re-enables a DISABLED source). Owner chose full-story auto-publish:
+  set `AUTO_PUBLISH_GLOBAL=true` in `.env.prod`. NON_NEGOTIABLES #5 still holds — immigration/legal/financial/
+  breaking (and urgent, low-confidence, ADR-026 failures) stay in the review queue. Topic gaps with no working
+  Telugu feed: jobs, property, education, parents. Watch after rollout: AI spend (ntnews feeds carry 200 items;
+  non-allowlisted categories use the paid route; $60 hard cap) and how many Telugu-sourced stories hold for
+  evidence/confidence reasons.
 - **ADR-025 implemented and deployed 2026-09-30 (`6845dbc`):** `POST /v1/admin/stories/{id}/retry-ai`
   `{stage: GENERATE|TRANSLATE, reason}` — ADMIN only (403 otherwise), max 2 resets per story per stage (counted
   from `AI_RETRY_RESET` audit events; 409 `RETRY_LIMIT_REACHED`), 409 `NOT_AI_HELD` unless the story is actually
