@@ -194,8 +194,9 @@ grep -qE '^MONITOR_HEALTHCHECK_URL=.+' "$ENV_FILE" \
 # and admin all check out (the same checks cron runs).
 echo "==> Waiting for API, worker, web and admin"
 healthy=0
-for _ in $(seq 1 24); do
-  if check_out="$(MONITOR_NO_PING=1 "$repo_root/infra/deploy/monitor.sh")"; then
+deadline=$((SECONDS + 120))
+while [ "$SECONDS" -lt "$deadline" ]; do
+  if check_out="$(MONITOR_NO_PING=1 "$repo_root/infra/deploy/monitor.sh" </dev/null)"; then
     healthy=1; break
   fi
   sleep 5

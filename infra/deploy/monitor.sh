@@ -39,7 +39,10 @@ check_http() {
 check_http API_NOT_READY http://127.0.0.1:18000/health/ready
 check_http WEB_DOWN http://127.0.0.1:13000/
 check_http ADMIN_DOWN http://127.0.0.1:13001/
-if ! worker_out="$(timeout 60 "${COMPOSE[@]}" exec -T api python -m app.jobs.monitor 2>&1)"; then
+# </dev/null: under `timeout`, compose is outside the terminal's foreground
+# group, so reading the tty (as it does when deploy.sh runs interactively)
+# stops it until the timeout fires.
+if ! worker_out="$(timeout 60 "${COMPOSE[@]}" exec -T api python -m app.jobs.monitor 2>&1 </dev/null)"; then
   while IFS= read -r line; do [ -n "$line" ] && failures+=("$line"); done <<< "${worker_out:-WORKER_CHECK_FAILED: could not run}"
 fi
 
