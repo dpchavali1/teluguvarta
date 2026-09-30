@@ -77,7 +77,7 @@ def _make_review_required_story(db: Session, *, sensitivity: str = "NONE", with_
     story.status = "REVIEW_REQUIRED"
     db.add(ReviewTask(story_id=story.id, reason="TEST_SETUP", status="PENDING"))
     if with_english:
-        db.add(StoryVariant(story_id=story.id, language="en", headline="Old headline", summary="Old summary", why_matters="Old why"))
+        db.add(StoryVariant(story_id=story.id, language="en", headline="Old headline", summary="Old summary of the story. A second sentence adds detail.", why_matters="Old why"))
     db.commit()
     db.refresh(story)
     return story
@@ -152,14 +152,14 @@ def test_editor_writes_english_draft_then_approves(client, db_session):
 
     response = client.put(
         f"/v1/admin/stories/{story.id}/variants/en",
-        json={"headline": "  Editor headline ", "summary": "Editor summary", "why_matters": " ", "reason": "no AI route"},
+        json={"headline": "  Editor headline ", "summary": "Editor summary of the story. A second sentence adds detail.", "why_matters": " ", "reason": "no AI route"},
         headers=_auth(token),
     )
     assert response.status_code == 200
     assert response.json()["status"] == "REVIEW_REQUIRED"
 
     en = _variant(db_session, story, "en")
-    assert (en.headline, en.summary, en.why_matters) == ("Editor headline", "Editor summary", None)
+    assert (en.headline, en.summary, en.why_matters) == ("Editor headline", "Editor summary of the story. A second sentence adds detail.", None)
     assert en.model_version == EDITOR_MODEL_VERSION
 
     event = db_session.scalars(

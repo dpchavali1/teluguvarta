@@ -40,6 +40,14 @@ from app.content.geography import (
     set_event_countries,
 )
 from app.content.importance import recompute_importance
+from app.content.publication import (
+    HEADLINE_COPIES_SOURCE,
+    MIN_SUMMARY_SENTENCES,
+    MIN_SUMMARY_WORDS,
+    SUMMARY_REPEATS_HEADLINE,
+    SUMMARY_TOO_SHORT,
+    validate_for_publication,
+)
 from app.content.qa import find_variant_qa_issues
 from app.content.rights import unpermitted_sources
 from app.content.serialize import load_story_relations
@@ -570,6 +578,23 @@ def get_story_detail(story_id: UUID, db: Session = Depends(get_db)) -> AdminStor
     )
 
 
+_CONTENT_RULE_MESSAGES = {
+    SUMMARY_REPEATS_HEADLINE: "the summary repeats the headline",
+    SUMMARY_TOO_SHORT: f"the summary needs at least {MIN_SUMMARY_SENTENCES} sentences or {MIN_SUMMARY_WORDS} words",
+    HEADLINE_COPIES_SOURCE: "the headline is too close to a source's own title",
+}
+
+
+def _require_publishable_content(db: Session, story: Story) -> None:
+    """ADR-026: the same rules as automatic approval and publication."""
+    if failures := validate_for_publication(db, story):
+        raise APIError(
+            422,
+            "CONTENT_RULES_FAILED",
+            "Can't publish yet: " + "; ".join(_CONTENT_RULE_MESSAGES[f] for f in failures) + f" ({', '.join(failures)})",
+        )
+
+
 @router.post("/stories/{story_id}/approve")
 def approve_story(
     story_id: UUID, body: AdminActionRequest, admin: AdminPrincipal = Depends(current_admin), db: Session = Depends(get_db)
@@ -581,6 +606,7 @@ def approve_story(
         raise APIError(
             422, "NO_ENGLISH_DRAFT", "Write an English headline and summary before approving — English is canonical"
         )
+    _require_publishable_content(db, story)
     # Review 2026-09-29 #7: rights are rechecked at approval, not only ingest.
     if blocked := unpermitted_sources(db, story.id):
         raise APIError(
@@ -837,6 +863,7 @@ def correct_story(
     variant.generated_at = datetime.now(UTC)
     db.execute(delete(StoryWhyMattersCache).where(StoryWhyMattersCache.story_id == story.id))
     db.flush()
+    _require_publishable_content(db, story)
     new_hash = _story_text_hash(variant)
 
     if story.status == "PUBLISHED":

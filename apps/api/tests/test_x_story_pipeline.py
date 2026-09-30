@@ -171,10 +171,13 @@ def test_published_x_story_shows_canonical_attribution_to_account_and_post(migra
     engine = create_engine(migrated_database)
     with Session(engine) as db:
         source, x_account = _make_x_source(db)
-        _emit_tweet(db, source, x_account, tweet_id="902", text="Agency announces new policy for applicants")
+        _emit_tweet(db, source, x_account, tweet_id="902", text="Official update: revised form instructions posted")
 
         assert cluster_normalized_items(db) == 1
-        _use_fake_provider(monkeypatch, [_classification(), _generation()])
+        # The helper replays the list per call, so this classification payload
+        # is also the stored draft: give it ADR-026-valid text.
+        draft = {"headline_en": "Agency announces new policy", "summary_en": "A federal agency changed its rules. Applicants must follow them from next month."}
+        _use_fake_provider(monkeypatch, [_classification(**draft), _generation()])
         assert generate_stories(db) == 1
 
         story = db.scalars(select(Story)).one()

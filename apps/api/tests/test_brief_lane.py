@@ -103,7 +103,7 @@ def _story(db, *, reviewed=True, category=None, confidence=0.9, sensitivity="NON
     db.add(story)
     db.flush()
     db.add(StorySource(story_id=story.id, source_item_id=item.id, role="PRIMARY", evidence_rank=1))
-    db.add(StoryVariant(story_id=story.id, language="en", headline="Full headline", summary="Full summary.", why_matters="Why."))
+    db.add(StoryVariant(story_id=story.id, language="en", headline="Full headline", summary="Full summary of the story. A second sentence adds detail.", why_matters="Why."))
     db.add(StoryVariant(story_id=story.id, language="te", headline="te", summary="te", qa_status="PASSED"))
     db.commit()
     return story, item
@@ -227,7 +227,7 @@ def test_title_mismatch_keeps_full_draft_for_review(db_session, lane_on, monkeyp
     assert story.status == "REVIEW_REQUIRED" and story.format == "FULL"
     assert _task(db_session, story).reason == "AUTO_PUBLISH_DISABLED,BRIEF_TITLE_MISMATCH"
     en = db_session.scalars(select(StoryVariant).where(StoryVariant.story_id == story.id, StoryVariant.language == "en")).one()
-    assert en.summary == "Full summary."
+    assert en.summary == "Full summary of the story. A second sentence adds detail."
 
 
 @pytest.mark.parametrize(

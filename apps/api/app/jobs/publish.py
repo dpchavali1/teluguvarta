@@ -43,6 +43,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.ai.budget import is_over_monthly_budget
+from app.content.publication import validate_for_publication
 from app.content.rights import RIGHTS_REVOKED_REASON, unpermitted_sources
 from app.jobs.brief_lane import LaneOutcome, daily_cap, published_today, try_brief_lane
 from app.jobs.queue import enqueue_job
@@ -122,6 +123,14 @@ def auto_publish_stories(db: Session) -> int:
             count += 1
             continue
 
+        # ADR-026: a draft short of the minimum content waits for an editor.
+        if failures := validate_for_publication(db, story):
+            story.status = "REVIEW_REQUIRED"
+            db.flush()
+            db.add(ReviewTask(story_id=story.id, reason=f"{CONTENT_RULES_REASON}:{','.join(failures)}", status="PENDING"))
+            count += 1
+            continue
+
         story.status = "REVIEW_REQUIRED"
         db.flush()
         story.status = "APPROVED"
@@ -154,6 +163,9 @@ def publish_due_stories(db: Session) -> int:
         if blocked := unpermitted_sources(db, story.id):
             _hold_for_rights(db, story, blocked)
             continue
+        if failures := validate_for_publication(db, story):
+            _hold_once(db, story, CONTENT_HOLD_ACTION, {"failures": failures})
+            continue
         story.status = "PUBLISHED"
         story.published_at = _now()
         db.flush()
@@ -172,6 +184,10 @@ def publish_due_stories(db: Session) -> int:
 
 
 RIGHTS_HOLD_ACTION = "STORY_PUBLISH_BLOCKED_RIGHTS"
+# ADR-026: an approved story short of the minimum content (in practice, one
+# approved before the rules existed) is held the same way as a rights hold.
+CONTENT_HOLD_ACTION = "STORY_PUBLISH_BLOCKED_CONTENT"
+CONTENT_RULES_REASON = "CONTENT_RULES_FAILED"
 
 
 def _hold_for_rights(db: Session, story: Story, blocked: list) -> None:
@@ -179,17 +195,24 @@ def _hold_for_rights(db: Session, story: Story, blocked: list) -> None:
     stays SCHEDULED and unpublished; the status machine has no way back to
     review from SCHEDULED (see ADR-023, proposed). It publishes on
     a later sweep if the rights are restored. Audited once per story."""
+    _hold_once(
+        db, story, RIGHTS_HOLD_ACTION,
+        {"source_ids": [str(s.id) for s in blocked], "rights": [s.rights_status for s in blocked]},
+    )
+
+
+def _hold_once(db: Session, story: Story, action: str, metadata: dict) -> None:
     already = db.scalars(
-        select(AuditEvent.id).where(AuditEvent.entity_id == story.id, AuditEvent.action == RIGHTS_HOLD_ACTION)
+        select(AuditEvent.id).where(AuditEvent.entity_id == story.id, AuditEvent.action == action)
     ).first()
     if already is None:
         db.add(
             AuditEvent(
                 actor="system:publish_scheduler",
-                action=RIGHTS_HOLD_ACTION,
+                action=action,
                 entity_type="story",
                 entity_id=story.id,
-                metadata_={"source_ids": [str(s.id) for s in blocked], "rights": [s.rights_status for s in blocked]},
+                metadata_=metadata,
             )
         )
         db.flush()

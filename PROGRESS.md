@@ -238,10 +238,17 @@ gate section is gone; do not reintroduce a pilot gate on any future ticket.
   (option 6):** budget alert + quota cap on the paid Gemini Cloud project. Option 3 (reserve) deferred
   until a second worker exists.
 - **Accepted 2026-09-30, not yet implemented:** ADR-025 options 1+3 — ADMIN "Retry AI" (audited `AI_RETRY_RESET`, max 2 per
-  story) plus an admin list of EXHAUSTED translations. ADR-026 (#6) — `validate_for_publication` with FULL
-  rules (b) summary/headline similarity < 0.8, (c) summary ≥ 2 sentences or ≥ 25 words, (d) headline < 0.6
-  vs every source title; why-matters stays optional; manual drafts get the same rules (422 with the rule);
-  owner edits the two live stories by hand.
+  story) plus an admin list of EXHAUSTED translations.
+- **ADR-026 (#6) implemented 2026-09-30, not yet deployed:** `app/content/publication.py`
+  `validate_for_publication` (FULL only; BRIEF keeps ADR-019's lane rules): (b) summary/headline
+  similarity < 0.8, (c) summary ≥ 2 sentences or ≥ 25 words, (d) headline < 0.6 vs every source title;
+  why-matters stays optional. Enforced at admin approve and `/correct` (422 `CONTENT_RULES_FAILED` naming
+  the rules), auto-approve (→ `REVIEW_REQUIRED`, reason `CONTENT_RULES_FAILED:<rules>`) and
+  `publish_due_stories` (SCHEDULED story held, audited once as `STORY_PUBLISH_BLOCKED_CONTENT` — a
+  SCHEDULED story can't be edited, so this only catches pre-rule approvals). **Owner to do:** fix the two
+  live stories through `/correct`, which now enforces the rules. Test fix on the way: the X attribution test's
+  fake provider replays the classification payload as the draft (helper builds a fresh provider per call),
+  so its classification fixture now carries valid draft text.
   **Deployed to the VPS 2026-09-30 03:07 UTC at `5af512f`:** both migrations (`b8e4c2d6f1a3`,
   `c9f5d3e7a2b4`) applied, all services up, API healthy. Worker checked 03:14 UTC: every sweep job type
   running on schedule and `DONE`, none stuck, no worker errors, `ai_work_state` empty, no story missing
