@@ -268,7 +268,7 @@ gate section is gone; do not reintroduce a pilot gate on any future ticket.
   (`SourceAdapter.emit(archive=True)`) — stored for dedupe, never processed; undated items are kept; never lifts
   `RIGHTS_BLOCKED`. Not applied to X fetches, or to a source re-enabled after a long gap (it has a
   `last_success_at`).
-- **Tighter relevance check (2026-09-30, not yet deployed):** the classify prompt used to say only
+- **Tighter relevance check (2026-09-30, `c1be827`, deployed by owner 2026-09-30):** the classify prompt used to say only
   "Determine relevance". It now lists what counts (`generate.RELEVANCE_CRITERIA`): AP/Telangana, Telugu
   people/orgs/culture, Tollywood, practical NRI matters (visas, students, consular, NRI money), and India/world
   news with a stated AP/TG/NRI impact. It excludes other states' local news, unlinked national news,
