@@ -268,6 +268,14 @@ gate section is gone; do not reintroduce a pilot gate on any future ticket.
   (`SourceAdapter.emit(archive=True)`) — stored for dedupe, never processed; undated items are kept; never lifts
   `RIGHTS_BLOCKED`. Not applied to X fetches, or to a source re-enabled after a long gap (it has a
   `last_success_at`).
+- **Tighter relevance check (2026-09-30, not yet deployed):** the classify prompt used to say only
+  "Determine relevance". It now lists what counts (`generate.RELEVANCE_CRITERIA`): AP/Telangana, Telugu
+  people/orgs/culture, Tollywood, practical NRI matters (visas, students, consular, NRI money), and India/world
+  news with a stated AP/TG/NRI impact. It excludes other states' local news, unlinked national news,
+  Bollywood, sports without a Telugu athlete or AP/TG team, general US/world news, and horoscope/gossip/promo
+  content. Telugu-language text alone doesn't count, and weak links are marked not relevant (archived). Prompt only, no
+  schema change; cached classifications for already-classified stories aren't re-run. Watch the archive rate after
+  deploy; the sports rule is the most likely to need loosening.
 - **ADR-025 implemented and deployed 2026-09-30 (`6845dbc`):** `POST /v1/admin/stories/{id}/retry-ai`
   `{stage: GENERATE|TRANSLATE, reason}` — ADMIN only (403 otherwise), max 2 resets per story per stage (counted
   from `AI_RETRY_RESET` audit events; 409 `RETRY_LIMIT_REACHED`), 409 `NOT_AI_HELD` unless the story is actually

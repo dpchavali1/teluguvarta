@@ -143,10 +143,35 @@ def _untrusted_data_block(payload: object) -> str:
     )
 
 
+# SPEC §1: readers are Telugu people worldwide, launch wedge USA Telugu NRIs.
+# Anything without a concrete Telugu/AP/Telangana/NRI connection is archived.
+RELEVANCE_CRITERIA = (
+    "Set relevant=true only if the story has a concrete connection to at least one of: "
+    "(1) Andhra Pradesh or Telangana — events there, or state/central decisions that "
+    "directly affect them; "
+    "(2) Telugu people or organizations — named Telugu individuals, Telugu community "
+    "or diaspora groups and events, Telugu culture and festivals; "
+    "(3) Telugu cinema and entertainment (Tollywood); "
+    "(4) practical matters for Indians living abroad, especially in the USA — "
+    "immigration and visas (H-1B, F-1, OPT, green cards), international students, "
+    "consular services, India travel, NRI money, tax and remittances; "
+    "(5) India-wide or world news with a clear, stated impact on AP/Telangana or on "
+    "Indians abroad. "
+    "Set relevant=false for everything else, including: other Indian states' local "
+    "news; national politics, crime or accidents with no AP/Telangana link; "
+    "Bollywood and other-language cinema; sports unless a Telugu athlete or an "
+    "AP/Telangana-based team or venue is central; general US or world news that "
+    "doesn't specifically affect immigrants; horoscopes, gossip, listicles and "
+    "promotional content. A story being written in Telugu does not by itself make "
+    "it relevant. If the connection is weak or only implied, set relevant=false. "
+)
+
+
 def _classify_prompt(items: list[SourceItem]) -> str:
     return (
         "Classify this news story cluster for a Telugu-diaspora news product. "
-        "Determine relevance, categories, countries, entities, sensitivity "
+        + RELEVANCE_CRITERIA
+        + "Also determine categories, countries, entities, sensitivity "
         "(one of NONE/IMMIGRATION/LEGAL/FINANCIAL/BREAKING/OBITUARY_ACCUSATION), "
         "and urgency (one of NORMAL/HIGH). Evidence items:\n" + _untrusted_data_block(_evidence_block(items))
     )
