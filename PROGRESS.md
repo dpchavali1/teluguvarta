@@ -213,7 +213,8 @@ gate section is gone; do not reintroduce a pilot gate on any future ticket.
   the image (was 3.11). mypy is pinned (2.3.1) and ratcheted: CI fails above `apps/api/mypy-baseline.txt`
   (71). Verified locally: both builds, lint, typecheck, web test 4, mobile jest 24, frozen install, pnpm
   audit, ruff, mypy 71, `pip-audit` on the lock, lock install + `pip check` in a fresh 3.12 venv. Not
-  verified: the Docker image build (no Docker here; the next deploy builds it). **CI green 2026-09-30
+  verified locally: the Docker image build. **Deployed 2026-09-30 by the owner** (image built from the
+  lock); live `/health/ready`, web and admin return 200. **CI green 2026-09-30
   at `2597d23`** (all three jobs). Actions had been blocked by account billing since before #15, so
   no run had executed; the repo was made public (history scanned first: the only committed key is the
   local dev MFA key, prod generates its own in `deploy.sh`). Once jobs ran, four existing failures
