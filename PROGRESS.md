@@ -260,7 +260,14 @@ gate section is gone; do not reintroduce a pilot gate on any future ticket.
   breaking (and urgent, low-confidence, ADR-026 failures) stay in the review queue. Topic gaps with no working
   Telugu feed: jobs, property, education, parents. Watch after rollout: AI spend (ntnews feeds carry 200 items;
   non-allowlisted categories use the paid route; $60 hard cap) and how many Telugu-sourced stories hold for
-  evidence/confidence reasons.
+  evidence/confidence reasons. First fetch queued 817 drafts, mostly feed history; owner archived the 789
+  CLUSTERED items of DRAFT stories whose newest item was >48h old (manual SQL, same effect as the classifier's
+  not-relevant archive).
+- **First-fetch backlog cutoff (2026-09-30, not yet deployed):** `source_fetch.FIRST_FETCH_MAX_AGE` = 48h. On a
+  source's first successful fetch (`last_success_at IS NULL`), items older than that are emitted as `ARCHIVED`
+  (`SourceAdapter.emit(archive=True)`) — stored for dedupe, never processed; undated items are kept; never lifts
+  `RIGHTS_BLOCKED`. Not applied to X fetches, or to a source re-enabled after a long gap (it has a
+  `last_success_at`).
 - **ADR-025 implemented and deployed 2026-09-30 (`6845dbc`):** `POST /v1/admin/stories/{id}/retry-ai`
   `{stage: GENERATE|TRANSLATE, reason}` — ADMIN only (403 otherwise), max 2 resets per story per stage (counted
   from `AI_RETRY_RESET` audit events; 409 `RETRY_LIMIT_REACHED`), 409 `NOT_AI_HELD` unless the story is actually

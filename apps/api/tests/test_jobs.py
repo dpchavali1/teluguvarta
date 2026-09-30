@@ -3,7 +3,7 @@
 """
 
 import threading
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import httpx
@@ -25,6 +25,8 @@ from app.models import Job, Source, SourceItem
 from .conftest import requires_postgres
 
 FIXTURES = Path(__file__).parent / "fixtures"
+# npr_news.xml pubDates are 2026-09-08 (-0400).
+NPR_FIXTURE_DAY = datetime(2026, 9, 9, tzinfo=UTC)
 
 # Captured before any test monkeypatches `source_fetch.httpx.Client` — the
 # factories below must build a real Client, not recurse into the patched one
@@ -171,6 +173,8 @@ def test_run_source_fetch_success_resets_health_and_normalizes_items(migrated_da
 
         content = (FIXTURES / "npr_news.xml").read_bytes()
         monkeypatch.setattr(source_fetch.httpx, "Client", _mock_httpx_client(200, content))
+        # A day after the fixture's pubDates, so the first-fetch cutoff keeps both.
+        monkeypatch.setattr(source_fetch, "_now", lambda: NPR_FIXTURE_DAY + timedelta(days=1))
 
         job = Job(type="source_fetch", payload={"source_id": str(source.id)})
         db.add(job)
@@ -185,6 +189,62 @@ def test_run_source_fetch_success_resets_health_and_normalizes_items(migrated_da
         items = db.scalars(select(SourceItem).where(SourceItem.source_id == source.id)).all()
         assert len(items) == 2
         assert all(item.ingest_status == "NORMALIZED" for item in items)
+
+
+def _fetch_npr_fixture(db, monkeypatch, source, now):
+    content = (FIXTURES / "npr_news.xml").read_bytes()
+    monkeypatch.setattr(source_fetch.httpx, "Client", _mock_httpx_client(200, content))
+    monkeypatch.setattr(source_fetch, "_now", lambda: now)
+    job = Job(type="source_fetch", payload={"source_id": str(source.id)})
+    db.add(job)
+    db.commit()
+    source_fetch.run_source_fetch(db, job)
+    return db.scalars(select(SourceItem).where(SourceItem.source_id == source.id)).all()
+
+
+@requires_postgres
+def test_first_fetch_archives_items_older_than_the_cutoff(migrated_database, monkeypatch):
+    engine = create_engine(migrated_database)
+    with Session(engine) as db:
+        source = _make_source(feed_url="https://feeds.npr.org/1001/rss.xml")
+        db.add(source)
+        db.commit()
+
+        items = _fetch_npr_fixture(db, monkeypatch, source, NPR_FIXTURE_DAY + timedelta(days=5))
+        assert len(items) == 2
+        assert all(item.ingest_status == "ARCHIVED" for item in items)
+
+        # The next fetch is no longer "first" but must not revive them.
+        items = _fetch_npr_fixture(db, monkeypatch, source, NPR_FIXTURE_DAY + timedelta(days=5, hours=1))
+        for item in items:
+            db.refresh(item)
+        assert all(item.ingest_status == "ARCHIVED" for item in items)
+
+
+@requires_postgres
+def test_later_fetches_are_not_age_filtered(migrated_database, monkeypatch):
+    engine = create_engine(migrated_database)
+    with Session(engine) as db:
+        source = _make_source(
+            feed_url="https://feeds.npr.org/1001/rss.xml", last_success_at=NPR_FIXTURE_DAY
+        )
+        db.add(source)
+        db.commit()
+
+        items = _fetch_npr_fixture(db, monkeypatch, source, NPR_FIXTURE_DAY + timedelta(days=5))
+        assert all(item.ingest_status == "NORMALIZED" for item in items)
+
+
+@requires_postgres
+def test_first_fetch_cutoff_never_lifts_rights_block(migrated_database, monkeypatch):
+    engine = create_engine(migrated_database)
+    with Session(engine) as db:
+        source = _make_source(feed_url="https://feeds.npr.org/1001/rss.xml", rights_status="DISABLED")
+        db.add(source)
+        db.commit()
+
+        items = _fetch_npr_fixture(db, monkeypatch, source, NPR_FIXTURE_DAY + timedelta(days=5))
+        assert all(item.ingest_status == "RIGHTS_BLOCKED" for item in items)
 
 
 @requires_postgres

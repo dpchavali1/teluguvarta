@@ -97,7 +97,7 @@ class SourceAdapter:
             errors.append("title is only digits")
         return ValidationResult(valid=not errors, errors=errors)
 
-    def emit(self, db: Session, item: NormalizedItem) -> SourceItem:
+    def emit(self, db: Session, item: NormalizedItem, *, archive: bool = False) -> SourceItem:
         """Idempotent on (source_id, external_id) so re-running fetch on an
         already-seen item updates it in place instead of duplicating it,
         per §6's "never duplicate a story when the same source item
@@ -110,8 +110,15 @@ class SourceAdapter:
         gate"). `ingest_status` is set only on first insert: a later
         re-fetch must not regress an item a downstream ticket has already
         advanced past NORMALIZED (dedup/cluster/...).
+
+        `archive=True` records a permitted item as `ARCHIVED` instead of
+        `NORMALIZED` — kept for dedupe but never processed (the first-fetch
+        backlog cutoff in `source_fetch`). It never lifts `RIGHTS_BLOCKED`.
         """
-        ingest_status = "NORMALIZED" if self.source.rights_status == "LINK_ONLY" else "RIGHTS_BLOCKED"
+        if self.source.rights_status != "LINK_ONLY":
+            ingest_status = "RIGHTS_BLOCKED"
+        else:
+            ingest_status = "ARCHIVED" if archive else "NORMALIZED"
         # ADR-020: the description is kept only for a flagged LINK_ONLY source.
         store_description = self.source.description_evidence and self.source.rights_status == "LINK_ONLY"
         description = item.description if store_description else None

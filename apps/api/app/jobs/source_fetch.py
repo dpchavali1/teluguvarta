@@ -28,6 +28,12 @@ CIRCUIT_BREAKER_THRESHOLD = 5
 
 FETCH_TIMEOUT_SECONDS = 10.0
 
+# A new source's first successful fetch returns its whole feed history
+# (ntnews: 200 items going back days). Items older than this are stored
+# ARCHIVED so they dedupe on later fetches but never reach the AI pipeline.
+# Items with no published date are kept.
+FIRST_FETCH_MAX_AGE = timedelta(hours=48)
+
 
 def _now() -> datetime:
     return datetime.now(UTC)
@@ -92,6 +98,7 @@ def run_source_fetch(db: Session, job: Job) -> None:
         raise ValueError(f"source_fetch job references missing source {source_id}")
 
     adapter = adapter_for(source)
+    backlog_cutoff = _now() - FIRST_FETCH_MAX_AGE if source.last_success_at is None else None
     try:
         with httpx.Client(timeout=FETCH_TIMEOUT_SECONDS) as client:
             raw_items = adapter.fetch(client)
@@ -99,7 +106,12 @@ def run_source_fetch(db: Session, job: Job) -> None:
             normalized = adapter.normalize(raw_item)
             result = adapter.validate(normalized)
             if result.valid:
-                adapter.emit(db, normalized)
+                archive = (
+                    backlog_cutoff is not None
+                    and normalized.published_at is not None
+                    and normalized.published_at < backlog_cutoff
+                )
+                adapter.emit(db, normalized, archive=archive)
     except Exception:
         source.fail_count += 1
         source.last_error_at = _now()
