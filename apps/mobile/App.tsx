@@ -15,6 +15,7 @@ import { siteUrl, trackEvent } from "./src/lib/api";
 import { registerForPushNotificationsAsync, resolveNotificationDeepLink } from "./src/lib/push";
 import { StoryCacheProvider } from "./src/lib/StoryCacheContext";
 import { RootNavigator } from "./src/navigation/RootNavigator";
+import { ThemePreferenceProvider } from "./src/theme/ThemePreferenceContext";
 import { useAppTheme } from "./src/theme/useAppTheme";
 import type { RootStackParamList } from "./src/navigation/types";
 
@@ -63,6 +64,15 @@ Notifications.setNotificationHandler({
 });
 
 export default function App() {
+  // Outside AppContent because AppContent's own useAppTheme reads it.
+  return (
+    <ThemePreferenceProvider>
+      <AppContent />
+    </ThemePreferenceProvider>
+  );
+}
+
+function AppContent() {
   const registeredForPush = useRef(false);
   // ADR-014: this was a static, light-only Theme, so every native-stack
   // header/background (Topic, StoryDetail, Settings' pushed screens, etc.)
@@ -126,7 +136,8 @@ export default function App() {
       <StoryCacheProvider>
         <NavigationContainer ref={navigationRef} theme={navigationTheme} linking={linking}>
           <RootNavigator />
-          <StatusBar style="auto" />
+          {/* "auto" follows the system, which is wrong once the reader picks a scheme. */}
+          <StatusBar style={scheme === "dark" ? "light" : "dark"} />
         </NavigationContainer>
       </StoryCacheProvider>
     </SafeAreaProvider>

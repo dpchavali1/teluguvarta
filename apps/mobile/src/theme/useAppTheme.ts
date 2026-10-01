@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import { useColorScheme } from "react-native";
 
+import { useThemePreference } from "./ThemePreferenceContext";
 import { colorSchemes, uiSchemes } from "./tokens";
 
 // Hand-written (not generated — see tokens.ts's "GENERATED" header). The
@@ -9,6 +10,7 @@ import { colorSchemes, uiSchemes } from "./tokens";
 // mode never took effect anywhere in the app (ADR-014's flagged functional
 // bug, not a styling gap). This is the one place that reads the system
 // scheme; everything else should go through it instead of the raw exports.
+// The reader's Appearance choice (ThemePreferenceContext) wins over the system.
 export type ThemeScheme = "light" | "dark";
 
 export interface AppTheme {
@@ -18,6 +20,8 @@ export interface AppTheme {
 }
 
 export function useAppTheme(): AppTheme {
-  const scheme: ThemeScheme = useColorScheme() === "dark" ? "dark" : "light";
+  const { preference } = useThemePreference();
+  const system = useColorScheme();
+  const scheme: ThemeScheme = preference === "system" ? (system === "dark" ? "dark" : "light") : preference;
   return useMemo(() => ({ scheme, colors: colorSchemes[scheme], ui: uiSchemes[scheme] }), [scheme]);
 }

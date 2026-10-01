@@ -1,9 +1,12 @@
+import Ionicons from "@expo/vector-icons/Ionicons";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import React, { useMemo } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
+import type { ThemePreference } from "../lib/storage";
 import type { RootStackParamList } from "../navigation/types";
+import { useThemePreference } from "../theme/ThemePreferenceContext";
 import { radius, spacing, typography } from "../theme/tokens";
 import { useAppTheme, type AppTheme } from "../theme/useAppTheme";
 
@@ -11,6 +14,7 @@ export function SettingsScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { colors, ui } = useAppTheme();
   const styles = useMemo(() => createStyles(colors, ui), [colors, ui]);
+  const { preference, setPreference } = useThemePreference();
 
   return (
     <View style={styles.container}>
@@ -26,12 +30,60 @@ export function SettingsScreen() {
           styles={styles}
         />
       </View>
+      <Text style={styles.groupLabel} accessibilityRole="header">
+        APPEARANCE
+      </Text>
+      <View style={styles.group} accessibilityRole="radiogroup">
+        {THEME_OPTIONS.map((option, i) => (
+          <ThemeOptionRow
+            key={option.value}
+            label={option.label}
+            selected={preference === option.value}
+            onPress={() => setPreference(option.value)}
+            last={i === THEME_OPTIONS.length - 1}
+            styles={styles}
+          />
+        ))}
+      </View>
       <Text style={styles.groupLabel}>ACCOUNT</Text>
       <View style={styles.group}>
         <SettingsRow label="Language" onPress={() => navigation.navigate("Language")} styles={styles} />
         <SettingsRow label="Privacy & delete account" onPress={() => navigation.navigate("Privacy")} last styles={styles} />
       </View>
     </View>
+  );
+}
+
+const THEME_OPTIONS: { value: ThemePreference; label: string }[] = [
+  { value: "system", label: "Use phone setting" },
+  { value: "light", label: "Light" },
+  { value: "dark", label: "Dark" },
+];
+
+function ThemeOptionRow({
+  label,
+  selected,
+  onPress,
+  last,
+  styles,
+}: {
+  label: string;
+  selected: boolean;
+  onPress: () => void;
+  last?: boolean;
+  styles: ReturnType<typeof createStyles>;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="radio"
+      accessibilityState={{ checked: selected }}
+      accessibilityLabel={label}
+      style={[styles.row, !last && styles.rowDivider]}
+    >
+      <Text style={styles.rowLabel}>{label}</Text>
+      {selected ? <Ionicons name="checkmark" size={20} style={styles.check} /> : null}
+    </Pressable>
   );
 }
 
@@ -92,5 +144,6 @@ function createStyles(colors: AppTheme["colors"], ui: AppTheme["ui"]) {
     rowDivider: { borderBottomWidth: StyleSheet.hairlineWidth, borderColor: ui.borderSubtle },
     rowLabel: { ...typography.body, color: colors.text },
     chevron: { fontSize: 18, color: ui.textTertiary },
+    check: { color: colors.accent },
   });
 }

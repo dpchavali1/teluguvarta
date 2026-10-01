@@ -4,6 +4,8 @@ import { Pressable, ScrollView, StyleSheet, Text } from "react-native";
 
 import { deleteAccount, trackEvent } from "../lib/api";
 import { resetClientToken } from "../lib/identity";
+import { LOCAL_DATA_KEYS } from "../lib/storage";
+import { useThemePreference } from "../theme/ThemePreferenceContext";
 import { spacing, typography } from "../theme/tokens";
 import { useAppTheme, type AppTheme } from "../theme/useAppTheme";
 
@@ -20,6 +22,7 @@ export function PrivacyScreen() {
   const { colors, ui } = useAppTheme();
   const styles = useMemo(() => createStyles(colors, ui), [colors, ui]);
   const [cleared, setCleared] = useState(false);
+  const { resetPreference: resetThemePreference } = useThemePreference();
 
   async function handleClear() {
     trackEvent("account_delete_request");
@@ -30,12 +33,9 @@ export function PrivacyScreen() {
       // on-device data below, which has no server dependency.
     }
     await resetClientToken();
-    await AsyncStorage.removeMany([
-      "tg_onboarded_v1",
-      "tg_profile_v1",
-      "tg_notification_prefs_v1",
-      "tg_saved_stories_v1",
-    ]);
+    await AsyncStorage.removeMany(LOCAL_DATA_KEYS);
+    // The stored choice is gone; also put the live app back on the system theme.
+    resetThemePreference();
     setCleared(true);
   }
 

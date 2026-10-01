@@ -204,7 +204,17 @@ login and mobile were inspected through code, not authenticated/device journeys.
   noise). Admin + web build, mobile 27 passed. **Not done:** an in-browser login → MFA → `/sessions` →
   sign-out click-through (browser extension not connected; MFA code generation not permitted to the
   agent) — owner should do this locally before deploying. **Deploy API + admin together** (breaking).
-- **Mobile reader options planned (2026-09-30, not started):** `docs/plans/mobile-reader-options.md`. Owner
+- **M1 Appearance done (2026-09-30, pushed; on the owner's Android phone via release APK):** Settings →
+  APPEARANCE: "Use phone setting" / Light / Dark (radio rows). `ThemePreferenceProvider`
+  (`src/theme/ThemePreferenceContext.tsx`, wraps `App`) holds the choice (`tg_theme_pref_v1`); `useAppTheme`
+  prefers it over `useColorScheme`, so every screen follows. `Appearance.setColorScheme` (best effort,
+  try/catch) moves native chrome too; StatusBar style follows the chosen scheme. Provider renders nothing
+  until the stored choice is read (no wrong-scheme flash). `storage.LOCAL_DATA_KEYS` (= all `KEYS`) is now
+  what Privacy's clear removes, and clearing resets the live theme to the phone setting. Tests:
+  `appearance.test.tsx` (5). Mobile 32 passed, typecheck clean, bundle-check exports. Device: Settings shows
+  the section with the phone-setting row checked in dark; tapping Light/Dark on the device not yet checked
+  by the agent (owner was using the phone).
+- **Mobile reader options planned (2026-09-30):** `docs/plans/mobile-reader-options.md`. M1 done; next M2. Owner
   asked for a light/dark choice (app only follows the system today). Order: M1 Appearance → M2 edit
   profile/interests → M3 settings basics → R10 device checks → M4 text size → M5 hide topics → M6 read history;
   offline saved, Home/Latest, digest time, TTS and iOS build need a decision/ADR first.

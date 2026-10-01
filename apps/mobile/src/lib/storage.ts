@@ -13,7 +13,13 @@ const KEYS = {
   profile: "tg_profile_v1",
   notificationPrefs: "tg_notification_prefs_v1",
   savedStories: "tg_saved_stories_v1",
+  themePreference: "tg_theme_pref_v1",
 } as const;
+
+// Every on-device key "Delete account and clear data" must remove. A new key
+// added to KEYS is cleared automatically (the client token lives in
+// SecureStore and is reset separately by identity.ts).
+export const LOCAL_DATA_KEYS: string[] = Object.values(KEYS);
 
 export type LifeStage =
   | "INTERNATIONAL_STUDENT"
@@ -156,6 +162,26 @@ export function setProfile(profile: OnboardingProfile): Promise<void> {
 // language until its next mount. DeviceEventEmitter is RN's equivalent of
 // web's window.dispatchEvent — no new dependency needed.
 export const LANGUAGE_CHANGE_EVENT = "tg:language-change";
+
+// Reader's appearance choice. "system" follows the phone's light/dark setting.
+export type ThemePreference = "system" | "light" | "dark";
+
+export async function getThemePreference(): Promise<ThemePreference> {
+  try {
+    const raw = await AsyncStorage.getItem(KEYS.themePreference);
+    return raw === "light" || raw === "dark" ? raw : "system";
+  } catch {
+    return "system";
+  }
+}
+
+export async function setThemePreference(preference: ThemePreference): Promise<void> {
+  try {
+    await AsyncStorage.setItem(KEYS.themePreference, preference);
+  } catch {
+    // Storage disabled — the choice applies for this session only.
+  }
+}
 
 export async function setLanguage(language: OnboardingProfile["language"]): Promise<void> {
   const profile = await getProfile();
