@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { createContext, ReactNode, useCallback, useContext, useState } from "react";
+import { createContext, ReactNode, useCallback, useContext, useEffect, useState } from "react";
 
 export type Tone = "ok" | "warn" | "danger" | "neutral";
 
@@ -81,5 +81,32 @@ export function StatTile({ href, label, value, note, tone = "neutral" }: { href:
       <strong className="stat-tile__value">{value}</strong>
       {note ? <span className="stat-tile__note">{note}</span> : null}
     </Link>
+  );
+}
+
+// Review 2026-09-30 R7: when a list was loaded, and a refresh. Lists don't
+// poll (rows would move under the j/k cursor), so after five minutes the
+// note turns into a warning instead.
+const STALE_LIST_MS = 5 * 60 * 1000;
+
+export function Freshness({ loadedAt, loading, onRefresh }: { loadedAt: Date | null; loading: boolean; onRefresh: () => void }) {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(Date.now()), 30_000);
+    return () => window.clearInterval(timer);
+  }, []);
+  const stale = loadedAt !== null && now - loadedAt.getTime() > STALE_LIST_MS;
+  const time = loadedAt?.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  return (
+    <span className="freshness">
+      {loadedAt ? (
+        <span className={stale ? "freshness__stale" : "state-note"} role={stale ? "status" : undefined}>
+          {stale ? `Loaded at ${time} — may be out of date` : `Loaded ${time}`}
+        </span>
+      ) : null}
+      <button type="button" className="button-secondary" onClick={onRefresh} disabled={loading}>
+        {loading ? "Loading…" : "Refresh"}
+      </button>
+    </span>
   );
 }

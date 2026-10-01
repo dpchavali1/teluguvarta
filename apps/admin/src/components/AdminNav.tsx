@@ -11,11 +11,13 @@ import { adminFetch, type ReaderReportList } from "@/lib/reports";
 const LINKS = [
   { href: "/", label: "Home" },
   { href: "/review", label: "Review queue" },
+  { href: "/stories", label: "Stories" },
   { href: "/reports", label: "Reader reports" },
   { href: "/briefs", label: "Auto briefs" },
   { href: "/sources", label: "Sources" },
   { href: "/costs", label: "AI costs" },
   { href: "/observability", label: "Observability" },
+  { href: "/audit", label: "Audit log" },
 ];
 
 export default function AdminNav() {

@@ -100,6 +100,27 @@ login and mobile were inspected through code, not authenticated/device journeys.
   CI's mypy gate was already over before this change); web 8 tests, mobile 24 tests, admin
   typecheck/lint/build, web typecheck/lint clean. **Not checked in a browser or on a device.**
   Next: R7 (review/admin navigation at volume).
+- **R7 done (2026-09-30, not deployed): admin lists page on the server.** `app/admin_lists.py`.
+  `GET /v1/admin/review-queue` now returns a page (`ReviewQueuePageOut`: items, filtered `total`, whole-queue
+  `pending_total`/`danger_total`/`unclassified_total`/oldest, `next_cursor`), **breaking shape change**
+  (admin is the only caller; deploy API and admin together). Server order: always-human-reviewed reasons
+  first, then oldest; keyset cursor so resolving rows mid-paging skips/repeats nothing. Filters: `danger_only`,
+  `reason`, `q` (EN/TE headline, source title, slug; ILIKE), `topic`, `source_id`, `telugu`
+  (MISSING/PENDING/PASSED/FAILED), `older_than_hours`. Bad cursor → 422 `INVALID_CURSOR`. New
+  `GET /v1/admin/stories` content library (any status, `corrected`, same filters, `format`; offset paging;
+  `status_counts`; ordered by published_at, else newest variant, since stories have no created_at).
+  `GET /v1/admin/audit` is now a page (`AdminAuditPageOut`) with `action`/`entity_type`/`entity_id`/`actor`
+  (substring)/`since`/`until` and a cursor — was the latest 200 only. Migration `a4d9e2b7c5f1` adds indexes
+  (pending review tasks, review_tasks.story_id, audit by time and by entity). Admin: review queue uses
+  server filters + "Load more", Home already counted via `/pipeline`; detail's "next story" asks for
+  `limit=2`; new **Stories** and **Audit log** pages (nav), story page links its audit history; lists show
+  "Loaded HH:MM" + Refresh and warn after 5 min (no polling, so rows don't move under j/k). Unsaved-edit
+  guard (`beforeunload` only, not in-app links) on open draft editors and the correction form. **Not done,
+  by design:** bulk actions (none — sensitive decisions stay per story); concurrent-editor conflict/version
+  handling and assignment/locking (need an ADR when a second editor exists). Tests:
+  `tests/test_admin_lists.py` (4: paging order/no-skip, every filter, library, audit past 200); full suite
+  493 passed + the known flaky fixture error (passes alone); ruff clean; mypy 72 (unchanged). Admin
+  typecheck/lint/build clean. **Not checked in a browser.** Next: R8.
 
 Update this file at the end of every ticket. This is the source of truth for
 "what's actually done" — trust it over assumptions, git log archaeology, or

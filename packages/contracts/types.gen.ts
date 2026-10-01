@@ -92,7 +92,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** List Audit Events */
+        /**
+         * List Audit Events
+         * @description Review 2026-09-30 R7: searchable, paged history (was the latest 200 only).
+         */
         get: operations["list_audit_events_v1_admin_audit_get"];
         put?: never;
         post?: never;
@@ -328,7 +331,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Get Review Queue */
+        /**
+         * Get Review Queue
+         * @description Review 2026-09-30 R7: paged; always-human-reviewed reasons first, then oldest.
+         */
         get: operations["get_review_queue_v1_admin_review_queue_get"];
         put?: never;
         post?: never;
@@ -415,6 +421,26 @@ export interface paths {
         head?: never;
         /** Update X Account */
         patch: operations["update_x_account_v1_admin_sources__source_id__x_account_patch"];
+        trace?: never;
+    };
+    "/v1/admin/stories": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Stories
+         * @description Review 2026-09-30 R7: the content library, every status, newest activity first.
+         */
+        get: operations["list_stories_v1_admin_stories_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/v1/admin/stories/{story_id}": {
@@ -996,6 +1022,13 @@ export interface components {
                 [key: string]: unknown;
             };
         };
+        /** AdminAuditPageOut */
+        AdminAuditPageOut: {
+            /** Items */
+            items: components["schemas"]["AdminAuditEventOut"][];
+            /** Next Cursor */
+            next_cursor?: string | null;
+        };
         /**
          * AdminAutoBriefOut
          * @description ADR-019: a story the brief lane auto-approved, for the after-publish
@@ -1436,6 +1469,66 @@ export interface components {
             variants?: {
                 [key: string]: components["schemas"]["StoryVariantOut"];
             };
+        };
+        /** AdminStoryListItemOut */
+        AdminStoryListItemOut: {
+            /** Canonical Slug */
+            canonical_slug: string;
+            /** Corrections */
+            corrections: number;
+            /**
+             * Format
+             * @enum {string}
+             */
+            format: "FULL" | "BRIEF";
+            /** Headline */
+            headline?: string | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Last Activity At */
+            last_activity_at?: string | null;
+            /** Published At */
+            published_at?: string | null;
+            /** Review Pending */
+            review_pending: boolean;
+            /** Sensitivity */
+            sensitivity: string;
+            /** Source Names */
+            source_names?: string[];
+            /** Source Title */
+            source_title?: string | null;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "DRAFT" | "AI_READY" | "REVIEW_REQUIRED" | "APPROVED" | "SCHEDULED" | "PUBLISHED" | "UPDATED" | "RETRACTED" | "CORRECTION_PENDING" | "ARCHIVED";
+            /** Te Headline */
+            te_headline?: string | null;
+            /** Te Qa Status */
+            te_qa_status?: ("PENDING" | "PASSED" | "FAILED") | null;
+            /** Topics */
+            topics?: string[];
+        };
+        /** AdminStoryListOut */
+        AdminStoryListOut: {
+            /** Corrected Total */
+            corrected_total: number;
+            /**
+             * Generated At
+             * Format: date-time
+             */
+            generated_at: string;
+            /** Items */
+            items: components["schemas"]["AdminStoryListItemOut"][];
+            /** Status Counts */
+            status_counts: {
+                [key: string]: number;
+            };
+            /** Total */
+            total: number;
         };
         /** AdminStorySourceOut */
         AdminStorySourceOut: {
@@ -2169,6 +2262,36 @@ export interface components {
              * Format: uuid
              */
             story_id: string;
+            /** Te Qa Status */
+            te_qa_status?: ("PENDING" | "PASSED" | "FAILED") | null;
+            /** Topics */
+            topics?: string[];
+        };
+        /**
+         * ReviewQueuePageOut
+         * @description Review 2026-09-30 R7: one page of the queue. `total` counts the
+         *     filtered queue; the `*_total` counts are the whole queue.
+         */
+        ReviewQueuePageOut: {
+            /** Danger Total */
+            danger_total: number;
+            /**
+             * Generated At
+             * Format: date-time
+             */
+            generated_at: string;
+            /** Items */
+            items: components["schemas"]["ReviewQueueItemOut"][];
+            /** Next Cursor */
+            next_cursor?: string | null;
+            /** Oldest Created At */
+            oldest_created_at?: string | null;
+            /** Pending Total */
+            pending_total: number;
+            /** Total */
+            total: number;
+            /** Unclassified Total */
+            unclassified_total: number;
         };
         /**
          * RightsEvidence
@@ -2507,7 +2630,16 @@ export interface operations {
     };
     list_audit_events_v1_admin_audit_get: {
         parameters: {
-            query?: never;
+            query?: {
+                cursor?: string | null;
+                limit?: number;
+                action?: string | null;
+                entity_type?: string | null;
+                entity_id?: string | null;
+                actor?: string | null;
+                since?: string | null;
+                until?: string | null;
+            };
             header?: {
                 authorization?: string | null;
             };
@@ -2522,7 +2654,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["AdminAuditEventOut"][];
+                    "application/json": components["schemas"]["AdminAuditPageOut"];
                 };
             };
             /** @description Validation Error */
@@ -2965,7 +3097,17 @@ export interface operations {
     };
     get_review_queue_v1_admin_review_queue_get: {
         parameters: {
-            query?: never;
+            query?: {
+                cursor?: string | null;
+                limit?: number;
+                danger_only?: boolean;
+                reason?: string | null;
+                q?: string | null;
+                topic?: string | null;
+                source_id?: string | null;
+                telugu?: ("MISSING" | "PENDING" | "PASSED" | "FAILED") | null;
+                older_than_hours?: number | null;
+            };
             header?: {
                 authorization?: string | null;
             };
@@ -2980,7 +3122,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ReviewQueueItemOut"][];
+                    "application/json": components["schemas"]["ReviewQueuePageOut"];
                 };
             };
             /** @description Validation Error */
@@ -3193,6 +3335,47 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AdminXAccountOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_stories_v1_admin_stories_get: {
+        parameters: {
+            query?: {
+                status?: ("DRAFT" | "AI_READY" | "REVIEW_REQUIRED" | "APPROVED" | "SCHEDULED" | "PUBLISHED" | "UPDATED" | "RETRACTED" | "CORRECTION_PENDING" | "ARCHIVED") | null;
+                corrected?: boolean;
+                q?: string | null;
+                topic?: string | null;
+                source_id?: string | null;
+                telugu?: ("MISSING" | "PENDING" | "PASSED" | "FAILED") | null;
+                format?: ("FULL" | "BRIEF") | null;
+                limit?: number;
+                offset?: number;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminStoryListOut"];
                 };
             };
             /** @description Validation Error */

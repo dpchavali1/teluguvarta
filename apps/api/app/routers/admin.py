@@ -26,6 +26,7 @@ from sqlalchemy import delete, func, select, update
 from sqlalchemy.orm import Session
 
 from app.adapters.feed_probe import probe_feed
+from app.admin_lists import audit_history, review_queue, story_library
 from app.ai.budget import (
     budget_mode,
     cost_by_task_and_day,
@@ -53,7 +54,6 @@ from app.content.publication import (
 )
 from app.content.qa import find_variant_qa_issues
 from app.content.rights import unpermitted_sources
-from app.content.serialize import load_story_relations
 from app.content.variants import EDITOR_MODEL_VERSION
 from app.db import get_db
 from app.errors import APIError
@@ -86,7 +86,7 @@ from app.schemas import (
     AdminActionRequest,
     AdminActionResponse,
     AdminAiHoldOut,
-    AdminAuditEventOut,
+    AdminAuditPageOut,
     AdminAutoBriefOut,
     AdminCorrectionOut,
     AdminCorrectionRequest,
@@ -105,6 +105,7 @@ from app.schemas import (
     AdminSourceOut,
     AdminSourceUpdate,
     AdminStoryDetailOut,
+    AdminStoryListOut,
     AdminStorySourceOut,
     AdminTopicsRequest,
     AdminXAccountCreate,
@@ -122,9 +123,13 @@ from app.schemas import (
     ReaderReportCategory,
     ReaderReportStatus,
     ReviewQueueItemOut,
+    ReviewQueuePageOut,
     RightsEvidence,
     SourceIngestionHealthOut,
+    StoryFormat,
+    StoryStatus,
     StoryVariantOut,
+    TeluguFilter,
     XCostSummaryOut,
 )
 from app.x.budget import (
@@ -507,29 +512,43 @@ def _story_text_hash(variant: StoryVariant | None) -> str:
 
 
 @router.get("/review-queue")
-def get_review_queue(db: Session = Depends(get_db)) -> list[ReviewQueueItemOut]:
-    tasks = db.scalars(
-        select(ReviewTask).where(ReviewTask.status == "PENDING").order_by(ReviewTask.created_at)
-    ).all()
-    loaded = load_story_relations(db, [task.story_id for task in tasks])
-    output = []
-    for task in tasks:
-        item = _review_task_out(task)
-        en = next((v for v in loaded.variants[task.story_id] if v.language == "en"), None)
-        item.headline = en.headline if en is not None else None
-        names = []
-        links = loaded.links[task.story_id]
-        primary = next((link for link in links if link.role == "PRIMARY"), links[0] if links else None)
-        primary_item = loaded.items.get(primary.source_item_id) if primary else None
-        item.source_title = primary_item.title if primary_item else None
-        for link in links:
-            source_item = loaded.items.get(link.source_item_id)
-            source = loaded.sources.get(source_item.source_id) if source_item else None
-            if source is not None and source.name not in names:
-                names.append(source.name)
-        item.source_names = names
-        output.append(item)
-    return output
+def get_review_queue(
+    cursor: str | None = None,
+    limit: int = 50,
+    danger_only: bool = False,
+    reason: str | None = None,
+    q: str | None = None,
+    topic: str | None = None,
+    source_id: UUID | None = None,
+    telugu: TeluguFilter | None = None,
+    older_than_hours: int | None = None,
+    db: Session = Depends(get_db),
+) -> ReviewQueuePageOut:
+    """Review 2026-09-30 R7: paged; always-human-reviewed reasons first, then oldest."""
+    return ReviewQueuePageOut(**review_queue(
+        db, now=datetime.now(UTC), cursor=cursor, limit=limit, danger_only=danger_only, reason=reason, q=q,
+        topic=topic, source_id=source_id, telugu=telugu, older_than_hours=older_than_hours,
+    ))
+
+
+@router.get("/stories")
+def list_stories(
+    status: StoryStatus | None = None,
+    corrected: bool = False,
+    q: str | None = None,
+    topic: str | None = None,
+    source_id: UUID | None = None,
+    telugu: TeluguFilter | None = None,
+    format: StoryFormat | None = None,
+    limit: int = 50,
+    offset: int = 0,
+    db: Session = Depends(get_db),
+) -> AdminStoryListOut:
+    """Review 2026-09-30 R7: the content library, every status, newest activity first."""
+    return AdminStoryListOut(**story_library(
+        db, now=datetime.now(UTC), status=status, corrected=corrected, q=q, topic=topic, source_id=source_id,
+        telugu=telugu, format=format, limit=limit, offset=offset,
+    ))
 
 
 @router.get("/stories/{story_id}")
@@ -1151,15 +1170,22 @@ def debug_throw() -> None:
 
 
 @router.get("/audit")
-def list_audit_events(db: Session = Depends(get_db)) -> list[AdminAuditEventOut]:
-    events = db.scalars(select(AuditEvent).order_by(AuditEvent.created_at.desc()).limit(200)).all()
-    return [
-        AdminAuditEventOut(
-            id=event.id, actor=event.actor, action=event.action, entity_type=event.entity_type,
-            entity_id=event.entity_id, metadata=event.metadata_, created_at=event.created_at,
-        )
-        for event in events
-    ]
+def list_audit_events(
+    cursor: str | None = None,
+    limit: int = 100,
+    action: str | None = None,
+    entity_type: str | None = None,
+    entity_id: UUID | None = None,
+    actor: str | None = None,
+    since: datetime | None = None,
+    until: datetime | None = None,
+    db: Session = Depends(get_db),
+) -> AdminAuditPageOut:
+    """Review 2026-09-30 R7: searchable, paged history (was the latest 200 only)."""
+    return AdminAuditPageOut(**audit_history(
+        db, cursor=cursor, limit=limit, action=action, entity_type=entity_type, entity_id=entity_id,
+        actor=actor, since=since, until=until,
+    ))
 
 
 # --- ADR-029: reader reports ------------------------------------------------

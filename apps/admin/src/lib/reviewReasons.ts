@@ -33,6 +33,8 @@ const REASON_HELP: Record<string, string> = {
   BRIEF_REJECTED: "The brief lane tried and failed a check (confidence, length, headline too close to the source, or missing citations). The full draft below is unchanged."
 };
 
+export const REASON_CODES = Object.keys(REASON_HELP);
+
 // A NO_PAID_PROVIDER hold skips classification, so its stored sensitivity is a
 // default NONE, not a finding. Show it as unclassified instead.
 export const isUnclassified = (reason: string) => reason.split(",").some((r) => r.trim() === "NO_PAID_PROVIDER");

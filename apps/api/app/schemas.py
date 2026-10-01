@@ -22,6 +22,8 @@ StoryStatus = Literal[
 ]
 # ADR-019: BRIEF = a link-first brief from the auto-publish lane; readers label it.
 StoryFormat = Literal["FULL", "BRIEF"]
+# Review 2026-09-30 R7: admin list filter on the Telugu variant (MISSING = none).
+TeluguFilter = Literal["MISSING", "PENDING", "PASSED", "FAILED"]
 Sensitivity = Literal["NONE", "IMMIGRATION", "LEGAL", "FINANCIAL", "BREAKING", "OBITUARY_ACCUSATION"]
 # §3.1 life-stage values, explicit-only per NON_NEGOTIABLES (never inferred) — §8.3's
 # "why this matters" audience segment (T16).
@@ -433,6 +435,48 @@ class ReviewQueueItemOut(BaseModel):
     status: Literal["PENDING", "IN_REVIEW", "APPROVED", "REJECTED"]
     decision: str | None = None
     created_at: datetime
+    topics: list[str] = Field(default_factory=list)
+    te_qa_status: Literal["PENDING", "PASSED", "FAILED"] | None = None
+
+
+class ReviewQueuePageOut(BaseModel):
+    """Review 2026-09-30 R7: one page of the queue. `total` counts the
+    filtered queue; the `*_total` counts are the whole queue."""
+
+    items: list[ReviewQueueItemOut]
+    total: int
+    pending_total: int
+    danger_total: int
+    unclassified_total: int
+    oldest_created_at: datetime | None = None
+    next_cursor: str | None = None
+    generated_at: datetime
+
+
+class AdminStoryListItemOut(BaseModel):
+    id: UUID
+    canonical_slug: str
+    status: StoryStatus
+    format: StoryFormat
+    sensitivity: str
+    published_at: datetime | None = None
+    last_activity_at: datetime | None = None
+    headline: str | None = None
+    te_headline: str | None = None
+    te_qa_status: Literal["PENDING", "PASSED", "FAILED"] | None = None
+    source_title: str | None = None
+    source_names: list[str] = Field(default_factory=list)
+    topics: list[str] = Field(default_factory=list)
+    corrections: int
+    review_pending: bool
+
+
+class AdminStoryListOut(BaseModel):
+    items: list[AdminStoryListItemOut]
+    total: int
+    status_counts: dict[str, int]
+    corrected_total: int
+    generated_at: datetime
 
 
 class AdminActionRequest(BaseModel):
@@ -597,6 +641,11 @@ class AdminAuditEventOut(BaseModel):
     entity_id: UUID
     metadata: dict = Field(default_factory=dict)
     created_at: datetime
+
+
+class AdminAuditPageOut(BaseModel):
+    items: list[AdminAuditEventOut]
+    next_cursor: str | None = None
 
 
 class SourceIngestionHealthOut(BaseModel):

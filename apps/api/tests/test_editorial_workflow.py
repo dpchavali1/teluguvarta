@@ -326,9 +326,9 @@ def test_review_queue_lists_pending_tasks(client, db_session):
     token = _token(client, db_session)
     story = _make_review_required_story(db_session)
 
-    response = client.get("/v1/admin/review-queue", headers=_auth(token))
+    response = client.get("/v1/admin/review-queue", params={"q": story.canonical_slug}, headers=_auth(token))
     assert response.status_code == 200
-    ids = [item["story_id"] for item in response.json()]
+    ids = [item["story_id"] for item in response.json()["items"]]
     assert str(story.id) in ids
 
 
@@ -347,8 +347,8 @@ def test_review_queue_shows_source_title_for_undrafted_story(client, db_session)
     db_session.add(StorySource(story_id=story.id, source_item_id=item.id, role="PRIMARY", evidence_rank=1))
     db_session.commit()
 
-    response = client.get("/v1/admin/review-queue", headers=_auth(token))
-    row = next(r for r in response.json() if r["story_id"] == str(story.id))
+    response = client.get("/v1/admin/review-queue", params={"q": "travel advisory"}, headers=_auth(token))
+    row = next(r for r in response.json()["items"] if r["story_id"] == str(story.id))
     assert row["headline"] is None
     assert row["source_title"] == "Agency updates travel advisory"
 

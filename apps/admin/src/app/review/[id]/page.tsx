@@ -7,6 +7,7 @@ import { useParams, useRouter } from "next/navigation";
 import { Badge, EmptyState, Field, PageHeader, useToast } from "@/components/ui";
 import { apiUrl, clearSession, getRole, getToken } from "@/lib/auth";
 import { isUnclassified, reasonHelp, reasonTone } from "@/lib/reviewReasons";
+import { useUnsavedGuard } from "@/lib/unsaved";
 
 interface StoryVariant {
   language: "en" | "te";
@@ -83,16 +84,15 @@ async function postAction(storyId: string, action: string, body: Record<string, 
   }
 }
 
-// Next pending story in the queue page's order (always-human-reviewed first,
-// then oldest). Null on any failure, so the caller falls back to the queue.
+// Next pending story in the queue's order (always-human-reviewed first, then
+// oldest; the server sorts). Null on any failure, so the caller falls back to
+// the queue.
 async function nextQueueStory(currentId: string): Promise<string | null> {
   try {
-    const response = await fetch(`${apiUrl()}/v1/admin/review-queue`, { headers: { Authorization: `Bearer ${getToken()}` } });
+    const response = await fetch(`${apiUrl()}/v1/admin/review-queue?limit=2`, { headers: { Authorization: `Bearer ${getToken()}` } });
     if (!response.ok) return null;
-    const items = (await response.json()) as { story_id: string; reason: string }[];
-    const isDanger = (item: { reason: string }) => item.reason.split(",").some((r) => reasonTone(r.trim()) === "danger");
-    const rest = items.filter((item) => item.story_id !== currentId);
-    return (rest.find(isDanger) ?? rest[0])?.story_id ?? null;
+    const page = (await response.json()) as { items: { story_id: string }[] };
+    return page.items.find((item) => item.story_id !== currentId)?.story_id ?? null;
   } catch {
     return null;
   }
@@ -339,6 +339,12 @@ function DraftEditor({
   const [error, setError] = useState<string | null>(null);
   const label = language === "en" ? "English" : "Telugu";
   const id = `draft-${language}`;
+  useUnsavedGuard(
+    open &&
+      (headline !== (variant?.headline ?? sourceTitle ?? "") ||
+        summary !== (variant?.summary ?? "") ||
+        whyMatters !== (variant?.why_matters ?? ""))
+  );
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
@@ -455,6 +461,11 @@ export default function StoryReviewPage() {
   useEffect(() => {
     load();
   }, [load]);
+
+  useUnsavedGuard(
+    story !== null &&
+      (correctedHeadline !== (story.variants.en?.headline ?? "") || correctedSummary !== (story.variants.en?.summary ?? ""))
+  );
 
   async function handleAction(action: "approve" | "reject" | "retract") {
     setSubmitting(true);
@@ -728,6 +739,9 @@ export default function StoryReviewPage() {
                 ))}
               </ul>
             )}
+            <p>
+              <Link href={`/audit?entity_id=${story.id}`}>Every recorded action on this story</Link>
+            </p>
           </section>
         </div>
 
