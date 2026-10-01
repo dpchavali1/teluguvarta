@@ -2854,6 +2854,380 @@
         "title": "ConfigResponse",
         "type": "object"
       },
+      "CoverageDayOut": {
+        "properties": {
+          "day": {
+            "format": "date",
+            "title": "Day",
+            "type": "string"
+          },
+          "published": {
+            "title": "Published",
+            "type": "integer"
+          },
+          "publishers": {
+            "title": "Publishers",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "day",
+          "published",
+          "publishers"
+        ],
+        "title": "CoverageDayOut",
+        "type": "object"
+      },
+      "CoverageItemsOut": {
+        "description": "Item cohort outcomes; every key but `items` adds up to `items`.",
+        "properties": {
+          "backlog_skipped": {
+            "title": "Backlog Skipped",
+            "type": "integer"
+          },
+          "in_review": {
+            "title": "In Review",
+            "type": "integer"
+          },
+          "items": {
+            "title": "Items",
+            "type": "integer"
+          },
+          "live": {
+            "title": "Live",
+            "type": "integer"
+          },
+          "not_relevant": {
+            "title": "Not Relevant",
+            "type": "integer"
+          },
+          "other": {
+            "title": "Other",
+            "type": "integer"
+          },
+          "rights_blocked": {
+            "title": "Rights Blocked",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "rights_blocked",
+          "backlog_skipped",
+          "not_relevant",
+          "live",
+          "in_review",
+          "other"
+        ],
+        "title": "CoverageItemsOut",
+        "type": "object"
+      },
+      "CoverageLagOut": {
+        "description": "Publication cohort by hours from the publisher's timestamp to ours.\nEach bucket starts where the previous one ends.",
+        "properties": {
+          "over_24h": {
+            "title": "Over 24H",
+            "type": "integer"
+          },
+          "under_12h": {
+            "title": "Under 12H",
+            "type": "integer"
+          },
+          "under_1h": {
+            "title": "Under 1H",
+            "type": "integer"
+          },
+          "under_24h": {
+            "title": "Under 24H",
+            "type": "integer"
+          },
+          "under_3h": {
+            "title": "Under 3H",
+            "type": "integer"
+          },
+          "unknown": {
+            "title": "Unknown",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "under_1h",
+          "under_3h",
+          "under_12h",
+          "under_24h",
+          "over_24h",
+          "unknown"
+        ],
+        "title": "CoverageLagOut",
+        "type": "object"
+      },
+      "CoveragePublisherOut": {
+        "properties": {
+          "feeds": {
+            "title": "Feeds",
+            "type": "integer"
+          },
+          "items": {
+            "title": "Items",
+            "type": "integer"
+          },
+          "live": {
+            "title": "Live",
+            "type": "integer"
+          },
+          "published": {
+            "title": "Published",
+            "type": "integer"
+          },
+          "publisher": {
+            "title": "Publisher",
+            "type": "string"
+          },
+          "share": {
+            "title": "Share",
+            "type": "number"
+          }
+        },
+        "required": [
+          "publisher",
+          "feeds",
+          "items",
+          "live",
+          "published",
+          "share"
+        ],
+        "title": "CoveragePublisherOut",
+        "type": "object"
+      },
+      "CoverageReportOut": {
+        "description": "Review 2026-09-30 R8: `app.coverage_report.coverage_report`. Inclusive UTC days.",
+        "properties": {
+          "by_day": {
+            "items": {
+              "$ref": "#/components/schemas/CoverageDayOut"
+            },
+            "title": "By Day",
+            "type": "array"
+          },
+          "end": {
+            "format": "date",
+            "title": "End",
+            "type": "string"
+          },
+          "items": {
+            "$ref": "#/components/schemas/CoverageItemsOut"
+          },
+          "lag": {
+            "$ref": "#/components/schemas/CoverageLagOut"
+          },
+          "published": {
+            "title": "Published",
+            "type": "integer"
+          },
+          "published_untagged": {
+            "title": "Published Untagged",
+            "type": "integer"
+          },
+          "published_without_source": {
+            "title": "Published Without Source",
+            "type": "integer"
+          },
+          "publishers": {
+            "items": {
+              "$ref": "#/components/schemas/CoveragePublisherOut"
+            },
+            "title": "Publishers",
+            "type": "array"
+          },
+          "publishers_published": {
+            "title": "Publishers Published",
+            "type": "integer"
+          },
+          "sources": {
+            "items": {
+              "$ref": "#/components/schemas/CoverageSourceOut"
+            },
+            "title": "Sources",
+            "type": "array"
+          },
+          "start": {
+            "format": "date",
+            "title": "Start",
+            "type": "string"
+          },
+          "top_publisher": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Top Publisher"
+          },
+          "top_publisher_share": {
+            "title": "Top Publisher Share",
+            "type": "number"
+          },
+          "topics": {
+            "items": {
+              "$ref": "#/components/schemas/CoverageTopicOut"
+            },
+            "title": "Topics",
+            "type": "array"
+          }
+        },
+        "required": [
+          "start",
+          "end",
+          "items",
+          "published",
+          "published_without_source",
+          "published_untagged",
+          "publishers_published",
+          "top_publisher",
+          "top_publisher_share",
+          "lag",
+          "by_day",
+          "publishers",
+          "sources",
+          "topics"
+        ],
+        "title": "CoverageReportOut",
+        "type": "object"
+      },
+      "CoverageSourceOut": {
+        "properties": {
+          "active": {
+            "title": "Active",
+            "type": "boolean"
+          },
+          "backlog_skipped": {
+            "title": "Backlog Skipped",
+            "type": "integer"
+          },
+          "category": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category"
+          },
+          "in_review": {
+            "title": "In Review",
+            "type": "integer"
+          },
+          "items": {
+            "title": "Items",
+            "type": "integer"
+          },
+          "live": {
+            "title": "Live",
+            "type": "integer"
+          },
+          "median_lag_hours": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Median Lag Hours"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "not_relevant": {
+            "title": "Not Relevant",
+            "type": "integer"
+          },
+          "other": {
+            "title": "Other",
+            "type": "integer"
+          },
+          "published": {
+            "title": "Published",
+            "type": "integer"
+          },
+          "publisher": {
+            "title": "Publisher",
+            "type": "string"
+          },
+          "rights_blocked": {
+            "title": "Rights Blocked",
+            "type": "integer"
+          },
+          "rights_status": {
+            "title": "Rights Status",
+            "type": "string"
+          },
+          "source_id": {
+            "format": "uuid",
+            "title": "Source Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "items",
+          "rights_blocked",
+          "backlog_skipped",
+          "not_relevant",
+          "live",
+          "in_review",
+          "other",
+          "source_id",
+          "name",
+          "publisher",
+          "category",
+          "active",
+          "rights_status",
+          "published",
+          "median_lag_hours"
+        ],
+        "title": "CoverageSourceOut",
+        "type": "object"
+      },
+      "CoverageTopicOut": {
+        "properties": {
+          "active": {
+            "title": "Active",
+            "type": "boolean"
+          },
+          "in_review": {
+            "title": "In Review",
+            "type": "integer"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "published": {
+            "title": "Published",
+            "type": "integer"
+          },
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          }
+        },
+        "required": [
+          "slug",
+          "name",
+          "active",
+          "published",
+          "in_review"
+        ],
+        "title": "CoverageTopicOut",
+        "type": "object"
+      },
       "DeleteAccountResponse": {
         "properties": {
           "deleted": {
@@ -5242,6 +5616,90 @@
           }
         },
         "summary": "List Recent Briefs",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/v1/admin/coverage": {
+      "get": {
+        "description": "Review 2026-09-30 R8: what each feed sends vs. what reaches readers,\nby publisher and topic, over inclusive UTC days (default: last 7).",
+        "operationId": "get_coverage_v1_admin_coverage_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "start",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Start"
+            }
+          },
+          {
+            "in": "query",
+            "name": "end",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "End"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CoverageReportOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Coverage",
         "tags": [
           "admin"
         ]

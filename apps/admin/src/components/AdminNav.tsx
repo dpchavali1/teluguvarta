@@ -15,6 +15,7 @@ const LINKS = [
   { href: "/reports", label: "Reader reports" },
   { href: "/briefs", label: "Auto briefs" },
   { href: "/sources", label: "Sources" },
+  { href: "/coverage", label: "Coverage" },
   { href: "/costs", label: "AI costs" },
   { href: "/observability", label: "Observability" },
   { href: "/audit", label: "Audit log" },

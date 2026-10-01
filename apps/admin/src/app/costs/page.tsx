@@ -5,32 +5,16 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { components } from "@teluguvarta/contracts";
 
+import { RangePicker } from "@/components/RangePicker";
 import { Badge, EmptyState, PageHeader, StatTile } from "@/components/ui";
 import { usd } from "@/lib/aiBudget";
 import { apiUrl, clearSession, getToken } from "@/lib/auth";
+import { presets } from "@/lib/dateRange";
 import { humanize } from "@/lib/reviewReasons";
 
 // Review 2026-09-30 R5: where AI money goes, over a chosen range of UTC days.
 type Report = components["schemas"]["AiCostReportOut"];
 type Figures = components["schemas"]["AiCostFiguresOut"];
-
-const MAX_DAYS = 93;
-const DAY_MS = 86_400_000;
-
-const isoDay = (d: Date) => d.toISOString().slice(0, 10);
-const shiftDays = (iso: string, days: number) => isoDay(new Date(Date.parse(`${iso}T00:00:00Z`) + days * DAY_MS));
-
-function presets(): { key: string; label: string; start: string; end: string }[] {
-  const today = isoDay(new Date());
-  const yesterday = shiftDays(today, -1);
-  return [
-    { key: "today", label: "Today", start: today, end: today },
-    { key: "yesterday", label: "Yesterday", start: yesterday, end: yesterday },
-    { key: "7d", label: "Last 7 days", start: shiftDays(today, -6), end: today },
-    { key: "mtd", label: "Month to date", start: `${today.slice(0, 8)}01`, end: today },
-    { key: "30d", label: "Last 30 days", start: shiftDays(today, -29), end: today },
-  ];
-}
 
 const tokens = (n: number) => n.toLocaleString();
 const pct = (part: number, whole: number) => (whole > 0 ? `${Math.round((part / whole) * 100)}%` : "—");
@@ -50,7 +34,6 @@ export default function CostsPage() {
     const mtd = presets().find((p) => p.key === "mtd")!;
     return { start: mtd.start, end: mtd.end };
   });
-  const [draft, setDraft] = useState(range);
   const [report, setReport] = useState<Report | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -85,10 +68,6 @@ export default function CostsPage() {
 
   useEffect(load, [load]);
 
-  const draftDays = Math.round((Date.parse(draft.end) - Date.parse(draft.start)) / DAY_MS) + 1;
-  const draftError =
-    !draft.start || !draft.end ? "Choose both dates." : draftDays < 1 ? "Start must be on or before end." : draftDays > MAX_DAYS ? `At most ${MAX_DAYS} days.` : null;
-
   const header = (
     <PageHeader
       title="AI costs"
@@ -101,44 +80,7 @@ export default function CostsPage() {
     />
   );
 
-  const rangePicker = (
-    <section aria-label="Date range">
-      <div className="preset-row">
-        {presets().map((p) => (
-          <button
-            key={p.key}
-            type="button"
-            className={p.start === range.start && p.end === range.end ? "is-selected" : "button-secondary"}
-            aria-pressed={p.start === range.start && p.end === range.end}
-            onClick={() => {
-              setRange({ start: p.start, end: p.end });
-              setDraft({ start: p.start, end: p.end });
-            }}
-          >
-            {p.label}
-          </button>
-        ))}
-      </div>
-      <form
-        className="preset-row"
-        onSubmit={(event) => {
-          event.preventDefault();
-          if (!draftError) setRange(draft);
-        }}
-      >
-        <label>
-          From <input type="date" value={draft.start} onChange={(e) => setDraft({ ...draft, start: e.target.value })} />
-        </label>
-        <label>
-          To <input type="date" value={draft.end} onChange={(e) => setDraft({ ...draft, end: e.target.value })} />
-        </label>
-        <button type="submit" className="button-secondary" disabled={Boolean(draftError)}>
-          Show range
-        </button>
-        {draftError ? <span className="field__hint">{draftError}</span> : null}
-      </form>
-    </section>
-  );
+  const rangePicker = <RangePicker range={range} onChange={setRange} />;
 
   if (!report) {
     return (

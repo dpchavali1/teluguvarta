@@ -121,6 +121,27 @@ login and mobile were inspected through code, not authenticated/device journeys.
   `tests/test_admin_lists.py` (4: paging order/no-skip, every filter, library, audit past 200); full suite
   493 passed + the known flaky fixture error (passes alone); ruff clean; mypy 72 (unchanged). Admin
   typecheck/lint/build clean. **Not checked in a browser.** Next: R8.
+- **R8 measurement done (2026-09-30, not deployed); product half waits on ADR-030 (proposed).**
+  `GET /v1/admin/coverage?start&end` (`app/coverage_report.py`; inclusive UTC days, default last 7, max 93,
+  same 422s as `/ai-costs`). Item cohort = source items whose *publisher* date is in range (items record no
+  fetch time; undated items are not counted), each in exactly one outcome: rights_blocked, backlog_skipped
+  (ARCHIVED, never clustered), not_relevant (ARCHIVED after clustering = classifier said irrelevant), live,
+  in_review, other (waiting/approved/withdrawn); outcomes sum to items. Publication cohort = live stories
+  with `published_at` in range, credited to their PRIMARY item's publisher; publisher = site host of
+  `base_url` (section feeds of one paper roll up). Also: top-publisher share, per-day publications and
+  distinct publishers, median lag per feed, lag buckets, every active topic zero-filled with published +
+  in-review-now, untagged and hand-drafted counts. Admin: new **Coverage** page (nav) with drilldowns to
+  `/stories?source_id=` / `?topic=`; Stories now reads `status`/`topic`/`source_id` from the URL; the
+  costs page's range picker moved to `components/RangePicker.tsx` + `lib/dateRange.ts` and is shared.
+  Contracts regenerated. Tests: `tests/test_coverage_report.py` (4: outcomes reconcile, publisher rollup/
+  share/lag/days, zero-filled topics, endpoint bounds/401); full suite 497 passed + the known flaky fixture
+  error (passes alone); ruff clean; mypy 72 (unchanged). Admin typecheck/lint/build clean. Ran against the
+  local dev DB (26 active topics, only `immigration` published this month). **Not checked in a browser.**
+  **Owner decisions in ADR-030:** (A) fixed reader navigation sections mapped onto existing topic slugs
+  (classifier categories are free text and `generate._link_topics` creates a topic for each new one: the
+  source of the overlap); (B) "Top stories" = importance within 24h, or rename it; (C) weekly coverage
+  floors set after two weeks of data. Curating AP/Telangana/cinema/NRI/student sources stays an owner
+  rights decision; nothing approved here. Next: ADR-030 decision, or R9.
 
 Update this file at the end of every ticket. This is the source of truth for
 "what's actually done" — trust it over assumptions, git log archaeology, or

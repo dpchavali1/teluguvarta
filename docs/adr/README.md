@@ -83,3 +83,7 @@ accepted. Add ad-hoc ADRs below this table as they're written.
   retention, rate limits and editor-only access | review 2026-09-30 R6 |
   **accepted** 2026-09-30 as proposed — see
   [ADR-029](ADR-029-reader-report-inbox.md)
+- ADR-030 | Reader navigation set mapped from topics, "Top stories" role,
+  editorial coverage targets | review 2026-09-30 R8 | **proposed** (owner
+  decision needed) — see
+  [ADR-030](ADR-030-reader-navigation-and-coverage-targets.md)

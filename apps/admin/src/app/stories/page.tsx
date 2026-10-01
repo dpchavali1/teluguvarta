@@ -33,6 +33,16 @@ export default function StoriesPage() {
   const [telugu, setTelugu] = useState("");
   const [offset, setOffset] = useState(0);
   const [revision, setRevision] = useState(0);
+  // Links from other pages (e.g. coverage) preselect filters via the URL.
+  const [ready, setReady] = useState(false);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    setView(params.get("status") ?? "");
+    setTopic(params.get("topic") ?? "");
+    setSourceId(params.get("source_id") ?? "");
+    setReady(true);
+  }, []);
 
   const load = useCallback(() => {
     setLoading(true);
@@ -54,7 +64,9 @@ export default function StoriesPage() {
       .finally(() => setLoading(false));
   }, [view, q, topic, sourceId, telugu, offset, router]);
 
-  useEffect(load, [load, revision]);
+  useEffect(() => {
+    if (ready) load();
+  }, [load, revision, ready]);
 
   function change<T>(setter: (value: T) => void) {
     return (value: T) => {

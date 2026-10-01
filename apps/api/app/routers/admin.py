@@ -55,6 +55,7 @@ from app.content.publication import (
 from app.content.qa import find_variant_qa_issues
 from app.content.rights import unpermitted_sources
 from app.content.variants import EDITOR_MODEL_VERSION
+from app.coverage_report import coverage_report
 from app.db import get_db
 from app.errors import APIError
 from app.jobs import ai_retry
@@ -114,6 +115,7 @@ from app.schemas import (
     AiCostReportOut,
     AiCostRowOut,
     AiCostSummaryOut,
+    CoverageReportOut,
     JobQueueHealthOut,
     KillSwitchesOut,
     Language,
@@ -1151,6 +1153,19 @@ def get_ai_costs(start: date | None = None, end: date | None = None, db: Session
     if (end - start).days + 1 > MAX_RANGE_DAYS:
         raise APIError(422, "RANGE_TOO_LONG", f"A range covers at most {MAX_RANGE_DAYS} days")
     return AiCostReportOut(**cost_report(db, start, end))
+
+
+@router.get("/coverage")
+def get_coverage(start: date | None = None, end: date | None = None, db: Session = Depends(get_db)) -> CoverageReportOut:
+    """Review 2026-09-30 R8: what each feed sends vs. what reaches readers,
+    by publisher and topic, over inclusive UTC days (default: last 7)."""
+    end = end or datetime.now(UTC).date()
+    start = start or end - timedelta(days=6)
+    if start > end:
+        raise APIError(422, "INVALID_RANGE", "start must be on or before end")
+    if (end - start).days + 1 > MAX_RANGE_DAYS:
+        raise APIError(422, "RANGE_TOO_LONG", f"A range covers at most {MAX_RANGE_DAYS} days")
+    return CoverageReportOut(**coverage_report(db, start, end))
 
 
 @router.get("/pipeline")

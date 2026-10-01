@@ -830,6 +830,83 @@ class PipelineStatusOut(BaseModel):
     reports_oldest_open_at: datetime | None = None
 
 
+class CoverageItemsOut(BaseModel):
+    """Item cohort outcomes; every key but `items` adds up to `items`."""
+
+    items: int
+    rights_blocked: int
+    backlog_skipped: int
+    not_relevant: int
+    live: int
+    in_review: int
+    other: int
+
+
+class CoverageSourceOut(CoverageItemsOut):
+    source_id: UUID
+    name: str
+    publisher: str
+    category: str | None
+    active: bool
+    rights_status: str
+    published: int
+    median_lag_hours: float | None
+
+
+class CoveragePublisherOut(BaseModel):
+    publisher: str
+    feeds: int
+    items: int
+    live: int
+    published: int
+    share: float
+
+
+class CoverageTopicOut(BaseModel):
+    slug: str
+    name: str
+    active: bool
+    published: int
+    in_review: int
+
+
+class CoverageDayOut(BaseModel):
+    day: date
+    published: int
+    publishers: int
+
+
+class CoverageLagOut(BaseModel):
+    """Publication cohort by hours from the publisher's timestamp to ours.
+    Each bucket starts where the previous one ends."""
+
+    under_1h: int
+    under_3h: int
+    under_12h: int
+    under_24h: int
+    over_24h: int
+    unknown: int
+
+
+class CoverageReportOut(BaseModel):
+    """Review 2026-09-30 R8: `app.coverage_report.coverage_report`. Inclusive UTC days."""
+
+    start: date
+    end: date
+    items: CoverageItemsOut
+    published: int
+    published_without_source: int
+    published_untagged: int
+    publishers_published: int
+    top_publisher: str | None
+    top_publisher_share: float
+    lag: CoverageLagOut
+    by_day: list[CoverageDayOut]
+    publishers: list[CoveragePublisherOut]
+    sources: list[CoverageSourceOut]
+    topics: list[CoverageTopicOut]
+
+
 class AdminReaderReportOut(BaseModel):
     """ADR-029: one reader report, with enough story context for the list."""
 

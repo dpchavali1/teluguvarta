@@ -194,6 +194,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/admin/coverage": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Coverage
+         * @description Review 2026-09-30 R8: what each feed sends vs. what reaches readers,
+         *     by publisher and topic, over inclusive UTC days (default: last 7).
+         */
+        get: operations["get_coverage_v1_admin_coverage_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/admin/jobs": {
         parameters: {
             query?: never;
@@ -1907,6 +1928,159 @@ export interface components {
             /** Topics */
             topics?: components["schemas"]["TopicOut"][];
         };
+        /** CoverageDayOut */
+        CoverageDayOut: {
+            /**
+             * Day
+             * Format: date
+             */
+            day: string;
+            /** Published */
+            published: number;
+            /** Publishers */
+            publishers: number;
+        };
+        /**
+         * CoverageItemsOut
+         * @description Item cohort outcomes; every key but `items` adds up to `items`.
+         */
+        CoverageItemsOut: {
+            /** Backlog Skipped */
+            backlog_skipped: number;
+            /** In Review */
+            in_review: number;
+            /** Items */
+            items: number;
+            /** Live */
+            live: number;
+            /** Not Relevant */
+            not_relevant: number;
+            /** Other */
+            other: number;
+            /** Rights Blocked */
+            rights_blocked: number;
+        };
+        /**
+         * CoverageLagOut
+         * @description Publication cohort by hours from the publisher's timestamp to ours.
+         *     Each bucket starts where the previous one ends.
+         */
+        CoverageLagOut: {
+            /** Over 24H */
+            over_24h: number;
+            /** Under 12H */
+            under_12h: number;
+            /** Under 1H */
+            under_1h: number;
+            /** Under 24H */
+            under_24h: number;
+            /** Under 3H */
+            under_3h: number;
+            /** Unknown */
+            unknown: number;
+        };
+        /** CoveragePublisherOut */
+        CoveragePublisherOut: {
+            /** Feeds */
+            feeds: number;
+            /** Items */
+            items: number;
+            /** Live */
+            live: number;
+            /** Published */
+            published: number;
+            /** Publisher */
+            publisher: string;
+            /** Share */
+            share: number;
+        };
+        /**
+         * CoverageReportOut
+         * @description Review 2026-09-30 R8: `app.coverage_report.coverage_report`. Inclusive UTC days.
+         */
+        CoverageReportOut: {
+            /** By Day */
+            by_day: components["schemas"]["CoverageDayOut"][];
+            /**
+             * End
+             * Format: date
+             */
+            end: string;
+            items: components["schemas"]["CoverageItemsOut"];
+            lag: components["schemas"]["CoverageLagOut"];
+            /** Published */
+            published: number;
+            /** Published Untagged */
+            published_untagged: number;
+            /** Published Without Source */
+            published_without_source: number;
+            /** Publishers */
+            publishers: components["schemas"]["CoveragePublisherOut"][];
+            /** Publishers Published */
+            publishers_published: number;
+            /** Sources */
+            sources: components["schemas"]["CoverageSourceOut"][];
+            /**
+             * Start
+             * Format: date
+             */
+            start: string;
+            /** Top Publisher */
+            top_publisher: string | null;
+            /** Top Publisher Share */
+            top_publisher_share: number;
+            /** Topics */
+            topics: components["schemas"]["CoverageTopicOut"][];
+        };
+        /** CoverageSourceOut */
+        CoverageSourceOut: {
+            /** Active */
+            active: boolean;
+            /** Backlog Skipped */
+            backlog_skipped: number;
+            /** Category */
+            category: string | null;
+            /** In Review */
+            in_review: number;
+            /** Items */
+            items: number;
+            /** Live */
+            live: number;
+            /** Median Lag Hours */
+            median_lag_hours: number | null;
+            /** Name */
+            name: string;
+            /** Not Relevant */
+            not_relevant: number;
+            /** Other */
+            other: number;
+            /** Published */
+            published: number;
+            /** Publisher */
+            publisher: string;
+            /** Rights Blocked */
+            rights_blocked: number;
+            /** Rights Status */
+            rights_status: string;
+            /**
+             * Source Id
+             * Format: uuid
+             */
+            source_id: string;
+        };
+        /** CoverageTopicOut */
+        CoverageTopicOut: {
+            /** Active */
+            active: boolean;
+            /** In Review */
+            in_review: number;
+            /** Name */
+            name: string;
+            /** Published */
+            published: number;
+            /** Slug */
+            slug: string;
+        };
         /** DeleteAccountResponse */
         DeleteAccountResponse: {
             /** Deleted */
@@ -2851,6 +3025,40 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AdminAutoBriefOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_coverage_v1_admin_coverage_get: {
+        parameters: {
+            query?: {
+                start?: string | null;
+                end?: string | null;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CoverageReportOut"];
                 };
             };
             /** @description Validation Error */
