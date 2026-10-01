@@ -78,7 +78,7 @@ login and mobile were inspected through code, not authenticated/device journeys.
   typecheck/lint/build clean. Checked against a seeded local DB (350 calls: days, breakdown and
   linked+unlinked all equal totals; `/costs` and `/` served 200 from `next dev`); **not viewed in a browser**
   (extension not connected), so phone/desktop layout is unchecked. Next: R6 (reader reports, needs ADR).
-- **R6 done (2026-09-30, not deployed): private reader-report inbox per ADR-029 (accepted as proposed).**
+- **R6 done (2026-09-30, pushed `2e9aece`, not deployed): private reader-report inbox per ADR-029 (accepted as proposed).**
   `POST /v1/stories/{id}/reports` (no login; public stories only, else 404; `extra="forbid"`, text ≤ 2,000)
   writes `reader_reports` (migration `f3b8d1c6a2e7`). Rate limit 5/10 min + 20/day per client
   (`rate_limit_reports`, process-local); `client_hash` = HMAC(`ADMIN_JWT_SECRET`, IP + UTC day), no IP
