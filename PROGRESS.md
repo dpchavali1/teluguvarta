@@ -121,7 +121,7 @@ login and mobile were inspected through code, not authenticated/device journeys.
   `tests/test_admin_lists.py` (4: paging order/no-skip, every filter, library, audit past 200); full suite
   493 passed + the known flaky fixture error (passes alone); ruff clean; mypy 72 (unchanged). Admin
   typecheck/lint/build clean. **Not checked in a browser.** Next: R8.
-- **R8 measurement done (2026-09-30, not deployed); product half waits on ADR-030 (proposed).**
+- **R8 measurement done (2026-09-30, pushed `2577e21`, not deployed); product half waits on ADR-030 (proposed).**
   `GET /v1/admin/coverage?start&end` (`app/coverage_report.py`; inclusive UTC days, default last 7, max 93,
   same 422s as `/ai-costs`). Item cohort = source items whose *publisher* date is in range (items record no
   fetch time; undated items are not counted), each in exactly one outcome: rights_blocked, backlog_skipped
