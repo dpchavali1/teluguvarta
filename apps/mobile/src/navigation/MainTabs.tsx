@@ -1,6 +1,6 @@
+import Ionicons from "@expo/vector-icons/Ionicons";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import React from "react";
-import { Text } from "react-native";
 
 import { LanguageToggle } from "../components/LanguageToggle";
 import { HomeScreen } from "../screens/HomeScreen";
@@ -13,22 +13,18 @@ import type { MainTabParamList } from "./types";
 
 const Tab = createBottomTabNavigator<MainTabParamList>();
 
-// Plain-text glyphs (no icon-library dependency, per ADR-008) rendered via
-// the system emoji font, so they're free and consistent on iOS + Android.
-// Design review (2026-09-10) flagged this as visually unfinished and
-// recommended @expo/vector-icons; re-attempted here and it installs
-// cleanly in apps/mobile alone, but pulls in a second @types/react
-// resolution that breaks apps/web's and apps/admin's `next build` type
-// checking repo-wide (LayoutProps<"/"> "bigint is not assignable to
-// ReactNode" — confirmed by reverting the install and rebuilding both
-// clean). Not safe to add without a workspace-wide @types/react version
-// audit first; see PROGRESS.md.
-const TAB_GLYPHS: Record<keyof MainTabParamList, string> = {
-  Home: "⌂",
-  Search: "⌕",
-  Saved: "♡",
-  Topics: "▤",
-  Settings: "☰",
+// Review R10: vector icons replace the old text glyphs (⌂ ⌕ ♡ ▤ ☰), which
+// depended on each device's system font. @expo/vector-icons was blocked
+// earlier by a second @types/react resolution breaking the Next builds; with
+// the workspace's current types it installs with no extra resolution and
+// apps/web + apps/admin still build. Filled when focused, outline otherwise.
+type IconName = React.ComponentProps<typeof Ionicons>["name"];
+const TAB_ICONS: Record<keyof MainTabParamList, [focused: IconName, unfocused: IconName]> = {
+  Home: ["home", "home-outline"],
+  Search: ["search", "search-outline"],
+  Saved: ["bookmark", "bookmark-outline"],
+  Topics: ["grid", "grid-outline"],
+  Settings: ["settings", "settings-outline"],
 };
 
 export function MainTabs() {
@@ -57,9 +53,10 @@ export function MainTabs() {
         // no persistent affordance. One tap from every main tab now,
         // matching web's header-level placement.
         headerRight: () => <LanguageToggle />,
-        tabBarIcon: ({ color }) => (
-          <Text style={{ fontSize: 20, color }}>{TAB_GLYPHS[route.name as keyof MainTabParamList]}</Text>
-        ),
+        tabBarIcon: ({ color, focused, size }) => {
+          const [active, inactive] = TAB_ICONS[route.name as keyof MainTabParamList];
+          return <Ionicons name={focused ? active : inactive} size={size} color={color} />;
+        },
       })}
     >
       <Tab.Screen name="Home" component={HomeScreen} options={{ tabBarAccessibilityLabel: "Home" }} />

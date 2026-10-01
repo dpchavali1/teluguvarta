@@ -180,7 +180,15 @@ export function HomeScreen() {
             <Text style={styles.welcomeTitle}>What matters today</Text>
             <Text style={styles.welcomeCopy}>Clear updates for life here and back home.</Text>
           </View>
-          {error && <Text style={styles.error}>{error}</Text>}
+          {error && (
+            <Text style={styles.error} accessibilityRole="alert">
+              {error}
+              {/* Review R10: say how old the stories still on screen are. */}
+              {stories.length > 0 && loadedAt.current !== null
+                ? ` Showing stories loaded at ${new Date(loadedAt.current).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}.`
+                : ""}
+            </Text>
+          )}
           {topics.length > 0 && (
             <FlatList
               horizontal

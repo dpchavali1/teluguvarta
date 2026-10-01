@@ -6,8 +6,9 @@ import { HOME_STALE_MS, HomeScreen } from "../screens/HomeScreen";
 import { LatestScreen } from "../screens/LatestScreen";
 import { SavedScreen } from "../screens/SavedScreen";
 import { SearchScreen } from "../screens/SearchScreen";
-import { StoryCacheProvider } from "../lib/StoryCacheContext";
-import { getHome, getSavedStories, listStories, search, type StoryOut } from "../lib/api";
+import { StoryDetailScreen } from "../screens/StoryDetailScreen";
+import { StoryCacheProvider, useStoryCache } from "../lib/StoryCacheContext";
+import { ApiNetworkError, ApiNotFoundError, getHome, getSavedStories, getStory, listStories, search, type StoryOut } from "../lib/api";
 
 jest.mock("@react-navigation/native", () => ({
   useNavigation: () => ({ navigate: jest.fn() }),
@@ -21,7 +22,7 @@ jest.mock("../components/StoryCard", () => ({
 }));
 jest.mock("../lib/api", () => ({
   ...jest.requireActual("../lib/api"),
-  getHome: jest.fn(), getSavedStories: jest.fn(), listStories: jest.fn(), search: jest.fn(), trackEvent: jest.fn(),
+  getHome: jest.fn(), getSavedStories: jest.fn(), getStory: jest.fn(), listStories: jest.fn(), search: jest.fn(), trackEvent: jest.fn(),
 }));
 const story = (headline: string): StoryOut => ({
   id: "11111111-1111-1111-1111-111111111111", canonical_slug: "example", status: "UPDATED", sensitivity: "NONE", format: "FULL",
@@ -126,4 +127,44 @@ test("latest pages through every story by cursor", async () => {
   expect(listStories).toHaveBeenLastCalledWith({ cursor: "c1" });
   expect(screen.getByText("Newest UPDATED")).toBeTruthy();
   expect(screen.queryByText("Older stories")).toBeNull();
+});
+
+// Review R10: story detail opens from the copy a feed already loaded.
+function SeedCache({ stories, children }: { stories: StoryOut[]; children: React.ReactNode }) {
+  const { put } = useStoryCache();
+  const [ready, setReady] = React.useState(false);
+  React.useEffect(() => { put(stories); setReady(true); }, [put, stories]);
+  return ready ? <>{children}</> : null;
+}
+const detail = () => <StoryDetailScreen {...({ route: { params: { slug: "example" } } } as any)} />;
+
+test("story detail shows the cached copy at once, then the API version", async () => {
+  let resolve!: (s: StoryOut) => void;
+  jest.mocked(getStory).mockImplementationOnce(() => new Promise((r) => { resolve = r; }));
+  await render(<StoryCacheProvider><SeedCache stories={[story("From feed")]}>{detail()}</SeedCache></StoryCacheProvider>);
+  await screen.findByText("From feed UPDATED");
+  expect(screen.queryByText(/Showing the copy loaded/)).toBeNull();
+  await act(async () => { resolve(story("Corrected")); });
+  await screen.findByText("Corrected UPDATED");
+});
+
+test("story detail keeps the cached copy offline, labelled, with retry", async () => {
+  jest.mocked(getStory).mockRejectedValueOnce(new ApiNetworkError("offline")).mockResolvedValueOnce(story("Back online"));
+  await render(<StoryCacheProvider><SeedCache stories={[story("From feed")]}>{detail()}</SeedCache></StoryCacheProvider>);
+  await screen.findByText(/You're offline\. Showing the copy loaded at/);
+  expect(screen.getByText("From feed UPDATED")).toBeTruthy();
+  await fireEvent.press(screen.getByLabelText("Retry loading the latest version"));
+  await screen.findByText("Back online UPDATED");
+  expect(screen.queryByText(/Showing the copy loaded/)).toBeNull();
+});
+
+test("story detail drops a cached copy the API no longer serves", async () => {
+  jest.mocked(getStory).mockRejectedValueOnce(new ApiNotFoundError("gone")).mockRejectedValueOnce(new ApiNetworkError("offline"));
+  await render(<StoryCacheProvider><SeedCache stories={[story("Retracted later")]}>{detail()}</SeedCache></StoryCacheProvider>);
+  await screen.findByText("This story is no longer available.");
+  expect(screen.queryByText("Retracted later UPDATED")).toBeNull();
+  // Evicted: a retry while offline must not bring the stale copy back.
+  await fireEvent.press(screen.getByLabelText("Retry"));
+  await screen.findByText("You're offline. Check your connection.");
+  expect(screen.queryByText("Retracted later UPDATED")).toBeNull();
 });

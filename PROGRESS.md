@@ -158,6 +158,20 @@ login and mobile were inspected through code, not authenticated/device journeys.
   mypy 72 (unchanged); web 8, mobile 24 tests; admin/web/mobile typecheck and admin/web lint clean.
   **Not checked:** real model output against the guide (no paid eval run), existing live copy (unchanged
   until re-generated or edited), browser/device layout. Next: R10.
+- **R10 partly done (2026-09-30, not deployed; mobile needs a store release): icons and cache-assisted opening.**
+  Tab bar uses `@expo/vector-icons` Ionicons (filled when focused) instead of text glyphs. The old blocker
+  (a second `@types/react` breaking `next build`) no longer happens: the install adds no new resolution and
+  web + admin build clean. Bundle grows by Ionicons.ttf (390 KB). Story detail opens from the in-memory
+  copy a feed already loaded (`StoryCacheContext.getBySlug`, with load time) and swaps in the API version;
+  if the refresh fails it keeps the copy with a banner ("You're offline / Couldn't refresh. Showing the
+  copy loaded at HH:MM; it may not include later corrections" + Retry). A 404 evicts the cached copy
+  (`remove`) and shows "no longer available", so a retracted story is never shown from cache. Home's
+  refresh error now says when the stories still on screen were loaded. Tests: 3 new in
+  `ux-reliability.test.tsx`; mobile 27 passed, typecheck clean, `bundle-check` exports. **Not done:**
+  readability controls (system font scaling still applies), Home/Latest navigation (owner decision; Latest
+  stays reachable from Home), persisted offline reading (cache is still memory only; needs an ADR on
+  expiry and correction/retraction), and every device check (large text, TalkBack/VoiceOver, poor network,
+  push opening, Unicode shared links). Next: R11.
 
 Update this file at the end of every ticket. This is the source of truth for
 "what's actually done" — trust it over assumptions, git log archaeology, or
