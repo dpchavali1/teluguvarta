@@ -78,6 +78,13 @@ login and mobile were inspected through code, not authenticated/device journeys.
   typecheck/lint/build clean. Checked against a seeded local DB (350 calls: days, breakdown and
   linked+unlinked all equal totals; `/costs` and `/` served 200 from `next dev`); **not viewed in a browser**
   (extension not connected), so phone/desktop layout is unchecked. Next: R6 (reader reports, needs ADR).
+- **R6 blocked on owner (2026-09-30): ADR-029 proposed, no code.** `docs/adr/ADR-029-reader-report-inbox.md`:
+  dedicated `POST /v1/stories/{id}/reports` + `reader_reports` table (category enum, OPEN→RESOLVED/DISMISSED,
+  resolution linked to an audited correction/retraction), editor-only access, report text erased 90 d after
+  resolution / 180 d if open, per-client rate limits with a daily-rotating HMAC instead of IPs, analytics keeps
+  no text. Also found (current, unfixed): `/v1/events` has no rate limit and accepts unbounded `properties`, and
+  `story_id` isn't checked. Owner decides: reports ≠ UGC (NON_NEGOTIABLES #6), retention, limits, categories.
+  Next: R7 (review/admin navigation at volume) while ADR-029 waits.
 
 Update this file at the end of every ticket. This is the source of truth for
 "what's actually done" — trust it over assumptions, git log archaeology, or

@@ -79,3 +79,7 @@ accepted. Add ad-hoc ADRs below this table as they're written.
   vs. hardened bearer token, plus admin CSP) | review 2026-09-29 #15 |
   **proposed** (owner decision needed) — see
   [ADR-028](ADR-028-admin-session-storage.md)
+- ADR-029 | Reader-report inbox: dedicated table/endpoint, lifecycle,
+  retention, rate limits and editor-only access | review 2026-09-30 R6 |
+  **proposed** (owner decision needed) — see
+  [ADR-029](ADR-029-reader-report-inbox.md)
