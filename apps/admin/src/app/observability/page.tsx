@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
-import { Badge, EmptyState, PageHeader, StatTile, useToast } from "@/components/ui";
+import { Badge, EmptyState, PageHeader, StatTile, type Tone, useToast } from "@/components/ui";
 import { apiUrl, clearSession, getToken } from "@/lib/auth";
 import { STALE_QUEUE_SECONDS, ago, duration } from "@/lib/time";
 
@@ -49,12 +49,35 @@ interface XCostSummary {
   low_priority_accounts_paused: number;
 }
 
+type OpsState = "OK" | "STALE" | "FAILING" | "NEVER";
+
+interface OpsCheck {
+  check: string;
+  label: string;
+  state: OpsState;
+  last_success_at: string | null;
+  success_detail: string | null;
+  last_failure_at: string | null;
+  failure_detail: string | null;
+  max_age_seconds: number | null;
+}
+
 interface Observability {
   ingestion_health: SourceIngestionHealth[];
   job_queue: JobQueueHealth;
   ai_cost: AiCostSummary;
   x_cost: XCostSummary;
+  operations: OpsCheck[];
 }
+
+// Review 2026-09-30 R3: text as well as colour, and NEVER is a problem —
+// an unrecorded backup is not evidence of one.
+const OPS_STATE: Record<OpsState, { label: string; tone: Tone }> = {
+  OK: { label: "OK", tone: "ok" },
+  STALE: { label: "Overdue", tone: "warn" },
+  FAILING: { label: "Failing", tone: "danger" },
+  NEVER: { label: "No record", tone: "warn" },
+};
 
 interface XAccount {
   id: string;
@@ -176,6 +199,7 @@ export default function ObservabilityPage() {
   const ai = data.ai_cost;
   const x = data.x_cost;
   // Problems first: tripped breakers, then most failures in 24h.
+  const opsProblems = data.operations.filter((op) => op.state !== "OK");
   const health = [...data.ingestion_health].sort(
     (a, b) => Number(b.circuit_breaker_tripped) - Number(a.circuit_breaker_tripped) || b.failure_count_24h - a.failure_count_24h
   );
@@ -188,8 +212,39 @@ export default function ObservabilityPage() {
         <StatTile href="#ingestion" label="Sources tripped" value={health.filter((h) => h.circuit_breaker_tripped).length} note={`${health.length} sources`} tone={health.some((h) => h.circuit_breaker_tripped) ? "danger" : "ok"} />
         <StatTile href="#jobs" label="Jobs pending" value={jobs.PENDING ?? 0} note={oldest !== null ? `oldest waiting ${duration(oldest)}` : "queue empty"} tone={(jobs.FAILED ?? 0) > 0 ? "danger" : oldest !== null && oldest > STALE_QUEUE_SECONDS ? "warn" : "ok"} />
         <StatTile href="#ai-cost" label="AI spend (month)" value={usd(ai.month_to_date_cost_usd)} note={ai.monthly_budget_usd !== null ? `of ${usd(ai.monthly_budget_usd)}` : "no budget set"} tone={ai.over_monthly_budget ? "danger" : "ok"} />
+        <StatTile href="#operations" label="Backups & monitoring" value={opsProblems.length === 0 ? "OK" : `${opsProblems.length} to check`} note={`${data.operations.length} checks`} tone={opsProblems.some((op) => op.state === "FAILING") ? "danger" : opsProblems.length > 0 ? "warn" : "ok"} />
         <StatTile href="#x" label="X spend (month)" value={usd(x.month_to_date_cost_usd)} note={x.monthly_budget_usd !== null ? `of ${usd(x.monthly_budget_usd)}` : "no budget set"} tone={x.over_monthly_budget ? "danger" : "ok"} />
       </div>
+
+      <section id="operations">
+        <h2>Backups &amp; monitoring</h2>
+        <p className="card__meta">Reported by the server&apos;s backup, restore-drill and monitor scripts (infra/deploy). Overdue means no success within the expected interval.</p>
+        <div className="table-scroll"><table>
+          <thead>
+            <tr>
+              <th>Check</th>
+              <th>Status</th>
+              <th>Last success</th>
+              <th>Last failure</th>
+              <th>Detail</th>
+            </tr>
+          </thead>
+          <tbody>
+            {data.operations.map((op) => (
+              <tr key={op.check}>
+                <td>
+                  {op.label}
+                  {op.max_age_seconds !== null ? <span className="card__meta"> (due every {duration(op.max_age_seconds)})</span> : null}
+                </td>
+                <td><Badge tone={OPS_STATE[op.state].tone}>{OPS_STATE[op.state].label}</Badge></td>
+                <td title={op.last_success_at ? new Date(op.last_success_at).toLocaleString() : undefined}>{ago(op.last_success_at)}</td>
+                <td title={op.last_failure_at ? new Date(op.last_failure_at).toLocaleString() : undefined}>{ago(op.last_failure_at)}</td>
+                <td>{(op.state === "FAILING" ? op.failure_detail : op.success_detail) ?? "—"}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table></div>
+      </section>
 
       <section id="ingestion">
         <h2>Ingestion health (last 24h)</h2>

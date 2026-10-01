@@ -1531,7 +1531,34 @@ export interface components {
             /** Ingestion Health */
             ingestion_health: components["schemas"]["SourceIngestionHealthOut"][];
             job_queue: components["schemas"]["JobQueueHealthOut"];
+            /** Operations */
+            operations: components["schemas"]["OpsCheckOut"][];
             x_cost: components["schemas"]["XCostSummaryOut"];
+        };
+        /**
+         * OpsCheckOut
+         * @description Review 2026-09-30 R3: one host-side operation (`app/ops_status.py`).
+         */
+        OpsCheckOut: {
+            /** Check */
+            check: string;
+            /** Failure Detail */
+            failure_detail?: string | null;
+            /** Label */
+            label: string;
+            /** Last Failure At */
+            last_failure_at?: string | null;
+            /** Last Success At */
+            last_success_at?: string | null;
+            /** Max Age Seconds */
+            max_age_seconds?: number | null;
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "OK" | "STALE" | "FAILING" | "NEVER";
+            /** Success Detail */
+            success_detail?: string | null;
         };
         /**
          * PersonalizationOut

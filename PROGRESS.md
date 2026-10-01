@@ -24,6 +24,22 @@ login and mobile were inspected through code, not authenticated/device journeys.
   `c3061756` headline; `ca1e69c2`, `9193cbbe` why-matters; `085b7508` summary). **These stay served until
   re-translated**: no audited re-translate path exists for a PASSED variant yet (ADR-025 retry covers
   EXHAUSTED only), so that needs an editor fix or an ADR.
+- **R3 code done (2026-09-30, not pushed/deployed); evidence still owed by the owner.** New table
+  `ops_checks` (migration `e7c2a9d4f1b6`), one row per BACKUP / OFFSITE_COPY / RESTORE_DRILL / MONITOR /
+  ALERT_TEST with last success/failure and detail. Host scripts write it through
+  `infra/deploy/ops-record.sh` (best effort; never fails the caller): `backup-prod.sh` (file + size;
+  OFFSITE_COPY fails when `BACKUP_STORAGE_BOX` is unset), `restore-drill.sh` (RTO/RPO/schema),
+  `monitor.sh` cron runs (not the deploy gate). `app/ops_status.py` derives OK / STALE (backup 26 h,
+  monitor 15 min, drill 35 d per BACKUPS.md's monthly cadence) / FAILING / NEVER; `/v1/admin/observability`
+  returns `operations`, and admin Observability has a "Backups & monitoring" tile and table.
+  `infra/deploy/ops-evidence.sh` (owner runs on the VPS) reports settings set/unset, newest local and
+  Storage Box backups and their age, backup/monitor log failures, and the `ops_checks` rows; `--drill`
+  runs the restore drill, `--test-alert` posts a TEST failure to healthchecks.io and records ALERT_TEST
+  only when the owner confirms receipt. Tests: `tests/test_observability.py` (10 passed); recorder SQL
+  checked against local Postgres via a docker stub, including a quote/semicolon detail. Full suite 465
+  passed + the known flaky fixture error (passes alone). Scripts were not run on a real VPS. **R3 is done
+  only when** the owner deploys, runs `ops-evidence.sh --drill --test-alert`, and the result (newest
+  offsite backup, RTO/RPO, alert receipt) is recorded here.
 
 Update this file at the end of every ticket. This is the source of truth for
 "what's actually done" — trust it over assumptions, git log archaeology, or

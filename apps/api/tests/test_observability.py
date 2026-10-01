@@ -193,3 +193,67 @@ def test_observability_endpoint_reports_ingestion_job_and_cost_health(client, db
     assert body["ai_cost"]["month_to_date_cost_usd"] >= 0
     assert body["x_cost"]["month_to_date_cost_usd"] >= 0
     assert body["x_cost"]["low_priority_accounts_paused"] == 0
+
+
+# --- review 2026-09-30 R3: host-side operations ------------------------
+
+
+def test_observability_reports_ops_check_states(client, db_session):
+    from app.models import OpsCheck
+
+    token = _token(client, db_session)
+    now = datetime.now(UTC)
+    db_session.add_all([
+        OpsCheck(check_name="BACKUP", last_success_at=now - timedelta(hours=2), success_detail="teluguvarta_x.dump.age 12M"),
+        OpsCheck(check_name="OFFSITE_COPY", last_success_at=now - timedelta(hours=30)),
+        OpsCheck(
+            check_name="MONITOR", last_success_at=now - timedelta(minutes=20),
+            last_failure_at=now - timedelta(minutes=5), failure_detail="WORKER_STALE: no job claimed",
+        ),
+        # A failure older than the latest success is history, not the current state.
+        OpsCheck(
+            check_name="RESTORE_DRILL", last_success_at=now - timedelta(days=1),
+            success_detail="RTO 14s, RPO 320 min", last_failure_at=now - timedelta(days=2),
+        ),
+    ])
+    db_session.commit()
+
+    response = client.get("/v1/admin/observability", headers=_auth(token))
+    assert response.status_code == 200
+    ops = {row["check"]: row for row in response.json()["operations"]}
+
+    assert list(ops) == ["BACKUP", "OFFSITE_COPY", "RESTORE_DRILL", "MONITOR", "ALERT_TEST"]
+    assert ops["BACKUP"]["state"] == "OK"
+    assert ops["BACKUP"]["success_detail"] == "teluguvarta_x.dump.age 12M"
+    assert ops["OFFSITE_COPY"]["state"] == "STALE"
+    assert ops["MONITOR"]["state"] == "FAILING"
+    assert ops["MONITOR"]["failure_detail"] == "WORKER_STALE: no job claimed"
+    assert ops["RESTORE_DRILL"]["state"] == "OK"
+    assert ops["ALERT_TEST"]["state"] == "NEVER"
+    assert ops["ALERT_TEST"]["max_age_seconds"] is None
+
+
+def test_ops_check_names_match_db_constraint(db_session):
+    """Every name ops_status reports must be writable by ops-record.sh."""
+    from app.models import OpsCheck
+    from app.ops_status import CHECKS
+
+    db_session.add_all([OpsCheck(check_name=name) for name in CHECKS])
+    db_session.commit()
+    db_session.add(OpsCheck(check_name="SOMETHING_ELSE"))
+    with pytest.raises(Exception, match="ck_ops_checks_name"):
+        db_session.commit()
+    db_session.rollback()
+
+
+def test_ops_state_never_stale_without_cadence():
+    from app.models import OpsCheck
+    from app.ops_status import _state
+
+    now = datetime.now(UTC)
+    old = OpsCheck(check_name="ALERT_TEST", last_success_at=now - timedelta(days=400))
+    assert _state(old, None, now) == "OK"
+    assert _state(OpsCheck(check_name="ALERT_TEST"), None, now) == "NEVER"
+    assert _state(None, timedelta(hours=1), now) == "NEVER"
+    only_failed = OpsCheck(check_name="BACKUP", last_failure_at=now)
+    assert _state(only_failed, timedelta(hours=1), now) == "FAILING"

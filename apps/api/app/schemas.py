@@ -600,11 +600,25 @@ class XCostSummaryOut(BaseModel):
     low_priority_accounts_paused: int
 
 
+class OpsCheckOut(BaseModel):
+    """Review 2026-09-30 R3: one host-side operation (`app/ops_status.py`)."""
+
+    check: str
+    label: str
+    state: Literal["OK", "STALE", "FAILING", "NEVER"]
+    last_success_at: datetime | None = None
+    success_detail: str | None = None
+    last_failure_at: datetime | None = None
+    failure_detail: str | None = None
+    max_age_seconds: int | None = None
+
+
 class ObservabilityOut(BaseModel):
     ingestion_health: list[SourceIngestionHealthOut]
     job_queue: JobQueueHealthOut
     ai_cost: AiCostSummaryOut
     x_cost: XCostSummaryOut
+    operations: list[OpsCheckOut]
 
 
 class AdminFeedTestRequest(BaseModel):

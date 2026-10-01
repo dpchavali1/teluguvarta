@@ -19,6 +19,9 @@
 #   BACKUP_KEEP_DAYS_REMOTE  default 30
 #   BACKUP_HEALTHCHECK_URL   optional; pinged on success, <url>/fail on failure
 #                            (healthchecks.io style), so a silent stop is noticed
+#
+# Each run also records BACKUP and OFFSITE_COPY in ops_checks (ops-record.sh),
+# which admin Observability shows with their age.
 set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
@@ -35,6 +38,8 @@ ssh_key="$(env_get BACKUP_SSH_KEY)"; ssh_key="${ssh_key:-/root/.ssh/storagebox}"
 keep_local="$(env_get BACKUP_KEEP_DAYS_LOCAL)"; keep_local="${keep_local:-14}"
 keep_remote="$(env_get BACKUP_KEEP_DAYS_REMOTE)"; keep_remote="${keep_remote:-30}"
 healthcheck="$(env_get BACKUP_HEALTHCHECK_URL)"
+record() { "$repo_root/infra/deploy/ops-record.sh" "$@"; }
+stage=BACKUP
 
 ping_health() {
   [ -n "$healthcheck" ] && curl -fsS -m 10 --retry 3 "$healthcheck$1" >/dev/null || true
@@ -42,12 +47,13 @@ ping_health() {
 on_error() {
   echo "BACKUP FAILED (line $1)" >&2
   rm -f "${partial:-}"
+  record "$stage" fail "failed at backup-prod.sh line $1"
   ping_health /fail
 }
 trap 'on_error $LINENO' ERR
 
-[ -n "$recipient" ] || { echo "BACKUP_AGE_RECIPIENT is not set in $ENV_FILE — refusing to back up unencrypted" >&2; ping_health /fail; exit 1; }
-command -v age >/dev/null || { echo "'age' is not installed (apt-get install age)" >&2; ping_health /fail; exit 1; }
+[ -n "$recipient" ] || { echo "BACKUP_AGE_RECIPIENT is not set in $ENV_FILE — refusing to back up unencrypted" >&2; record BACKUP fail "BACKUP_AGE_RECIPIENT not set"; ping_health /fail; exit 1; }
+command -v age >/dev/null || { echo "'age' is not installed (apt-get install age)" >&2; record BACKUP fail "age not installed"; ping_health /fail; exit 1; }
 
 mkdir -p "$BACKUP_DIR"
 chmod 700 "$BACKUP_DIR"
@@ -63,7 +69,9 @@ partial="$BACKUP_DIR/.$name.partial"
 [ "$(stat -c %s "$partial")" -gt 1024 ] || { echo "dump suspiciously small" >&2; false; }
 mv "$partial" "$BACKUP_DIR/$name"
 partial=""
-echo "Wrote $BACKUP_DIR/$name ($(du -h "$BACKUP_DIR/$name" | cut -f1))"
+size="$(du -h "$BACKUP_DIR/$name" | cut -f1)"
+echo "Wrote $BACKUP_DIR/$name ($size)"
+record BACKUP ok "$name ($size)"
 
 # Names embed a sortable UTC timestamp, so retention compares names, not mtimes.
 cutoff_name() { echo "teluguvarta_$(date -u -d "-$1 days" +%Y%m%dT%H%M%SZ).dump.age"; }
@@ -77,12 +85,14 @@ for f in "$BACKUP_DIR"/teluguvarta_*.dump.age; do
 done
 
 if [ -n "$storage_box" ]; then
+  stage=OFFSITE_COPY
   ssh_opts=(-p 23 -i "$ssh_key" -o BatchMode=yes -o StrictHostKeyChecking=accept-new)
   ssh "${ssh_opts[@]}" "$storage_box" mkdir -p teluguvarta >/dev/null 2>&1 || true
   # Copy only this run's file: never --delete, so a wiped local dir can't
   # propagate and erase the off-box copies.
   rsync -a -e "ssh ${ssh_opts[*]}" "$BACKUP_DIR/$name" "$storage_box:teluguvarta/"
   echo "Copied to $storage_box:teluguvarta/$name"
+  record OFFSITE_COPY ok "$name"
 
   cutoff="$(cutoff_name "$keep_remote")"
   ssh "${ssh_opts[@]}" "$storage_box" ls teluguvarta | tr -d '\r' | while read -r f; do
@@ -93,6 +103,7 @@ if [ -n "$storage_box" ]; then
   done
 else
   echo "BACKUP_STORAGE_BOX not set — backup kept on this server only"
+  record OFFSITE_COPY fail "BACKUP_STORAGE_BOX not set; backup kept on this server only"
 fi
 
 ping_health ""

@@ -374,6 +374,22 @@ class AiWorkState(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
 
 
+class OpsCheck(Base):
+    """Review 2026-09-30 R3: last outcome of a host-side operation (backup,
+    offsite copy, restore drill, monitor, alert test), written by
+    `infra/deploy/ops-record.sh`. Read by `app/ops_status.py`."""
+
+    __tablename__ = "ops_checks"
+
+    # One of `ops_status.CHECKS`, per `ck_ops_checks_name`.
+    check_name: Mapped[str] = mapped_column(Text, primary_key=True)
+    last_success_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    success_detail: Mapped[str | None] = mapped_column(Text, nullable=True)
+    last_failure_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    failure_detail: Mapped[str | None] = mapped_column(Text, nullable=True)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+
+
 class Correction(Base):
     """T12: one row per applied correction (`old_text_hash`/`new_text_hash`
     over the English variant's headline+summary+why_matters, not a full

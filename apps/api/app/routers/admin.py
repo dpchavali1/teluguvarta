@@ -73,6 +73,7 @@ from app.models import (
     Topic,
     XAccount,
 )
+from app.ops_status import ops_statuses
 from app.rate_limit import rate_limit_admin
 from app.schemas import (
     AdminActionRequest,
@@ -105,6 +106,7 @@ from app.schemas import (
     KillSwitchesOut,
     Language,
     ObservabilityOut,
+    OpsCheckOut,
     ReviewQueueItemOut,
     RightsEvidence,
     SourceIngestionHealthOut,
@@ -1092,7 +1094,11 @@ def get_observability(db: Session = Depends(get_db)) -> ObservabilityOut:
         low_priority_accounts_paused=low_priority_paused,
     )
 
-    return ObservabilityOut(ingestion_health=ingestion_health, job_queue=job_queue, ai_cost=ai_cost, x_cost=x_cost)
+    operations = [OpsCheckOut(**vars(status)) for status in ops_statuses(db, now)]
+
+    return ObservabilityOut(
+        ingestion_health=ingestion_health, job_queue=job_queue, ai_cost=ai_cost, x_cost=x_cost, operations=operations
+    )
 
 
 @router.get("/_debug/throw", include_in_schema=False)

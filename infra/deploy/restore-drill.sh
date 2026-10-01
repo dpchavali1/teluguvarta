@@ -8,6 +8,9 @@
 # the live one — compares schema version and row counts against live, prints
 # the restore time (RTO) and the backup's age (RPO), then drops the drill DB.
 #
+# The outcome is recorded as RESTORE_DRILL in ops_checks (ops-record.sh), so
+# admin Observability shows when the last drill passed and its RTO/RPO.
+#
 # BACKUP_AGE_IDENTITY is the age private key. It is escrowed off this box; copy
 # it here for the drill only and delete it afterwards (the script reminds you).
 set -euo pipefail
@@ -27,9 +30,12 @@ fi
 [ -n "$backup" ] && [ -f "$backup" ] || { echo "No backup found (looked in $BACKUP_DIR)" >&2; exit 1; }
 
 drill_db="restore_drill_$(date +%s)"
+drill_result=""
 psql_in() { "${COMPOSE[@]}" exec -T postgres psql -U teluguvarta -v ON_ERROR_STOP=1 -Atq "$@"; }
 
 cleanup() {
+  # Anything that exits before the verdict (restore error, missing tool) is a failed drill.
+  [ -n "$drill_result" ] || "$repo_root/infra/deploy/ops-record.sh" RESTORE_DRILL fail "$(basename "$backup"): did not complete"
   "${COMPOSE[@]}" exec -T postgres rm -f /tmp/restore-drill.dump || true
   psql_in -d postgres -c "DROP DATABASE IF EXISTS \"$drill_db\" WITH (FORCE)" || true
   echo "Dropped $drill_db. Now delete the identity file: shred -u $identity"
@@ -70,4 +76,12 @@ done
 echo
 echo "Restore time (RTO data point): ${elapsed}s"
 echo "Backup age at drill (RPO data point): ${age_min} min"
-if [ "$fail" -eq 0 ]; then echo "RESTORE DRILL PASSED"; else echo "RESTORE DRILL FAILED"; exit 1; fi
+summary="$(basename "$backup"): RTO ${elapsed}s, RPO ${age_min} min, schema $drill_ver"
+drill_result=done
+if [ "$fail" -eq 0 ]; then
+  "$repo_root/infra/deploy/ops-record.sh" RESTORE_DRILL ok "$summary"
+  echo "RESTORE DRILL PASSED"
+else
+  "$repo_root/infra/deploy/ops-record.sh" RESTORE_DRILL fail "$summary; restored data did not match live"
+  echo "RESTORE DRILL FAILED"; exit 1
+fi

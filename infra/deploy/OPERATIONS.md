@@ -79,6 +79,20 @@ Deploys are git-based. `deploy.sh` resets to `origin/main` unless you pass
 
 ## Readiness checklist (review #9 evidence)
 
+`ops-evidence.sh` collects the evidence for this list without printing secret
+values, and saves a copy under `/root/`:
+
+```
+sudo ./infra/deploy/ops-evidence.sh                 # settings, local + offsite backups, monitor log
+sudo ./infra/deploy/ops-evidence.sh --test-alert    # also fire a TEST alert and record receipt
+sudo BACKUP_AGE_IDENTITY=/root/drill-key.txt ./infra/deploy/ops-evidence.sh --drill
+```
+
+Backups, the offsite copy, restore drills, monitor runs and confirmed alert
+tests are also recorded in `ops_checks` (`ops-record.sh`), and admin
+Observability shows each one's age, with "Overdue", "Failing" or "No record"
+when it needs attention.
+
 Record each item with its date in `PROGRESS.md`:
 
 - [ ] `BACKUP_AGE_RECIPIENT` and `BACKUP_STORAGE_BOX` set; first backup taken; the file is visible on the Storage Box.

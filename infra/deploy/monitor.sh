@@ -16,6 +16,10 @@
 #                            the whole server going down, which nothing on the
 #                            server can report.
 # MONITOR_NO_PING=1 skips the ping (deploy.sh uses it while it waits).
+#
+# Cron runs also record MONITOR in ops_checks (ops-record.sh) for admin
+# Observability. A failed record (e.g. Postgres down) is ignored: the ping is
+# what alerts.
 set -uo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
@@ -56,7 +60,10 @@ if [ "${#failures[@]}" -gt 0 ]; then
   report="$(printf '%s\n' "${failures[@]}")"
   echo "$(date -u +%FT%TZ) UNHEALTHY"; echo "$report"
   ping_health /fail "$report"
+  [ "${MONITOR_NO_PING:-0}" = "1" ] || "$repo_root/infra/deploy/ops-record.sh" MONITOR fail "$report" 2>/dev/null
   exit 1
 fi
 echo "$(date -u +%FT%TZ) ok"
 ping_health "" ok
+[ "${MONITOR_NO_PING:-0}" = "1" ] || "$repo_root/infra/deploy/ops-record.sh" MONITOR ok 2>/dev/null
+exit 0

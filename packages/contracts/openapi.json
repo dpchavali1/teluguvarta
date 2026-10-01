@@ -2149,6 +2149,13 @@
           "job_queue": {
             "$ref": "#/components/schemas/JobQueueHealthOut"
           },
+          "operations": {
+            "items": {
+              "$ref": "#/components/schemas/OpsCheckOut"
+            },
+            "title": "Operations",
+            "type": "array"
+          },
           "x_cost": {
             "$ref": "#/components/schemas/XCostSummaryOut"
           }
@@ -2157,9 +2164,97 @@
           "ingestion_health",
           "job_queue",
           "ai_cost",
-          "x_cost"
+          "x_cost",
+          "operations"
         ],
         "title": "ObservabilityOut",
+        "type": "object"
+      },
+      "OpsCheckOut": {
+        "description": "Review 2026-09-30 R3: one host-side operation (`app/ops_status.py`).",
+        "properties": {
+          "check": {
+            "title": "Check",
+            "type": "string"
+          },
+          "failure_detail": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Failure Detail"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "last_failure_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Failure At"
+          },
+          "last_success_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Success At"
+          },
+          "max_age_seconds": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Age Seconds"
+          },
+          "state": {
+            "enum": [
+              "OK",
+              "STALE",
+              "FAILING",
+              "NEVER"
+            ],
+            "title": "State",
+            "type": "string"
+          },
+          "success_detail": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Success Detail"
+          }
+        },
+        "required": [
+          "check",
+          "label",
+          "state"
+        ],
+        "title": "OpsCheckOut",
         "type": "object"
       },
       "PersonalizationOut": {
