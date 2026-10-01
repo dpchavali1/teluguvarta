@@ -257,3 +257,17 @@ def test_ops_state_never_stale_without_cadence():
     assert _state(None, timedelta(hours=1), now) == "NEVER"
     only_failed = OpsCheck(check_name="BACKUP", last_failure_at=now)
     assert _state(only_failed, timedelta(hours=1), now) == "FAILING"
+
+
+def test_observability_reports_budget_mode_and_windows(client, db_session, monkeypatch):
+    monkeypatch.setenv("MONTHLY_AI_BUDGET_USD", "50")
+    monkeypatch.setenv("MONTHLY_AI_HARD_CAP_USD", "60")
+    token = _token(client, db_session)
+
+    ai = client.get("/v1/admin/observability", headers=_auth(token)).json()["ai_cost"]
+    assert ai["mode"] == "NORMAL"
+    assert ai["monthly_hard_cap_usd"] == 60.0
+    assert ai["hard_cap_remaining_usd"] == pytest.approx(60.0 - ai["month_to_date_cost_usd"])
+    day_start = datetime.fromisoformat(ai["day_start"])
+    assert day_start.utcoffset() == timedelta(0) and day_start.hour == 0
+    assert datetime.fromisoformat(ai["quota_resets_at"]) > datetime.now(UTC)

@@ -1719,6 +1719,36 @@
             ],
             "title": "Daily Alert Usd"
           },
+          "day_start": {
+            "format": "date-time",
+            "title": "Day Start",
+            "type": "string"
+          },
+          "hard_cap_remaining_usd": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hard Cap Remaining Usd"
+          },
+          "mode": {
+            "enum": [
+              "NORMAL",
+              "CLASSIFICATION_ONLY",
+              "PAID_STOPPED"
+            ],
+            "title": "Mode",
+            "type": "string"
+          },
+          "month_start": {
+            "format": "date-time",
+            "title": "Month Start",
+            "type": "string"
+          },
           "month_to_date_cost_usd": {
             "title": "Month To Date Cost Usd",
             "type": "number"
@@ -1745,9 +1775,25 @@
             ],
             "title": "Monthly Budget Usd"
           },
+          "monthly_hard_cap_usd": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Monthly Hard Cap Usd"
+          },
           "over_monthly_budget": {
             "title": "Over Monthly Budget",
             "type": "boolean"
+          },
+          "quota_resets_at": {
+            "format": "date-time",
+            "title": "Quota Resets At",
+            "type": "string"
           },
           "rows": {
             "items": {
@@ -1765,6 +1811,10 @@
           "month_to_date_cost_usd",
           "today_cost_usd",
           "over_monthly_budget",
+          "mode",
+          "day_start",
+          "month_start",
+          "quota_resets_at",
           "rows"
         ],
         "title": "AiCostSummaryOut",

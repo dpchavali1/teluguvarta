@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 import { EmptyState, PageHeader, StatTile, Tone } from "@/components/ui";
+import { BUDGET_MODE, type BudgetMode, budgetModeMessage, usd } from "@/lib/aiBudget";
 import { apiUrl, clearSession, getRole, getToken } from "@/lib/auth";
 import { captureException } from "@/lib/errorTracking";
 import { STALE_QUEUE_SECONDS, duration } from "@/lib/time";
@@ -20,8 +21,11 @@ interface Observability {
   job_queue: { counts_by_status: Record<string, number>; oldest_pending_age_seconds: number | null };
   ai_cost: {
     month_to_date_cost_usd: number;
+    today_cost_usd: number;
+    daily_alert_usd: number | null;
     monthly_budget_usd: number | null;
-    over_monthly_budget: boolean;
+    monthly_hard_cap_usd: number | null;
+    mode: BudgetMode;
   };
 }
 
@@ -30,8 +34,6 @@ interface Data {
   reviewCount: number;
   obs: Observability;
 }
-
-const usd = (n: number) => `$${n.toFixed(2)}`;
 
 export default function Home() {
   const router = useRouter();
@@ -86,8 +88,9 @@ export default function Home() {
   const { ai_cost: ai } = obs;
 
   const attention: { key: string; href: string; node: ReactNode; tone: "danger" | "warn" }[] = [];
-  if (ai.over_monthly_budget) {
-    attention.push({ key: "budget", href: "/observability", tone: "danger", node: "AI monthly budget exceeded — paid AI is paused." });
+  const budgetMessage = budgetModeMessage(ai.mode, ai.monthly_budget_usd, ai.monthly_hard_cap_usd);
+  if (budgetMessage) {
+    attention.push({ key: "budget", href: "/observability#ai-cost", tone: ai.mode === "PAID_STOPPED" ? "danger" : "warn", node: budgetMessage });
   }
   if (tripped.length > 0) {
     attention.push({
@@ -117,7 +120,10 @@ export default function Home() {
     attention.push({ key: "rights", href: "/sources", tone: "warn", node: `${needsRights} source${needsRights > 1 ? "s" : ""} need a rights review before they can ingest.` });
   }
 
-  const budgetNote = ai.monthly_budget_usd === null ? "No budget set" : `of ${usd(ai.monthly_budget_usd)} budget`;
+  const budgetNote = [
+    ai.monthly_budget_usd === null ? "no budget set" : `of ${usd(ai.monthly_budget_usd)} budget`,
+    BUDGET_MODE[ai.mode].label.toLowerCase(),
+  ].join(" · ");
 
   return (
     <main>
@@ -148,7 +154,8 @@ export default function Home() {
           note={oldest !== null ? `oldest waiting ${duration(oldest)}` : `${failedJobs} failed`}
           tone={failedJobs > 0 || staleQueue ? "danger" : "ok"}
         />
-        <StatTile href="/observability" label="AI spend (month)" value={usd(ai.month_to_date_cost_usd)} note={budgetNote} tone={ai.over_monthly_budget ? "danger" : "ok"} />
+        <StatTile href="/observability#ai-cost" label="AI spend today (est.)" value={usd(ai.today_cost_usd)} note={`since 00:00 UTC${ai.daily_alert_usd !== null ? ` · alert at ${usd(ai.daily_alert_usd)}` : ""}`} tone={ai.daily_alert_usd !== null && ai.today_cost_usd >= ai.daily_alert_usd ? "warn" : "ok"} />
+        <StatTile href="/observability#ai-cost" label="AI spend this month (est.)" value={usd(ai.month_to_date_cost_usd)} note={budgetNote} tone={BUDGET_MODE[ai.mode].tone} />
       </div>
 
       {process.env.NODE_ENV !== "production" ? (

@@ -40,6 +40,20 @@ login and mobile were inspected through code, not authenticated/device journeys.
   passed + the known flaky fixture error (passes alone). Scripts were not run on a real VPS. **R3 is done
   only when** the owner deploys, runs `ops-evidence.sh --drill --test-alert`, and the result (newest
   offsite backup, RTO/RPO, alert receipt) is recorded here.
+- **R4 done (2026-09-30, not pushed/deployed): admin budget wording matches the gateway.**
+  `app.ai.budget.budget_mode` → NORMAL / CLASSIFICATION_ONLY (budget reached: summary, why-matters and
+  translation stop on every provider; classification continues, paid included) / PAID_STOPPED (hard cap:
+  paid calls stop; free-tier routes can still run). Tests pin it to `is_over_monthly_budget`/`is_over_hard_cap`.
+  `ai_cost` in `/v1/admin/observability` adds `monthly_hard_cap_usd`, `hard_cap_remaining_usd`, `mode`,
+  `day_start`/`month_start` (UTC, unchanged semantics) and `quota_resets_at` (next midnight Pacific,
+  DST-tested). Admin Home has "AI spend today (est.)" and a month tile with the mode; the attention item
+  states what stopped instead of "paid AI is paused". Observability shows mode, budget and cap with what
+  each stops, the UTC/Pacific windows, that figures are token-price estimates (cached input at full rate),
+  and that a call in flight can cross a limit. Amounts under $1 show four decimals (`src/lib/aiBudget.ts`).
+  A failed minute refresh now leaves a persistent "figures are from HH:MM" alert, not just a toast.
+  Tests: `tests/test_budget_mode.py` (new) + observability; full suite 475 passed + 1 known flaky fixture
+  error. Admin has no test runner: typecheck/lint clean, wording checked by transpiling `aiBudget.ts`. Not
+  checked in a browser (no authenticated local admin session).
 
 Update this file at the end of every ticket. This is the source of truth for
 "what's actually done" — trust it over assumptions, git log archaeology, or

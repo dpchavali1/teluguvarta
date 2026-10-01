@@ -585,6 +585,16 @@ class AiCostSummaryOut(BaseModel):
     today_cost_usd: float
     daily_alert_usd: float | None = None
     over_monthly_budget: bool
+    # Review 2026-09-30 R4: ADR-024's hard cap and what the gateway is doing
+    # (`app.ai.budget.budget_mode`). Costs are token-price estimates.
+    monthly_hard_cap_usd: float | None = None
+    hard_cap_remaining_usd: float | None = None
+    mode: Literal["NORMAL", "CLASSIFICATION_ONLY", "PAID_STOPPED"]
+    # Today/month (and the budget) are UTC; the Gemini free-tier quota resets
+    # at midnight Pacific.
+    day_start: datetime
+    month_start: datetime
+    quota_resets_at: datetime
     rows: list[AiCostRowOut]
 
 

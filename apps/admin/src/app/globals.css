@@ -730,6 +730,11 @@ button.is-selected { background: var(--color-accent); color: var(--color-bg); }
 
 /* ---------- Dashboard ---------- */
 
+.kv-list { display: grid; grid-template-columns: max-content 1fr; gap: 0.3rem 1rem; margin: 0.75rem 0; }
+.kv-list dt { font-weight: 600; }
+.kv-list dd { margin: 0; }
+@media (max-width: 720px) { .kv-list { grid-template-columns: 1fr; gap: 0 0; } .kv-list dd { margin-bottom: 0.4rem; } }
+
 .tile-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); gap: 0.9rem; margin-bottom: 1.5rem; }
 @media (max-width: 720px) { .tile-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.6rem; } }
 

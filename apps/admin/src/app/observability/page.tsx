@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { Badge, EmptyState, PageHeader, StatTile, type Tone, useToast } from "@/components/ui";
+import { BUDGET_MODE, type BudgetMode, budgetModeMessage, usd } from "@/lib/aiBudget";
 import { apiUrl, clearSession, getToken } from "@/lib/auth";
 import { STALE_QUEUE_SECONDS, ago, duration } from "@/lib/time";
 
@@ -38,6 +39,12 @@ interface AiCostSummary {
   today_cost_usd: number;
   daily_alert_usd: number | null;
   over_monthly_budget: boolean;
+  monthly_hard_cap_usd: number | null;
+  hard_cap_remaining_usd: number | null;
+  mode: BudgetMode;
+  day_start: string;
+  month_start: string;
+  quota_resets_at: string;
   rows: AiCostRow[];
 }
 
@@ -99,7 +106,6 @@ interface XAccount {
   budget_paused: boolean;
 }
 
-const usd = (n: number) => `$${n.toFixed(2)}`;
 
 
 function BudgetBar({ spent, budget }: { spent: number; budget: number | null }) {
@@ -119,6 +125,9 @@ export default function ObservabilityPage() {
   const [xAccounts, setXAccounts] = useState<XAccount[] | null>(null);
   const [pausingSourceId, setPausingSourceId] = useState<string | null>(null);
   const [updatedAt, setUpdatedAt] = useState<Date | null>(null);
+  // Review 2026-09-30 R4: a failed minute refresh leaves old figures on screen,
+  // so say so until a refresh succeeds rather than only flashing a toast.
+  const [refreshFailedAt, setRefreshFailedAt] = useState<Date | null>(null);
 
   const load = useCallback(() => {
     const token = getToken();
@@ -138,8 +147,12 @@ export default function ObservabilityPage() {
       .then((body: Observability) => {
         setData(body);
         setUpdatedAt(new Date());
+        setRefreshFailedAt(null);
       })
-      .catch((err) => toast("danger", err instanceof Error ? err.message : "Failed to load observability data"));
+      .catch((err) => {
+        setRefreshFailedAt(new Date());
+        toast("danger", err instanceof Error ? err.message : "Failed to load observability data");
+      });
     get("/x-accounts")
       .then((body: XAccount[]) => setXAccounts(body))
       .catch((err) => toast("danger", err instanceof Error ? err.message : "Failed to load X accounts"));
@@ -189,7 +202,7 @@ export default function ObservabilityPage() {
     return (
       <main>
         {header}
-        <p className="state-note">Loading…</p>
+        {refreshFailedAt ? <p role="alert">Could not load observability data. Try Refresh.</p> : <p className="state-note">Loading…</p>}
       </main>
     );
   }
@@ -198,6 +211,7 @@ export default function ObservabilityPage() {
   const oldest = data.job_queue.oldest_pending_age_seconds;
   const ai = data.ai_cost;
   const x = data.x_cost;
+  const budgetMessage = budgetModeMessage(ai.mode, ai.monthly_budget_usd, ai.monthly_hard_cap_usd);
   // Problems first: tripped breakers, then most failures in 24h.
   const opsProblems = data.operations.filter((op) => op.state !== "OK");
   const health = [...data.ingestion_health].sort(
@@ -207,11 +221,16 @@ export default function ObservabilityPage() {
   return (
     <main>
       {header}
+      {refreshFailedAt && updatedAt ? (
+        <p role="alert">
+          Refresh failed at {refreshFailedAt.toLocaleTimeString()} — the figures below are from {updatedAt.toLocaleTimeString()}.
+        </p>
+      ) : null}
 
       <div className="tile-grid">
         <StatTile href="#ingestion" label="Sources tripped" value={health.filter((h) => h.circuit_breaker_tripped).length} note={`${health.length} sources`} tone={health.some((h) => h.circuit_breaker_tripped) ? "danger" : "ok"} />
         <StatTile href="#jobs" label="Jobs pending" value={jobs.PENDING ?? 0} note={oldest !== null ? `oldest waiting ${duration(oldest)}` : "queue empty"} tone={(jobs.FAILED ?? 0) > 0 ? "danger" : oldest !== null && oldest > STALE_QUEUE_SECONDS ? "warn" : "ok"} />
-        <StatTile href="#ai-cost" label="AI spend (month)" value={usd(ai.month_to_date_cost_usd)} note={ai.monthly_budget_usd !== null ? `of ${usd(ai.monthly_budget_usd)}` : "no budget set"} tone={ai.over_monthly_budget ? "danger" : "ok"} />
+        <StatTile href="#ai-cost" label="AI spend this month (est.)" value={usd(ai.month_to_date_cost_usd)} note={`${ai.monthly_budget_usd !== null ? `of ${usd(ai.monthly_budget_usd)}` : "no budget set"} · ${BUDGET_MODE[ai.mode].label.toLowerCase()}`} tone={BUDGET_MODE[ai.mode].tone} />
         <StatTile href="#operations" label="Backups & monitoring" value={opsProblems.length === 0 ? "OK" : `${opsProblems.length} to check`} note={`${data.operations.length} checks`} tone={opsProblems.some((op) => op.state === "FAILING") ? "danger" : opsProblems.length > 0 ? "warn" : "ok"} />
         <StatTile href="#x" label="X spend (month)" value={usd(x.month_to_date_cost_usd)} note={x.monthly_budget_usd !== null ? `of ${usd(x.monthly_budget_usd)}` : "no budget set"} tone={x.over_monthly_budget ? "danger" : "ok"} />
       </div>
@@ -299,12 +318,32 @@ export default function ObservabilityPage() {
 
       <section id="ai-cost">
         <h2>AI cost vs. budget</h2>
-        {ai.over_monthly_budget ? <p role="alert">Over monthly budget — paid AI is paused.</p> : null}
+        <p className="pill-row">
+          Mode: <Badge tone={BUDGET_MODE[ai.mode].tone}>{BUDGET_MODE[ai.mode].label}</Badge>
+        </p>
+        {budgetMessage ? <p role="alert">{budgetMessage}</p> : null}
         <BudgetBar spent={ai.month_to_date_cost_usd} budget={ai.monthly_budget_usd} />
-        <p className="card__meta">
-          Month-to-date {usd(ai.month_to_date_cost_usd)} · today {usd(ai.today_cost_usd)}
-          {ai.monthly_budget_remaining_usd !== null ? ` · ${usd(ai.monthly_budget_remaining_usd)} remaining` : ""}
-          {ai.daily_alert_usd !== null ? ` · daily alert at ${usd(ai.daily_alert_usd)}` : ""}
+        <dl className="kv-list">
+          <dt>Today</dt>
+          <dd>{usd(ai.today_cost_usd)}{ai.daily_alert_usd !== null ? ` (alert at ${usd(ai.daily_alert_usd)})` : ""}</dd>
+          <dt>This month</dt>
+          <dd>{usd(ai.month_to_date_cost_usd)}</dd>
+          <dt>Monthly budget</dt>
+          <dd>
+            {ai.monthly_budget_usd !== null ? `${usd(ai.monthly_budget_usd)} — summaries, why-it-matters and translations stop here` : "not set"}
+            {ai.monthly_budget_remaining_usd !== null ? ` (${usd(Math.max(0, ai.monthly_budget_remaining_usd))} left)` : ""}
+          </dd>
+          <dt>Hard cap</dt>
+          <dd>
+            {ai.monthly_hard_cap_usd !== null ? `${usd(ai.monthly_hard_cap_usd)} — all paid calls stop here` : "not set"}
+            {ai.hard_cap_remaining_usd !== null ? ` (${usd(Math.max(0, ai.hard_cap_remaining_usd))} left)` : ""}
+          </dd>
+        </dl>
+        <p className="field__hint">
+          Estimates from logged token counts and list prices, not a reconciled invoice; cached input is priced at
+          the full rate. &ldquo;Today&rdquo; and the month are UTC (today began {new Date(ai.day_start).toLocaleString()} your
+          time). The Gemini free-tier quota resets separately, at midnight Pacific (next {new Date(ai.quota_resets_at).toLocaleString()}).
+          Limits are checked before each call, so a call already running can finish past them.
         </p>
         {ai.rows.length > 0 ? (
           <details>

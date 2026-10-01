@@ -27,9 +27,11 @@ from sqlalchemy.orm import Session
 
 from app.adapters.feed_probe import probe_feed
 from app.ai.budget import (
+    budget_mode,
     cost_by_task_and_day,
     is_over_monthly_budget,
     month_to_date_cost_usd,
+    reporting_windows,
     today_cost_usd,
 )
 from app.auth import AdminPrincipal, current_admin
@@ -1067,6 +1069,7 @@ def get_observability(db: Session = Depends(get_db)) -> ObservabilityOut:
     )
 
     monthly_budget = os.environ.get("MONTHLY_AI_BUDGET_USD")
+    hard_cap = os.environ.get("MONTHLY_AI_HARD_CAP_USD")
     daily_alert = os.environ.get("DAILY_AI_ALERT_USD")
     mtd = month_to_date_cost_usd(db, now)
     ai_cost = AiCostSummaryOut(
@@ -1076,6 +1079,10 @@ def get_observability(db: Session = Depends(get_db)) -> ObservabilityOut:
         today_cost_usd=today_cost_usd(db, now),
         daily_alert_usd=float(daily_alert) if daily_alert else None,
         over_monthly_budget=is_over_monthly_budget(db, now),
+        monthly_hard_cap_usd=float(hard_cap) if hard_cap else None,
+        hard_cap_remaining_usd=(float(hard_cap) - mtd) if hard_cap else None,
+        mode=budget_mode(mtd),
+        **reporting_windows(now),
         rows=[AiCostRowOut(**row) for row in cost_by_task_and_day(db)],
     )
 

@@ -8,7 +8,8 @@ from __future__ import annotations
 
 import os
 import uuid
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
+from typing import Literal
 from zoneinfo import ZoneInfo
 
 from sqlalchemy import func, select
@@ -101,6 +102,50 @@ def is_over_hard_cap(db: Session, now: datetime | None = None) -> bool:
     if not cap:
         return False
     return month_to_date_cost_usd(db, now) >= float(cap)
+
+
+def _env_usd(name: str) -> float | None:
+    raw = os.environ.get(name)
+    return float(raw) if raw else None
+
+
+BudgetMode = Literal["NORMAL", "CLASSIFICATION_ONLY", "PAID_STOPPED"]
+
+
+def budget_mode(month_to_date: float) -> BudgetMode:
+    """Review 2026-09-30 R4: what the gateway does at this month-to-date
+    spend, for admin to state. Same thresholds as `is_over_monthly_budget`
+    and `is_over_hard_cap`, which are what actually gate calls:
+
+    - NORMAL: below the monthly budget (or none set).
+    - CLASSIFICATION_ONLY: budget reached, hard cap not. Summary, why-matters
+      and translation stop on every provider (`DEGRADABLE_ON_BUDGET_BREACH`);
+      classification and the other tasks continue, paid included.
+    - PAID_STOPPED: hard cap reached. Paid calls stop too; free-tier routes
+      for the non-degraded tasks can still run.
+
+    The gates check spend before each call, so a call already in flight can
+    finish past either threshold."""
+    cap = _env_usd("MONTHLY_AI_HARD_CAP_USD")
+    if cap is not None and month_to_date >= cap:
+        return "PAID_STOPPED"
+    budget = _env_usd("MONTHLY_AI_BUDGET_USD")
+    if budget is not None and month_to_date >= budget:
+        return "CLASSIFICATION_ONLY"
+    return "NORMAL"
+
+
+def reporting_windows(now: datetime) -> dict[str, datetime]:
+    """Where admin's "today" and "month" start (UTC, like the budget), and
+    when the Gemini free-tier quota next resets (midnight Pacific)."""
+    pacific = quota_day_start(now).astimezone(ZoneInfo("America/Los_Angeles"))
+    # Same-zone aware arithmetic is wall-clock, so this stays midnight across DST.
+    next_reset = pacific + timedelta(days=1)
+    return {
+        "day_start": _day_start(now),
+        "month_start": _month_start(now),
+        "quota_resets_at": next_reset.astimezone(UTC),
+    }
 
 
 BUDGET_CONFIG_REQUIRED = ("MONTHLY_AI_BUDGET_USD", "MONTHLY_AI_HARD_CAP_USD", "DAILY_AI_ALERT_USD")

@@ -1359,14 +1359,38 @@ export interface components {
         AiCostSummaryOut: {
             /** Daily Alert Usd */
             daily_alert_usd?: number | null;
+            /**
+             * Day Start
+             * Format: date-time
+             */
+            day_start: string;
+            /** Hard Cap Remaining Usd */
+            hard_cap_remaining_usd?: number | null;
+            /**
+             * Mode
+             * @enum {string}
+             */
+            mode: "NORMAL" | "CLASSIFICATION_ONLY" | "PAID_STOPPED";
+            /**
+             * Month Start
+             * Format: date-time
+             */
+            month_start: string;
             /** Month To Date Cost Usd */
             month_to_date_cost_usd: number;
             /** Monthly Budget Remaining Usd */
             monthly_budget_remaining_usd?: number | null;
             /** Monthly Budget Usd */
             monthly_budget_usd?: number | null;
+            /** Monthly Hard Cap Usd */
+            monthly_hard_cap_usd?: number | null;
             /** Over Monthly Budget */
             over_monthly_budget: boolean;
+            /**
+             * Quota Resets At
+             * Format: date-time
+             */
+            quota_resets_at: string;
             /** Rows */
             rows: components["schemas"]["AiCostRowOut"][];
             /** Today Cost Usd */
