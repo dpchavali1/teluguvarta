@@ -204,6 +204,15 @@ login and mobile were inspected through code, not authenticated/device journeys.
   noise). Admin + web build, mobile 27 passed. **Not done:** an in-browser login → MFA → `/sessions` →
   sign-out click-through (browser extension not connected; MFA code generation not permitted to the
   agent) — owner should do this locally before deploying. **Deploy API + admin together** (breaking).
+- **M3 Settings basics done (2026-09-30, pushed; release APK on the owner's Android phone):** Settings → ABOUT:
+  "About The Telugu Edit", "How we use AI", "Privacy policy", "Terms of use" open the web pages
+  (`siteUrl()` + `/about`, `/ai-disclosure`, `/privacy`, `/terms`) in the browser (role link, "Opens in your
+  browser" hint; a failed open is swallowed). Below the group, "Version 0.0.1" from `Constants.expoConfig`,
+  plus `(build)` only when `android.versionCode`/`ios.buildNumber` is set (neither is today). Settings is now
+  a ScrollView (four groups overflow a phone screen). No new storage key, no native module. Tests:
+  `settings.test.tsx` (6). Mobile 43 passed, typecheck clean, bundle-check exports. Device (dark): section
+  renders, Terms opened `theteluguedit.com/terms` in Brave. Not added: "Report a problem" (needs an ADR, see
+  plan). Next: R10 device checks, then M4.
 - **M2 Edit profile done (2026-09-30, pushed; release APK on the owner's Android phone):** Settings → ACCOUNT →
   "Your profile" (`ProfileScreen`): location, life stages, study details (only while International Student is
   selected, same gate as onboarding: `storage.asksStudentDetails`) and interests on one page; nothing is written
@@ -226,7 +235,7 @@ login and mobile were inspected through code, not authenticated/device journeys.
   `appearance.test.tsx` (5). Mobile 32 passed, typecheck clean, bundle-check exports. Device: Settings shows
   the section with the phone-setting row checked in dark; tapping Light/Dark on the device not yet checked
   by the agent (owner was using the phone).
-- **Mobile reader options planned (2026-09-30):** `docs/plans/mobile-reader-options.md`. M1, M2 done; next M3. Owner
+- **Mobile reader options planned (2026-09-30):** `docs/plans/mobile-reader-options.md`. M1–M3 done; next R10 device checks, then M4. Owner
   asked for a light/dark choice (app only follows the system today). Order: M1 Appearance → M2 edit
   profile/interests → M3 settings basics → R10 device checks → M4 text size → M5 hide topics → M6 read history;
   offline saved, Home/Latest, digest time, TTS and iOS build need a decision/ADR first.

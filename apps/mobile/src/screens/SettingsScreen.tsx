@@ -1,9 +1,11 @@
 import Ionicons from "@expo/vector-icons/Ionicons";
+import Constants from "expo-constants";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import React, { useMemo } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
+import { siteUrl } from "../lib/api";
 import type { ThemePreference } from "../lib/storage";
 import type { RootStackParamList } from "../navigation/types";
 import { useThemePreference } from "../theme/ThemePreferenceContext";
@@ -17,7 +19,7 @@ export function SettingsScreen() {
   const { preference, setPreference } = useThemePreference();
 
   return (
-    <View style={styles.container}>
+    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <Text style={styles.groupLabel}>GENERAL</Text>
       <View style={styles.group}>
         {/* Topics is now its own tab (ADR-014 TopicControl) — this group is
@@ -51,8 +53,46 @@ export function SettingsScreen() {
         <SettingsRow label="Language" onPress={() => navigation.navigate("Language")} styles={styles} />
         <SettingsRow label="Privacy & delete account" onPress={() => navigation.navigate("Privacy")} last styles={styles} />
       </View>
-    </View>
+      <Text style={styles.groupLabel}>ABOUT</Text>
+      <View style={styles.group}>
+        {/* The web site is the one copy of these pages; the app opens them in
+            the browser rather than keeping its own text that could drift. */}
+        {ABOUT_LINKS.map((link, i) => (
+          <SettingsRow
+            key={link.path}
+            label={link.label}
+            onPress={() => openWebPage(link.path)}
+            external
+            last={i === ABOUT_LINKS.length - 1}
+            styles={styles}
+          />
+        ))}
+      </View>
+      <Text style={styles.version} accessibilityLabel={`App ${appVersionLabel()}`}>
+        {appVersionLabel()}
+      </Text>
+    </ScrollView>
   );
+}
+
+const ABOUT_LINKS = [
+  { path: "/about", label: "About The Telugu Edit" },
+  { path: "/ai-disclosure", label: "How we use AI" },
+  { path: "/privacy", label: "Privacy policy" },
+  { path: "/terms", label: "Terms of use" },
+];
+
+function openWebPage(path: string) {
+  // No browser / malformed URL: nothing useful to show, so don't crash Settings.
+  Linking.openURL(`${siteUrl()}${path}`).catch(() => {});
+}
+
+/** "Version 0.0.1 (12)" — the build number only when the config sets one. */
+export function appVersionLabel(): string {
+  const config = Constants.expoConfig;
+  const version = config?.version ?? "unknown";
+  const build = config?.android?.versionCode ?? config?.ios?.buildNumber;
+  return build ? `Version ${version} (${build})` : `Version ${version}`;
 }
 
 const THEME_OPTIONS: { value: ThemePreference; label: string }[] = [
@@ -91,30 +131,38 @@ function ThemeOptionRow({
 function SettingsRow({
   label,
   onPress,
+  external,
   last,
   styles,
 }: {
   label: string;
   onPress: () => void;
+  external?: boolean;
   last?: boolean;
   styles: ReturnType<typeof createStyles>;
 }) {
   return (
     <Pressable
       onPress={onPress}
-      accessibilityRole="button"
+      accessibilityRole={external ? "link" : "button"}
       accessibilityLabel={label}
+      accessibilityHint={external ? "Opens in your browser" : undefined}
       style={[styles.row, !last && styles.rowDivider]}
     >
       <Text style={styles.rowLabel}>{label}</Text>
-      <Text style={styles.chevron}>›</Text>
+      {external ? (
+        <Ionicons name="open-outline" size={16} style={styles.chevron} />
+      ) : (
+        <Text style={styles.chevron}>›</Text>
+      )}
     </Pressable>
   );
 }
 
 function createStyles(colors: AppTheme["colors"], ui: AppTheme["ui"]) {
   return StyleSheet.create({
-    container: { flex: 1, padding: spacing.md, backgroundColor: colors.bg },
+    container: { flex: 1, backgroundColor: colors.bg },
+    content: { padding: spacing.md, paddingBottom: spacing.xl },
     // Grouped-list pattern: a rounded container per group (not per row) with
     // hairline dividers between rows — replaces the old flat stack of
     // individually-bordered rows.
@@ -146,5 +194,6 @@ function createStyles(colors: AppTheme["colors"], ui: AppTheme["ui"]) {
     rowLabel: { ...typography.body, color: colors.text },
     chevron: { fontSize: 18, color: ui.textTertiary },
     check: { color: colors.accent },
+    version: { ...typography.meta, color: colors.faint, textAlign: "center", paddingTop: spacing.lg },
   });
 }
