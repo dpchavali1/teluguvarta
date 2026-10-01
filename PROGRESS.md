@@ -24,7 +24,7 @@ login and mobile were inspected through code, not authenticated/device journeys.
   `c3061756` headline; `ca1e69c2`, `9193cbbe` why-matters; `085b7508` summary). **These stay served until
   re-translated**: no audited re-translate path exists for a PASSED variant yet (ADR-025 retry covers
   EXHAUSTED only), so that needs an editor fix or an ADR.
-- **R3 code done (2026-09-30, not pushed/deployed); evidence still owed by the owner.** New table
+- **R3 code done (2026-09-30, pushed `5628cd8`, not deployed); evidence still owed by the owner.** New table
   `ops_checks` (migration `e7c2a9d4f1b6`), one row per BACKUP / OFFSITE_COPY / RESTORE_DRILL / MONITOR /
   ALERT_TEST with last success/failure and detail. Host scripts write it through
   `infra/deploy/ops-record.sh` (best effort; never fails the caller): `backup-prod.sh` (file + size;
@@ -40,7 +40,7 @@ login and mobile were inspected through code, not authenticated/device journeys.
   passed + the known flaky fixture error (passes alone). Scripts were not run on a real VPS. **R3 is done
   only when** the owner deploys, runs `ops-evidence.sh --drill --test-alert`, and the result (newest
   offsite backup, RTO/RPO, alert receipt) is recorded here.
-- **R4 done (2026-09-30, not pushed/deployed): admin budget wording matches the gateway.**
+- **R4 done (2026-09-30, pushed `cd2e5a9`, not deployed): admin budget wording matches the gateway.**
   `app.ai.budget.budget_mode` → NORMAL / CLASSIFICATION_ONLY (budget reached: summary, why-matters and
   translation stop on every provider; classification continues, paid included) / PAID_STOPPED (hard cap:
   paid calls stop; free-tier routes can still run). Tests pin it to `is_over_monthly_budget`/`is_over_hard_cap`.
