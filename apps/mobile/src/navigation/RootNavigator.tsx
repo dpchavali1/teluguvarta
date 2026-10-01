@@ -8,6 +8,7 @@ import { NotificationPreferencesScreen } from "../screens/NotificationPreference
 import { NotificationsScreen } from "../screens/NotificationsScreen";
 import { OnboardingScreen } from "../screens/OnboardingScreen";
 import { PrivacyScreen } from "../screens/PrivacyScreen";
+import { ProfileScreen } from "../screens/ProfileScreen";
 import { StoryDetailScreen } from "../screens/StoryDetailScreen";
 import { TopicScreen } from "../screens/TopicScreen";
 import { getOnboarded } from "../lib/storage";
@@ -45,6 +46,7 @@ export function RootNavigator() {
         options={{ title: "Notification preferences" }}
       />
       <Stack.Screen name="Language" component={LanguageScreen} options={{ title: "Language" }} />
+      <Stack.Screen name="Profile" component={ProfileScreen} options={{ title: "Your profile" }} />
       <Stack.Screen name="Privacy" component={PrivacyScreen} options={{ title: "Privacy" }} />
     </Stack.Navigator>
   );

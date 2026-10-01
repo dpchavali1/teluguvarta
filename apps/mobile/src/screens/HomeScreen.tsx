@@ -4,6 +4,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import {
   ActivityIndicator,
   AppState,
+  DeviceEventEmitter,
   FlatList,
   Linking,
   Pressable,
@@ -15,7 +16,7 @@ import {
 
 import { StoryCard } from "../components/StoryCard";
 import { ApiNetworkError, getHome, trackEvent, type StoryOut, type TopicOut } from "../lib/api";
-import { getProfile, isStudentSegment, primaryLifeStageSegment } from "../lib/storage";
+import { getProfile, isStudentSegment, PROFILE_CHANGE_EVENT, primaryLifeStageSegment } from "../lib/storage";
 import { useStoryCache } from "../lib/StoryCacheContext";
 import { radius, spacing, typography } from "../theme/tokens";
 import { useAppTheme, type AppTheme } from "../theme/useAppTheme";
@@ -100,6 +101,12 @@ export function HomeScreen() {
   }, [load]);
 
   useFocusEffect(refreshIfStale);
+
+  // Edited profile answers change what the feed asks for, so reload now.
+  useEffect(() => {
+    const subscription = DeviceEventEmitter.addListener(PROFILE_CHANGE_EVENT, () => void load());
+    return () => subscription.remove();
+  }, [load]);
 
   useEffect(() => {
     const subscription = AppState.addEventListener("change", (state) => {

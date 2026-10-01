@@ -204,6 +204,18 @@ login and mobile were inspected through code, not authenticated/device journeys.
   noise). Admin + web build, mobile 27 passed. **Not done:** an in-browser login → MFA → `/sessions` →
   sign-out click-through (browser extension not connected; MFA code generation not permitted to the
   agent) — owner should do this locally before deploying. **Deploy API + admin together** (breaking).
+- **M2 Edit profile done (2026-09-30, pushed; release APK on the owner's Android phone):** Settings → ACCOUNT →
+  "Your profile" (`ProfileScreen`): location, life stages, study details (only while International Student is
+  selected, same gate as onboarding: `storage.asksStudentDetails`) and interests on one page; nothing is written
+  until Save, back discards. The four sections are now shared components (`components/ProfileFields.tsx`, plus
+  `useConfigTopics`), so onboarding renders the same fields. `storage.saveProfileEdits` keeps the stored
+  language, drops `student` once that stage is deselected, leaves `onboarded` alone, and emits
+  `PROFILE_CHANGE_EVENT`; Home reloads its feed on it. No new storage key. Tests: `profile.test.tsx` (5; the
+  Home reload test fails with the listener removed). Mobile 37 passed, typecheck clean, bundle-check exports.
+  Device (dark): screen renders, Save clears the gesture bar, tapping International Student shows "Your
+  studies", live topics load; agent backed out without saving (owner's profile untouched), so Save on device
+  is unchecked. Noticed, not fixed: the live topic list is long and unsorted, with near-duplicates
+  ("corruption" vs "Corruption & Governance") — a taxonomy/data issue that onboarding shows too.
 - **M1 Appearance done (2026-09-30, pushed; on the owner's Android phone via release APK):** Settings →
   APPEARANCE: "Use phone setting" / Light / Dark (radio rows). `ThemePreferenceProvider`
   (`src/theme/ThemePreferenceContext.tsx`, wraps `App`) holds the choice (`tg_theme_pref_v1`); `useAppTheme`
@@ -214,7 +226,7 @@ login and mobile were inspected through code, not authenticated/device journeys.
   `appearance.test.tsx` (5). Mobile 32 passed, typecheck clean, bundle-check exports. Device: Settings shows
   the section with the phone-setting row checked in dark; tapping Light/Dark on the device not yet checked
   by the agent (owner was using the phone).
-- **Mobile reader options planned (2026-09-30):** `docs/plans/mobile-reader-options.md`. M1 done; next M2. Owner
+- **Mobile reader options planned (2026-09-30):** `docs/plans/mobile-reader-options.md`. M1, M2 done; next M3. Owner
   asked for a light/dark choice (app only follows the system today). Order: M1 Appearance → M2 edit
   profile/interests → M3 settings basics → R10 device checks → M4 text size → M5 hide topics → M6 read history;
   offline saved, Home/Latest, digest time, TTS and iOS build need a decision/ADR first.

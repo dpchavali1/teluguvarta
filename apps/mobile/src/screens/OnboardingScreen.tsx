@@ -1,17 +1,23 @@
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import { STUDENT_TOPIC_SLUGS } from "@teluguvarta/domain";
-import React, { useEffect, useMemo, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from "react-native";
+import React, { useMemo, useState } from "react";
+import { Pressable, ScrollView, StyleSheet, Switch, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { NotificationPreferencesForm } from "../components/NotificationPreferencesForm";
-import { getConfig, trackEvent, type TopicOut } from "../lib/api";
+import {
+  InterestFields,
+  LifeStageFields,
+  LocationFields,
+  StudentFields,
+  useConfigTopics,
+} from "../components/ProfileFields";
+import { trackEvent } from "../lib/api";
 import type { RootStackParamList } from "../navigation/types";
 import {
+  asksStudentDetails,
   DEFAULT_NOTIFICATION_PREFERENCES,
   EMPTY_PROFILE,
-  LIFE_STAGES,
   setNotificationPreferences,
   setOnboarded,
   setProfile,
@@ -40,21 +46,7 @@ export function OnboardingScreen() {
   const [step, setStep] = useState(0);
   const [profile, setProfileDraft] = useState<OnboardingProfile>(EMPTY_PROFILE);
   const [prefs, setPrefsDraft] = useState<NotificationPreferences>(DEFAULT_NOTIFICATION_PREFERENCES);
-  const [topics, setTopics] = useState<TopicOut[]>([]);
-
-  useEffect(() => {
-    let cancelled = false;
-    getConfig()
-      .then((config) => {
-        if (!cancelled) setTopics(config.topics);
-      })
-      .catch(() => {
-        if (!cancelled) setTopics([]);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  const topics = useConfigTopics();
 
   async function finish(finalProfile: OnboardingProfile, finalPrefs: NotificationPreferences) {
     await setProfile(finalProfile);
@@ -71,7 +63,7 @@ export function OnboardingScreen() {
   }
 
   function next() {
-    const isStudentStep = step === 2 && !profile.lifeStages.includes("INTERNATIONAL_STUDENT");
+    const isStudentStep = step === 2 && !asksStudentDetails(profile.lifeStages);
     const nextStep = isStudentStep ? step + 2 : step + 1;
     if (nextStep >= STEP_COUNT) {
       finish(profile, prefs);
@@ -108,147 +100,25 @@ export function OnboardingScreen() {
 
         {step === 1 && (
           <StepShell title="Where are you based? (optional)" styles={styles}>
-            <TextInput
-              value={profile.residenceCountry ?? ""}
-              onChangeText={(v) => setProfileDraft({ ...profile, residenceCountry: v })}
-              placeholder="Country"
-              placeholderTextColor={ui.textTertiary}
-              accessibilityLabel="Country of residence"
-              style={styles.input}
-            />
-            <TextInput
-              value={profile.homeRegion ?? ""}
-              onChangeText={(v) => setProfileDraft({ ...profile, homeRegion: v })}
-              placeholder="State / region"
-              placeholderTextColor={ui.textTertiary}
-              accessibilityLabel="Home state or region"
-              style={styles.input}
-            />
-            <TextInput
-              value={profile.homeCity ?? ""}
-              onChangeText={(v) => setProfileDraft({ ...profile, homeCity: v })}
-              placeholder="City"
-              placeholderTextColor={ui.textTertiary}
-              accessibilityLabel="Home city"
-              style={styles.input}
-            />
+            <LocationFields profile={profile} onChange={setProfileDraft} />
           </StepShell>
         )}
 
         {step === 2 && (
           <StepShell title="Which best describes you? (optional)" styles={styles}>
-            <Text style={styles.hint}>Select every option that applies — you're not just one thing.</Text>
-            {LIFE_STAGES.map((option) => {
-              const selected = profile.lifeStages.includes(option.value);
-              return (
-                <Pressable
-                  key={option.value}
-                  onPress={() =>
-                    setProfileDraft({
-                      ...profile,
-                      lifeStages: selected
-                        ? profile.lifeStages.filter((s) => s !== option.value)
-                        : [...profile.lifeStages, option.value],
-                    })
-                  }
-                  accessibilityRole="checkbox"
-                  accessibilityState={{ checked: selected }}
-                  accessibilityLabel={option.label}
-                  style={[styles.optionRow, selected && styles.optionRowActive]}
-                >
-                  <Text style={styles.optionLabel}>{option.label}</Text>
-                </Pressable>
-              );
-            })}
+            <LifeStageFields profile={profile} onChange={setProfileDraft} />
           </StepShell>
         )}
 
         {step === 3 && (
           <StepShell title="A bit more about your studies (optional)" styles={styles}>
-            <Text style={styles.hint}>
-              We never ask for your university name or immigration documents.
-            </Text>
-            <TextInput
-              value={profile.student?.studyCountry ?? ""}
-              onChangeText={(v) =>
-                setProfileDraft({ ...profile, student: { ...profile.student, studyCountry: v } })
-              }
-              placeholder="Country of study"
-              placeholderTextColor={ui.textTertiary}
-              accessibilityLabel="Country of study"
-              style={styles.input}
-            />
-            <TextInput
-              value={profile.student?.studyRegion ?? ""}
-              onChangeText={(v) =>
-                setProfileDraft({ ...profile, student: { ...profile.student, studyRegion: v } })
-              }
-              placeholder="State / region of study"
-              placeholderTextColor={ui.textTertiary}
-              accessibilityLabel="State or region of study"
-              style={styles.input}
-            />
-            <TextInput
-              value={profile.student?.studyMetro ?? ""}
-              onChangeText={(v) =>
-                setProfileDraft({ ...profile, student: { ...profile.student, studyMetro: v } })
-              }
-              placeholder="Nearest city / metro"
-              placeholderTextColor={ui.textTertiary}
-              accessibilityLabel="Nearest city or metro area"
-              style={styles.input}
-            />
-            <TextInput
-              value={profile.student?.degreeLevel ?? ""}
-              onChangeText={(v) =>
-                setProfileDraft({ ...profile, student: { ...profile.student, degreeLevel: v } })
-              }
-              placeholder="Degree level (e.g. Master's)"
-              placeholderTextColor={ui.textTertiary}
-              accessibilityLabel="Degree level"
-              style={styles.input}
-            />
+            <StudentFields profile={profile} onChange={setProfileDraft} />
           </StepShell>
         )}
 
         {step === 4 && (
           <StepShell title="What are you interested in? (optional)" styles={styles}>
-            <TopicChips
-              topics={topics.filter((t) => !STUDENT_TOPIC_SLUGS.includes(t.slug as (typeof STUDENT_TOPIC_SLUGS)[number]))}
-              selectedSlugs={profile.interestTopicSlugs}
-              onToggle={(slug, selected) =>
-                setProfileDraft({
-                  ...profile,
-                  interestTopicSlugs: selected
-                    ? profile.interestTopicSlugs.filter((s) => s !== slug)
-                    : [...profile.interestTopicSlugs, slug],
-                })
-              }
-              styles={styles}
-            />
-            {/* S2: student topics (F-1, OPT, campus safety, etc.) are the
-                same kind of Topic row as the general ones above, shown as a
-                separate group per §3.1 rather than mixed in — selecting or
-                clearing this group never touches interestTopicSlugs entries
-                from the general group. */}
-            {topics.some((t) => STUDENT_TOPIC_SLUGS.includes(t.slug as (typeof STUDENT_TOPIC_SLUGS)[number])) && (
-              <>
-                <Text style={styles.hint}>Student topics</Text>
-                <TopicChips
-                  topics={topics.filter((t) => STUDENT_TOPIC_SLUGS.includes(t.slug as (typeof STUDENT_TOPIC_SLUGS)[number]))}
-                  selectedSlugs={profile.interestTopicSlugs}
-                  onToggle={(slug, selected) =>
-                    setProfileDraft({
-                      ...profile,
-                      interestTopicSlugs: selected
-                        ? profile.interestTopicSlugs.filter((s) => s !== slug)
-                        : [...profile.interestTopicSlugs, slug],
-                    })
-                  }
-                  styles={styles}
-                />
-              </>
-            )}
+            <InterestFields profile={profile} onChange={setProfileDraft} topics={topics} />
           </StepShell>
         )}
 
@@ -295,37 +165,6 @@ export function OnboardingScreen() {
   );
 }
 
-function TopicChips({
-  topics,
-  selectedSlugs,
-  onToggle,
-  styles,
-}: {
-  topics: TopicOut[];
-  selectedSlugs: string[];
-  onToggle: (slug: string, wasSelected: boolean) => void;
-  styles: Styles;
-}) {
-  return (
-    <View style={styles.chipWrap}>
-      {topics.map((topic) => {
-        const selected = selectedSlugs.includes(topic.slug);
-        return (
-          <Pressable
-            key={topic.slug}
-            onPress={() => onToggle(topic.slug, selected)}
-            accessibilityRole="checkbox"
-            accessibilityState={{ checked: selected }}
-            accessibilityLabel={topic.name}
-            style={[styles.chip, selected && styles.chipActive]}
-          >
-            <Text style={styles.chipText}>{topic.name}</Text>
-          </Pressable>
-        );
-      })}
-    </View>
-  );
-}
 
 function StepShell({ title, children, styles }: { title: string; children: React.ReactNode; styles: Styles }) {
   return (
@@ -369,39 +208,6 @@ function createStyles(colors: AppTheme["colors"], ui: AppTheme["ui"]) {
     step: { gap: 12 },
     stepTitle: { ...typography.headline, color: colors.text },
     body: { ...typography.body, color: ui.textSecondary },
-    hint: { ...typography.meta, textTransform: "none", color: ui.textTertiary },
-    input: {
-      minHeight: 44,
-      paddingHorizontal: 12,
-      borderRadius: 8,
-      borderCurve: "continuous",
-      borderWidth: 1,
-      borderColor: ui.borderControl,
-      color: colors.text,
-    },
-    optionRow: {
-      minHeight: 44,
-      justifyContent: "center",
-      paddingHorizontal: 12,
-      borderRadius: 8,
-      borderCurve: "continuous",
-      borderWidth: 1,
-      borderColor: ui.borderControl,
-    },
-    optionRowActive: { backgroundColor: ui.actionPrimarySoft, borderColor: ui.actionPrimary },
-    optionLabel: { ...typography.body, color: colors.text },
-    chipWrap: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-    chip: {
-      minHeight: 44,
-      justifyContent: "center",
-      paddingHorizontal: 14,
-      borderRadius: 16,
-      borderCurve: "continuous",
-      borderWidth: 1,
-      borderColor: ui.borderControl,
-    },
-    chipActive: { backgroundColor: ui.actionPrimarySoft, borderColor: ui.actionPrimary },
-    chipText: { ...typography.body, color: colors.text },
     row: { flexDirection: "row", alignItems: "center", gap: 12 },
     rowLabel: { ...typography.body, color: colors.text },
     footer: {

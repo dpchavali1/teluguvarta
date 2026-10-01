@@ -58,6 +58,11 @@ export function isStudentSegment(lifeStages: LifeStage[]): boolean {
   return lifeStages.includes("INTERNATIONAL_STUDENT") || lifeStages.includes("GRADUATE_OPT");
 }
 
+// The study-details questions are asked only of current international students.
+export function asksStudentDetails(lifeStages: LifeStage[]): boolean {
+  return lifeStages.includes("INTERNATIONAL_STUDENT");
+}
+
 // §3.1: conditional student sub-questions — deliberately no university name
 // or immigration-document fields (NON_NEGOTIABLES: don't collect what isn't
 // needed; immigration content itself is always human-reviewed, but that's
@@ -153,6 +158,22 @@ export function getProfile(): Promise<OnboardingProfile> {
 
 export function setProfile(profile: OnboardingProfile): Promise<void> {
   return writeJson(KEYS.profile, profile);
+}
+
+// Settings → "Your profile" saved new answers; Home reloads its personalized
+// feed on this rather than waiting for its staleness timer.
+export const PROFILE_CHANGE_EVENT = "tg:profile-change";
+
+// Saves edited answers over the stored profile. Language is left as stored
+// (it has its own screen), and student details are dropped once the student
+// life stage is deselected so nothing unneeded stays on the device.
+export async function saveProfileEdits(edits: Omit<OnboardingProfile, "language">): Promise<OnboardingProfile> {
+  const current = await getProfile();
+  const next: OnboardingProfile = { ...edits, language: current.language };
+  if (!asksStudentDetails(next.lifeStages)) delete next.student;
+  await setProfile(next);
+  DeviceEventEmitter.emit(PROFILE_CHANGE_EVENT);
+  return next;
 }
 
 // Design-review fix: apps/web broadcasts a language change so every visible
