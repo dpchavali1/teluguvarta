@@ -40,6 +40,11 @@ login and mobile were inspected through code, not authenticated/device journeys.
   passed + the known flaky fixture error (passes alone). Scripts were not run on a real VPS. **R3 is done
   only when** the owner deploys, runs `ops-evidence.sh --drill --test-alert`, and the result (newest
   offsite backup, RTO/RPO, alert receipt) is recorded here.
+  **Prod state (2026-09-30):** `BACKUP_AGE_RECIPIENT` was unset on the server, so production had no backups
+  at all. Owner is setting up the key and local backups now; **offsite (Storage Box) skipped for now by owner
+  decision**, so admin shows OFFSITE_COPY as Failing ("BACKUP_STORAGE_BOX not set") until it exists. A server
+  loss would lose the backups too. The 1a6882b deploy attempt failed building admin in `next/font`
+  (Google Fonts CSS returned a font URL without a file extension); not caused by R3/R4, retry pending.
 - **R4 done (2026-09-30, pushed `cd2e5a9`, not deployed): admin budget wording matches the gateway.**
   `app.ai.budget.budget_mode` → NORMAL / CLASSIFICATION_ONLY (budget reached: summary, why-matters and
   translation stop on every provider; classification continues, paid included) / PAID_STOPPED (hard cap:
