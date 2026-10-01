@@ -12,6 +12,7 @@ const LINKS = [
   { href: "/review", label: "Review queue" },
   { href: "/briefs", label: "Auto briefs" },
   { href: "/sources", label: "Sources" },
+  { href: "/costs", label: "AI costs" },
   { href: "/observability", label: "Observability" },
 ];
 

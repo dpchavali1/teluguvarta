@@ -3,12 +3,13 @@
 import { ReactNode, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import type { components } from "@teluguvarta/contracts";
 
 import { EmptyState, PageHeader, StatTile, Tone } from "@/components/ui";
 import { BUDGET_MODE, type BudgetMode, budgetModeMessage, usd } from "@/lib/aiBudget";
 import { apiUrl, clearSession, getRole, getToken } from "@/lib/auth";
 import { captureException } from "@/lib/errorTracking";
-import { STALE_QUEUE_SECONDS, duration } from "@/lib/time";
+import { STALE_QUEUE_SECONDS, age, duration } from "@/lib/time";
 
 interface SourceRow {
   rights_status: string;
@@ -31,8 +32,9 @@ interface Observability {
 
 interface Data {
   sources: SourceRow[];
-  reviewCount: number;
   obs: Observability;
+  // Review 2026-09-30 R5: stage counts and the oldest wait at each stage.
+  pipeline: components["schemas"]["PipelineStatusOut"];
 }
 
 export default function Home() {
@@ -57,8 +59,8 @@ export default function Home() {
         }
         return response.ok ? response.json() : Promise.reject(new Error(`Failed to load ${path}`));
       });
-    Promise.all([get("/sources"), get("/review-queue"), get("/observability")])
-      .then(([sources, review, obs]) => setData({ sources, reviewCount: (review as unknown[]).length, obs }))
+    Promise.all([get("/sources"), get("/observability"), get("/pipeline")])
+      .then(([sources, obs, pipeline]) => setData({ sources, obs, pipeline }))
       .catch((err) => setError(err instanceof Error ? err.message : "Failed to load dashboard"));
   }, [router]);
 
@@ -78,7 +80,10 @@ export default function Home() {
     );
   }
 
-  const { sources, reviewCount, obs } = data;
+  const { sources, obs, pipeline } = data;
+  const reviewCount = pipeline.review_pending;
+  const aiRetrying = pipeline.ai_work.reduce((sum, w) => sum + w.retrying, 0);
+  const aiExhausted = pipeline.ai_work.reduce((sum, w) => sum + w.exhausted, 0);
   const needsRights = sources.filter((s) => s.rights_status === "DISABLED").length;
   const activeCount = sources.filter((s) => s.active).length;
   const tripped = obs.ingestion_health.filter((h) => h.circuit_breaker_tripped);
@@ -116,6 +121,14 @@ export default function Home() {
   if (reviewCount > 0) {
     attention.push({ key: "review", href: "/review", tone: "warn", node: `${reviewCount} stor${reviewCount > 1 ? "ies" : "y"} waiting for human review.` });
   }
+  if (aiExhausted > 0) {
+    attention.push({
+      key: "ai-exhausted",
+      href: "/review",
+      tone: "warn",
+      node: `${aiExhausted} stor${aiExhausted > 1 ? "ies have" : "y has"} used up automatic AI retries and need${aiExhausted > 1 ? "" : "s"} an editor.`
+    });
+  }
   if (needsRights > 0) {
     attention.push({ key: "rights", href: "/sources", tone: "warn", node: `${needsRights} source${needsRights > 1 ? "s" : ""} need a rights review before they can ingest.` });
   }
@@ -146,7 +159,16 @@ export default function Home() {
       <div className="tile-grid">
         <StatTile href="/sources" label="Active sources" value={activeCount} note={`${sources.length} total · ${failing} failing`} tone={failing > 0 ? "warn" : "ok"} />
         <StatTile href="/sources" label="Need rights review" value={needsRights} tone={(needsRights > 0 ? "warn" : "ok") as Tone} />
-        <StatTile href="/review" label="Review queue" value={reviewCount} note="stories waiting" tone={reviewCount > 0 ? "warn" : "ok"} />
+        <StatTile href="/review" label="Review queue" value={reviewCount} note={pipeline.review_oldest_at ? `oldest waiting ${age(pipeline.review_oldest_at)}` : "stories waiting"} tone={reviewCount > 0 ? "warn" : "ok"} />
+        <StatTile href="/review" label="Published (24h)" value={pipeline.published_24h} note={`${(pipeline.stories_by_status.PUBLISHED ?? 0) + (pipeline.stories_by_status.UPDATED ?? 0)} live in total`} />
+        <StatTile
+          href="/review"
+          label="Live in English only"
+          value={pipeline.telugu_missing}
+          note={pipeline.telugu_missing_oldest_published_at ? `no passed Telugu · oldest ${age(pipeline.telugu_missing_oldest_published_at)} · ${pipeline.telugu_failed_qa} failed QA` : "every live story has Telugu"}
+          tone={pipeline.telugu_missing > 0 ? "warn" : "ok"}
+        />
+        <StatTile href="/review" label="AI retries" value={aiRetrying} note={`${aiExhausted} out of retries`} tone={aiExhausted > 0 ? "warn" : "ok"} />
         <StatTile
           href="/observability"
           label="Jobs pending"
@@ -154,8 +176,8 @@ export default function Home() {
           note={oldest !== null ? `oldest waiting ${duration(oldest)}` : `${failedJobs} failed`}
           tone={failedJobs > 0 || staleQueue ? "danger" : "ok"}
         />
-        <StatTile href="/observability#ai-cost" label="AI spend today (est.)" value={usd(ai.today_cost_usd)} note={`since 00:00 UTC${ai.daily_alert_usd !== null ? ` · alert at ${usd(ai.daily_alert_usd)}` : ""}`} tone={ai.daily_alert_usd !== null && ai.today_cost_usd >= ai.daily_alert_usd ? "warn" : "ok"} />
-        <StatTile href="/observability#ai-cost" label="AI spend this month (est.)" value={usd(ai.month_to_date_cost_usd)} note={budgetNote} tone={BUDGET_MODE[ai.mode].tone} />
+        <StatTile href="/costs" label="AI spend today (est.)" value={usd(ai.today_cost_usd)} note={`since 00:00 UTC${ai.daily_alert_usd !== null ? ` · alert at ${usd(ai.daily_alert_usd)}` : ""}`} tone={ai.daily_alert_usd !== null && ai.today_cost_usd >= ai.daily_alert_usd ? "warn" : "ok"} />
+        <StatTile href="/costs" label="AI spend this month (est.)" value={usd(ai.month_to_date_cost_usd)} note={budgetNote} tone={BUDGET_MODE[ai.mode].tone} />
       </div>
 
       {process.env.NODE_ENV !== "production" ? (

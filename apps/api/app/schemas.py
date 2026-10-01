@@ -8,7 +8,7 @@ data built from these models until the tickets that produce real data
 (T06+) land — the ticket's acceptance criteria is that the *shape* is final.
 """
 
-from datetime import datetime
+from datetime import date, datetime
 from typing import Literal
 from uuid import UUID
 
@@ -629,6 +629,104 @@ class ObservabilityOut(BaseModel):
     ai_cost: AiCostSummaryOut
     x_cost: XCostSummaryOut
     operations: list[OpsCheckOut]
+
+
+class AiCostFiguresOut(BaseModel):
+    calls: int
+    cost_usd: float
+    tokens_in: int
+    # Part of tokens_out / tokens_in respectively (see AiCallLog).
+    tokens_out: int
+    tokens_thinking: int
+    tokens_cached: int
+    # Outcomes other than SUCCESS / RETRY_SUCCESS: billed, output not used.
+    unusable_calls: int
+    unusable_cost_usd: float
+
+
+class AiCostTotalsOut(AiCostFiguresOut):
+    # Cost of constrained retries that succeeded after an unusable first reply.
+    retry_cost_usd: float
+
+
+class AiCostDayOut(AiCostFiguresOut):
+    day: date
+
+
+class AiCostBreakdownOut(AiCostFiguresOut):
+    provider: str
+    model: str
+    task: str
+    tier: Literal["PAID", "FREE", "NONE"]
+
+
+class AiCostOutcomeOut(BaseModel):
+    status: str
+    calls: int
+    cost_usd: float
+
+
+class AiCostStoryStatusOut(BaseModel):
+    status: str
+    stories: int
+    calls: int
+    cost_usd: float
+
+
+class AiCostCohortOut(BaseModel):
+    """Stories first published in the window and every call ever linked to
+    them — a lifecycle figure, not window spend."""
+
+    stories_published: int
+    lifecycle_calls: int
+    lifecycle_cost_usd: float
+
+
+class AiCostStoryOut(BaseModel):
+    story_id: UUID
+    headline: str | None
+    status: str
+    calls: int
+    unusable_calls: int
+    cost_usd: float
+
+
+class AiCostReportOut(BaseModel):
+    """Review 2026-09-30 R5: `app.ai.cost_report.cost_report`. Inclusive UTC days."""
+
+    start: date
+    end: date
+    window_start: datetime
+    window_end: datetime
+    totals: AiCostTotalsOut
+    by_day: list[AiCostDayOut]
+    breakdown: list[AiCostBreakdownOut]
+    outcomes: list[AiCostOutcomeOut]
+    unlinked: AiCostFiguresOut
+    by_story_status: list[AiCostStoryStatusOut]
+    publication_cohort: AiCostCohortOut
+    top_stories: list[AiCostStoryOut]
+
+
+class PipelineAiWorkOut(BaseModel):
+    stage: Literal["GENERATE", "TRANSLATE"]
+    retrying: int
+    exhausted: int
+    oldest_update_at: datetime | None
+
+
+class PipelineStatusOut(BaseModel):
+    """Review 2026-09-30 R5: `app.pipeline_status.pipeline_status`."""
+
+    stories_by_status: dict[str, int]
+    published_24h: int
+    review_pending: int
+    review_oldest_at: datetime | None
+    ai_work: list[PipelineAiWorkOut]
+    # Live stories readers see only in English: no PASSED Telugu variant.
+    telugu_missing: int
+    telugu_failed_qa: int
+    telugu_missing_oldest_published_at: datetime | None
 
 
 class AdminFeedTestRequest(BaseModel):

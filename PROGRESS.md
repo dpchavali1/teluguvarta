@@ -16,7 +16,7 @@ login and mobile were inspected through code, not authenticated/device journeys.
   (`cluster._slug_key`; they were built from the dedupe key, which drops combining marks: `రేవంత్` → `రవత`).
   The dedupe key itself is unchanged, and existing slugs keep their URLs. (`810f5f5`, pushed 2026-09-30, **not deployed**; owner first held it
   2026-09-30 to batch with the rest of the review work.) Next: work the review plan in its stated order,
-  R3–R12 (R1/R2 done).
+  R3–R12 (R1/R2/R4/R5 done; R3 awaits owner evidence).
 - **R2 fixed for new translations (2026-09-30, `2c8f9d2`, deployed):** `qa.find_variant_qa_issues` adds
   `MIXED_SCRIPT:<field>` for any Devanagari/Bengali/Gurmukhi/Gujarati/Odia/Tamil/Kannada/Malayalam letter,
   unless the English field contains that same script (quoted text); dandas are allowed. The variant is FAILED,
@@ -59,6 +59,25 @@ login and mobile were inspected through code, not authenticated/device journeys.
   Tests: `tests/test_budget_mode.py` (new) + observability; full suite 475 passed + 1 known flaky fixture
   error. Admin has no test runner: typecheck/lint clean, wording checked by transpiling `aiBudget.ts`. Not
   checked in a browser (no authenticated local admin session).
+- **R5 done (2026-09-30, not deployed): where stories and AI money go.** `GET /v1/admin/ai-costs?start&end`
+  (`app/ai/cost_report.py`; inclusive UTC days, default month to date, max 93 days, 422 `INVALID_RANGE` /
+  `RANGE_TOO_LONG`): totals with thinking/cached tokens, "paid for, not used" (billed outcomes other than
+  SUCCESS/RETRY_SUCCESS), retry spend (RETRY_SUCCESS cost), zero-filled daily series, provider/model/task
+  breakdown with tier (gemini = FREE, none = NONE, else PAID), outcomes, unlinked calls, linked spend by
+  the story's current status, top 15 stories. Publication cohort = stories with `published_at` in range +
+  lifecycle cost of all their calls (any date), shown separately; the page labels its per-story average as
+  lifecycle, never window spend ÷ publications. `GET /v1/admin/pipeline` (`app/pipeline_status.py`): story
+  counts by status, published 24h, review queue (same PENDING rows as `/review-queue`) + oldest, AI retry
+  state per stage (retrying/exhausted, oldest update), live stories with no PASSED Telugu (+ failed QA,
+  oldest). Stories have no `created_at`, so DRAFT/AI_READY have no age. Admin: new **AI costs** page
+  (`/costs`, nav) with presets/custom range and drilldown to `/review/{id}`; Home uses `/pipeline` for
+  review age, published 24h, English-only and AI retry tiles, an attention item for exhausted retries,
+  and spend tiles link to `/costs`. Contracts regenerated. Tests: `tests/test_cost_report.py` (5: every view
+  reconciles to totals, window edges at 23:59/00:00 UTC, cohort includes pre-window calls, bounds, 401,
+  pipeline counts/ages); full suite 480 passed + the known flaky fixture error (passes alone). Admin
+  typecheck/lint/build clean. Checked against a seeded local DB (350 calls: days, breakdown and
+  linked+unlinked all equal totals; `/costs` and `/` served 200 from `next dev`); **not viewed in a browser**
+  (extension not connected), so phone/desktop layout is unchecked. Next: R6 (reader reports, needs ADR).
 
 Update this file at the end of every ticket. This is the source of truth for
 "what's actually done" — trust it over assumptions, git log archaeology, or

@@ -17,7 +17,7 @@ everything else about a source but cannot flip the rights gate itself.
 
 import hashlib
 import os
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from typing import Any
 from uuid import UUID
 
@@ -34,6 +34,7 @@ from app.ai.budget import (
     reporting_windows,
     today_cost_usd,
 )
+from app.ai.cost_report import MAX_RANGE_DAYS, cost_report
 from app.auth import AdminPrincipal, current_admin
 from app.content.geography import (
     event_countries_many,
@@ -76,6 +77,7 @@ from app.models import (
     XAccount,
 )
 from app.ops_status import ops_statuses
+from app.pipeline_status import pipeline_status
 from app.rate_limit import rate_limit_admin
 from app.schemas import (
     AdminActionRequest,
@@ -102,6 +104,7 @@ from app.schemas import (
     AdminXAccountCreate,
     AdminXAccountOut,
     AdminXAccountUpdate,
+    AiCostReportOut,
     AiCostRowOut,
     AiCostSummaryOut,
     JobQueueHealthOut,
@@ -109,6 +112,7 @@ from app.schemas import (
     Language,
     ObservabilityOut,
     OpsCheckOut,
+    PipelineStatusOut,
     ReviewQueueItemOut,
     RightsEvidence,
     SourceIngestionHealthOut,
@@ -1106,6 +1110,26 @@ def get_observability(db: Session = Depends(get_db)) -> ObservabilityOut:
     return ObservabilityOut(
         ingestion_health=ingestion_health, job_queue=job_queue, ai_cost=ai_cost, x_cost=x_cost, operations=operations
     )
+
+
+@router.get("/ai-costs")
+def get_ai_costs(start: date | None = None, end: date | None = None, db: Session = Depends(get_db)) -> AiCostReportOut:
+    """Review 2026-09-30 R5: AI spend over inclusive UTC days (default: the
+    month to date), bounded so the aggregate stays cheap."""
+    today = datetime.now(UTC).date()
+    end = end or today
+    start = start or end.replace(day=1)
+    if start > end:
+        raise APIError(422, "INVALID_RANGE", "start must be on or before end")
+    if (end - start).days + 1 > MAX_RANGE_DAYS:
+        raise APIError(422, "RANGE_TOO_LONG", f"A range covers at most {MAX_RANGE_DAYS} days")
+    return AiCostReportOut(**cost_report(db, start, end))
+
+
+@router.get("/pipeline")
+def get_pipeline(db: Session = Depends(get_db)) -> PipelineStatusOut:
+    """Review 2026-09-30 R5: stage counts and the oldest wait at each stage."""
+    return PipelineStatusOut(**pipeline_status(db, datetime.now(UTC)))
 
 
 @router.get("/_debug/throw", include_in_schema=False)

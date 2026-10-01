@@ -43,6 +43,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/admin/ai-costs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Ai Costs
+         * @description Review 2026-09-30 R5: AI spend over inclusive UTC days (default: the
+         *     month to date), bounded so the aggregate stays cheap.
+         */
+        get: operations["get_ai_costs_v1_admin_ai_costs_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/admin/ai-holds": {
         parameters: {
             query?: never;
@@ -218,6 +239,26 @@ export interface paths {
          *     budget, all scoped to what an editor needs to see in the last 24h.
          */
         get: operations["get_observability_v1_admin_observability_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/admin/pipeline": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Pipeline
+         * @description Review 2026-09-30 R5: stage counts and the oldest wait at each stage.
+         */
+        get: operations["get_pipeline_v1_admin_pipeline_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1342,6 +1383,140 @@ export interface components {
             /** Since Id */
             since_id?: string | null;
         };
+        /** AiCostBreakdownOut */
+        AiCostBreakdownOut: {
+            /** Calls */
+            calls: number;
+            /** Cost Usd */
+            cost_usd: number;
+            /** Model */
+            model: string;
+            /** Provider */
+            provider: string;
+            /** Task */
+            task: string;
+            /**
+             * Tier
+             * @enum {string}
+             */
+            tier: "PAID" | "FREE" | "NONE";
+            /** Tokens Cached */
+            tokens_cached: number;
+            /** Tokens In */
+            tokens_in: number;
+            /** Tokens Out */
+            tokens_out: number;
+            /** Tokens Thinking */
+            tokens_thinking: number;
+            /** Unusable Calls */
+            unusable_calls: number;
+            /** Unusable Cost Usd */
+            unusable_cost_usd: number;
+        };
+        /**
+         * AiCostCohortOut
+         * @description Stories first published in the window and every call ever linked to
+         *     them — a lifecycle figure, not window spend.
+         */
+        AiCostCohortOut: {
+            /** Lifecycle Calls */
+            lifecycle_calls: number;
+            /** Lifecycle Cost Usd */
+            lifecycle_cost_usd: number;
+            /** Stories Published */
+            stories_published: number;
+        };
+        /** AiCostDayOut */
+        AiCostDayOut: {
+            /** Calls */
+            calls: number;
+            /** Cost Usd */
+            cost_usd: number;
+            /**
+             * Day
+             * Format: date
+             */
+            day: string;
+            /** Tokens Cached */
+            tokens_cached: number;
+            /** Tokens In */
+            tokens_in: number;
+            /** Tokens Out */
+            tokens_out: number;
+            /** Tokens Thinking */
+            tokens_thinking: number;
+            /** Unusable Calls */
+            unusable_calls: number;
+            /** Unusable Cost Usd */
+            unusable_cost_usd: number;
+        };
+        /** AiCostFiguresOut */
+        AiCostFiguresOut: {
+            /** Calls */
+            calls: number;
+            /** Cost Usd */
+            cost_usd: number;
+            /** Tokens Cached */
+            tokens_cached: number;
+            /** Tokens In */
+            tokens_in: number;
+            /** Tokens Out */
+            tokens_out: number;
+            /** Tokens Thinking */
+            tokens_thinking: number;
+            /** Unusable Calls */
+            unusable_calls: number;
+            /** Unusable Cost Usd */
+            unusable_cost_usd: number;
+        };
+        /** AiCostOutcomeOut */
+        AiCostOutcomeOut: {
+            /** Calls */
+            calls: number;
+            /** Cost Usd */
+            cost_usd: number;
+            /** Status */
+            status: string;
+        };
+        /**
+         * AiCostReportOut
+         * @description Review 2026-09-30 R5: `app.ai.cost_report.cost_report`. Inclusive UTC days.
+         */
+        AiCostReportOut: {
+            /** Breakdown */
+            breakdown: components["schemas"]["AiCostBreakdownOut"][];
+            /** By Day */
+            by_day: components["schemas"]["AiCostDayOut"][];
+            /** By Story Status */
+            by_story_status: components["schemas"]["AiCostStoryStatusOut"][];
+            /**
+             * End
+             * Format: date
+             */
+            end: string;
+            /** Outcomes */
+            outcomes: components["schemas"]["AiCostOutcomeOut"][];
+            publication_cohort: components["schemas"]["AiCostCohortOut"];
+            /**
+             * Start
+             * Format: date
+             */
+            start: string;
+            /** Top Stories */
+            top_stories: components["schemas"]["AiCostStoryOut"][];
+            totals: components["schemas"]["AiCostTotalsOut"];
+            unlinked: components["schemas"]["AiCostFiguresOut"];
+            /**
+             * Window End
+             * Format: date-time
+             */
+            window_end: string;
+            /**
+             * Window Start
+             * Format: date-time
+             */
+            window_start: string;
+        };
         /** AiCostRowOut */
         AiCostRowOut: {
             /** Cost Usd */
@@ -1354,6 +1529,35 @@ export interface components {
             tokens_in: number;
             /** Tokens Out */
             tokens_out: number;
+        };
+        /** AiCostStoryOut */
+        AiCostStoryOut: {
+            /** Calls */
+            calls: number;
+            /** Cost Usd */
+            cost_usd: number;
+            /** Headline */
+            headline: string | null;
+            /** Status */
+            status: string;
+            /**
+             * Story Id
+             * Format: uuid
+             */
+            story_id: string;
+            /** Unusable Calls */
+            unusable_calls: number;
+        };
+        /** AiCostStoryStatusOut */
+        AiCostStoryStatusOut: {
+            /** Calls */
+            calls: number;
+            /** Cost Usd */
+            cost_usd: number;
+            /** Status */
+            status: string;
+            /** Stories */
+            stories: number;
         };
         /** AiCostSummaryOut */
         AiCostSummaryOut: {
@@ -1395,6 +1599,27 @@ export interface components {
             rows: components["schemas"]["AiCostRowOut"][];
             /** Today Cost Usd */
             today_cost_usd: number;
+        };
+        /** AiCostTotalsOut */
+        AiCostTotalsOut: {
+            /** Calls */
+            calls: number;
+            /** Cost Usd */
+            cost_usd: number;
+            /** Retry Cost Usd */
+            retry_cost_usd: number;
+            /** Tokens Cached */
+            tokens_cached: number;
+            /** Tokens In */
+            tokens_in: number;
+            /** Tokens Out */
+            tokens_out: number;
+            /** Tokens Thinking */
+            tokens_thinking: number;
+            /** Unusable Calls */
+            unusable_calls: number;
+            /** Unusable Cost Usd */
+            unusable_cost_usd: number;
         };
         /** AnalyticsEventIn */
         AnalyticsEventIn: {
@@ -1597,6 +1822,44 @@ export interface components {
             score: number;
             /** Why Matters */
             why_matters?: string | null;
+        };
+        /** PipelineAiWorkOut */
+        PipelineAiWorkOut: {
+            /** Exhausted */
+            exhausted: number;
+            /** Oldest Update At */
+            oldest_update_at: string | null;
+            /** Retrying */
+            retrying: number;
+            /**
+             * Stage
+             * @enum {string}
+             */
+            stage: "GENERATE" | "TRANSLATE";
+        };
+        /**
+         * PipelineStatusOut
+         * @description Review 2026-09-30 R5: `app.pipeline_status.pipeline_status`.
+         */
+        PipelineStatusOut: {
+            /** Ai Work */
+            ai_work: components["schemas"]["PipelineAiWorkOut"][];
+            /** Published 24H */
+            published_24h: number;
+            /** Review Oldest At */
+            review_oldest_at: string | null;
+            /** Review Pending */
+            review_pending: number;
+            /** Stories By Status */
+            stories_by_status: {
+                [key: string]: number;
+            };
+            /** Telugu Failed Qa */
+            telugu_failed_qa: number;
+            /** Telugu Missing */
+            telugu_missing: number;
+            /** Telugu Missing Oldest Published At */
+            telugu_missing_oldest_published_at: string | null;
         };
         /** PreferencesUpdate */
         PreferencesUpdate: {
@@ -1983,6 +2246,40 @@ export interface operations {
             };
         };
     };
+    get_ai_costs_v1_admin_ai_costs_get: {
+        parameters: {
+            query?: {
+                start?: string | null;
+                end?: string | null;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AiCostReportOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_ai_holds_v1_admin_ai_holds_get: {
         parameters: {
             query?: never;
@@ -2321,6 +2618,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ObservabilityOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_pipeline_v1_admin_pipeline_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PipelineStatusOut"];
                 };
             };
             /** @description Validation Error */

@@ -1673,6 +1673,313 @@
         "title": "AdminXAccountUpdate",
         "type": "object"
       },
+      "AiCostBreakdownOut": {
+        "properties": {
+          "calls": {
+            "title": "Calls",
+            "type": "integer"
+          },
+          "cost_usd": {
+            "title": "Cost Usd",
+            "type": "number"
+          },
+          "model": {
+            "title": "Model",
+            "type": "string"
+          },
+          "provider": {
+            "title": "Provider",
+            "type": "string"
+          },
+          "task": {
+            "title": "Task",
+            "type": "string"
+          },
+          "tier": {
+            "enum": [
+              "PAID",
+              "FREE",
+              "NONE"
+            ],
+            "title": "Tier",
+            "type": "string"
+          },
+          "tokens_cached": {
+            "title": "Tokens Cached",
+            "type": "integer"
+          },
+          "tokens_in": {
+            "title": "Tokens In",
+            "type": "integer"
+          },
+          "tokens_out": {
+            "title": "Tokens Out",
+            "type": "integer"
+          },
+          "tokens_thinking": {
+            "title": "Tokens Thinking",
+            "type": "integer"
+          },
+          "unusable_calls": {
+            "title": "Unusable Calls",
+            "type": "integer"
+          },
+          "unusable_cost_usd": {
+            "title": "Unusable Cost Usd",
+            "type": "number"
+          }
+        },
+        "required": [
+          "calls",
+          "cost_usd",
+          "tokens_in",
+          "tokens_out",
+          "tokens_thinking",
+          "tokens_cached",
+          "unusable_calls",
+          "unusable_cost_usd",
+          "provider",
+          "model",
+          "task",
+          "tier"
+        ],
+        "title": "AiCostBreakdownOut",
+        "type": "object"
+      },
+      "AiCostCohortOut": {
+        "description": "Stories first published in the window and every call ever linked to\nthem \u2014 a lifecycle figure, not window spend.",
+        "properties": {
+          "lifecycle_calls": {
+            "title": "Lifecycle Calls",
+            "type": "integer"
+          },
+          "lifecycle_cost_usd": {
+            "title": "Lifecycle Cost Usd",
+            "type": "number"
+          },
+          "stories_published": {
+            "title": "Stories Published",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "stories_published",
+          "lifecycle_calls",
+          "lifecycle_cost_usd"
+        ],
+        "title": "AiCostCohortOut",
+        "type": "object"
+      },
+      "AiCostDayOut": {
+        "properties": {
+          "calls": {
+            "title": "Calls",
+            "type": "integer"
+          },
+          "cost_usd": {
+            "title": "Cost Usd",
+            "type": "number"
+          },
+          "day": {
+            "format": "date",
+            "title": "Day",
+            "type": "string"
+          },
+          "tokens_cached": {
+            "title": "Tokens Cached",
+            "type": "integer"
+          },
+          "tokens_in": {
+            "title": "Tokens In",
+            "type": "integer"
+          },
+          "tokens_out": {
+            "title": "Tokens Out",
+            "type": "integer"
+          },
+          "tokens_thinking": {
+            "title": "Tokens Thinking",
+            "type": "integer"
+          },
+          "unusable_calls": {
+            "title": "Unusable Calls",
+            "type": "integer"
+          },
+          "unusable_cost_usd": {
+            "title": "Unusable Cost Usd",
+            "type": "number"
+          }
+        },
+        "required": [
+          "calls",
+          "cost_usd",
+          "tokens_in",
+          "tokens_out",
+          "tokens_thinking",
+          "tokens_cached",
+          "unusable_calls",
+          "unusable_cost_usd",
+          "day"
+        ],
+        "title": "AiCostDayOut",
+        "type": "object"
+      },
+      "AiCostFiguresOut": {
+        "properties": {
+          "calls": {
+            "title": "Calls",
+            "type": "integer"
+          },
+          "cost_usd": {
+            "title": "Cost Usd",
+            "type": "number"
+          },
+          "tokens_cached": {
+            "title": "Tokens Cached",
+            "type": "integer"
+          },
+          "tokens_in": {
+            "title": "Tokens In",
+            "type": "integer"
+          },
+          "tokens_out": {
+            "title": "Tokens Out",
+            "type": "integer"
+          },
+          "tokens_thinking": {
+            "title": "Tokens Thinking",
+            "type": "integer"
+          },
+          "unusable_calls": {
+            "title": "Unusable Calls",
+            "type": "integer"
+          },
+          "unusable_cost_usd": {
+            "title": "Unusable Cost Usd",
+            "type": "number"
+          }
+        },
+        "required": [
+          "calls",
+          "cost_usd",
+          "tokens_in",
+          "tokens_out",
+          "tokens_thinking",
+          "tokens_cached",
+          "unusable_calls",
+          "unusable_cost_usd"
+        ],
+        "title": "AiCostFiguresOut",
+        "type": "object"
+      },
+      "AiCostOutcomeOut": {
+        "properties": {
+          "calls": {
+            "title": "Calls",
+            "type": "integer"
+          },
+          "cost_usd": {
+            "title": "Cost Usd",
+            "type": "number"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "calls",
+          "cost_usd"
+        ],
+        "title": "AiCostOutcomeOut",
+        "type": "object"
+      },
+      "AiCostReportOut": {
+        "description": "Review 2026-09-30 R5: `app.ai.cost_report.cost_report`. Inclusive UTC days.",
+        "properties": {
+          "breakdown": {
+            "items": {
+              "$ref": "#/components/schemas/AiCostBreakdownOut"
+            },
+            "title": "Breakdown",
+            "type": "array"
+          },
+          "by_day": {
+            "items": {
+              "$ref": "#/components/schemas/AiCostDayOut"
+            },
+            "title": "By Day",
+            "type": "array"
+          },
+          "by_story_status": {
+            "items": {
+              "$ref": "#/components/schemas/AiCostStoryStatusOut"
+            },
+            "title": "By Story Status",
+            "type": "array"
+          },
+          "end": {
+            "format": "date",
+            "title": "End",
+            "type": "string"
+          },
+          "outcomes": {
+            "items": {
+              "$ref": "#/components/schemas/AiCostOutcomeOut"
+            },
+            "title": "Outcomes",
+            "type": "array"
+          },
+          "publication_cohort": {
+            "$ref": "#/components/schemas/AiCostCohortOut"
+          },
+          "start": {
+            "format": "date",
+            "title": "Start",
+            "type": "string"
+          },
+          "top_stories": {
+            "items": {
+              "$ref": "#/components/schemas/AiCostStoryOut"
+            },
+            "title": "Top Stories",
+            "type": "array"
+          },
+          "totals": {
+            "$ref": "#/components/schemas/AiCostTotalsOut"
+          },
+          "unlinked": {
+            "$ref": "#/components/schemas/AiCostFiguresOut"
+          },
+          "window_end": {
+            "format": "date-time",
+            "title": "Window End",
+            "type": "string"
+          },
+          "window_start": {
+            "format": "date-time",
+            "title": "Window Start",
+            "type": "string"
+          }
+        },
+        "required": [
+          "start",
+          "end",
+          "window_start",
+          "window_end",
+          "totals",
+          "by_day",
+          "breakdown",
+          "outcomes",
+          "unlinked",
+          "by_story_status",
+          "publication_cohort",
+          "top_stories"
+        ],
+        "title": "AiCostReportOut",
+        "type": "object"
+      },
       "AiCostRowOut": {
         "properties": {
           "cost_usd": {
@@ -1704,6 +2011,80 @@
           "cost_usd"
         ],
         "title": "AiCostRowOut",
+        "type": "object"
+      },
+      "AiCostStoryOut": {
+        "properties": {
+          "calls": {
+            "title": "Calls",
+            "type": "integer"
+          },
+          "cost_usd": {
+            "title": "Cost Usd",
+            "type": "number"
+          },
+          "headline": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Headline"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "story_id": {
+            "format": "uuid",
+            "title": "Story Id",
+            "type": "string"
+          },
+          "unusable_calls": {
+            "title": "Unusable Calls",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "story_id",
+          "headline",
+          "status",
+          "calls",
+          "unusable_calls",
+          "cost_usd"
+        ],
+        "title": "AiCostStoryOut",
+        "type": "object"
+      },
+      "AiCostStoryStatusOut": {
+        "properties": {
+          "calls": {
+            "title": "Calls",
+            "type": "integer"
+          },
+          "cost_usd": {
+            "title": "Cost Usd",
+            "type": "number"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "stories": {
+            "title": "Stories",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "status",
+          "stories",
+          "calls",
+          "cost_usd"
+        ],
+        "title": "AiCostStoryStatusOut",
         "type": "object"
       },
       "AiCostSummaryOut": {
@@ -1818,6 +2199,59 @@
           "rows"
         ],
         "title": "AiCostSummaryOut",
+        "type": "object"
+      },
+      "AiCostTotalsOut": {
+        "properties": {
+          "calls": {
+            "title": "Calls",
+            "type": "integer"
+          },
+          "cost_usd": {
+            "title": "Cost Usd",
+            "type": "number"
+          },
+          "retry_cost_usd": {
+            "title": "Retry Cost Usd",
+            "type": "number"
+          },
+          "tokens_cached": {
+            "title": "Tokens Cached",
+            "type": "integer"
+          },
+          "tokens_in": {
+            "title": "Tokens In",
+            "type": "integer"
+          },
+          "tokens_out": {
+            "title": "Tokens Out",
+            "type": "integer"
+          },
+          "tokens_thinking": {
+            "title": "Tokens Thinking",
+            "type": "integer"
+          },
+          "unusable_calls": {
+            "title": "Unusable Calls",
+            "type": "integer"
+          },
+          "unusable_cost_usd": {
+            "title": "Unusable Cost Usd",
+            "type": "number"
+          }
+        },
+        "required": [
+          "calls",
+          "cost_usd",
+          "tokens_in",
+          "tokens_out",
+          "tokens_thinking",
+          "tokens_cached",
+          "unusable_calls",
+          "unusable_cost_usd",
+          "retry_cost_usd"
+        ],
+        "title": "AiCostTotalsOut",
         "type": "object"
       },
       "AnalyticsEventIn": {
@@ -2341,6 +2775,117 @@
           "score"
         ],
         "title": "PersonalizationOut",
+        "type": "object"
+      },
+      "PipelineAiWorkOut": {
+        "properties": {
+          "exhausted": {
+            "title": "Exhausted",
+            "type": "integer"
+          },
+          "oldest_update_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Oldest Update At"
+          },
+          "retrying": {
+            "title": "Retrying",
+            "type": "integer"
+          },
+          "stage": {
+            "enum": [
+              "GENERATE",
+              "TRANSLATE"
+            ],
+            "title": "Stage",
+            "type": "string"
+          }
+        },
+        "required": [
+          "stage",
+          "retrying",
+          "exhausted",
+          "oldest_update_at"
+        ],
+        "title": "PipelineAiWorkOut",
+        "type": "object"
+      },
+      "PipelineStatusOut": {
+        "description": "Review 2026-09-30 R5: `app.pipeline_status.pipeline_status`.",
+        "properties": {
+          "ai_work": {
+            "items": {
+              "$ref": "#/components/schemas/PipelineAiWorkOut"
+            },
+            "title": "Ai Work",
+            "type": "array"
+          },
+          "published_24h": {
+            "title": "Published 24H",
+            "type": "integer"
+          },
+          "review_oldest_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Review Oldest At"
+          },
+          "review_pending": {
+            "title": "Review Pending",
+            "type": "integer"
+          },
+          "stories_by_status": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Stories By Status",
+            "type": "object"
+          },
+          "telugu_failed_qa": {
+            "title": "Telugu Failed Qa",
+            "type": "integer"
+          },
+          "telugu_missing": {
+            "title": "Telugu Missing",
+            "type": "integer"
+          },
+          "telugu_missing_oldest_published_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Telugu Missing Oldest Published At"
+          }
+        },
+        "required": [
+          "stories_by_status",
+          "published_24h",
+          "review_pending",
+          "review_oldest_at",
+          "ai_work",
+          "telugu_missing",
+          "telugu_failed_qa",
+          "telugu_missing_oldest_published_at"
+        ],
+        "title": "PipelineStatusOut",
         "type": "object"
       },
       "PreferencesUpdate": {
@@ -3372,6 +3917,90 @@
         "summary": "Ready"
       }
     },
+    "/v1/admin/ai-costs": {
+      "get": {
+        "description": "Review 2026-09-30 R5: AI spend over inclusive UTC days (default: the\nmonth to date), bounded so the aggregate stays cheap.",
+        "operationId": "get_ai_costs_v1_admin_ai_costs_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "start",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Start"
+            }
+          },
+          {
+            "in": "query",
+            "name": "end",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "End"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AiCostReportOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Ai Costs",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
     "/v1/admin/ai-holds": {
       "get": {
         "description": "Every story stage whose AI retries ran out, newest first. Exhausted\ntranslations are otherwise invisible: the story keeps serving English.",
@@ -3935,6 +4564,56 @@
           }
         },
         "summary": "Get Observability",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/v1/admin/pipeline": {
+      "get": {
+        "description": "Review 2026-09-30 R5: stage counts and the oldest wait at each stage.",
+        "operationId": "get_pipeline_v1_admin_pipeline_get",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PipelineStatusOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Pipeline",
         "tags": [
           "admin"
         ]
