@@ -267,6 +267,60 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/admin/reports": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Reader Reports
+         * @description Open reports oldest first (the next to handle); closed ones newest first.
+         */
+        get: operations["list_reader_reports_v1_admin_reports_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/admin/reports/{report_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Reader Report */
+        get: operations["get_reader_report_v1_admin_reports__report_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/admin/reports/{report_id}/resolve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Resolve Reader Report */
+        post: operations["resolve_reader_report_v1_admin_reports__report_id__resolve_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/admin/review-queue": {
         parameters: {
             query?: never;
@@ -828,6 +882,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/stories/{story_id}/reports": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Report Story
+         * @description ADR-029: a private reader report on a public story, for editors only.
+         *     No login (NON_NEGOTIABLES #9). The free text is stored here and nowhere
+         *     else — the analytics event carries only the story, category and platform.
+         */
+        post: operations["report_story_v1_stories__story_id__reports_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/topics/{slug}": {
         parameters: {
             query?: never;
@@ -1088,6 +1164,92 @@ export interface components {
              * @constant
              */
             token_type: "bearer";
+        };
+        /** AdminReaderReportListOut */
+        AdminReaderReportListOut: {
+            /** Items */
+            items: components["schemas"]["AdminReaderReportOut"][];
+            /** Open Count */
+            open_count: number;
+            /** Total */
+            total: number;
+        };
+        /**
+         * AdminReaderReportOut
+         * @description ADR-029: one reader report, with enough story context for the list.
+         */
+        AdminReaderReportOut: {
+            /**
+             * Category
+             * @enum {string}
+             */
+            category: "FACTUAL_ERROR" | "TRANSLATION" | "BROKEN_LINK" | "WRONG_IMAGE" | "OFFENSIVE" | "OTHER";
+            /** Correction Id */
+            correction_id: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Description */
+            description: string | null;
+            /** Description Purged At */
+            description_purged_at: string | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Language */
+            language: ("en" | "te") | null;
+            /** Platform */
+            platform: ("web" | "ios" | "android") | null;
+            /** Repeat Count */
+            repeat_count: number;
+            /** Resolution */
+            resolution: ("CORRECTED" | "RETRACTED" | "NO_CHANGE" | "DUPLICATE" | "SPAM") | null;
+            /** Resolution Note */
+            resolution_note: string | null;
+            /** Resolved At */
+            resolved_at: string | null;
+            /** Resolved By Email */
+            resolved_by_email: string | null;
+            /** Sender */
+            sender: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "OPEN" | "RESOLVED" | "DISMISSED";
+            /** Story Headline */
+            story_headline: string | null;
+            /**
+             * Story Id
+             * Format: uuid
+             */
+            story_id: string;
+            /** Story Slug */
+            story_slug: string;
+            /**
+             * Story Status
+             * @enum {string}
+             */
+            story_status: "DRAFT" | "AI_READY" | "REVIEW_REQUIRED" | "APPROVED" | "SCHEDULED" | "PUBLISHED" | "UPDATED" | "RETRACTED" | "CORRECTION_PENDING" | "ARCHIVED";
+        };
+        /**
+         * AdminReaderReportResolveRequest
+         * @description ADR-029: CORRECTED/RETRACTED close as RESOLVED, the rest as DISMISSED.
+         */
+        AdminReaderReportResolveRequest: {
+            /** Correction Id */
+            correction_id?: string | null;
+            /** Note */
+            note?: string | null;
+            /**
+             * Resolution
+             * @enum {string}
+             */
+            resolution: "CORRECTED" | "RETRACTED" | "NO_CHANGE" | "DUPLICATE" | "SPAM";
         };
         /** AdminRejectRequest */
         AdminRejectRequest: {
@@ -1630,7 +1792,7 @@ export interface components {
             event: "app_open" | "feed_view" | "story_open" | "story_save" | "story_share" | "language_switch" | "search" | "notification_open" | "notification_opt_in" | "onboarding_complete" | "account_delete_request" | "report_issue" | "notification_received";
             /** Properties */
             properties?: {
-                [key: string]: unknown;
+                [key: string]: string | number | boolean | null;
             };
         };
         /** AnalyticsEventResponse */
@@ -1846,6 +2008,13 @@ export interface components {
             ai_work: components["schemas"]["PipelineAiWorkOut"][];
             /** Published 24H */
             published_24h: number;
+            /** Reports Oldest Open At */
+            reports_oldest_open_at?: string | null;
+            /**
+             * Reports Open
+             * @default 0
+             */
+            reports_open: number;
             /** Review Oldest At */
             review_oldest_at: string | null;
             /** Review Pending */
@@ -1942,6 +2111,31 @@ export interface components {
         PushTokenResponse: {
             /** Registered */
             registered: boolean;
+        };
+        /** ReaderReportAccepted */
+        ReaderReportAccepted: {
+            /**
+             * Accepted
+             * @default true
+             */
+            accepted: boolean;
+        };
+        /**
+         * ReaderReportIn
+         * @description ADR-029: a private report on a public story. No login required.
+         */
+        ReaderReportIn: {
+            /**
+             * Category
+             * @enum {string}
+             */
+            category: "FACTUAL_ERROR" | "TRANSLATION" | "BROKEN_LINK" | "WRONG_IMAGE" | "OFFENSIVE" | "OTHER";
+            /** Description */
+            description?: string | null;
+            /** Language */
+            language?: ("en" | "te") | null;
+            /** Platform */
+            platform?: ("web" | "ios" | "android") | null;
         };
         /** ReviewQueueItemOut */
         ReviewQueueItemOut: {
@@ -2649,6 +2843,113 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PipelineStatusOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_reader_reports_v1_admin_reports_get: {
+        parameters: {
+            query?: {
+                status?: ("OPEN" | "RESOLVED" | "DISMISSED") | "ALL";
+                category?: ("FACTUAL_ERROR" | "TRANSLATION" | "BROKEN_LINK" | "WRONG_IMAGE" | "OFFENSIVE" | "OTHER") | null;
+                story_id?: string | null;
+                limit?: number;
+                offset?: number;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminReaderReportListOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_reader_report_v1_admin_reports__report_id__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                report_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminReaderReportOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    resolve_reader_report_v1_admin_reports__report_id__resolve_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                report_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminReaderReportResolveRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminReaderReportOut"];
                 };
             };
             /** @description Validation Error */
@@ -3775,6 +4076,41 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ShareMetaResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    report_story_v1_stories__story_id__reports_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                story_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReaderReportIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReaderReportAccepted"];
                 };
             };
             /** @description Validation Error */

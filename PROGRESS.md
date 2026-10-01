@@ -78,13 +78,28 @@ login and mobile were inspected through code, not authenticated/device journeys.
   typecheck/lint/build clean. Checked against a seeded local DB (350 calls: days, breakdown and
   linked+unlinked all equal totals; `/costs` and `/` served 200 from `next dev`); **not viewed in a browser**
   (extension not connected), so phone/desktop layout is unchecked. Next: R6 (reader reports, needs ADR).
-- **R6 blocked on owner (2026-09-30): ADR-029 proposed, no code.** `docs/adr/ADR-029-reader-report-inbox.md`:
-  dedicated `POST /v1/stories/{id}/reports` + `reader_reports` table (category enum, OPEN→RESOLVED/DISMISSED,
-  resolution linked to an audited correction/retraction), editor-only access, report text erased 90 d after
-  resolution / 180 d if open, per-client rate limits with a daily-rotating HMAC instead of IPs, analytics keeps
-  no text. Also found (current, unfixed): `/v1/events` has no rate limit and accepts unbounded `properties`, and
-  `story_id` isn't checked. Owner decides: reports ≠ UGC (NON_NEGOTIABLES #6), retention, limits, categories.
-  Next: R7 (review/admin navigation at volume) while ADR-029 waits.
+- **R6 done (2026-09-30, not deployed): private reader-report inbox per ADR-029 (accepted as proposed).**
+  `POST /v1/stories/{id}/reports` (no login; public stories only, else 404; `extra="forbid"`, text ≤ 2,000)
+  writes `reader_reports` (migration `f3b8d1c6a2e7`). Rate limit 5/10 min + 20/day per client
+  (`rate_limit_reports`, process-local); `client_hash` = HMAC(`ADMIN_JWT_SECRET`, IP + UTC day), no IP
+  stored; a repeat from the same sender/story/category bumps `repeat_count` on the OPEN row (partial unique
+  index). The server emits `report_issue` with story/category/platform only. `/v1/events` now has a
+  120/min limit, flat properties (≤ 20 keys, ≤ 500-char strings) and drops `report_issue.description`
+  before validation, so old app builds still work and the text is never logged. Admin:
+  `GET /v1/admin/reports` (status OPEN default/RESOLVED/DISMISSED/ALL, category, story, paging),
+  `GET /reports/{id}`, `POST /reports/{id}/resolve` (CORRECTED needs a correction on that story,
+  RETRACTED needs a retracted story; audited as `READER_REPORT_RESOLVED`); `/pipeline` adds
+  `reports_open`/oldest. Retention: reserved `cleanup` job, daily, erases text 90 d after close / 180 d if
+  open, ≤ 1,000 rows per run (`app/jobs/cleanup.py`). Admin UI: "Reader reports" nav with open count,
+  `/reports` list, `/reports/[id]` (report, both variants, sources, other reports, close form linking to
+  `/review/{id}` for the actual correction/retraction), Home attention item. Web and mobile forms: required
+  category, optional text, privacy note, 429 message (mobile: inline panel instead of the old Alert).
+  **Mobile needs a store release** for the new form; until then old builds' reports reach analytics with
+  the text dropped and create no inbox row. Tests: `tests/test_reader_reports.py` (9); full API suite 489
+  passed + the known flaky teardown error; mypy adds nothing (72 = clean HEAD; baseline file says 71, so
+  CI's mypy gate was already over before this change); web 8 tests, mobile 24 tests, admin
+  typecheck/lint/build, web typecheck/lint clean. **Not checked in a browser or on a device.**
+  Next: R7 (review/admin navigation at volume).
 
 Update this file at the end of every ticket. This is the source of truth for
 "what's actually done" — trust it over assumptions, git log archaeology, or

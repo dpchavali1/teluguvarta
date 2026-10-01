@@ -1,6 +1,6 @@
 # ADR-029: Reader-report inbox — storage, retention, abuse controls, access
 
-- **Status**: proposed
+- **Status**: accepted (2026-09-30, as proposed)
 - **Date**: 2026-09-30
 - **Ticket**: review R6 (`docs/reviews/2026-09-30-live-product-and-admin-plan.md`)
 

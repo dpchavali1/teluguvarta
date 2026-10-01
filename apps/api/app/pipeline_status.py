@@ -9,7 +9,7 @@ from datetime import datetime, timedelta
 from sqlalchemy import exists, func, select
 from sqlalchemy.orm import Session
 
-from app.models import AiWorkState, ReviewTask, Story, StoryVariant
+from app.models import AiWorkState, ReaderReport, ReviewTask, Story, StoryVariant
 
 # Readers see English for these until a PASSED Telugu variant exists.
 LIVE_STATUSES = ("PUBLISHED", "UPDATED")
@@ -49,6 +49,10 @@ def pipeline_status(db: Session, now: datetime) -> dict:
     te_count, te_oldest = db.execute(select(func.count(), func.min(Story.published_at)).where(*english_only)).one()
     te_failed_count = db.scalar(select(func.count()).where(*english_only, te_failed))
 
+    reports_open, reports_oldest = db.execute(
+        select(func.count(), func.min(ReaderReport.created_at)).where(ReaderReport.status == "OPEN")
+    ).one()
+
     return {
         "stories_by_status": stories_by_status,
         "published_24h": int(published_24h or 0),
@@ -58,4 +62,6 @@ def pipeline_status(db: Session, now: datetime) -> dict:
         "telugu_missing": int(te_count),
         "telugu_failed_qa": int(te_failed_count or 0),
         "telugu_missing_oldest_published_at": te_oldest,
+        "reports_open": int(reports_open),
+        "reports_oldest_open_at": reports_oldest,
     }

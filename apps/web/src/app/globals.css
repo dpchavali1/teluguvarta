@@ -917,6 +917,17 @@ button:disabled {
   font-weight: 600;
 }
 
+.story-card__report select {
+  font: inherit;
+  min-height: 44px;
+}
+
+.story-card__report-note {
+  margin: 0;
+  font-size: var(--text-small);
+  color: var(--text-secondary);
+}
+
 .story-card__report-actions {
   display: flex;
   gap: var(--space-sm);

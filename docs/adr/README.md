@@ -81,5 +81,5 @@ accepted. Add ad-hoc ADRs below this table as they're written.
   [ADR-028](ADR-028-admin-session-storage.md)
 - ADR-029 | Reader-report inbox: dedicated table/endpoint, lifecycle,
   retention, rate limits and editor-only access | review 2026-09-30 R6 |
-  **proposed** (owner decision needed) — see
+  **accepted** 2026-09-30 as proposed — see
   [ADR-029](ADR-029-reader-report-inbox.md)

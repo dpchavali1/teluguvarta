@@ -12,7 +12,7 @@ from datetime import date, datetime
 from typing import Literal
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 Language = Literal["en", "te"]
 RightsStatus = Literal["DISABLED", "LINK_ONLY", "LICENSED_METADATA", "LICENSED_REPURPOSE"]
@@ -206,12 +206,61 @@ AnalyticsEventName = Literal[
 ]
 
 
+EVENT_MAX_PROPERTIES = 20
+EVENT_MAX_KEY_CHARS = 64
+EVENT_MAX_VALUE_CHARS = 500
+
+
 class AnalyticsEventIn(BaseModel):
     event: AnalyticsEventName
-    properties: dict = Field(default_factory=dict)
+    # ADR-029: flat, bounded properties — clients only send ids, counts and
+    # short strings, so anything larger is rejected rather than logged.
+    properties: dict[str, str | int | float | bool | None] = Field(default_factory=dict)
+
+    @model_validator(mode="before")
+    @classmethod
+    def _drop_report_text(cls, data: object) -> object:
+        # ADR-029: report text goes to POST /v1/stories/{id}/reports only.
+        # Older app builds still send it here; drop it before validation so
+        # they keep working and the text is never logged.
+        if isinstance(data, dict) and data.get("event") == "report_issue" and isinstance(data.get("properties"), dict):
+            data = {**data, "properties": {k: v for k, v in data["properties"].items() if k != "description"}}
+        return data
+
+    @field_validator("properties")
+    @classmethod
+    def _bounded(cls, properties: dict) -> dict:
+        if len(properties) > EVENT_MAX_PROPERTIES:
+            raise ValueError(f"at most {EVENT_MAX_PROPERTIES} properties")
+        for key, value in properties.items():
+            if len(key) > EVENT_MAX_KEY_CHARS:
+                raise ValueError(f"property names are at most {EVENT_MAX_KEY_CHARS} characters")
+            if isinstance(value, str) and len(value) > EVENT_MAX_VALUE_CHARS:
+                raise ValueError(f"property values are at most {EVENT_MAX_VALUE_CHARS} characters")
+        return properties
 
 
 class AnalyticsEventResponse(BaseModel):
+    accepted: bool = True
+
+
+ReaderReportCategory = Literal["FACTUAL_ERROR", "TRANSLATION", "BROKEN_LINK", "WRONG_IMAGE", "OFFENSIVE", "OTHER"]
+ReaderReportStatus = Literal["OPEN", "RESOLVED", "DISMISSED"]
+ReaderReportResolution = Literal["CORRECTED", "RETRACTED", "NO_CHANGE", "DUPLICATE", "SPAM"]
+
+
+class ReaderReportIn(BaseModel):
+    """ADR-029: a private report on a public story. No login required."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    category: ReaderReportCategory
+    description: str | None = Field(default=None, max_length=2000)
+    language: Language | None = None
+    platform: Literal["web", "ios", "android"] | None = None
+
+
+class ReaderReportAccepted(BaseModel):
     accepted: bool = True
 
 
@@ -727,6 +776,51 @@ class PipelineStatusOut(BaseModel):
     telugu_missing: int
     telugu_failed_qa: int
     telugu_missing_oldest_published_at: datetime | None
+    # ADR-029: reader reports no editor has closed yet.
+    reports_open: int = 0
+    reports_oldest_open_at: datetime | None = None
+
+
+class AdminReaderReportOut(BaseModel):
+    """ADR-029: one reader report, with enough story context for the list."""
+
+    id: UUID
+    story_id: UUID
+    story_slug: str
+    story_status: StoryStatus
+    story_headline: str | None
+    category: ReaderReportCategory
+    # None when the reader left it blank or the retention purge erased it.
+    description: str | None
+    description_purged_at: datetime | None
+    language: Language | None
+    platform: Literal["web", "ios", "android"] | None
+    # Daily-rotating sender id: equal values = same sender, same UTC day.
+    sender: str
+    repeat_count: int
+    status: ReaderReportStatus
+    resolution: ReaderReportResolution | None
+    resolution_note: str | None
+    resolved_by_email: str | None
+    resolved_at: datetime | None
+    correction_id: UUID | None
+    created_at: datetime
+
+
+class AdminReaderReportListOut(BaseModel):
+    items: list[AdminReaderReportOut]
+    total: int
+    open_count: int
+
+
+class AdminReaderReportResolveRequest(BaseModel):
+    """ADR-029: CORRECTED/RETRACTED close as RESOLVED, the rest as DISMISSED."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    resolution: ReaderReportResolution
+    note: str | None = Field(default=None, max_length=1000)
+    correction_id: UUID | None = None
 
 
 class AdminFeedTestRequest(BaseModel):

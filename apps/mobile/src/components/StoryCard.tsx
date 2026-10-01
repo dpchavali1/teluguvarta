@@ -1,8 +1,8 @@
 import { topicLabel } from "@teluguvarta/domain";
 import React, { useEffect, useMemo, useState } from "react";
-import { Alert, AccessibilityInfo, DeviceEventEmitter, Pressable, StyleSheet, Text, View } from "react-native";
+import { AccessibilityInfo, DeviceEventEmitter, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 
-import { reportIssue, trackEvent, type Language, type StoryOut } from "../lib/api";
+import { REPORT_CATEGORIES, reportIssue, trackEvent, type Language, type ReportCategory, type StoryOut } from "../lib/api";
 import { shareStory } from "../lib/share";
 import { getProfile, setLanguage as persistLanguage, LANGUAGE_CHANGE_EVENT } from "../lib/storage";
 import { useStoryCache } from "../lib/StoryCacheContext";
@@ -55,6 +55,10 @@ export function StoryCard({
   const cache = useStoryCache();
   const [language, setLanguage] = useState<Language>("en");
   const [actionStatus, setActionStatus] = useState<string | null>(null);
+  const [reportOpen, setReportOpen] = useState(false);
+  const [reportCategory, setReportCategory] = useState<ReportCategory | null>(null);
+  const [reportText, setReportText] = useState("");
+  const [reportBusy, setReportBusy] = useState(false);
   const [saving, setSaving] = useState(false);
   const hasTelugu = Boolean(story.variants.te);
   const isHumanReviewed = REVIEWED_SENSITIVITIES.has(story.sensitivity);
@@ -118,14 +122,19 @@ export function StoryCard({
     persistLanguage(next);
   }
 
-  function handleReportIssue() {
-    Alert.alert("Report an issue", "Let us know this story has a problem?", [
-      { text: "Cancel", style: "cancel" },
-      { text: "Report", onPress: async () => {
-        try { await reportIssue(story.id); setActionStatus("Report received. Thank you."); }
-        catch { setActionStatus("Couldn’t send your report. Tap Report to try again."); }
-      } },
-    ]);
+  async function handleReportSubmit() {
+    if (reportBusy || !reportCategory) return;
+    setReportBusy(true);
+    try {
+      await reportIssue(story.id, { category: reportCategory, description: reportText.trim(), language });
+      setReportOpen(false);
+      setReportCategory(null);
+      setReportText("");
+      setActionStatus("Report received. Our editors will look at it. Thank you.");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Couldn't send your report. Please try again.";
+      setActionStatus(`${message} Your report is still here.`);
+    } finally { setReportBusy(false); }
   }
 
   return (
@@ -243,8 +252,9 @@ export function StoryCard({
           </Pressable>
           {showFullActions && (
             <Pressable
-              onPress={handleReportIssue}
+              onPress={() => setReportOpen((open) => !open)}
               accessibilityRole="button"
+              accessibilityState={{ expanded: reportOpen }}
               accessibilityLabel={`Report an issue: ${variant.headline}`}
               style={[styles.actionButton, styles.actionButtonReport]}
             >
@@ -252,6 +262,57 @@ export function StoryCard({
             </Pressable>
           )}
         </View>
+        {showFullActions && reportOpen && (
+          <View style={styles.reportPanel}>
+            <Text style={styles.reportHeading} accessibilityRole="header">What&apos;s the problem?</Text>
+            <View accessibilityRole="radiogroup" style={styles.reportChoices}>
+              {REPORT_CATEGORIES.map((category) => {
+                const selected = reportCategory === category.value;
+                return (
+                  <Pressable
+                    key={category.value}
+                    onPress={() => setReportCategory(category.value)}
+                    accessibilityRole="radio"
+                    accessibilityState={{ checked: selected, disabled: reportBusy }}
+                    accessibilityLabel={category.label}
+                    disabled={reportBusy}
+                    style={[styles.actionButton, selected && styles.langButtonActive]}
+                  >
+                    <Text style={[styles.actionButtonText, selected && styles.langButtonTextActive]}>{category.label}</Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+            <TextInput
+              value={reportText}
+              onChangeText={setReportText}
+              placeholder="Details (optional)"
+              placeholderTextColor={colors.muted}
+              accessibilityLabel="Details (optional)"
+              accessibilityHint="Only our editors see reports. Please don't include your name, email or phone number."
+              multiline
+              maxLength={2000}
+              editable={!reportBusy}
+              style={styles.reportInput}
+            />
+            <Text style={styles.reportNote}>Only our editors see reports. Please don&apos;t include your name, email or phone number.</Text>
+            <View style={styles.actions}>
+              <Pressable
+                onPress={handleReportSubmit}
+                accessibilityRole="button"
+                accessibilityLabel="Send report"
+                accessibilityState={{ disabled: reportBusy || !reportCategory }}
+                disabled={reportBusy || !reportCategory}
+                style={[styles.actionButton, styles.langButtonActive, (reportBusy || !reportCategory) && styles.disabled]}
+              >
+                <Text style={[styles.actionButtonText, styles.langButtonTextActive]}>{reportBusy ? "Sending…" : "Send report"}</Text>
+              </Pressable>
+              <Pressable onPress={() => setReportOpen(false)} accessibilityRole="button" style={styles.actionButton}>
+                <Text style={styles.actionButtonText}>Cancel</Text>
+              </Pressable>
+            </View>
+          </View>
+        )}
       </View>
     </View>
   );
@@ -376,5 +437,20 @@ function createStyles(colors: AppTheme["colors"], ui: AppTheme["ui"]) {
     actionButtonReport: { borderColor: ui.borderSubtle },
     actionButtonText: { ...typography.meta, textTransform: "none", color: colors.muted },
     actionButtonTextActive: { color: ui.success },
+    reportPanel: { gap: spacing.sm, paddingTop: spacing.sm },
+    reportHeading: { ...typography.meta, textTransform: "none", color: colors.text, fontWeight: "700" },
+    reportChoices: { flexDirection: "row", flexWrap: "wrap", gap: spacing.xs },
+    reportInput: {
+      ...typography.body,
+      color: colors.text,
+      minHeight: 88,
+      padding: spacing.sm,
+      borderWidth: 1,
+      borderColor: ui.borderControl,
+      borderRadius: radius.md,
+      textAlignVertical: "top",
+    },
+    reportNote: { ...typography.meta, textTransform: "none", color: colors.muted },
+    disabled: { opacity: 0.5 },
   });
 }

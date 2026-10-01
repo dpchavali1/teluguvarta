@@ -1,7 +1,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react-native";
 import React from "react";
-import { Alert, Share } from "react-native";
+import { Share } from "react-native";
 
 import App from "../../App";
 
@@ -16,7 +16,7 @@ import App from "../../App";
  *
  * Across the four tests below, every one of §17's 12 events fires at least
  * once: app_open, onboarding_complete, feed_view (test 1); story_open,
- * language_switch, story_save, story_share, report_issue (test 2); search
+ * language_switch, story_save, story_share, a reader report (test 2); search
  * (test 3); notification_opt_in (test 4); account_delete_request (test 5).
  */
 
@@ -34,6 +34,7 @@ const STORY = {
 };
 
 let postedEvents: { event: string; properties: Record<string, unknown> }[];
+let postedReports: Record<string, unknown>[];
 
 function jsonResponse(body: unknown, status = 200) {
   return Promise.resolve({
@@ -54,14 +55,16 @@ beforeEach(async () => {
   // completed onboarding and skip straight to Main.
   await AsyncStorage.clear();
   postedEvents = [];
+  postedReports = [];
   jest.spyOn(Share, "share").mockResolvedValue({ action: "sharedAction" } as never);
-  jest.spyOn(Alert, "alert").mockImplementation((_title, _message, buttons) => {
-    buttons?.find((b) => b.text === "Report")?.onPress?.();
-  });
 
   globalThis.fetch = jest.fn((input: RequestInfo | URL, init?: RequestInit) => {
     const url = typeof input === "string" ? input : input.toString();
     const path = new URL(url).pathname;
+    if (path === `/v1/stories/${STORY.id}/reports` && init?.method === "POST") {
+      postedReports.push(JSON.parse(init.body as string));
+      return jsonResponse({ accepted: true }, 201);
+    }
     if (path === "/v1/events" && init?.method === "POST") {
       postedEvents.push(JSON.parse(init.body as string));
       return jsonResponse({ accepted: true });
@@ -111,7 +114,14 @@ test("story_open, language_switch, story_save, story_share, and report_issue fir
 
   const reportButtons = await screen.findAllByLabelText(`Report an issue: ${STORY.variants.te.headline}`);
   fireEvent.press(reportButtons[reportButtons.length - 1]);
-  await waitFor(() => expect(mockEvent("report_issue")).toBe(true));
+  // ADR-029: a report goes to its own endpoint with a category; the server
+  // emits report_issue, so the app doesn't post the text as an event.
+  fireEvent.press(await screen.findByLabelText("Telugu translation problem"));
+  fireEvent.press(await screen.findByLabelText("Send report"));
+  await waitFor(() =>
+    expect(postedReports).toEqual([{ category: "TRANSLATION", description: null, language: "te", platform: "ios" }]),
+  );
+  expect(mockEvent("report_issue")).toBe(false);
 });
 
 test("search fires from the Search tab", async () => {

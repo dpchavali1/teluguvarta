@@ -7,13 +7,14 @@ REVIEW_REQUIRED/APPROVED/SCHEDULED/ARCHIVED stories stay internal.
 
 import base64
 import os
+from datetime import UTC, datetime
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, Request
 from sqlalchemy import and_, func, or_, select
 from sqlalchemy.orm import Session
 
-from app import analytics
+from app import analytics, reader_reports
 from app.content.geography import EVENT, normalize_country
 from app.content.ranking import Preferences, rank_stories
 from app.content.serialize import (
@@ -36,13 +37,20 @@ from app.models import (
     StoryVariant,
     Topic,
 )
-from app.rate_limit import rate_limit_search
+from app.rate_limit import (
+    _client_ip,
+    rate_limit_events,
+    rate_limit_reports,
+    rate_limit_search,
+)
 from app.schemas import (
     AnalyticsEventIn,
     AnalyticsEventResponse,
     ConfigResponse,
     HomeResponse,
     PersonalizationOut,
+    ReaderReportAccepted,
+    ReaderReportIn,
     SearchResponse,
     Segment,
     ShareMetaResponse,
@@ -282,7 +290,7 @@ def get_config(db: Session = Depends(get_db)) -> ConfigResponse:
     )
 
 
-@router.post("/events")
+@router.post("/events", dependencies=[Depends(rate_limit_events)])
 def track_event(body: AnalyticsEventIn) -> AnalyticsEventResponse:
     """T17 §9.4 client-emitted events (`story_share`, `notification_received`,
     `notification_open`) — the ones the server can't observe on its own
@@ -293,3 +301,24 @@ def track_event(body: AnalyticsEventIn) -> AnalyticsEventResponse:
 
     analytics.track(body.event, body.properties)
     return AnalyticsEventResponse()
+
+
+@router.post("/stories/{story_id}/reports", status_code=201, dependencies=[Depends(rate_limit_reports)])
+def report_story(
+    story_id: UUID, body: ReaderReportIn, request: Request, db: Session = Depends(get_db)
+) -> ReaderReportAccepted:
+    """ADR-029: a private reader report on a public story, for editors only.
+    No login (NON_NEGOTIABLES #9). The free text is stored here and nowhere
+    else — the analytics event carries only the story, category and platform.
+    """
+
+    story = db.scalars(select(Story).where(Story.id == story_id, Story.status.in_(PUBLIC_STATUSES))).first()
+    if story is None:
+        raise APIError(404, "STORY_NOT_FOUND", f"No story with id '{story_id}'")
+    description = (body.description or "").strip() or None
+    reader_reports.submit_report(
+        db, story_id=story.id, category=body.category, description=description, language=body.language,
+        platform=body.platform, sender=reader_reports.client_hash(_client_ip(request), datetime.now(UTC)),
+    )
+    analytics.track("report_issue", {"story_id": str(story.id), "category": body.category, "platform": body.platform})
+    return ReaderReportAccepted()

@@ -121,6 +121,15 @@ export default function Home() {
   if (reviewCount > 0) {
     attention.push({ key: "review", href: "/review", tone: "warn", node: `${reviewCount} stor${reviewCount > 1 ? "ies" : "y"} waiting for human review.` });
   }
+  if (pipeline.reports_open > 0) {
+    const oldestReport = pipeline.reports_oldest_open_at ? `, oldest ${age(pipeline.reports_oldest_open_at)}` : "";
+    attention.push({
+      key: "reports",
+      href: "/reports",
+      tone: "warn",
+      node: `${pipeline.reports_open} open reader report${pipeline.reports_open > 1 ? "s" : ""}${oldestReport}.`
+    });
+  }
   if (aiExhausted > 0) {
     attention.push({
       key: "ai-exhausted",

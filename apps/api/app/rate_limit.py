@@ -37,6 +37,17 @@ NEW_USER_MAX_REQUESTS = 30
 NEW_USER_WINDOW_SECONDS = 600.0
 
 
+# ADR-029: reader reports per client, short burst and daily.
+REPORT_BURST_MAX = 5
+REPORT_BURST_WINDOW_SECONDS = 600.0
+REPORT_DAILY_MAX = 20
+REPORT_DAILY_WINDOW_SECONDS = 86400.0
+
+# ADR-029: analytics events. A busy reading session sends a few per story.
+EVENTS_MAX_REQUESTS = 120
+EVENTS_WINDOW_SECONDS = 60.0
+
+
 def _check(key: str, *, max_requests: int, window_seconds: float) -> None:
     now = time.monotonic()
     bucket = _WINDOWS[key]
@@ -62,6 +73,16 @@ def rate_limit_admin(request: Request) -> None:
 
 def rate_limit_new_user(request: Request) -> None:
     _check(f"new_user:{_client_ip(request)}", max_requests=NEW_USER_MAX_REQUESTS, window_seconds=NEW_USER_WINDOW_SECONDS)
+
+
+def rate_limit_reports(request: Request) -> None:
+    ip = _client_ip(request)
+    _check(f"report_burst:{ip}", max_requests=REPORT_BURST_MAX, window_seconds=REPORT_BURST_WINDOW_SECONDS)
+    _check(f"report_daily:{ip}", max_requests=REPORT_DAILY_MAX, window_seconds=REPORT_DAILY_WINDOW_SECONDS)
+
+
+def rate_limit_events(request: Request) -> None:
+    _check(f"events:{_client_ip(request)}", max_requests=EVENTS_MAX_REQUESTS, window_seconds=EVENTS_WINDOW_SECONDS)
 
 
 def reset() -> None:

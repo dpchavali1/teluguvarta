@@ -160,11 +160,26 @@ export async function getSavedStories(ids: string[]): Promise<StoryOut[]> {
   return unique.map((id) => found.get(id)).filter((story): story is StoryOut => Boolean(story));
 }
 
-export async function reportIssue(storyId: string, description = ""): Promise<void> {
-  const response = await fetch(new URL("/v1/events", apiUrl()).toString(), {
+// ADR-029: a private report only editors see; the text is optional.
+export const REPORT_CATEGORIES = [
+  { value: "FACTUAL_ERROR", label: "Something is wrong or out of date" },
+  { value: "TRANSLATION", label: "Telugu translation problem" },
+  { value: "BROKEN_LINK", label: "Source link doesn't work" },
+  { value: "WRONG_IMAGE", label: "Wrong image" },
+  { value: "OFFENSIVE", label: "Offensive or harmful" },
+  { value: "OTHER", label: "Something else" },
+] as const;
+export type ReportCategory = (typeof REPORT_CATEGORIES)[number]["value"];
+
+export async function reportIssue(
+  storyId: string,
+  report: { category: ReportCategory; description?: string; language?: Language },
+): Promise<void> {
+  const response = await fetch(new URL(`/v1/stories/${encodeURIComponent(storyId)}/reports`, apiUrl()).toString(), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ event: "report_issue", properties: { story_id: storyId, description } }),
+    body: JSON.stringify({ ...report, description: report.description || null, platform: "web" }),
   });
+  if (response.status === 429) throw new Error("You've sent several reports in a short time. Please try again later.");
   if (!response.ok) throw new Error("Couldn't send your report. Please try again.");
 }

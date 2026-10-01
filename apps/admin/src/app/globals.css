@@ -308,6 +308,18 @@ td button {
   flex: none;
 }
 
+.admin-nav__count {
+  margin-left: auto;
+  min-width: 1.4rem;
+  padding: 0 0.35rem;
+  border-radius: 999px;
+  background: var(--color-accent);
+  color: var(--color-bg);
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-align: center;
+}
+
 .admin-nav__links a.is-active {
   color: var(--color-text);
   border-left-color: var(--color-accent);

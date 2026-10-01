@@ -15,6 +15,7 @@ from sqlalchemy.orm import Session, sessionmaker
 
 from app.ai.budget import require_budget_config
 from app.alerts import check_all
+from app.jobs.cleanup import run_cleanup, schedule_cleanup
 from app.jobs.cluster import run_dedup_cluster, schedule_dedup_cluster
 from app.jobs.generate import run_ai_classify, schedule_ai_classify
 from app.jobs.notify import run_notification_dispatch, schedule_notification_dispatch
@@ -44,6 +45,7 @@ JOB_HANDLERS = {
     "ai_summarize": run_why_matters,
     "publish_scheduler": run_publish_scheduler,
     "notification_dispatch": run_notification_dispatch,
+    "cleanup": run_cleanup,
 }
 
 POLL_INTERVAL_SECONDS = 5.0
@@ -63,6 +65,7 @@ def process_one(db: Session) -> bool:
     schedule_ai_translate(db)
     schedule_publish_scheduler(db)
     schedule_notification_dispatch(db)
+    schedule_cleanup(db)
     db.commit()
 
     job = claim_job(db, list(JOB_HANDLERS))

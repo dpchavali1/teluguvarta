@@ -6,10 +6,12 @@ import { useEffect, useState } from "react";
 
 import ThemeToggle from "@/components/ThemeToggle";
 import { clearSession, getRole, getToken } from "@/lib/auth";
+import { adminFetch, type ReaderReportList } from "@/lib/reports";
 
 const LINKS = [
   { href: "/", label: "Home" },
   { href: "/review", label: "Review queue" },
+  { href: "/reports", label: "Reader reports" },
   { href: "/briefs", label: "Auto briefs" },
   { href: "/sources", label: "Sources" },
   { href: "/costs", label: "AI costs" },
@@ -21,10 +23,17 @@ export default function AdminNav() {
   const router = useRouter();
   const [role, setRole] = useState<string | null>(null);
   const [hasToken, setHasToken] = useState(false);
+  const [openReports, setOpenReports] = useState<number | null>(null);
 
   useEffect(() => {
     setRole(getRole());
-    setHasToken(Boolean(getToken()));
+    const signedIn = Boolean(getToken());
+    setHasToken(signedIn);
+    if (!signedIn || pathname === "/login") return;
+    // ADR-029: open reader reports, refreshed on every navigation.
+    adminFetch<ReaderReportList>("/v1/admin/reports?limit=1")
+      .then((list) => setOpenReports(list.open_count))
+      .catch(() => setOpenReports(null));
   }, [pathname]);
 
   if (pathname === "/login" || !hasToken) return null;
@@ -39,6 +48,9 @@ export default function AdminNav() {
           <Link key={link.href} href={link.href} className={pathname === link.href ? "is-active" : ""}>
             <span className="admin-nav__dot" aria-hidden="true" />
             {link.label}
+            {link.href === "/reports" && openReports ? (
+              <span className="admin-nav__count" aria-label={`${openReports} open`}>{openReports}</span>
+            ) : null}
           </Link>
         ))}
       </div>

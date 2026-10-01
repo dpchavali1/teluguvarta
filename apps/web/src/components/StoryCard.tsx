@@ -6,7 +6,7 @@ import { useEffect, useState, type FormEvent } from "react";
 
 import { Icon } from "@/components/Icon";
 import { TimeAgo } from "@/components/TimeAgo";
-import { reportIssue, storyUrl, type Language, type StoryOut } from "@/lib/api";
+import { REPORT_CATEGORIES, reportIssue, storyUrl, type Language, type ReportCategory, type StoryOut } from "@/lib/api";
 import { formatDate, sourceDomain } from "@/lib/format";
 import { SAVED_CHANGE_EVENT, isSaved, toggleSaved } from "@/lib/saved";
 import { track } from "@/lib/analytics";
@@ -37,6 +37,7 @@ export function StoryCard({ story, headingLevel = "h2", display = "default" }: {
   const [shareStatus, setShareStatus] = useState<string | null>(null);
   const [reportOpen, setReportOpen] = useState(false);
   const [reportText, setReportText] = useState("");
+  const [reportCategory, setReportCategory] = useState<ReportCategory | "">("");
   const [reportStatus, setReportStatus] = useState<string | null>(null);
   const [reportBusy, setReportBusy] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -115,15 +116,19 @@ export function StoryCard({ story, headingLevel = "h2", display = "default" }: {
 
   async function handleReportSubmit(event: FormEvent) {
     event.preventDefault();
-    if (reportBusy) return;
+    if (reportBusy || !reportCategory) return;
     setReportBusy(true);
     setReportStatus(null);
     try {
-      await reportIssue(story.id, reportText.trim());
+      await reportIssue(story.id, { category: reportCategory, description: reportText.trim(), language: renderedLanguage });
       setReportOpen(false);
       setReportText("");
-      setReportStatus("Report received. Thank you.");
-    } catch { setReportStatus("Couldn't send your report. Your description is still here; please try again."); }
+      setReportCategory("");
+      setReportStatus("Report received. Our editors will look at it. Thank you.");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Couldn't send your report. Please try again.";
+      setReportStatus(`${message} Your report is still here.`);
+    }
     finally { setReportBusy(false); }
   }
 
@@ -267,18 +272,34 @@ export function StoryCard({ story, headingLevel = "h2", display = "default" }: {
 
       {!isBrief && reportOpen && (
         <form className="story-card__report" onSubmit={handleReportSubmit}>
-          <label htmlFor={`report-${story.id}`}>Describe the issue with this story</label>
+          <label htmlFor={`report-category-${story.id}`}>What&apos;s the problem?</label>
+          <select
+            id={`report-category-${story.id}`}
+            value={reportCategory}
+            onChange={(event) => setReportCategory(event.target.value as ReportCategory | "")}
+            required
+            disabled={reportBusy}
+          >
+            <option value="">Choose one…</option>
+            {REPORT_CATEGORIES.map((category) => (
+              <option key={category.value} value={category.value}>{category.label}</option>
+            ))}
+          </select>
+          <label htmlFor={`report-${story.id}`}>Details (optional)</label>
           <textarea
             id={`report-${story.id}`}
+            aria-describedby={`report-privacy-${story.id}`}
             value={reportText}
             onChange={(event) => setReportText(event.target.value)}
             rows={3}
             maxLength={2000}
-            required
             disabled={reportBusy}
           />
+          <p id={`report-privacy-${story.id}`} className="story-card__report-note">
+            Only our editors see reports. Please don&apos;t include your name, email or phone number.
+          </p>
           <div className="story-card__report-actions">
-            <button className="button button--primary" type="submit" disabled={reportBusy || !reportText.trim()}>{reportBusy ? "Sending…" : "Submit"}</button>
+            <button className="button button--primary" type="submit" disabled={reportBusy || !reportCategory}>{reportBusy ? "Sending…" : "Submit"}</button>
             <button className="button" type="button" onClick={() => setReportOpen(false)}>Cancel</button>
           </div>
         </form>

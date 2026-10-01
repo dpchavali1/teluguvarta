@@ -611,6 +611,299 @@
         "title": "AdminLoginResponse",
         "type": "object"
       },
+      "AdminReaderReportListOut": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/AdminReaderReportOut"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "open_count": {
+            "title": "Open Count",
+            "type": "integer"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total",
+          "open_count"
+        ],
+        "title": "AdminReaderReportListOut",
+        "type": "object"
+      },
+      "AdminReaderReportOut": {
+        "description": "ADR-029: one reader report, with enough story context for the list.",
+        "properties": {
+          "category": {
+            "enum": [
+              "FACTUAL_ERROR",
+              "TRANSLATION",
+              "BROKEN_LINK",
+              "WRONG_IMAGE",
+              "OFFENSIVE",
+              "OTHER"
+            ],
+            "title": "Category",
+            "type": "string"
+          },
+          "correction_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Correction Id"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "description_purged_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description Purged At"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "language": {
+            "anyOf": [
+              {
+                "enum": [
+                  "en",
+                  "te"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Language"
+          },
+          "platform": {
+            "anyOf": [
+              {
+                "enum": [
+                  "web",
+                  "ios",
+                  "android"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Platform"
+          },
+          "repeat_count": {
+            "title": "Repeat Count",
+            "type": "integer"
+          },
+          "resolution": {
+            "anyOf": [
+              {
+                "enum": [
+                  "CORRECTED",
+                  "RETRACTED",
+                  "NO_CHANGE",
+                  "DUPLICATE",
+                  "SPAM"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resolution"
+          },
+          "resolution_note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resolution Note"
+          },
+          "resolved_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resolved At"
+          },
+          "resolved_by_email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resolved By Email"
+          },
+          "sender": {
+            "title": "Sender",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "OPEN",
+              "RESOLVED",
+              "DISMISSED"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "story_headline": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Story Headline"
+          },
+          "story_id": {
+            "format": "uuid",
+            "title": "Story Id",
+            "type": "string"
+          },
+          "story_slug": {
+            "title": "Story Slug",
+            "type": "string"
+          },
+          "story_status": {
+            "enum": [
+              "DRAFT",
+              "AI_READY",
+              "REVIEW_REQUIRED",
+              "APPROVED",
+              "SCHEDULED",
+              "PUBLISHED",
+              "UPDATED",
+              "RETRACTED",
+              "CORRECTION_PENDING",
+              "ARCHIVED"
+            ],
+            "title": "Story Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "story_id",
+          "story_slug",
+          "story_status",
+          "story_headline",
+          "category",
+          "description",
+          "description_purged_at",
+          "language",
+          "platform",
+          "sender",
+          "repeat_count",
+          "status",
+          "resolution",
+          "resolution_note",
+          "resolved_by_email",
+          "resolved_at",
+          "correction_id",
+          "created_at"
+        ],
+        "title": "AdminReaderReportOut",
+        "type": "object"
+      },
+      "AdminReaderReportResolveRequest": {
+        "additionalProperties": false,
+        "description": "ADR-029: CORRECTED/RETRACTED close as RESOLVED, the rest as DISMISSED.",
+        "properties": {
+          "correction_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Correction Id"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "maxLength": 1000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "resolution": {
+            "enum": [
+              "CORRECTED",
+              "RETRACTED",
+              "NO_CHANGE",
+              "DUPLICATE",
+              "SPAM"
+            ],
+            "title": "Resolution",
+            "type": "string"
+          }
+        },
+        "required": [
+          "resolution"
+        ],
+        "title": "AdminReaderReportResolveRequest",
+        "type": "object"
+      },
       "AdminRejectRequest": {
         "properties": {
           "archive": {
@@ -2276,7 +2569,25 @@
             "type": "string"
           },
           "properties": {
-            "additionalProperties": true,
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
             "title": "Properties",
             "type": "object"
           }
@@ -2831,6 +3142,23 @@
             "title": "Published 24H",
             "type": "integer"
           },
+          "reports_oldest_open_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reports Oldest Open At"
+          },
+          "reports_open": {
+            "default": 0,
+            "title": "Reports Open",
+            "type": "integer"
+          },
           "review_oldest_at": {
             "anyOf": [
               {
@@ -3181,6 +3509,83 @@
           "registered"
         ],
         "title": "PushTokenResponse",
+        "type": "object"
+      },
+      "ReaderReportAccepted": {
+        "properties": {
+          "accepted": {
+            "default": true,
+            "title": "Accepted",
+            "type": "boolean"
+          }
+        },
+        "title": "ReaderReportAccepted",
+        "type": "object"
+      },
+      "ReaderReportIn": {
+        "additionalProperties": false,
+        "description": "ADR-029: a private report on a public story. No login required.",
+        "properties": {
+          "category": {
+            "enum": [
+              "FACTUAL_ERROR",
+              "TRANSLATION",
+              "BROKEN_LINK",
+              "WRONG_IMAGE",
+              "OFFENSIVE",
+              "OTHER"
+            ],
+            "title": "Category",
+            "type": "string"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "language": {
+            "anyOf": [
+              {
+                "enum": [
+                  "en",
+                  "te"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Language"
+          },
+          "platform": {
+            "anyOf": [
+              {
+                "enum": [
+                  "web",
+                  "ios",
+                  "android"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Platform"
+          }
+        },
+        "required": [
+          "category"
+        ],
+        "title": "ReaderReportIn",
         "type": "object"
       },
       "ReviewQueueItemOut": {
@@ -4614,6 +5019,268 @@
           }
         },
         "summary": "Get Pipeline",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/v1/admin/reports": {
+      "get": {
+        "description": "Open reports oldest first (the next to handle); closed ones newest first.",
+        "operationId": "list_reader_reports_v1_admin_reports_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "OPEN",
+                    "RESOLVED",
+                    "DISMISSED"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "const": "ALL",
+                  "type": "string"
+                }
+              ],
+              "default": "OPEN",
+              "title": "Status"
+            }
+          },
+          {
+            "in": "query",
+            "name": "category",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "FACTUAL_ERROR",
+                    "TRANSLATION",
+                    "BROKEN_LINK",
+                    "WRONG_IMAGE",
+                    "OFFENSIVE",
+                    "OTHER"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Category"
+            }
+          },
+          {
+            "in": "query",
+            "name": "story_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Story Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminReaderReportListOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Reader Reports",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/v1/admin/reports/{report_id}": {
+      "get": {
+        "operationId": "get_reader_report_v1_admin_reports__report_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "report_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Report Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminReaderReportOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Reader Report",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/v1/admin/reports/{report_id}/resolve": {
+      "post": {
+        "operationId": "resolve_reader_report_v1_admin_reports__report_id__resolve_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "report_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Report Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdminReaderReportResolveRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminReaderReportOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Resolve Reader Report",
         "tags": [
           "admin"
         ]
@@ -6701,6 +7368,60 @@
           }
         },
         "summary": "Get Story Share Meta",
+        "tags": [
+          "public"
+        ]
+      }
+    },
+    "/v1/stories/{story_id}/reports": {
+      "post": {
+        "description": "ADR-029: a private reader report on a public story, for editors only.\nNo login (NON_NEGOTIABLES #9). The free text is stored here and nowhere\nelse \u2014 the analytics event carries only the story, category and platform.",
+        "operationId": "report_story_v1_stories__story_id__reports_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "story_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Story Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReaderReportIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReaderReportAccepted"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Report Story",
         "tags": [
           "public"
         ]

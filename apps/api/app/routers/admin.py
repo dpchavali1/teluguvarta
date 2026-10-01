@@ -18,7 +18,7 @@ everything else about a source but cannot flip the rights gate itself.
 import hashlib
 import os
 from datetime import UTC, date, datetime, timedelta
-from typing import Any
+from typing import Any, Literal
 from uuid import UUID
 
 from fastapi import APIRouter, Depends
@@ -65,6 +65,7 @@ from app.models import (
     AuditEvent,
     Correction,
     Job,
+    ReaderReport,
     ReviewTask,
     Source,
     SourceItem,
@@ -74,11 +75,13 @@ from app.models import (
     StoryVariant,
     StoryWhyMattersCache,
     Topic,
+    User,
     XAccount,
 )
 from app.ops_status import ops_statuses
 from app.pipeline_status import pipeline_status
 from app.rate_limit import rate_limit_admin
+from app.reader_reports import ResolveError, resolve_report
 from app.schemas import (
     AdminActionRequest,
     AdminActionResponse,
@@ -93,6 +96,9 @@ from app.schemas import (
     AdminFeedTestRequest,
     AdminImportanceRequest,
     AdminJobOut,
+    AdminReaderReportListOut,
+    AdminReaderReportOut,
+    AdminReaderReportResolveRequest,
     AdminRejectRequest,
     AdminRetryAiRequest,
     AdminSourceCreate,
@@ -113,6 +119,8 @@ from app.schemas import (
     ObservabilityOut,
     OpsCheckOut,
     PipelineStatusOut,
+    ReaderReportCategory,
+    ReaderReportStatus,
     ReviewQueueItemOut,
     RightsEvidence,
     SourceIngestionHealthOut,
@@ -1152,3 +1160,85 @@ def list_audit_events(db: Session = Depends(get_db)) -> list[AdminAuditEventOut]
         )
         for event in events
     ]
+
+
+# --- ADR-029: reader reports ------------------------------------------------
+
+REPORTS_MAX_LIMIT = 100
+
+
+def _reader_report_out(db: Session, report: ReaderReport) -> AdminReaderReportOut:
+    story = _get_story_or_404(db, report.story_id)
+    variant = _get_variant(db, report.story_id, "en")
+    resolver = db.get(User, report.resolved_by) if report.resolved_by else None
+    return AdminReaderReportOut.model_validate({
+        "id": report.id, "story_id": report.story_id, "story_slug": story.canonical_slug,
+        "story_status": story.status, "story_headline": variant.headline if variant else None,
+        "category": report.category, "description": report.description,
+        "description_purged_at": report.description_purged_at, "language": report.language,
+        "platform": report.platform, "sender": report.client_hash[:8], "repeat_count": report.repeat_count,
+        "status": report.status, "resolution": report.resolution, "resolution_note": report.resolution_note,
+        "resolved_by_email": resolver.email if resolver else None, "resolved_at": report.resolved_at,
+        "correction_id": report.correction_id, "created_at": report.created_at,
+    })
+
+
+def _get_report_or_404(db: Session, report_id: UUID) -> ReaderReport:
+    report = db.get(ReaderReport, report_id)
+    if report is None:
+        raise APIError(404, "REPORT_NOT_FOUND", f"No reader report with id '{report_id}'")
+    return report
+
+
+@router.get("/reports")
+def list_reader_reports(
+    status: ReaderReportStatus | Literal["ALL"] = "OPEN",
+    category: ReaderReportCategory | None = None,
+    story_id: UUID | None = None,
+    limit: int = 50,
+    offset: int = 0,
+    db: Session = Depends(get_db),
+) -> AdminReaderReportListOut:
+    """Open reports oldest first (the next to handle); closed ones newest first."""
+    limit = max(1, min(limit, REPORTS_MAX_LIMIT))
+    offset = max(0, offset)
+    filters = []
+    if status != "ALL":
+        filters.append(ReaderReport.status == status)
+    if category is not None:
+        filters.append(ReaderReport.category == category)
+    if story_id is not None:
+        filters.append(ReaderReport.story_id == story_id)
+    order = ReaderReport.created_at.asc() if status == "OPEN" else ReaderReport.created_at.desc()
+    reports = db.scalars(
+        select(ReaderReport).where(*filters).order_by(order, ReaderReport.id).offset(offset).limit(limit)
+    ).all()
+    total = db.scalar(select(func.count()).select_from(ReaderReport).where(*filters))
+    open_count = db.scalar(select(func.count()).select_from(ReaderReport).where(ReaderReport.status == "OPEN"))
+    return AdminReaderReportListOut(
+        items=[_reader_report_out(db, report) for report in reports], total=int(total or 0), open_count=int(open_count or 0)
+    )
+
+
+@router.get("/reports/{report_id}")
+def get_reader_report(report_id: UUID, db: Session = Depends(get_db)) -> AdminReaderReportOut:
+    return _reader_report_out(db, _get_report_or_404(db, report_id))
+
+
+@router.post("/reports/{report_id}/resolve")
+def resolve_reader_report(
+    report_id: UUID,
+    body: AdminReaderReportResolveRequest,
+    admin: AdminPrincipal = Depends(current_admin),
+    db: Session = Depends(get_db),
+) -> AdminReaderReportOut:
+    report = _get_report_or_404(db, report_id)
+    try:
+        resolve_report(
+            db, report, resolution=body.resolution, note=body.note, correction_id=body.correction_id,
+            actor_email=admin.email, actor_id=UUID(admin.user_id), now=datetime.now(UTC),
+        )
+    except ResolveError as exc:
+        raise APIError(exc.status, exc.code, exc.message) from exc
+    db.refresh(report)
+    return _reader_report_out(db, report)
