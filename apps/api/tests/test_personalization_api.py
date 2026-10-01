@@ -218,6 +218,34 @@ def test_other_segment_shares_general_explanation(client, db_session, monkeypatc
     assert other.json()["top_stories"][0]["personalization"]["why_matters"] == "Because it matters to everyone."
 
 
+@requires_postgres
+def test_empty_segment_explanation_is_cached_and_falls_back_to_generic(client, db_session, monkeypatch):
+    # Review 2026-09-30 R9: "nothing specific for this reader" is a valid
+    # answer, cached once; readers then see the story's generic line.
+    from app.content.editorial import WHY_MATTERS_STYLE
+
+    _seed_published_story(db_session)
+    provider = _use_fake_provider(monkeypatch, [{"why_matters": ""}])
+    prompts = []
+    original_complete = provider.complete
+
+    def capture(**kwargs):
+        prompts.append(kwargs["prompt"])
+        return original_complete(**kwargs)
+
+    monkeypatch.setattr(provider, "complete", capture)
+    client.get("/v1/home", params={"residence_country": "US", "segment": "professional"})
+    from app.jobs.why_matters import run_why_matters
+    run_why_matters(db_session, _why_jobs(db_session)[0])  # does not raise for a retry
+
+    body = client.get("/v1/home", params={"residence_country": "US", "segment": "professional"}).json()
+    story = body["top_stories"][0]
+    assert story["personalization"]["why_matters"] is None
+    assert story["variants"]["en"]["why_matters"] == "Why it matters"
+    assert len(_why_jobs(db_session)) == 1  # a cached empty line isn't requeued
+    assert len(prompts) == 1 and WHY_MATTERS_STYLE in prompts[0]
+
+
 @pytest.mark.parametrize(("editor_written", "free_expected"), [(False, True), (True, False)])
 def test_segment_generation_uses_privacy_route_and_untrusted_boundary(
     client, db_session, monkeypatch, editor_written, free_expected

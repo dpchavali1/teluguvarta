@@ -202,7 +202,7 @@ def get_home(
                 if en is not None:
                     misses.append((story, en))
             out.personalization = PersonalizationOut(
-                score=scored.score, explanation=scored.explanation, why_matters=why_matters,
+                score=scored.score, explanation=scored.explanation, why_matters=why_matters or None,
             )
             top_stories.append(out)
         enqueue_why_matters(db, misses, segment)

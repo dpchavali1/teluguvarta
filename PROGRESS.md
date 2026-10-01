@@ -142,6 +142,22 @@ login and mobile were inspected through code, not authenticated/device journeys.
   source of the overlap); (B) "Top stories" = importance within 24h, or rename it; (C) weekly coverage
   floors set after two weeks of data. Curating AP/Telangana/cinema/NRI/student sources stays an owner
   rights decision; nothing approved here. Next: ADR-030 decision, or R9.
+- **R9 done (2026-09-30, not deployed): shorter copy and compact feed attribution.** New
+  `docs/EDITORIAL_STYLE.md` (EN headline ≤ 12 words, summary 2–3 sentences/~40–80 words, why-matters one
+  sentence ≤ 30 words naming a source-supported consequence or **empty**; Telugu headline a short news
+  headline; never invent dates/actions/local impact). Same text lives in `app/content/editorial.py` and is
+  added to the generation, translation and segment why-matters prompts. **Guidance only, not a gate**:
+  ADR-026 still decides publication, so no story is held for length. A blank `why_matters_en` is stored as
+  NULL; a Telugu why-matters is dropped when the English has none (it was stored as-is). A segment line
+  of `""` is cached (no regeneration, job doesn't retry) and `/v1/home` returns `personalization.why_matters
+  = null`, so clients show the generic line. Web lead card and mobile feed cards show "Read the original
+  source" + domain instead of the full source title (full title stays in the accessible name and on
+  detail); mobile parses the domain without `new URL` (RN lacks `hostname`). Admin draft editor shows word
+  counts against the guide. No truncation added. Tests: 3 new (generate prompt + blank why-matters,
+  Telugu-only why-matters dropped, empty segment line falls back); full API suite 500 passed; ruff clean;
+  mypy 72 (unchanged); web 8, mobile 24 tests; admin/web/mobile typecheck and admin/web lint clean.
+  **Not checked:** real model output against the guide (no paid eval run), existing live copy (unchanged
+  until re-generated or edited), browser/device layout. Next: R10.
 
 Update this file at the end of every ticket. This is the source of truth for
 "what's actually done" — trust it over assumptions, git log archaeology, or

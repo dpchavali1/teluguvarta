@@ -37,6 +37,7 @@ from app.ai import AiGateway, GatewayStatus, Task
 from app.ai.contracts import GenerationResult
 from app.ai.privacy import PrivacyDecision, classify_privacy, coerce, tighten
 from app.ai.tasks import free_tier_enabled, paid_provider_configured
+from app.content.editorial import GENERATION_STYLE
 from app.content.geography import normalize_countries, set_event_countries
 from app.content.importance import recompute_importance
 from app.jobs import ai_retry
@@ -181,7 +182,7 @@ def _generate_prompt(items: list[SourceItem]) -> str:
     return (
         "Write an original headline, summary, and 'why this matters' for this "
         "news story cluster — never copy the source's own headline or article "
-        "text (ADR-002). Extract each important factual claim with the "
+        "text (ADR-002). " + GENERATION_STYLE + "Extract each important factual claim with the "
         "source_ref(s) (from the evidence list below) that support it; never "
         "include a claim with no source_ref. Evidence items:\n" + _untrusted_data_block(_evidence_block(items))
     )
@@ -427,7 +428,7 @@ def _generate_story(db: Session, story: Story) -> bool:
             language="en",
             headline=generated.headline_en,
             summary=generated.summary_en,
-            why_matters=generated.why_matters_en,
+            why_matters=generated.why_matters_en.strip() or None,
             model_version=f"{Task.SUMMARY.value}",
             qa_status="PENDING",
         )

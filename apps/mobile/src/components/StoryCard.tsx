@@ -20,6 +20,11 @@ const STATUS_LABEL: Record<string, string | undefined> = {
 // publish.py:83), so surfacing sensitivity here is a truthful trust signal.
 const REVIEWED_SENSITIVITIES = new Set(["IMMIGRATION", "LEGAL", "FINANCIAL", "BREAKING", "OBITUARY_ACCUSATION"]);
 
+// Not `new URL()`: React Native's URL doesn't implement `hostname`.
+function sourceDomain(url: string): string {
+  return url.replace(/^[a-z][a-z0-9+.-]*:\/\//i, "").split(/[/?#:]/)[0].replace(/^www\./i, "") || url;
+}
+
 // Mirrors apps/web/src/components/StoryCard.tsx's fields/behavior (T15
 // acceptance criterion, refined by ADR-014's StoryLead/StoryBrief/
 // StoryActions/LanguageControl contract): labels, retracted/updated
@@ -198,8 +203,12 @@ export function StoryCard({
             accessibilityLabel={`Read the original source${primarySource.title ? `: ${primarySource.title}` : ""}`}
             style={styles.touchTarget}
           >
+            {/* R9: in a feed (onOpen set) attribution stays compact; the full
+                source title shows on story detail and in the label. */}
             <Text style={styles.sourceLink}>
-              Read the original source{primarySource.title ? `: ${primarySource.title}` : ""} ↗
+              {onOpen
+                ? `Read the original source · ${sourceDomain(primarySource.url)} ↗`
+                : `Read the original source${primarySource.title ? `: ${primarySource.title}` : ""} ↗`}
             </Text>
           </Pressable>
         )}

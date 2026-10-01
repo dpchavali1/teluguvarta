@@ -144,6 +144,32 @@ def test_low_risk_story_generates_and_becomes_ai_ready(migrated_database, monkey
 
 
 @requires_postgres
+def test_generation_prompt_carries_brevity_guide_and_blank_why_matters_is_omitted(migrated_database, monkeypatch):
+    # Review 2026-09-30 R9: no supported implication → no why-matters line.
+    from app.content.editorial import GENERATION_STYLE
+
+    engine = create_engine(migrated_database)
+    with Session(engine) as db:
+        source = _make_source(db)
+        story, item = _make_clustered_story(db, source)
+        provider = _use_fake_provider(monkeypatch, [_classification(), _generation(item_id=item.id, why_matters_en="  ")])
+        prompts = []
+        original_complete = provider.complete
+
+        def capture(**kwargs):
+            prompts.append(kwargs["prompt"])
+            return original_complete(**kwargs)
+
+        monkeypatch.setattr(provider, "complete", capture)
+        assert generate_stories(db) == 1
+
+        assert GENERATION_STYLE in prompts[1]
+        assert GENERATION_STYLE not in prompts[0]  # classification is unchanged
+        variant = db.scalars(select(StoryVariant).where(StoryVariant.story_id == story.id)).one()
+        assert variant.why_matters is None
+
+
+@requires_postgres
 def test_sensitive_category_always_goes_to_review_required(migrated_database, monkeypatch):
     """NON_NEGOTIABLES #5: immigration/legal/financial/breaking is never
     auto-published, regardless of AI confidence."""

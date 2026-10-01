@@ -240,10 +240,18 @@ export function StoryCard({ story, headingLevel = "h2", display = "default" }: {
         </div>
       ) : (
         <>
+          {/* R9: feeds keep attribution compact; the full source title is in
+              the accessible name here and visible on story detail. */}
           {display === "lead" && primarySource && (
-            <a className="story-card__source-link story-card__source-link--lead" href={primarySource.url} target="_blank" rel="noopener noreferrer">
+            <a
+              className="story-card__source-link story-card__source-link--lead"
+              href={primarySource.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label={`Read the original source${primarySource.title ? `: ${primarySource.title}` : ""} (${sourceDomain(primarySource.url)})`}
+            >
               <span className="sources__domain">{sourceDomain(primarySource.url)}</span>
-              Read the original source{primarySource.title ? `: ${primarySource.title}` : ""}
+              Read the original source
               <Icon name="external" size={14} />
             </a>
           )}

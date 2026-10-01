@@ -313,6 +313,15 @@ function TopicEditor({ storyId, current, reason, onSaved }: { storyId: string; c
 // Editor-written draft for a story still in review — the fallback when no AI
 // route could draft it (NO_PAID_PROVIDER, budget exhausted, outage). Rewriting
 // the English discards any Telugu, which is derived from it.
+// Review 2026-09-30 R9: docs/EDITORIAL_STYLE.md targets, as guidance only
+// (ADR-026 decides what blocks publication). Word targets are for English;
+// Telugu gets the count alone.
+function lengthHint(text: string, language: string, englishTarget: string): string {
+  const words = text.trim() ? text.trim().split(/\s+/).length : 0;
+  const count = `${words} ${words === 1 ? "word" : "words"}`;
+  return language === "en" ? `${count}. Guide: ${englishTarget}.` : `${count}. Keep it as short as the English.`;
+}
+
 function DraftEditor({
   storyId,
   language,
@@ -375,13 +384,17 @@ function DraftEditor({
   return (
     <form onSubmit={handleSubmit} lang={language}>
       <h3 lang="en">{label} draft</h3>
-      <Field label="Headline" htmlFor={`${id}-headline`}>
+      <Field label="Headline" htmlFor={`${id}-headline`} hint={lengthHint(headline, language, "at most 12")}>
         <input id={`${id}-headline`} required value={headline} onChange={(event) => setHeadline(event.target.value)} />
       </Field>
-      <Field label="Summary" htmlFor={`${id}-summary`}>
+      <Field label="Summary" htmlFor={`${id}-summary`} hint={lengthHint(summary, language, "about 40–80, two or three sentences")}>
         <textarea id={`${id}-summary`} required rows={5} value={summary} onChange={(event) => setSummary(event.target.value)} />
       </Field>
-      <Field label="Why it matters (optional)" htmlFor={`${id}-why`}>
+      <Field
+        label="Why it matters (optional)"
+        htmlFor={`${id}-why`}
+        hint={lengthHint(whyMatters, language, "one sentence, at most 30; leave empty if the sources support no concrete consequence")}
+      >
         <textarea id={`${id}-why`} rows={2} value={whyMatters} onChange={(event) => setWhyMatters(event.target.value)} />
       </Field>
       {prefilled ? (

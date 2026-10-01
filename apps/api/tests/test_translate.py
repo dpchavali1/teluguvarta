@@ -129,6 +129,27 @@ def test_qa_failure_drops_number_date_and_url(migrated_database, monkeypatch):
 
 
 @requires_postgres
+def test_telugu_only_why_matters_is_dropped(migrated_database, monkeypatch):
+    # Review 2026-09-30 R9: the English has no why-matters, so a Telugu one
+    # would add something no editor approved.
+    from app.content.editorial import TRANSLATION_STYLE
+
+    assert TRANSLATION_STYLE in translate_module._translate_prompt(StoryVariant(headline="h", summary="s"))
+    engine = create_engine(migrated_database)
+    with Session(engine) as db:
+        story, _en = _make_story_with_en_variant(db, why_matters=None)
+        _use_fake_provider(monkeypatch, [_translation()])
+
+        translate_stories(db)
+
+        te = db.scalars(
+            select(StoryVariant).where(StoryVariant.story_id == story.id, StoryVariant.language == "te")
+        ).one()
+        assert te.qa_status == "PASSED"
+        assert te.why_matters is None
+
+
+@requires_postgres
 def test_translate_is_idempotent_and_reruns_after_invalidation(migrated_database, monkeypatch):
     engine = create_engine(migrated_database)
     with Session(engine) as db:
