@@ -100,7 +100,7 @@ login and mobile were inspected through code, not authenticated/device journeys.
   CI's mypy gate was already over before this change); web 8 tests, mobile 24 tests, admin
   typecheck/lint/build, web typecheck/lint clean. **Not checked in a browser or on a device.**
   Next: R7 (review/admin navigation at volume).
-- **R7 done (2026-09-30, not deployed): admin lists page on the server.** `app/admin_lists.py`.
+- **R7 done (2026-09-30, pushed `554d0aa`, not deployed): admin lists page on the server.** `app/admin_lists.py`.
   `GET /v1/admin/review-queue` now returns a page (`ReviewQueuePageOut`: items, filtered `total`, whole-queue
   `pending_total`/`danger_total`/`unclassified_total`/oldest, `next_cursor`), **breaking shape change**
   (admin is the only caller; deploy API and admin together). Server order: always-human-reviewed reasons
