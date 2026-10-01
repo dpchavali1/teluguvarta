@@ -59,7 +59,7 @@ login and mobile were inspected through code, not authenticated/device journeys.
   Tests: `tests/test_budget_mode.py` (new) + observability; full suite 475 passed + 1 known flaky fixture
   error. Admin has no test runner: typecheck/lint clean, wording checked by transpiling `aiBudget.ts`. Not
   checked in a browser (no authenticated local admin session).
-- **R5 done (2026-09-30, not deployed): where stories and AI money go.** `GET /v1/admin/ai-costs?start&end`
+- **R5 done (2026-09-30, pushed `9abf4dd`, not deployed): where stories and AI money go.** `GET /v1/admin/ai-costs?start&end`
   (`app/ai/cost_report.py`; inclusive UTC days, default month to date, max 93 days, 422 `INVALID_RANGE` /
   `RANGE_TOO_LONG`): totals with thinking/cached tokens, "paid for, not used" (billed outcomes other than
   SUCCESS/RETRY_SUCCESS), retry spend (RETRY_SUCCESS cost), zero-filled daily series, provider/model/task
