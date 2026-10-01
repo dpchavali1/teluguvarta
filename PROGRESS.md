@@ -8,6 +8,20 @@ Also proposes clearer today/month/hard-cap AI spend, editorial/pipeline drilldow
 private reader-report handling and web/mobile visual improvements. Review only;
 no implementation ticket completed or production behavior changed. Admin beyond
 login and mobile were inspected through code, not authenticated/device journeys.
+- **ADR-031 pause switches + stale queue expiry (2026-10-01, not deployed):** the dashboard showed 376 queued,
+  oldest 3d: stories queued as `AUTO_PUBLISH_DISABLED` before auto-publish was turned on (2026-09-30 ~23:08 UTC)
+  were never re-evaluated. Now, while auto-publish is effectively on, `publish.resweep_switch_queue` re-runs
+  stories whose *only* pending task is `AUTO_PUBLISH_DISABLED[,lane]`: fresh → auto-approved, older than
+  `STALE_AFTER_HOURS` (default 24, from the English draft's `generated_at`) → `ARCHIVED` with task
+  `REJECTED/STALE` + `STORY_EXPIRED_STALE` audit, gate failures → re-tagged with the real reason. Sensitive and
+  other editorial holds are untouched. New `runtime_switches` table (migration `c3f7a1d9e4b2`, no row = on) with
+  `ai` (worker stops scheduling/claiming `ai_classify`/`ai_translate`/`ai_summarize`; gateway returns
+  `DEFERRED` as a backstop) and `auto_publish` (stories wait in `AI_READY`, nothing queued; hand approvals still
+  publish). `AUTO_PUBLISH_GLOBAL=false` stays a ceiling. ADMIN-only `GET/PUT /v1/admin/switches[/{key}]`, audited
+  `RUNTIME_SWITCH_CHANGED`; dashboard "Controls" section with confirm step. Verified: 11 new tests in
+  `tests/test_runtime_switches.py`; admin `tsc`/`eslint`/`next build` clean. **Deploy note:** the first publish
+  sweep after deploy clears the existing backlog (fresh ones publish, >24h ones archive) — expect a burst of
+  `STORY_EXPIRED_STALE` audit events.
 - **R1 fixed (2026-09-30, `c76bda6`, deployed; live Telugu slug now 200):** Next hands dynamic params over still percent-encoded
   and `getStory`/`getShareMeta` encode again, so Telugu slugs reached the API double-encoded (live: API 200,
   web 404). Story layout, page and metadata now decode once via `src/lib/pathParam.ts` (was `api.ts`

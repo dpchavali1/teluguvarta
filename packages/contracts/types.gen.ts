@@ -760,6 +760,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/admin/switches": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Switches */
+        get: operations["list_switches_v1_admin_switches_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/admin/switches/{key}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Update Switch */
+        put: operations["update_switch_v1_admin_switches__key__put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/admin/x-accounts": {
         parameters: {
             query?: never;
@@ -2611,6 +2645,41 @@ export interface components {
             /** Territory */
             territory?: string | null;
         };
+        /**
+         * RuntimeSwitchOut
+         * @description ADR-031: one dashboard pause switch and its effective state.
+         */
+        RuntimeSwitchOut: {
+            /** Effective */
+            effective: boolean;
+            /** Enabled */
+            enabled: boolean;
+            /** Env Allows */
+            env_allows: boolean;
+            /**
+             * Key
+             * @enum {string}
+             */
+            key: "ai" | "auto_publish";
+            /** Note */
+            note?: string | null;
+            /** Updated At */
+            updated_at?: string | null;
+            /** Updated By */
+            updated_by?: string | null;
+            /**
+             * Waiting
+             * @default 0
+             */
+            waiting: number;
+        };
+        /** RuntimeSwitchUpdate */
+        RuntimeSwitchUpdate: {
+            /** Enabled */
+            enabled: boolean;
+            /** Note */
+            note?: string | null;
+        };
         /** SavedStoryResponse */
         SavedStoryResponse: {
             /** Saved */
@@ -4036,6 +4105,61 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AdminActionResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_switches_v1_admin_switches_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RuntimeSwitchOut"][];
+                };
+            };
+        };
+    };
+    update_switch_v1_admin_switches__key__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                key: "ai" | "auto_publish";
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RuntimeSwitchUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RuntimeSwitchOut"];
                 };
             };
             /** @description Validation Error */

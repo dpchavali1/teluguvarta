@@ -19,7 +19,7 @@ import hashlib
 import os
 from datetime import UTC, date, datetime, timedelta
 from typing import Any, Literal
-from uuid import UUID
+from uuid import NAMESPACE_URL, UUID, uuid5
 
 from fastapi import APIRouter, Depends
 from sqlalchemy import delete, func, select, update
@@ -127,6 +127,8 @@ from app.schemas import (
     ReviewQueueItemOut,
     ReviewQueuePageOut,
     RightsEvidence,
+    RuntimeSwitchOut,
+    RuntimeSwitchUpdate,
     SourceIngestionHealthOut,
     StoryFormat,
     StoryStatus,
@@ -134,6 +136,7 @@ from app.schemas import (
     TeluguFilter,
     XCostSummaryOut,
 )
+from app.switches import SWITCH_KEYS, SwitchKey, env_allows, set_switch, switch_row
 from app.x.budget import (
     is_low_priority,
     month_to_date_cost_usd_for_account,
@@ -430,6 +433,47 @@ def get_kill_switches(db: Session = Depends(get_db)) -> KillSwitchesOut:
         auto_publish_briefs_daily_cap=daily_cap(),
         briefs_published_today=published_today(db, datetime.now(UTC)),
     )
+
+
+# ADR-031: dashboard pause switches. Stories waiting on each: new stories sit
+# in DRAFT while AI is paused, finished ones in AI_READY while auto-publish is.
+_SWITCH_WAITING_STATUS = {"ai": "DRAFT", "auto_publish": "AI_READY"}
+
+
+def _switch_out(db: Session, key: SwitchKey) -> RuntimeSwitchOut:
+    row = switch_row(db, key)
+    enabled = True if row is None else row.enabled
+    allowed = env_allows(key)
+    waiting = db.scalar(select(func.count(Story.id)).where(Story.status == _SWITCH_WAITING_STATUS[key])) or 0
+    return RuntimeSwitchOut(
+        key=key, enabled=enabled, env_allows=allowed, effective=enabled and allowed,
+        updated_by=row.updated_by if row else None, updated_at=row.updated_at if row else None,
+        note=row.note if row else None, waiting=waiting,
+    )
+
+
+@router.get("/switches")
+def list_switches(db: Session = Depends(get_db)) -> list[RuntimeSwitchOut]:
+    return [_switch_out(db, key) for key in SWITCH_KEYS]
+
+
+@router.put("/switches/{key}")
+def update_switch(
+    key: SwitchKey, body: RuntimeSwitchUpdate, admin: AdminPrincipal = Depends(current_admin),
+    db: Session = Depends(get_db),
+) -> RuntimeSwitchOut:
+    if admin.role != "ADMIN":
+        raise APIError(403, "FORBIDDEN", "Only an ADMIN can pause or resume AI or auto-publish")
+    before = switch_row(db, key)
+    was_enabled = True if before is None else before.enabled
+    note = body.note.strip() if body.note and body.note.strip() else None
+    set_switch(db, key, body.enabled, admin.email, note)
+    _write_audit_event(
+        db, admin.email, "RUNTIME_SWITCH_CHANGED", "runtime_switch", uuid5(NAMESPACE_URL, f"runtime_switch:{key}"),
+        {"key": key, "from": was_enabled, "to": body.enabled, "note": note},
+    )
+    db.commit()
+    return _switch_out(db, key)
 
 
 @router.get("/briefs/recent")

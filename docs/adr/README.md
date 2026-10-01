@@ -87,3 +87,6 @@ accepted. Add ad-hoc ADRs below this table as they're written.
   editorial coverage targets | review 2026-09-30 R8 | **proposed** (owner
   decision needed) — see
   [ADR-030](ADR-030-reader-navigation-and-coverage-targets.md)
+- ADR-031 | Dashboard pause switches for AI and auto-publish; stale queue
+  expiry | ops request 2026-10-01 | **accepted** — see
+  [ADR-031](ADR-031-runtime-pause-switches-and-stale-queue.md)

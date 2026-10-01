@@ -4521,6 +4521,103 @@
         "title": "RightsEvidence",
         "type": "object"
       },
+      "RuntimeSwitchOut": {
+        "description": "ADR-031: one dashboard pause switch and its effective state.",
+        "properties": {
+          "effective": {
+            "title": "Effective",
+            "type": "boolean"
+          },
+          "enabled": {
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "env_allows": {
+            "title": "Env Allows",
+            "type": "boolean"
+          },
+          "key": {
+            "enum": [
+              "ai",
+              "auto_publish"
+            ],
+            "title": "Key",
+            "type": "string"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          },
+          "updated_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated By"
+          },
+          "waiting": {
+            "default": 0,
+            "title": "Waiting",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "key",
+          "enabled",
+          "env_allows",
+          "effective"
+        ],
+        "title": "RuntimeSwitchOut",
+        "type": "object"
+      },
+      "RuntimeSwitchUpdate": {
+        "properties": {
+          "enabled": {
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          }
+        },
+        "required": [
+          "enabled"
+        ],
+        "title": "RuntimeSwitchUpdate",
+        "type": "object"
+      },
       "SavedStoryResponse": {
         "properties": {
           "saved": {
@@ -7185,6 +7282,87 @@
           }
         },
         "summary": "Write Story Draft",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/v1/admin/switches": {
+      "get": {
+        "operationId": "list_switches_v1_admin_switches_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/RuntimeSwitchOut"
+                  },
+                  "title": "Response List Switches V1 Admin Switches Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Switches",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/v1/admin/switches/{key}": {
+      "put": {
+        "operationId": "update_switch_v1_admin_switches__key__put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "key",
+            "required": true,
+            "schema": {
+              "enum": [
+                "ai",
+                "auto_publish"
+              ],
+              "title": "Key",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RuntimeSwitchUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RuntimeSwitchOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Switch",
         "tags": [
           "admin"
         ]

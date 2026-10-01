@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { components } from "@teluguvarta/contracts";
 
+import { PauseSwitches } from "@/components/PauseSwitches";
 import { EmptyState, PageHeader, StatTile, Tone } from "@/components/ui";
 import { BUDGET_MODE, type BudgetMode, budgetModeMessage, usd } from "@/lib/aiBudget";
 import { apiFetch, apiUrl, clearSession, getRole, isSignedIn } from "@/lib/auth";
@@ -163,6 +164,8 @@ export default function Home() {
           ))}
         </ul>
       )}
+
+      <PauseSwitches canEdit={role === "ADMIN"} />
 
       <h2>Pipeline</h2>
       <div className="tile-grid">

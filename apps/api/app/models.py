@@ -569,3 +569,16 @@ class AdminSession(Base):
     last_seen_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class RuntimeSwitch(Base):
+    """ADR-031: an admin-flippable pause switch ('ai' | 'auto_publish').
+    A missing row means on; env flags stay a hard ceiling (`app/switches.py`)."""
+
+    __tablename__ = "runtime_switches"
+
+    key: Mapped[str] = mapped_column(Text, primary_key=True)
+    enabled: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    updated_by: Mapped[str] = mapped_column(Text, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    note: Mapped[str | None] = mapped_column(Text, nullable=True)

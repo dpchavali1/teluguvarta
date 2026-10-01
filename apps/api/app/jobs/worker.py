@@ -27,6 +27,7 @@ from app.jobs.why_matters import run_why_matters
 from app.jobs.x_fetch import run_x_official_account_fetch, schedule_due_x_fetches
 from app.observability.error_tracking import capture_exception
 from app.observability.logging import configure_logging, get_logger, job_context
+from app.switches import ai_paused
 
 logger = get_logger(__name__)
 
@@ -48,6 +49,10 @@ JOB_HANDLERS = {
     "cleanup": run_cleanup,
 }
 
+# ADR-031: jobs whose whole purpose is an AI call. While AI is paused they are
+# neither scheduled nor claimed, so they wait without using retry attempts.
+AI_JOB_TYPES = frozenset({"ai_classify", "ai_translate", "ai_summarize"})
+
 POLL_INTERVAL_SECONDS = 5.0
 
 
@@ -61,14 +66,16 @@ def process_one(db: Session) -> bool:
     schedule_due_source_fetches(db)
     schedule_due_x_fetches(db)
     schedule_dedup_cluster(db)
-    schedule_ai_classify(db)
-    schedule_ai_translate(db)
+    paused = ai_paused(db)
+    if not paused:
+        schedule_ai_classify(db)
+        schedule_ai_translate(db)
     schedule_publish_scheduler(db)
     schedule_notification_dispatch(db)
     schedule_cleanup(db)
     db.commit()
 
-    job = claim_job(db, list(JOB_HANDLERS))
+    job = claim_job(db, [t for t in JOB_HANDLERS if not (paused and t in AI_JOB_TYPES)])
     if job is None:
         return False
 

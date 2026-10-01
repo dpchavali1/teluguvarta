@@ -33,6 +33,7 @@ from app.ai.tasks import (
     route_for,
 )
 from app.observability.logging import get_logger
+from app.switches import ai_paused
 
 logger = get_logger("ai.gateway")
 
@@ -173,6 +174,12 @@ class AiGateway:
 
         if route.provider is None:
             raise ValueError(f"{task} has no provider route — call the deterministic helper instead")
+
+        # ADR-031: an admin paused AI from the dashboard. A deferral, so the
+        # caller retries after resume; the worker already stops claiming AI
+        # jobs, this covers AI calls made inside other jobs.
+        if ai_paused(self._db):
+            return GatewayOutcome(status=GatewayStatus.DEFERRED)
 
         if task in DEGRADABLE_ON_BUDGET_BREACH and is_over_monthly_budget(self._db):
             return GatewayOutcome(status=GatewayStatus.CLASSIFICATION_ONLY)

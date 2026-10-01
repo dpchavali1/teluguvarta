@@ -643,6 +643,27 @@ class KillSwitchesOut(BaseModel):
     briefs_published_today: int = 0
 
 
+class RuntimeSwitchOut(BaseModel):
+    """ADR-031: one dashboard pause switch and its effective state."""
+
+    key: Literal["ai", "auto_publish"]
+    # What the dashboard switch says (no row = on).
+    enabled: bool
+    # False when a server env flag holds it off whatever the dashboard says.
+    env_allows: bool
+    effective: bool
+    updated_by: str | None = None
+    updated_at: datetime | None = None
+    note: str | None = None
+    # Stories waiting on this switch: DRAFT for ai, AI_READY for auto_publish.
+    waiting: int = 0
+
+
+class RuntimeSwitchUpdate(BaseModel):
+    enabled: bool
+    note: str | None = Field(default=None, max_length=500)
+
+
 class AdminAutoBriefOut(BaseModel):
     """ADR-019: a story the brief lane auto-approved, for the after-publish
     check (retract/correct from the story page)."""
