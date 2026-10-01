@@ -7,7 +7,7 @@ from datetime import UTC, datetime, timedelta
 from sqlalchemy import select
 
 from app.ai import AiGateway, GatewayStatus, Task
-from app.jobs.publish import auto_publish_stories
+from app.jobs.publish import auto_publish_stories, expire_stale_holds
 from app.jobs.queue import enqueue_job
 from app.jobs.worker import process_one
 from app.models import AuditEvent, Job, ReviewTask, Story, StoryVariant, User
@@ -113,8 +113,8 @@ def test_backlog_queued_only_for_switch_is_published_when_fresh_and_archived_whe
 
 def test_backlog_resweep_leaves_editorial_holds_alone(db_session, monkeypatch):
     monkeypatch.setenv("AUTO_PUBLISH_GLOBAL", "true")
-    sensitive = _story(db_session, status="REVIEW_REQUIRED", age_hours=72, sensitivity="IMMIGRATION")
-    other = _story(db_session, age_hours=72)
+    sensitive = _story(db_session, status="REVIEW_REQUIRED", age_hours=2, sensitivity="IMMIGRATION")
+    other = _story(db_session, age_hours=2)
     other.status = "REVIEW_REQUIRED"
     db_session.flush()
     db_session.add(ReviewTask(story_id=other.id, reason="LOW_CONFIDENCE", status="PENDING"))
@@ -144,11 +144,86 @@ def test_backlog_failing_content_rules_is_retagged_with_the_real_reason(db_sessi
 
 def test_backlog_stays_queued_while_env_flag_is_off(db_session, monkeypatch):
     monkeypatch.setenv("AUTO_PUBLISH_GLOBAL", "false")
-    story = _story(db_session, status="REVIEW_REQUIRED", age_hours=72)
+    story = _story(db_session, status="REVIEW_REQUIRED", age_hours=2)
 
     auto_publish_stories(db_session)
     db_session.refresh(story)
     assert story.status == "REVIEW_REQUIRED"
+
+
+# --- ADR-032: every stale hold expires -------------------------------------------
+
+
+def _hold(db, story, reason):
+    story.status = "REVIEW_REQUIRED"
+    db.flush()
+    db.add(ReviewTask(story_id=story.id, reason=reason, status="PENDING"))
+    db.commit()
+
+
+def _expired_audits(db, story, action="STORY_EXPIRED_STALE"):
+    return db.scalars(
+        select(AuditEvent).where(AuditEvent.entity_id == story.id, AuditEvent.action == action)
+    ).all()
+
+
+def test_stale_editorial_holds_are_archived_whatever_the_switches_say(db_session, monkeypatch):
+    monkeypatch.setenv("AUTO_PUBLISH_GLOBAL", "false")
+    set_switch(db_session, "auto_publish", False, "admin@example.com", None)
+    db_session.commit()
+    sensitive = _story(db_session, age_hours=30, sensitivity="IMMIGRATION")
+    _hold(db_session, sensitive, "SENSITIVE_CATEGORY")
+    low = _story(db_session, age_hours=30)
+    _hold(db_session, low, "LOW_CONFIDENCE_GENERATION")
+    fresh = _story(db_session, age_hours=2)
+    _hold(db_session, fresh, "LOW_CONFIDENCE_GENERATION")
+
+    assert auto_publish_stories(db_session) == 2
+    for story, reason in ((sensitive, "SENSITIVE_CATEGORY"), (low, "LOW_CONFIDENCE_GENERATION")):
+        db_session.refresh(story)
+        task = _task(db_session, story)
+        assert story.status == "ARCHIVED"
+        assert (task.status, task.decision) == ("REJECTED", "STALE")
+        [audit] = _expired_audits(db_session, story)
+        assert audit.metadata_["reasons"] == [reason]
+    db_session.refresh(fresh)
+    assert fresh.status == "REVIEW_REQUIRED"
+    assert _task(db_session, fresh).status == "PENDING"
+
+
+def test_hold_without_a_draft_ages_from_when_it_was_queued(db_session):
+    story = Story(canonical_slug=f"story-{uuid.uuid4()}", status="AI_READY", sensitivity="NONE")
+    db_session.add(story)
+    db_session.flush()
+    _hold(db_session, story, "NO_PAID_PROVIDER")
+    task = _task(db_session, story)
+
+    expire_stale_holds(db_session)
+    assert task.status == "PENDING"
+
+    task.created_at = datetime.now(UTC) - timedelta(hours=30)
+    db_session.commit()
+    expire_stale_holds(db_session)
+    db_session.refresh(story)
+    assert story.status == "ARCHIVED"
+    assert task.decision == "STALE"
+
+
+def test_stale_task_on_a_published_story_is_closed_without_unpublishing(db_session):
+    story = _story(db_session, age_hours=30)
+    for status in ("REVIEW_REQUIRED", "APPROVED", "SCHEDULED", "PUBLISHED"):
+        story.status = status
+        db_session.flush()
+    story.published_at = datetime.now(UTC)
+    db_session.add(ReviewTask(story_id=story.id, reason="TELUGU_TRANSLATION_SAMPLE_REVIEW", status="PENDING"))
+    db_session.commit()
+
+    assert expire_stale_holds(db_session) == 1
+    db_session.refresh(story)
+    assert story.status == "PUBLISHED"
+    assert _task(db_session, story).decision == "STALE"
+    assert _expired_audits(db_session, story) == []
+    assert len(_expired_audits(db_session, story, "REVIEW_TASK_EXPIRED_STALE")) == 1
 
 
 # --- AI switch -------------------------------------------------------------------

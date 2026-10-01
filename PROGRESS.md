@@ -8,6 +8,17 @@ Also proposes clearer today/month/hard-cap AI spend, editorial/pipeline drilldow
 private reader-report handling and web/mobile visual improvements. Review only;
 no implementation ticket completed or production behavior changed. Admin beyond
 login and mobile were inspected through code, not authenticated/device journeys.
+- **ADR-032 every stale hold expires (2026-10-01, committed, not yet deployed):** after ADR-031 the live queue
+  was still growing: 380 pending, 0 `AUTO_PUBLISH_DISABLED`, ~8 new holds/hour, all editorial reasons ADR-031
+  left alone (138 `SUMMARY_TOO_SHORT`, 87 sensitive, 77 low-confidence, 50 `NO_PAID_PROVIDER`, …). Owner chose
+  "expire all after 24h". `publish.expire_stale_holds` runs first in every publish sweep, regardless of env flag
+  or pause: a pending hold whose story is older than `STALE_AFTER_HOURS` (English draft `generated_at`, else
+  first-queued time) → story `ARCHIVED` (if still `REVIEW_REQUIRED`) + tasks `REJECTED/STALE` + audit
+  `STORY_EXPIRED_STALE`; a leftover task on a story that moved on is closed with `REVIEW_TASK_EXPIRED_STALE`.
+  Never publishes, so #5 holds. Verified: 14/14 `tests/test_runtime_switches.py` (3 new), full API suite 521
+  passed; the 1 setup error is the local test DB refusing `pg_terminate_backend` (`InsufficientPrivilege`),
+  a different test each run, passes alone. **Deploy note:** first sweep archives ~350 stories. Open question:
+  `SUMMARY_TOO_SHORT` fails most new Telugu-source drafts (ADR-026 rule), not looked at yet.
 - **ADR-031 pause switches + stale queue expiry (2026-10-01, `891b00f` deployed 2026-10-01 per owner):** the dashboard showed 376 queued,
   oldest 3d: stories queued as `AUTO_PUBLISH_DISABLED` before auto-publish was turned on (2026-09-30 ~23:08 UTC)
   were never re-evaluated. Now, while auto-publish is effectively on, `publish.resweep_switch_queue` re-runs

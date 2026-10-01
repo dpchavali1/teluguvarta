@@ -118,11 +118,57 @@ def _is_switch_off_reason(reason: str) -> bool:
     return reason == SWITCH_OFF_REASON or reason.startswith(SWITCH_OFF_REASON + ",")
 
 
+def expire_stale_holds(db: Session) -> int:
+    """ADR-032: a hold of any kind that nobody acted on before the story went
+    stale leaves the queue. A story still waiting in REVIEW_REQUIRED is
+    archived (never published, so NON_NEGOTIABLES #5 holds); a task left on a
+    story that moved on (e.g. a Telugu sample on a published story) is closed.
+    Age is the English draft's `generated_at`, or, for a story held before it
+    was drafted, when it was first queued."""
+    tasks = db.scalars(select(ReviewTask).where(ReviewTask.status == "PENDING")).all()
+    by_story: dict = {}
+    for task in tasks:
+        by_story.setdefault(task.story_id, []).append(task)
+    if not by_story:
+        return 0
+    drafted = dict(
+        db.execute(
+            select(StoryVariant.story_id, StoryVariant.generated_at).where(
+                StoryVariant.story_id.in_(by_story), StoryVariant.language == "en"
+            )
+        ).all()
+    )
+    cutoff = _now() - _stale_after()
+    stale_after_hours = int(_stale_after().total_seconds() // 3600)
+    count = 0
+    for story_id, story_tasks in by_story.items():
+        born = drafted.get(story_id) or min(t.created_at for t in story_tasks)
+        if born >= cutoff:
+            continue
+        story = db.get(Story, story_id)
+        if story is None:
+            continue
+        for task in story_tasks:
+            task.status = "REJECTED"
+            task.decision = STALE_DECISION
+        metadata = {"stale_after_hours": stale_after_hours, "reasons": sorted({t.reason for t in story_tasks})}
+        if story.status == "REVIEW_REQUIRED":
+            story.status = "ARCHIVED"
+            db.flush()
+            _audit(db, story, "STORY_EXPIRED_STALE", metadata)
+        else:
+            _audit(db, story, "REVIEW_TASK_EXPIRED_STALE", {**metadata, "story_status": story.status})
+        count += 1
+    db.flush()
+    return count
+
+
 def resweep_switch_queue(db: Session) -> int:
     """ADR-031: stories queued only because auto-publish was off get the
-    automatic decision they would get now — published if fresh and clean,
-    archived if stale, or re-tagged with the real reason a person must look.
-    Stories with any other pending task are left alone."""
+    automatic decision they would get now — published if fresh and clean, or
+    re-tagged with the real reason a person must look (stale ones are already
+    gone via `expire_stale_holds`). Stories with any other pending task are
+    left alone."""
     tasks = db.scalars(
         select(ReviewTask)
         .join(Story, Story.id == ReviewTask.story_id)
@@ -139,9 +185,7 @@ def resweep_switch_queue(db: Session) -> int:
         story = db.get(Story, task.story_id)
         if story is None or story.sensitivity != "NONE":
             continue
-        if _is_stale(db, story):
-            _expire_stale(db, story, task)
-        elif unpermitted_sources(db, story.id):
+        if unpermitted_sources(db, story.id):
             task.reason = RIGHTS_REVOKED_REASON
         elif failures := validate_for_publication(db, story):
             task.reason = f"{CONTENT_RULES_REASON}:{','.join(failures)}"
@@ -167,14 +211,19 @@ def _budget_breach_disables_auto_publish(db: Session) -> bool:
 
 
 def auto_publish_stories(db: Session) -> int:
+    # ADR-032: expiry only archives, so it runs whatever the switches say.
+    count = expire_stale_holds(db)
+
     # ADR-031: paused from the dashboard -> nothing publishes automatically and
     # nothing is queued; stories wait in AI_READY until it is switched back on.
     if auto_publish_paused(db):
-        return 0
+        db.commit()
+        return count
 
     budget_breached = _budget_breach_disables_auto_publish(db)
     enabled = _auto_publish_enabled() and not budget_breached
-    count = resweep_switch_queue(db) if enabled else 0
+    if enabled:
+        count += resweep_switch_queue(db)
 
     stories = db.scalars(select(Story).where(Story.status == "AI_READY")).all()
     if not stories:

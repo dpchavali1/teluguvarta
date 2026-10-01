@@ -90,3 +90,6 @@ accepted. Add ad-hoc ADRs below this table as they're written.
 - ADR-031 | Dashboard pause switches for AI and auto-publish; stale queue
   expiry | ops request 2026-10-01 | **accepted** — see
   [ADR-031](ADR-031-runtime-pause-switches-and-stale-queue.md)
+- ADR-032 | Every stale review hold expires (extends ADR-031) | owner
+  decision 2026-10-01 | **accepted** — see
+  [ADR-032](ADR-032-every-stale-hold-expires.md)
