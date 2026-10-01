@@ -39,11 +39,14 @@ export function StoryCard({
   onOpenSource,
   layout = "compact",
   allowHideTopic = false,
+  showRead = true,
 }: {
   story: StoryOut;
   // Plan M5: Home and Latest offer "Show less" (hide a topic from those
   // feeds). Off elsewhere — Topic/Search/Saved show what the reader asked for.
   allowHideTopic?: boolean;
+  // Plan M6: off in "Recently read", where every story is read.
+  showRead?: boolean;
   // Optional: the detail screen renders this card for a story already
   // open, so the headline shouldn't be a dead tap target pointing nowhere.
   onOpen?: () => void;
@@ -77,6 +80,8 @@ export function StoryCard({
   const hasTelugu = Boolean(story.variants.te);
   const isHumanReviewed = REVIEWED_SENSITIVITIES.has(story.sensitivity);
   const saved = cache.isSaved(story.id);
+  // Plan M6: in a feed (onOpen set), a story already opened reads quieter.
+  const read = showRead && Boolean(onOpen) && cache.isRead(story.id);
 
   useEffect(() => {
     let cancelled = false;
@@ -196,9 +201,12 @@ export function StoryCard({
             onPress={onOpen}
             accessibilityRole="link"
             accessibilityLabel={`Open story: ${variant.headline}`}
+            accessibilityHint={read ? "You've read this story" : undefined}
             style={styles.touchTarget}
           >
-            <Text style={[styles.headline, isCompact ? type.headline : type.display]}>{variant.headline}</Text>
+            <Text style={[styles.headline, isCompact ? type.headline : type.display, read && styles.headlineRead]}>
+              {variant.headline}
+            </Text>
           </Pressable>
         ) : (
           <Text style={[styles.headline, isCompact ? type.headline : type.display]} accessibilityRole="header">
@@ -437,6 +445,8 @@ function createStyles(colors: AppTheme["colors"], ui: AppTheme["ui"]) {
     reviewedBadgeText: { ...typography.meta, color: colors.text, fontWeight: "700" },
     touchTarget: { minHeight: 44, justifyContent: "center" },
     headline: { ...typography.headline, color: colors.text },
+    // Muted, not faded: `muted` is the summary colour, so it keeps text contrast.
+    headlineRead: { color: colors.muted },
     body: { ...typography.body, color: colors.muted },
     why: {
       ...typography.body,

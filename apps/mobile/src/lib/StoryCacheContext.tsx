@@ -1,7 +1,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 
 import type { StoryOut } from "./api";
-import { getSavedIds, toggleSaved as toggleSavedStorage } from "./storage";
+import { getReadIds, getSavedIds, READ_HISTORY_LIMIT, setReadIds, toggleSaved as toggleSavedStorage } from "./storage";
 
 // Cached content accelerates reading; Saved always resolves current data from the API.
 // Memory only: nothing here survives an app restart. Persisted offline reading
@@ -25,6 +25,14 @@ type StoryCacheContextValue = {
   // subscribers without a fresh read.
   isSaved: (id: string) => boolean;
   toggleSaved: (id: string) => Promise<boolean>;
+  // Plan M6: stories opened on this device, newest first (capped).
+  readIds: string[];
+  readReady: boolean;
+  isRead: (id: string) => boolean;
+  markRead: (id: string) => void;
+  clearReadHistory: () => void;
+  /** Forget saved and read ids in memory after "clear data" removed them from storage. */
+  resetLocalData: () => void;
 };
 
 const StoryCacheContext = createContext<StoryCacheContextValue | null>(null);
@@ -36,12 +44,19 @@ export function StoryCacheProvider({ children }: { children: React.ReactNode }) 
   const [savedIds, setSavedIds] = useState<string[]>([]);
   const [savedReady, setSavedReady] = useState(false);
   const [version, setVersion] = useState(0);
+  const [readIds, setReadState] = useState<string[]>([]);
+  const [readReady, setReadReady] = useState(false);
 
   useEffect(() => {
     getSavedIds().then((ids) => {
       savedIdsRef.current = new Set(ids);
       setSavedIds(ids);
       setSavedReady(true);
+    });
+    getReadIds().then((ids) => {
+      // A story opened before the read finished stays on top.
+      setReadState((current) => [...new Set([...current, ...ids])].slice(0, READ_HISTORY_LIMIT));
+      setReadReady(true);
     });
   }, []);
 
@@ -80,15 +95,39 @@ export function StoryCacheProvider({ children }: { children: React.ReactNode }) 
     return next;
   }, []);
 
+  const readSet = useMemo(() => new Set(readIds), [readIds]);
+  const isRead = useCallback((id: string) => readSet.has(id), [readSet]);
+  const markRead = useCallback((id: string) => {
+    setReadState((current) => {
+      if (current[0] === id) return current;
+      const next = [id, ...current.filter((other) => other !== id)].slice(0, READ_HISTORY_LIMIT);
+      setReadIds(next);
+      return next;
+    });
+  }, []);
+  const clearReadHistory = useCallback(() => {
+    setReadState([]);
+    setReadIds([]);
+  }, []);
+  const resetLocalData = useCallback(() => {
+    savedIdsRef.current = new Set();
+    setSavedIds([]);
+    setReadState([]);
+  }, []);
+
   // `version` is otherwise unused here, but it must be a memo dependency:
   // get/put/all/isSaved/toggleSaved are stable useCallback references, so
   // without it `value`'s identity would never change and React's context
   // propagation would never notify subscribers (e.g. StoryCard's `saved`
   // read) that the underlying ref data changed.
   const value = useMemo(
-    () => ({ get, getBySlug, remove, put, all, isSaved, toggleSaved, savedIds, savedReady }),
+    () => ({
+      get, getBySlug, remove, put, all, isSaved, toggleSaved, savedIds, savedReady,
+      readIds, readReady, isRead, markRead, clearReadHistory, resetLocalData,
+    }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [get, getBySlug, remove, put, all, isSaved, toggleSaved, version, savedIds, savedReady]
+    [get, getBySlug, remove, put, all, isSaved, toggleSaved, version, savedIds, savedReady,
+      readIds, readReady, isRead, markRead, clearReadHistory, resetLocalData]
   );
 
   return <StoryCacheContext.Provider value={value}>{children}</StoryCacheContext.Provider>;

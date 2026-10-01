@@ -17,7 +17,7 @@ function formatLoadedAt(ms: number): string {
 
 export function StoryDetailScreen({ route }: Props) {
   const { slug } = route.params;
-  const { put, getBySlug, remove } = useStoryCache();
+  const { put, getBySlug, remove, markRead } = useStoryCache();
   const { colors } = useAppTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const [story, setStory] = useState<StoryOut | null>(null);
@@ -26,6 +26,12 @@ export function StoryDetailScreen({ route }: Props) {
   // `refreshing` during the fetch, then a reason if the fetch failed.
   const [stale, setStale] = useState<{ loadedAt: number; reason: "refreshing" | "offline" | "failed" } | null>(null);
   const [retryKey, setRetryKey] = useState(0);
+
+  // Plan M6: a story counts as read once it's on screen (cached copy or API).
+  const storyId = story?.id;
+  useEffect(() => {
+    if (storyId) markRead(storyId);
+  }, [storyId, markRead]);
 
   const load = useCallback(() => {
     let cancelled = false;

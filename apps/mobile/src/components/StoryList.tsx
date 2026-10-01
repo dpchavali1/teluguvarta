@@ -16,6 +16,7 @@ export function StoryList({
   refreshing,
   footer,
   allowHideTopic,
+  showRead,
 }: {
   stories: StoryOut[];
   emptyLabel?: string;
@@ -23,6 +24,7 @@ export function StoryList({
   refreshing?: boolean;
   footer?: React.ReactElement;
   allowHideTopic?: boolean;
+  showRead?: boolean;
 }) {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { colors } = useAppTheme();
@@ -36,6 +38,7 @@ export function StoryList({
           story={item}
           layout="compact"
           allowHideTopic={allowHideTopic}
+          showRead={showRead}
           onOpen={() => navigation.navigate("StoryDetail", { slug: item.canonical_slug })}
           onOpenSource={(url) => Linking.openURL(url)}
         />

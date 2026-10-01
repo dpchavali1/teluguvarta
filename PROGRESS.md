@@ -222,6 +222,19 @@ login and mobile were inspected through code, not authenticated/device journeys.
   link still opens the browser, not the app: no Android intentFilters/assetlinks yet (needs the Play
   signing fingerprint). Noted: "Why this matters:" stays English in Telugu mode, the same as web
   (`lang="en"`), so left as is. Next: owner runs the remaining checks, then M4.
+- **M6 Reading history done (2026-09-30, not pushed; release APK on the owner's Android phone):** opening a story
+  (cached copy or API) marks it read; read ids live in `StoryCacheContext` next to saved ids (`readIds`,
+  `isRead`, `markRead`, `clearReadHistory`), newest first, capped at 200 (`tg_read_history_v1`,
+  `READ_HISTORY_LIMIT`). Feed cards (any card with `onOpen`) show a read headline in `colors.muted` (the summary
+  colour, so contrast holds; no opacity) with the hint "You've read this story". Saved now has a "Saved /
+  Recently read" radio pair; Recently read resolves current stories through `getSavedStories` (unavailable ones
+  drop out silently), doesn't mute its own headlines (`showRead={false}`), and has "Clear reading history".
+  Delete-data clears the key, and `resetLocalData()` now also forgets saved and read ids in memory (before, saved
+  ids stayed in memory until restart). Tests: `read-history.test.tsx` (6; the detail-screen test fails without
+  `markRead`); `appearance.test.tsx` Privacy render now inside `StoryCacheProvider`. Mobile 61 passed, typecheck
+  clean, android bundle exports. Device (dark): opened the lead story → muted on Home; Recently read listed it
+  after an app restart; "Clear reading history" emptied it (phone left with no history). Not checked: TalkBack
+  reading the hint, iOS. Mobile reader options plan M1–M6 complete; remaining items there need a decision/ADR.
 - **M5 Show less done (2026-09-30, pushed; release APK on the owner's Android phone):** Home and Latest cards
   get a "Show less" button (only where the story has topics) that opens "Hide stories about" with up to three of
   the story's topics plus Cancel; picking one announces it and hides the topic. `HiddenTopicsProvider`
@@ -280,7 +293,7 @@ login and mobile were inspected through code, not authenticated/device journeys.
   `appearance.test.tsx` (5). Mobile 32 passed, typecheck clean, bundle-check exports. Device: Settings shows
   the section with the phone-setting row checked in dark; tapping Light/Dark on the device not yet checked
   by the agent (owner was using the phone).
-- **Mobile reader options planned (2026-09-30):** `docs/plans/mobile-reader-options.md`. M1–M5 done; R10 device checks partly done (see entry); next M6. Owner
+- **Mobile reader options planned (2026-09-30):** `docs/plans/mobile-reader-options.md`. M1–M6 done; R10 device checks partly done (see entry); the rest of the plan needs a decision/ADR first. Owner
   asked for a light/dark choice (app only follows the system today). Order: M1 Appearance → M2 edit
   profile/interests → M3 settings basics → R10 device checks → M4 text size → M5 hide topics → M6 read history;
   offline saved, Home/Latest, digest time, TTS and iOS build need a decision/ADR first.

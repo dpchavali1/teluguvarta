@@ -5,7 +5,7 @@ modes". The app already follows the phone's system setting (`useAppTheme` →
 `useColorScheme`, `app.json` `userInterfaceStyle: automatic`), but readers
 can't choose it, and Settings has only Notifications, Notification preferences,
 Language and Privacy. This plan covers reader-facing options, ordered by value
-per effort. Each item is one session. **M1–M5 done 2026-09-30.**
+per effort. Each item is one session. **M1–M6 done 2026-09-30.**
 
 ## Guardrails (from NON_NEGOTIABLES, unchanged)
 

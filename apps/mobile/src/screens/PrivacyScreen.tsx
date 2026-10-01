@@ -6,6 +6,7 @@ import { deleteAccount, trackEvent } from "../lib/api";
 import { useHiddenTopics } from "../lib/HiddenTopicsContext";
 import { resetClientToken } from "../lib/identity";
 import { LOCAL_DATA_KEYS } from "../lib/storage";
+import { useStoryCache } from "../lib/StoryCacheContext";
 import { useTextSize } from "../theme/TextSizeContext";
 import { useThemePreference } from "../theme/ThemePreferenceContext";
 import { spacing, typography } from "../theme/tokens";
@@ -27,6 +28,7 @@ export function PrivacyScreen() {
   const { resetPreference: resetThemePreference } = useThemePreference();
   const { resetTextSize } = useTextSize();
   const { resetHiddenTopics } = useHiddenTopics();
+  const { resetLocalData } = useStoryCache();
 
   async function handleClear() {
     trackEvent("account_delete_request");
@@ -43,6 +45,8 @@ export function PrivacyScreen() {
     resetThemePreference();
     resetTextSize();
     resetHiddenTopics();
+    // Saved and read ids are gone from storage; forget them in memory too.
+    resetLocalData();
     setCleared(true);
   }
 

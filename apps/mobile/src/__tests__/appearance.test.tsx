@@ -5,6 +5,7 @@ import { Appearance, Text } from "react-native";
 import * as ReactNative from "react-native";
 
 import { LOCAL_DATA_KEYS, getThemePreference, setThemePreference } from "../lib/storage";
+import { StoryCacheProvider } from "../lib/StoryCacheContext";
 import { PrivacyScreen } from "../screens/PrivacyScreen";
 import { SettingsScreen } from "../screens/SettingsScreen";
 import { ThemePreferenceProvider } from "../theme/ThemePreferenceContext";
@@ -76,8 +77,10 @@ test("clearing data puts the app back on the phone setting", async () => {
   await setThemePreference("dark");
   await render(
     <ThemePreferenceProvider>
-      <PrivacyScreen />
-      <SchemeProbe />
+      <StoryCacheProvider>
+        <PrivacyScreen />
+        <SchemeProbe />
+      </StoryCacheProvider>
     </ThemePreferenceProvider>,
   );
   await waitFor(() => expect(screen.getByTestId("scheme")).toHaveTextContent("dark"));

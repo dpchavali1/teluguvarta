@@ -16,6 +16,7 @@ const KEYS = {
   themePreference: "tg_theme_pref_v1",
   textSize: "tg_text_size_v1",
   hiddenTopics: "tg_hidden_topics_v1",
+  readHistory: "tg_read_history_v1",
 } as const;
 
 // Every on-device key "Delete account and clear data" must remove. A new key
@@ -241,6 +242,24 @@ export async function getHiddenTopics(): Promise<string[]> {
 
 export async function setHiddenTopics(slugs: string[]): Promise<void> {
   return writeJson(KEYS.hiddenTopics, slugs);
+}
+
+// Plan M6: ids of stories opened on this device, newest first, capped.
+export const READ_HISTORY_LIMIT = 200;
+
+export async function getReadIds(): Promise<string[]> {
+  try {
+    const parsed: unknown = JSON.parse((await AsyncStorage.getItem(KEYS.readHistory)) ?? "[]");
+    return Array.isArray(parsed)
+      ? parsed.filter((id): id is string => typeof id === "string").slice(0, READ_HISTORY_LIMIT)
+      : [];
+  } catch {
+    return [];
+  }
+}
+
+export async function setReadIds(ids: string[]): Promise<void> {
+  return writeJson(KEYS.readHistory, ids.slice(0, READ_HISTORY_LIMIT));
 }
 
 export async function setLanguage(language: OnboardingProfile["language"]): Promise<void> {
