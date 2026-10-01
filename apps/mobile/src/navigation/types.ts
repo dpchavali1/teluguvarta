@@ -25,6 +25,7 @@ export type RootStackParamList = {
   Language: undefined;
   Privacy: undefined;
   Profile: undefined;
+  HiddenTopics: undefined;
 };
 
 declare global {

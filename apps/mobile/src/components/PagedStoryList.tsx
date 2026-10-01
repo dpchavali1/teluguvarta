@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
 
 import { ApiNetworkError, type StoryOut } from "../lib/api";
+import { useHiddenTopics, withoutHiddenTopics } from "../lib/HiddenTopicsContext";
 import { useStoryCache } from "../lib/StoryCacheContext";
 import { radius, spacing } from "../theme/tokens";
 import { useAppTheme, type AppTheme } from "../theme/useAppTheme";
@@ -16,15 +17,19 @@ export function PagedStoryList({
   loadingLabel,
   errorLabel,
   emptyLabel,
+  respectHiddenTopics = false,
 }: {
   fetchPage: (cursor?: string) => Promise<StoryPage>;
   loadingLabel: string;
   errorLabel: string;
   emptyLabel: string;
+  /** Leave out stories from topics the reader hid, and offer "Show less" (Latest, not Topic). */
+  respectHiddenTopics?: boolean;
 }) {
   const { colors } = useAppTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const { put } = useStoryCache();
+  const { hiddenTopics } = useHiddenTopics();
   const requestId = useRef(0);
   const [cursor, setCursor] = useState<string | null>(null);
   const [moreLoading, setMoreLoading] = useState(false);
@@ -114,8 +119,18 @@ export function PagedStoryList({
     </View>
   );
 
-  return <StoryList stories={stories} emptyLabel={emptyLabel} footer={footer} />;
+  const visible = respectHiddenTopics ? withoutHiddenTopics(stories, hiddenTopics) : stories;
+  return (
+    <StoryList
+      stories={visible}
+      emptyLabel={visible.length < stories.length ? HIDDEN_ALL_LABEL : emptyLabel}
+      footer={footer}
+      allowHideTopic={respectHiddenTopics}
+    />
+  );
 }
+
+export const HIDDEN_ALL_LABEL = "These stories are all from topics you've hidden. Show them again in Settings → Hidden topics.";
 
 function createStyles(colors: AppTheme["colors"]) {
   return StyleSheet.create({

@@ -15,6 +15,7 @@ const KEYS = {
   savedStories: "tg_saved_stories_v1",
   themePreference: "tg_theme_pref_v1",
   textSize: "tg_text_size_v1",
+  hiddenTopics: "tg_hidden_topics_v1",
 } as const;
 
 // Every on-device key "Delete account and clear data" must remove. A new key
@@ -225,6 +226,21 @@ export async function setTextSize(size: TextSize): Promise<void> {
   } catch {
     // Storage disabled — the choice applies for this session only.
   }
+}
+
+// Topic slugs the reader chose "Show less" on. Home and Latest leave out
+// stories tagged with any of them; Settings → Hidden topics undoes it.
+export async function getHiddenTopics(): Promise<string[]> {
+  try {
+    const parsed: unknown = JSON.parse((await AsyncStorage.getItem(KEYS.hiddenTopics)) ?? "[]");
+    return Array.isArray(parsed) ? parsed.filter((slug): slug is string => typeof slug === "string") : [];
+  } catch {
+    return [];
+  }
+}
+
+export async function setHiddenTopics(slugs: string[]): Promise<void> {
+  return writeJson(KEYS.hiddenTopics, slugs);
 }
 
 export async function setLanguage(language: OnboardingProfile["language"]): Promise<void> {

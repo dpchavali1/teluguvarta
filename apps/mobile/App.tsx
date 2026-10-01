@@ -12,6 +12,7 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { trackEvent } from "./src/lib/api";
 import { registerForPushNotificationsAsync, resolveNotificationDeepLink } from "./src/lib/push";
+import { HiddenTopicsProvider } from "./src/lib/HiddenTopicsContext";
 import { StoryCacheProvider } from "./src/lib/StoryCacheContext";
 import { linking } from "./src/navigation/linking";
 import { RootNavigator } from "./src/navigation/RootNavigator";
@@ -108,11 +109,13 @@ function AppContent() {
   return (
     <SafeAreaProvider>
       <StoryCacheProvider>
-        <NavigationContainer ref={navigationRef} theme={navigationTheme} linking={linking}>
-          <RootNavigator />
-          {/* "auto" follows the system, which is wrong once the reader picks a scheme. */}
-          <StatusBar style={scheme === "dark" ? "light" : "dark"} />
-        </NavigationContainer>
+        <HiddenTopicsProvider>
+          <NavigationContainer ref={navigationRef} theme={navigationTheme} linking={linking}>
+            <RootNavigator />
+            {/* "auto" follows the system, which is wrong once the reader picks a scheme. */}
+            <StatusBar style={scheme === "dark" ? "light" : "dark"} />
+          </NavigationContainer>
+        </HiddenTopicsProvider>
       </StoryCacheProvider>
     </SafeAreaProvider>
   );

@@ -5,6 +5,7 @@ import { AccessibilityInfo, DeviceEventEmitter, Pressable, StyleSheet, Text, Tex
 import { REPORT_CATEGORIES, reportIssue, trackEvent, type Language, type ReportCategory, type StoryOut } from "../lib/api";
 import { shareStory } from "../lib/share";
 import { getProfile, setLanguage as persistLanguage, LANGUAGE_CHANGE_EVENT } from "../lib/storage";
+import { useHiddenTopics } from "../lib/HiddenTopicsContext";
 import { useStoryCache } from "../lib/StoryCacheContext";
 import { scaledStoryType, useTextSize } from "../theme/TextSizeContext";
 import { radius, spacing, typography } from "../theme/tokens";
@@ -37,8 +38,12 @@ export function StoryCard({
   onOpen,
   onOpenSource,
   layout = "compact",
+  allowHideTopic = false,
 }: {
   story: StoryOut;
+  // Plan M5: Home and Latest offer "Show less" (hide a topic from those
+  // feeds). Off elsewhere — Topic/Search/Saved show what the reader asked for.
+  allowHideTopic?: boolean;
   // Optional: the detail screen renders this card for a story already
   // open, so the headline shouldn't be a dead tap target pointing nowhere.
   onOpen?: () => void;
@@ -60,6 +65,8 @@ export function StoryCard({
   const styles = useMemo(() => createStyles(colors, ui), [colors, ui]);
   const cache = useStoryCache();
   const { textSize } = useTextSize();
+  const { hideTopic } = useHiddenTopics();
+  const [lessOpen, setLessOpen] = useState(false);
   const [language, setLanguage] = useState<Language>("en");
   const [actionStatus, setActionStatus] = useState<string | null>(null);
   const [reportOpen, setReportOpen] = useState(false);
@@ -127,6 +134,14 @@ export function StoryCard({
     if (next !== language) trackEvent("language_switch", { story_id: story.id, language: next });
     setLanguage(next);
     persistLanguage(next);
+  }
+
+  function handleHideTopic(slug: string) {
+    // The feed drops this card on the next render, so say it out loud first.
+    AccessibilityInfo.announceForAccessibility(
+      `Stories about ${topicLabel(slug)} hidden. Show them again in Settings, Hidden topics.`,
+    );
+    hideTopic(slug);
   }
 
   async function handleReportSubmit() {
@@ -269,6 +284,17 @@ export function StoryCard({
               {saved ? "Saved" : "Save"}
             </Text>
           </Pressable>
+          {allowHideTopic && story.topics.length > 0 && (
+            <Pressable
+              onPress={() => setLessOpen((open) => !open)}
+              accessibilityRole="button"
+              accessibilityState={{ expanded: lessOpen }}
+              accessibilityLabel={`Show less like: ${variant.headline}`}
+              style={styles.actionButton}
+            >
+              <Text style={styles.actionButtonText}>Show less</Text>
+            </Pressable>
+          )}
           {showFullActions && (
             <Pressable
               onPress={() => setReportOpen((open) => !open)}
@@ -281,6 +307,27 @@ export function StoryCard({
             </Pressable>
           )}
         </View>
+        {allowHideTopic && lessOpen && (
+          <View style={styles.reportPanel}>
+            <Text style={styles.reportHeading} accessibilityRole="header">Hide stories about</Text>
+            <View style={styles.reportChoices}>
+              {story.topics.slice(0, 3).map((slug) => (
+                <Pressable
+                  key={slug}
+                  onPress={() => handleHideTopic(slug)}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Hide stories about ${topicLabel(slug)}`}
+                  style={styles.actionButton}
+                >
+                  <Text style={styles.actionButtonText}>{topicLabel(slug)}</Text>
+                </Pressable>
+              ))}
+              <Pressable onPress={() => setLessOpen(false)} accessibilityRole="button" style={styles.actionButton}>
+                <Text style={styles.actionButtonText}>Cancel</Text>
+              </Pressable>
+            </View>
+          </View>
+        )}
         {showFullActions && reportOpen && (
           <View style={styles.reportPanel}>
             <Text style={styles.reportHeading} accessibilityRole="header">What&apos;s the problem?</Text>

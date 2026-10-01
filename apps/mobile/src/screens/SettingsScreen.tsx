@@ -69,6 +69,7 @@ export function SettingsScreen() {
       <View style={styles.group}>
         <SettingsRow label="Your profile" onPress={() => navigation.navigate("Profile")} styles={styles} />
         <SettingsRow label="Language" onPress={() => navigation.navigate("Language")} styles={styles} />
+        <SettingsRow label="Hidden topics" onPress={() => navigation.navigate("HiddenTopics")} styles={styles} />
         <SettingsRow label="Privacy & delete account" onPress={() => navigation.navigate("Privacy")} last styles={styles} />
       </View>
       <Text style={styles.groupLabel}>ABOUT</Text>

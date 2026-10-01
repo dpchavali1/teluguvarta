@@ -15,7 +15,9 @@ import {
 } from "react-native";
 
 import { StoryCard } from "../components/StoryCard";
+import { HIDDEN_ALL_LABEL } from "../components/PagedStoryList";
 import { ApiNetworkError, getHome, trackEvent, type StoryOut, type TopicOut } from "../lib/api";
+import { useHiddenTopics, withoutHiddenTopics } from "../lib/HiddenTopicsContext";
 import { getProfile, isStudentSegment, PROFILE_CHANGE_EVENT, primaryLifeStageSegment } from "../lib/storage";
 import { useStoryCache } from "../lib/StoryCacheContext";
 import { radius, spacing, typography } from "../theme/tokens";
@@ -32,6 +34,7 @@ export function HomeScreen() {
   const { colors, ui } = useAppTheme();
   const styles = useMemo(() => createStyles(colors, ui), [colors, ui]);
   const { put } = useStoryCache();
+  const { hiddenTopics } = useHiddenTopics();
   const [stories, setStories] = useState<StoryOut[]>([]);
   const [topics, setTopics] = useState<TopicOut[]>([]);
   const [briefingStories, setBriefingStories] = useState<StoryOut[]>([]);
@@ -141,12 +144,17 @@ export function HomeScreen() {
   // and the Student Briefing are small/bounded, so they stay in the
   // header; only the main feed (unbounded, highest-traffic) needs
   // virtualization.
+  // Plan M5: topics hidden with "Show less" drop out of every part of Home.
+  const visibleStories = withoutHiddenTopics(stories, hiddenTopics);
+  const visibleBriefing = withoutHiddenTopics(briefingStories, hiddenTopics);
+  const visibleTopics = topics.filter((topic) => !hiddenTopics.includes(topic.slug));
+
   return (
     <FlatList
       style={styles.list}
       contentContainerStyle={styles.container}
       accessibilityLabel="Home feed"
-      data={stories}
+      data={visibleStories}
       keyExtractor={(story) => story.id}
       renderItem={({ item, index }) => (
         <>
@@ -156,6 +164,7 @@ export function HomeScreen() {
             layout={index === 0 ? "hero" : "compact"}
             onOpen={() => navigation.navigate("StoryDetail", { slug: item.canonical_slug })}
             onOpenSource={(url) => Linking.openURL(url)}
+            allowHideTopic
           />
         </>
       )}
@@ -168,7 +177,13 @@ export function HomeScreen() {
           accessibilityLabel="Refresh the feed"
         />
       }
-      ListEmptyComponent={!loading && !error ? <Text style={styles.empty}>No stories yet. Browse topics or pull down to refresh.</Text> : null}
+      ListEmptyComponent={
+        !loading && !error ? (
+          <Text style={styles.empty}>
+            {stories.length > 0 ? HIDDEN_ALL_LABEL : "No stories yet. Browse topics or pull down to refresh."}
+          </Text>
+        ) : null
+      }
       // Home is a bounded ranked set; Latest pages through everything.
       ListFooterComponent={
         <Pressable
@@ -196,12 +211,12 @@ export function HomeScreen() {
                 : ""}
             </Text>
           )}
-          {topics.length > 0 && (
+          {visibleTopics.length > 0 && (
             <FlatList
               horizontal
               showsHorizontalScrollIndicator={false}
               style={styles.topicRow}
-              data={topics}
+              data={visibleTopics}
               keyExtractor={(topic) => topic.slug}
               renderItem={({ item: topic }) => (
                 <Pressable
@@ -215,18 +230,19 @@ export function HomeScreen() {
               )}
             />
           )}
-          {briefingStories.length > 0 && (
+          {visibleBriefing.length > 0 && (
             <View style={styles.briefing} accessibilityLabel="Student Briefing">
               <Text style={styles.briefingTitle}>Student Briefing</Text>
               <Text style={styles.briefingSubtitle}>
                 Shown because you selected a student life stage during setup.
               </Text>
-              {briefingStories.map((story) => (
+              {visibleBriefing.map((story) => (
                 <StoryCard
                   key={story.id}
                   story={story}
                   onOpen={() => navigation.navigate("StoryDetail", { slug: story.canonical_slug })}
                   onOpenSource={(url) => Linking.openURL(url)}
+                  allowHideTopic
                 />
               ))}
             </View>

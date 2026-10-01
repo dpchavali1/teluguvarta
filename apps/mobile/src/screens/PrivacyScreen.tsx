@@ -3,6 +3,7 @@ import React, { useMemo, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text } from "react-native";
 
 import { deleteAccount, trackEvent } from "../lib/api";
+import { useHiddenTopics } from "../lib/HiddenTopicsContext";
 import { resetClientToken } from "../lib/identity";
 import { LOCAL_DATA_KEYS } from "../lib/storage";
 import { useTextSize } from "../theme/TextSizeContext";
@@ -25,6 +26,7 @@ export function PrivacyScreen() {
   const [cleared, setCleared] = useState(false);
   const { resetPreference: resetThemePreference } = useThemePreference();
   const { resetTextSize } = useTextSize();
+  const { resetHiddenTopics } = useHiddenTopics();
 
   async function handleClear() {
     trackEvent("account_delete_request");
@@ -37,9 +39,10 @@ export function PrivacyScreen() {
     await resetClientToken();
     await AsyncStorage.removeMany(LOCAL_DATA_KEYS);
     // The stored choices are gone; also put the live app back on the system
-    // theme and default text size.
+    // theme, default text size and no hidden topics.
     resetThemePreference();
     resetTextSize();
+    resetHiddenTopics();
     setCleared(true);
   }
 

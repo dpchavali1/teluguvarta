@@ -17,6 +17,7 @@ export function LatestScreen() {
       loadingLabel="Loading latest stories"
       errorLabel="Couldn't load the latest stories."
       emptyLabel="No stories yet."
+      respectHiddenTopics
     />
   );
 }
