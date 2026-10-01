@@ -172,7 +172,7 @@ login and mobile were inspected through code, not authenticated/device journeys.
   stays reachable from Home), persisted offline reading (cache is still memory only; needs an ADR on
   expiry and correction/retraction), and every device check (large text, TalkBack/VoiceOver, poor network,
   push opening, Unicode shared links). Next: R11.
-- **R11 in progress (2026-09-30, committed locally, NOT pushed/deployed): ADR-028 accepted, option A (owner).**
+- **R11 done (2026-09-30, pushed, NOT deployed): ADR-028 accepted, option A (owner).**
   Done: `admin_sessions` table (migration `b8e3f1a6d2c9`, stores SHA-256 of the cookie only);
   `app/admin_sessions.py` (cookie `tte_admin`: HttpOnly, Secure unless `ADMIN_COOKIE_SECURE=false`,
   SameSite=Strict, host-only, Path=/v1/admin; 30 min idle / 12 h absolute, enrollment 5 min; last_seen
@@ -190,12 +190,20 @@ login and mobile were inspected through code, not authenticated/device journeys.
   idle/absolute expiry, keep-alive, logout, logout-everywhere, re-login, purge, enrollment);
   `tests/admin_session_helpers.py` used by the other admin tests. Full API suite before the 401/CSRF
   ordering fix: 506 passed + 1 fixed failure + 3 known flaky fixture errors (pass alone). Admin
-  typecheck/lint clean. **Remaining for R11:** (1) nonce CSP for admin via Next middleware
-  (`default-src 'self'`; `connect-src` API origin + Sentry ingest host if `NEXT_PUBLIC_SENTRY_DSN`;
-  `img-src 'self' data:`; `object-src 'none'`; `base-uri 'self'`; `frame-ancestors 'none'`; nonce on
-  THEME_INIT_SCRIPT in `src/app/layout.tsx`; Google fonts are self-hosted by next/font); (2) admin build,
-  full API suite rerun, mypy, ruff; (3) set `ADMIN_COOKIE_SECURE=false` in local API env docs; (4) browser
-  check of login/MFA/sign-out against a local API (cookie across localhost:3001 → :8000); then push.
+  typecheck/lint clean. **CSP (second commit):** `apps/admin/src/middleware.ts` sets a per-request nonce
+  CSP on every page: `script-src 'self' 'nonce-…' 'strict-dynamic'` (plus `'unsafe-eval'` in dev only),
+  `style-src 'self' 'unsafe-inline'` (React style props are inline attributes a nonce can't cover),
+  `img-src 'self' data:`, `connect-src 'self'` + API origin + Sentry DSN host, `object-src 'none'`,
+  `base-uri`/`form-action 'self'`, `frame-ancestors 'none'`. Layout reads `x-nonce` for THEME_INIT_SCRIPT
+  (admin pages are now dynamic). `.env.example` documents `ADMIN_COOKIE_SECURE=false` for local http and
+  drops the unused `ADMIN_JWT_EXPIRE_MINUTES` (also from `deploy.sh`'s first-run env). Verified: `next
+  start` serves the header, all 21 scripts on `/login` carry the nonce; against the current API (local DB
+  migrated to `b8e3f1a6d2c9`) the CORS preflight from :3001 allows credentials + `x-tte-admin`, login
+  without the header → 403 `CSRF_HEADER_REQUIRED`, `/auth/session` without cookie → 401. API 507 passed,
+  ruff clean, mypy 70 errors (76 before R11; not a CI gate, the R11 ones are the same `str`-vs-Literal
+  noise). Admin + web build, mobile 27 passed. **Not done:** an in-browser login → MFA → `/sessions` →
+  sign-out click-through (browser extension not connected; MFA code generation not permitted to the
+  agent) — owner should do this locally before deploying. **Deploy API + admin together** (breaking).
 
 Update this file at the end of every ticket. This is the source of truth for
 "what's actually done" — trust it over assumptions, git log archaeology, or
