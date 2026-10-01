@@ -8,7 +8,7 @@ Also proposes clearer today/month/hard-cap AI spend, editorial/pipeline drilldow
 private reader-report handling and web/mobile visual improvements. Review only;
 no implementation ticket completed or production behavior changed. Admin beyond
 login and mobile were inspected through code, not authenticated/device journeys.
-- **ADR-031 pause switches + stale queue expiry (2026-10-01, `891b00f` pushed, not deployed):** the dashboard showed 376 queued,
+- **ADR-031 pause switches + stale queue expiry (2026-10-01, `891b00f` deployed 2026-10-01 per owner):** the dashboard showed 376 queued,
   oldest 3d: stories queued as `AUTO_PUBLISH_DISABLED` before auto-publish was turned on (2026-09-30 ~23:08 UTC)
   were never re-evaluated. Now, while auto-publish is effectively on, `publish.resweep_switch_queue` re-runs
   stories whose *only* pending task is `AUTO_PUBLISH_DISABLED[,lane]`: fresh → auto-approved, older than
