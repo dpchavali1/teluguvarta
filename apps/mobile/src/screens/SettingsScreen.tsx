@@ -6,8 +6,9 @@ import React, { useMemo } from "react";
 import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
 import { siteUrl } from "../lib/api";
-import type { ThemePreference } from "../lib/storage";
+import type { TextSize, ThemePreference } from "../lib/storage";
 import type { RootStackParamList } from "../navigation/types";
+import { useTextSize } from "../theme/TextSizeContext";
 import { useThemePreference } from "../theme/ThemePreferenceContext";
 import { radius, spacing, typography } from "../theme/tokens";
 import { useAppTheme, type AppTheme } from "../theme/useAppTheme";
@@ -17,6 +18,7 @@ export function SettingsScreen() {
   const { colors, ui } = useAppTheme();
   const styles = useMemo(() => createStyles(colors, ui), [colors, ui]);
   const { preference, setPreference } = useThemePreference();
+  const { textSize, setTextSize } = useTextSize();
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
@@ -47,6 +49,22 @@ export function SettingsScreen() {
           />
         ))}
       </View>
+      <Text style={styles.groupLabel} accessibilityRole="header">
+        TEXT SIZE
+      </Text>
+      <View style={styles.group} accessibilityRole="radiogroup">
+        {TEXT_SIZE_OPTIONS.map((option, i) => (
+          <ThemeOptionRow
+            key={option.value}
+            label={option.label}
+            selected={textSize === option.value}
+            onPress={() => setTextSize(option.value)}
+            last={i === TEXT_SIZE_OPTIONS.length - 1}
+            styles={styles}
+          />
+        ))}
+      </View>
+      <Text style={styles.groupHint}>Story headlines and text. Your phone's text size still applies.</Text>
       <Text style={styles.groupLabel}>ACCOUNT</Text>
       <View style={styles.group}>
         <SettingsRow label="Your profile" onPress={() => navigation.navigate("Profile")} styles={styles} />
@@ -99,6 +117,13 @@ const THEME_OPTIONS: { value: ThemePreference; label: string }[] = [
   { value: "system", label: "Use phone setting" },
   { value: "light", label: "Light" },
   { value: "dark", label: "Dark" },
+];
+
+const TEXT_SIZE_OPTIONS: { value: TextSize; label: string }[] = [
+  { value: "small", label: "Small" },
+  { value: "default", label: "Default" },
+  { value: "large", label: "Large" },
+  { value: "xlarge", label: "Extra large" },
 ];
 
 function ThemeOptionRow({
@@ -194,6 +219,13 @@ function createStyles(colors: AppTheme["colors"], ui: AppTheme["ui"]) {
     rowLabel: { ...typography.body, color: colors.text },
     chevron: { fontSize: 18, color: ui.textTertiary },
     check: { color: colors.accent },
+    groupHint: {
+      ...typography.meta,
+      textTransform: "none",
+      color: ui.textTertiary,
+      paddingHorizontal: spacing.sm,
+      paddingTop: spacing.xs,
+    },
     version: { ...typography.meta, color: colors.faint, textAlign: "center", paddingTop: spacing.lg },
   });
 }

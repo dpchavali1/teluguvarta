@@ -5,6 +5,7 @@ import { Pressable, ScrollView, StyleSheet, Text } from "react-native";
 import { deleteAccount, trackEvent } from "../lib/api";
 import { resetClientToken } from "../lib/identity";
 import { LOCAL_DATA_KEYS } from "../lib/storage";
+import { useTextSize } from "../theme/TextSizeContext";
 import { useThemePreference } from "../theme/ThemePreferenceContext";
 import { spacing, typography } from "../theme/tokens";
 import { useAppTheme, type AppTheme } from "../theme/useAppTheme";
@@ -23,6 +24,7 @@ export function PrivacyScreen() {
   const styles = useMemo(() => createStyles(colors, ui), [colors, ui]);
   const [cleared, setCleared] = useState(false);
   const { resetPreference: resetThemePreference } = useThemePreference();
+  const { resetTextSize } = useTextSize();
 
   async function handleClear() {
     trackEvent("account_delete_request");
@@ -34,8 +36,10 @@ export function PrivacyScreen() {
     }
     await resetClientToken();
     await AsyncStorage.removeMany(LOCAL_DATA_KEYS);
-    // The stored choice is gone; also put the live app back on the system theme.
+    // The stored choices are gone; also put the live app back on the system
+    // theme and default text size.
     resetThemePreference();
+    resetTextSize();
     setCleared(true);
   }
 

@@ -14,6 +14,7 @@ const KEYS = {
   notificationPrefs: "tg_notification_prefs_v1",
   savedStories: "tg_saved_stories_v1",
   themePreference: "tg_theme_pref_v1",
+  textSize: "tg_text_size_v1",
 } as const;
 
 // Every on-device key "Delete account and clear data" must remove. A new key
@@ -199,6 +200,28 @@ export async function getThemePreference(): Promise<ThemePreference> {
 export async function setThemePreference(preference: ThemePreference): Promise<void> {
   try {
     await AsyncStorage.setItem(KEYS.themePreference, preference);
+  } catch {
+    // Storage disabled — the choice applies for this session only.
+  }
+}
+
+// Reader's text size for story text (Settings → Text size), on top of the
+// phone's own font scale.
+export type TextSize = "small" | "default" | "large" | "xlarge";
+const TEXT_SIZES: readonly TextSize[] = ["small", "default", "large", "xlarge"];
+
+export async function getTextSize(): Promise<TextSize> {
+  try {
+    const raw = await AsyncStorage.getItem(KEYS.textSize);
+    return TEXT_SIZES.find((size) => size === raw) ?? "default";
+  } catch {
+    return "default";
+  }
+}
+
+export async function setTextSize(size: TextSize): Promise<void> {
+  try {
+    await AsyncStorage.setItem(KEYS.textSize, size);
   } catch {
     // Storage disabled — the choice applies for this session only.
   }

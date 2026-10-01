@@ -15,6 +15,7 @@ import { registerForPushNotificationsAsync, resolveNotificationDeepLink } from "
 import { StoryCacheProvider } from "./src/lib/StoryCacheContext";
 import { linking } from "./src/navigation/linking";
 import { RootNavigator } from "./src/navigation/RootNavigator";
+import { TextSizeProvider } from "./src/theme/TextSizeContext";
 import { ThemePreferenceProvider } from "./src/theme/ThemePreferenceContext";
 import { useAppTheme } from "./src/theme/useAppTheme";
 import type { RootStackParamList } from "./src/navigation/types";
@@ -38,7 +39,9 @@ export default function App() {
   // Outside AppContent because AppContent's own useAppTheme reads it.
   return (
     <ThemePreferenceProvider>
-      <AppContent />
+      <TextSizeProvider>
+        <AppContent />
+      </TextSizeProvider>
     </ThemePreferenceProvider>
   );
 }

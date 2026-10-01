@@ -6,7 +6,8 @@ import { REPORT_CATEGORIES, reportIssue, trackEvent, type Language, type ReportC
 import { shareStory } from "../lib/share";
 import { getProfile, setLanguage as persistLanguage, LANGUAGE_CHANGE_EVENT } from "../lib/storage";
 import { useStoryCache } from "../lib/StoryCacheContext";
-import { radius, spacing, typography, typographyFor, typographyTe } from "../theme/tokens";
+import { scaledStoryType, useTextSize } from "../theme/TextSizeContext";
+import { radius, spacing, typography } from "../theme/tokens";
 import { useAppTheme, type AppTheme } from "../theme/useAppTheme";
 
 const STATUS_LABEL: Record<string, string | undefined> = {
@@ -58,6 +59,7 @@ export function StoryCard({
   const { colors, ui } = useAppTheme();
   const styles = useMemo(() => createStyles(colors, ui), [colors, ui]);
   const cache = useStoryCache();
+  const { textSize } = useTextSize();
   const [language, setLanguage] = useState<Language>("en");
   const [actionStatus, setActionStatus] = useState<string | null>(null);
   const [reportOpen, setReportOpen] = useState(false);
@@ -95,7 +97,7 @@ export function StoryCard({
   // `en` when the requested variant is missing, and the type metrics have to
   // follow the glyphs actually on screen.
   const renderedLanguage: Language = story.variants[language] ? language : "en";
-  const type = typographyFor(renderedLanguage);
+  const type = scaledStoryType(renderedLanguage, textSize);
   const whyMatters = renderedLanguage === "en" ? story.personalization?.why_matters ?? variant.why_matters : variant.why_matters;
 
   const statusNotice = STATUS_LABEL[story.status];
@@ -191,7 +193,15 @@ export function StoryCard({
 
         <Text style={[styles.body, type.body]}>{variant.summary}</Text>
         {!isCompact && whyMatters ? (
-          <Text style={[styles.why, !isCompact && styles.whyRich, renderedLanguage === "te" && styles.whyTe]}>
+          <Text
+            style={[
+              styles.why,
+              !isCompact && styles.whyRich,
+              // Size and leading follow the body text: the reader's text size, and
+              // Telugu's taller leading so the vowel signs don't collide.
+              { fontSize: type.body.fontSize, lineHeight: type.body.lineHeight },
+            ]}
+          >
             Why this matters: {whyMatters}
           </Text>
         ) : null}
@@ -395,9 +405,6 @@ function createStyles(colors: AppTheme["colors"], ui: AppTheme["ui"]) {
       borderLeftColor: colors.rule,
       padding: spacing.sm,
     },
-    // Telugu glyphs are taller than Latin at the same size; without explicit
-    // leading this block sets solid and the vowel signs collide.
-    whyTe: { lineHeight: typographyTe.body.lineHeight },
     // Hero/detail pull-quote: wider, a thick rust rule instead of the
     // compact card's thin ink border — the same "why this matters"
     // emphasis treatment web's hero story gets in parallel.

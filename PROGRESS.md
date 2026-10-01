@@ -222,6 +222,18 @@ login and mobile were inspected through code, not authenticated/device journeys.
   link still opens the browser, not the app: no Android intentFilters/assetlinks yet (needs the Play
   signing fingerprint). Noted: "Why this matters:" stays English in Telugu mode, the same as web
   (`lang="en"`), so left as is. Next: owner runs the remaining checks, then M4.
+- **M4 Text size done (2026-09-30, not pushed; release APK on the owner's Android phone):** Settings → TEXT SIZE:
+  Small / Default / Large / Extra large (radio rows, ×0.9/1/1.15/1.3), hint "Story headlines and text. Your
+  phone's text size still applies." `TextSizeProvider` (`src/theme/TextSizeContext.tsx`, inside the theme
+  provider in `App`) holds the choice (`tg_text_size_v1`, so delete-data clears it; Privacy also resets the live
+  size). `scaledStoryType` scales story fontSize and lineHeight together, so each language keeps its tuned
+  leading (Telugu rounds up); only `StoryCard` headline, summary and "why this matters" use it — chrome, meta,
+  pills and buttons don't. RN still applies the phone font scale on top. "Why this matters" now takes its
+  size/leading from the body type (replaces the `whyTe` style). Tests: `text-size.test.tsx` (4). Mobile 49
+  passed, typecheck clean, android bundle exports. Device (dark): section renders with radios `checked`;
+  Extra large enlarged Home's hero headline/summary in English and Telugu, Telugu vowel signs not clipped,
+  chips/tabs unchanged; restored to English + Default afterwards. Not checked: story page, Extra large with
+  phone font scale 1.5, compact/comfortable modes (plan: only after large text passes). Next: M5.
 - **M3 Settings basics done (2026-09-30, pushed; release APK on the owner's Android phone):** Settings → ABOUT:
   "About The Telugu Edit", "How we use AI", "Privacy policy", "Terms of use" open the web pages
   (`siteUrl()` + `/about`, `/ai-disclosure`, `/privacy`, `/terms`) in the browser (role link, "Opens in your
@@ -253,7 +265,7 @@ login and mobile were inspected through code, not authenticated/device journeys.
   `appearance.test.tsx` (5). Mobile 32 passed, typecheck clean, bundle-check exports. Device: Settings shows
   the section with the phone-setting row checked in dark; tapping Light/Dark on the device not yet checked
   by the agent (owner was using the phone).
-- **Mobile reader options planned (2026-09-30):** `docs/plans/mobile-reader-options.md`. M1–M3 done; R10 device checks partly done (see entry); next M4. Owner
+- **Mobile reader options planned (2026-09-30):** `docs/plans/mobile-reader-options.md`. M1–M4 done; R10 device checks partly done (see entry); next M5. Owner
   asked for a light/dark choice (app only follows the system today). Order: M1 Appearance → M2 edit
   profile/interests → M3 settings basics → R10 device checks → M4 text size → M5 hide topics → M6 read history;
   offline saved, Home/Latest, digest time, TTS and iOS build need a decision/ADR first.
