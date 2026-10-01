@@ -80,38 +80,47 @@ def _auth(token: str) -> dict:
 
 
 @requires_postgres
-def test_admin_token_stops_working_when_account_is_demoted_or_deleted(client, db_session, monkeypatch):
-    from app.security import create_admin_access_token
+def test_admin_session_stops_working_when_account_is_demoted_or_deleted(client, db_session):
+    from app.models import AdminSession
+    from tests.admin_session_helpers import admin_auth, admin_session_token
 
-    monkeypatch.setenv("ADMIN_JWT_SECRET", "test-secret")
     user = User(id=uuid.uuid4(), email="editor@example.com", role="ADMIN")
     db_session.add(user)
     db_session.commit()
-    token, _ = create_admin_access_token(user.id, user.email, "ADMIN")
-    assert client.get("/v1/admin/sources", headers=_auth(token)).status_code == 200
+    token = admin_session_token(db_session, user.id)
+    other = admin_session_token(db_session, user.id)
+    assert client.get("/v1/admin/sources", headers=admin_auth(token)).status_code == 200
 
     user.role = None
     db_session.commit()
-    assert client.get("/v1/admin/sources", headers=_auth(token)).status_code == 403
+    assert client.get("/v1/admin/sources", headers=admin_auth(token)).status_code == 403
 
+    # ADR-028: demotion revoked every session, so restoring the role doesn't
+    # bring them back; the editor has to sign in again.
     user.role = "ADMIN"
+    db_session.commit()
+    assert client.get("/v1/admin/sources", headers=admin_auth(token)).status_code == 401
+    assert client.get("/v1/admin/sources", headers=admin_auth(other)).status_code == 401
+    db_session.expire_all()
+    assert all(row.revoked_at for row in db_session.query(AdminSession).filter_by(user_id=user.id))
+
+    fresh = admin_session_token(db_session, user.id)
     user.deleted_at = datetime.now(UTC)
     db_session.commit()
-    assert client.get("/v1/admin/sources", headers=_auth(token)).status_code == 401
+    assert client.get("/v1/admin/sources", headers=admin_auth(fresh)).status_code == 401
 
 
 @requires_postgres
-def test_admin_principal_carries_the_stored_role_not_the_claim(client, db_session, monkeypatch):
-    from app.security import create_admin_access_token
+def test_admin_principal_carries_the_stored_role(client, db_session):
+    from tests.admin_session_helpers import admin_auth, admin_session_token
 
-    monkeypatch.setenv("ADMIN_JWT_SECRET", "test-secret")
     user = User(id=uuid.uuid4(), email="ed@example.com", role="EDITOR")
     db_session.add(user)
     db_session.commit()
-    token, _ = create_admin_access_token(user.id, user.email, "ADMIN")
+    token = admin_session_token(db_session, user.id)
     response = client.post(
         "/v1/admin/sources",
-        headers=_auth(token),
+        headers=admin_auth(token),
         json={"name": "Feed", "feed_url": "https://ex.com/feed", "rights_status": "LINK_ONLY"},
     )
     assert response.status_code == 403

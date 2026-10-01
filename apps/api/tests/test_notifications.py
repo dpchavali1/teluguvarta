@@ -349,21 +349,21 @@ def test_breaking_alert_requires_admin_approval_endpoint(client, db_session, mon
     # Mints a full-session token directly rather than via /login: this test
     # exercises the breaking-alert approval endpoint, not P0-3/ADR-012's
     # MFA-enrollment gate.
-    from app.security import create_admin_access_token, hash_password
+    from app.security import hash_password
+    from tests.admin_session_helpers import admin_auth, admin_session_token
 
-    monkeypatch.setenv("ADMIN_JWT_SECRET", "test-secret")
     admin = User(id=uuid.uuid4(), email="admin@example.com", role="ADMIN", password_hash=hash_password("pw"))
     db_session.add(admin)
     story = Story(canonical_slug=f"story-{uuid.uuid4()}", status="PUBLISHED", sensitivity="BREAKING", importance=0.9, published_at=datetime.now(UTC))
     db_session.add(story)
     db_session.commit()
 
-    token, _ = create_admin_access_token(admin.id, admin.email, admin.role)
+    token = admin_session_token(db_session, admin.id)
 
     response = client.post(
         f"/v1/admin/stories/{story.id}/approve-breaking-alert",
         json={"reason": "verified with two independent sources"},
-        headers={"Authorization": f"Bearer {token}"},
+        headers=admin_auth(token),
     )
     assert response.status_code == 200
     db_session.refresh(story)

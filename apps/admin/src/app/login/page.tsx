@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 
 import type { components } from "@teluguvarta/contracts";
 
-import { apiUrl, setSession } from "@/lib/auth";
+import { apiFetch, apiUrl, setSession, signOut } from "@/lib/auth";
 
 type LoginResponse = components["schemas"]["AdminLoginResponse"];
 type MfaSetupResponse = components["schemas"]["MfaSetupResponse"];
@@ -20,12 +20,10 @@ class ApiError extends Error {
   }
 }
 
-async function postJson<T>(path: string, body: unknown, token?: string): Promise<T> {
-  const headers: Record<string, string> = { "Content-Type": "application/json" };
-  if (token) headers.Authorization = `Bearer ${token}`;
-  const response = await fetch(`${apiUrl()}${path}`, {
+async function postJson<T>(path: string, body: unknown): Promise<T> {
+  const response = await apiFetch(`${apiUrl()}${path}`, {
     method: "POST",
-    headers,
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body)
   });
   if (!response.ok) {
@@ -37,11 +35,11 @@ async function postJson<T>(path: string, body: unknown, token?: string): Promise
   return (await response.json()) as T;
 }
 
-// ADR-012: an account without MFA gets a restricted enrollment-scope token
-// from /login. It is held only in component state — never via setSession —
-// so it can't be mistaken for a real session; after enrolling, the admin
-// signs in again with a code to get a full token.
-type Enrollment = { token: string; setup: MfaSetupResponse };
+// ADR-012: an account without MFA gets a restricted enrollment session from
+// /login (an HttpOnly cookie, ADR-028). setSession is not called for it, so
+// the rest of the app treats the browser as signed out; enrolling ends that
+// session and the admin signs in again with a code to get a full one.
+type Enrollment = { setup: MfaSetupResponse };
 
 export default function LoginPage() {
   const router = useRouter();
@@ -76,12 +74,12 @@ export default function LoginPage() {
         ...(code ? { mfa_code: code } : {})
       });
       if (body.mfa_enrollment_required) {
-        const setup = await postJson<MfaSetupResponse>("/v1/admin/auth/mfa/setup", {}, body.access_token);
+        const setup = await postJson<MfaSetupResponse>("/v1/admin/auth/mfa/setup", {});
         setEnrollCode("");
-        setEnrollment({ token: body.access_token, setup });
+        setEnrollment({ setup });
         return;
       }
-      setSession(body.access_token, body.role);
+      setSession(body.role);
       router.push("/");
     } catch (err) {
       if (err instanceof ApiError && (err.code === "MFA_REQUIRED" || err.code === "INVALID_MFA_CODE")) {
@@ -100,18 +98,14 @@ export default function LoginPage() {
     setSubmitting(true);
     setError(null);
     try {
-      await postJson(
-        "/v1/admin/auth/mfa/enroll",
-        { secret: enrollment.setup.secret, code: enrollCode.trim() },
-        enrollment.token
-      );
+      await postJson("/v1/admin/auth/mfa/enroll", { secret: enrollment.setup.secret, code: enrollCode.trim() });
       setEnrollment(null);
       setMfaCode("");
       setNotice("Two-factor authentication is on. Enter a new code from your app to finish signing in.");
       setFocusMfa(true);
     } catch (err) {
       if (err instanceof ApiError && err.code !== "INVALID_MFA_CODE" && (err.status === 401 || err.status === 403)) {
-        // Enrollment token expired or was rejected — start over.
+        // Enrollment session expired or was rejected — start over.
         setEnrollment(null);
         setError("Your setup session expired. Sign in again to continue.");
       } else {
@@ -124,6 +118,8 @@ export default function LoginPage() {
   }
 
   function startOver() {
+    // Ends the enrollment session on the server; best effort.
+    void signOut().catch(() => undefined);
     setEnrollment(null);
     setError(null);
     setNotice(null);

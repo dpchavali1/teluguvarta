@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 
 import { Badge, EmptyState, Field, PageHeader, useToast } from "@/components/ui";
-import { apiUrl, clearSession, getRole, getToken } from "@/lib/auth";
+import { apiFetch, apiUrl, clearSession, getRole, isSignedIn } from "@/lib/auth";
 import { isUnclassified, reasonHelp, reasonTone } from "@/lib/reviewReasons";
 import { useUnsavedGuard } from "@/lib/unsaved";
 
@@ -72,10 +72,9 @@ interface StoryDetail {
 }
 
 async function postAction(storyId: string, action: string, body: Record<string, unknown>): Promise<void> {
-  const token = getToken();
-  const response = await fetch(`${apiUrl()}/v1/admin/stories/${storyId}/${action}`, {
+  const response = await apiFetch(`${apiUrl()}/v1/admin/stories/${storyId}/${action}`, {
     method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body)
   });
   if (!response.ok) {
@@ -89,7 +88,7 @@ async function postAction(storyId: string, action: string, body: Record<string, 
 // the queue.
 async function nextQueueStory(currentId: string): Promise<string | null> {
   try {
-    const response = await fetch(`${apiUrl()}/v1/admin/review-queue?limit=2`, { headers: { Authorization: `Bearer ${getToken()}` } });
+    const response = await apiFetch(`${apiUrl()}/v1/admin/review-queue?limit=2`);
     if (!response.ok) return null;
     const page = (await response.json()) as { items: { story_id: string }[] };
     return page.items.find((item) => item.story_id !== currentId)?.story_id ?? null;
@@ -99,10 +98,9 @@ async function nextQueueStory(currentId: string): Promise<string | null> {
 }
 
 async function putDraft(storyId: string, language: "en" | "te", body: Record<string, unknown>): Promise<void> {
-  const token = getToken();
-  const response = await fetch(`${apiUrl()}/v1/admin/stories/${storyId}/variants/${language}`, {
+  const response = await apiFetch(`${apiUrl()}/v1/admin/stories/${storyId}/variants/${language}`, {
     method: "PUT",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body)
   });
   if (!response.ok) {
@@ -112,9 +110,9 @@ async function putDraft(storyId: string, language: "en" | "te", body: Record<str
 }
 
 async function putStoryField(storyId: string, field: string, body: Record<string, unknown>, failure: string): Promise<void> {
-  const response = await fetch(`${apiUrl()}/v1/admin/stories/${storyId}/${field}`, {
+  const response = await apiFetch(`${apiUrl()}/v1/admin/stories/${storyId}/${field}`, {
     method: "PUT",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${getToken()}` },
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body)
   });
   if (!response.ok) {
@@ -262,9 +260,9 @@ function TopicEditor({ storyId, current, reason, onSaved }: { storyId: string; c
     setSaving(true);
     setError(null);
     try {
-      const response = await fetch(`${apiUrl()}/v1/admin/stories/${storyId}/topics`, {
+      const response = await apiFetch(`${apiUrl()}/v1/admin/stories/${storyId}/topics`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${getToken()}` },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ topics: selected, reason: reason || null })
       });
       if (!response.ok) {
@@ -445,14 +443,12 @@ export default function StoryReviewPage() {
   const [pendingCorrect, setPendingCorrect] = useState(false);
 
   const load = useCallback(() => {
-    const token = getToken();
-    if (!token) {
+    const signedIn = isSignedIn();
+    if (!signedIn) {
       router.replace("/login");
       return;
     }
-    fetch(`${apiUrl()}/v1/admin/stories/${storyId}`, {
-      headers: { Authorization: `Bearer ${token}` }
-    })
+    apiFetch(`${apiUrl()}/v1/admin/stories/${storyId}`)
       .then((response) => {
         if (!response.ok) {
           if (response.status === 401) {

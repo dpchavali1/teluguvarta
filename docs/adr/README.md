@@ -77,7 +77,7 @@ accepted. Add ad-hoc ADRs below this table as they're written.
   and model confidence | review 2026-09-29 #10 | **accepted** 2026-09-30 — see [ADR-027](ADR-027-story-geography-and-importance.md)
 - ADR-028 | Admin session storage and revocation (HttpOnly cookie sessions
   vs. hardened bearer token, plus admin CSP) | review 2026-09-29 #15 |
-  **proposed** (owner decision needed) — see
+  **accepted** (option A, 2026-09-30; review R11) — see
   [ADR-028](ADR-028-admin-session-storage.md)
 - ADR-029 | Reader-report inbox: dedicated table/endpoint, lifecycle,
   retention, rate limits and editor-only access | review 2026-09-30 R6 |

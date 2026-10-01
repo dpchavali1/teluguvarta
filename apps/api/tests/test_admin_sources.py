@@ -11,6 +11,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session
 
+from tests.admin_session_helpers import admin_auth
 from tests.conftest import requires_postgres
 
 pytestmark = requires_postgres
@@ -44,18 +45,19 @@ def _token(client, db_session, *, role="ADMIN", email=ADMIN_EMAIL):
     # Mints a full-session token directly rather than via /login: these tests
     # exercise source admin endpoints, not P0-3/ADR-012's MFA-enrollment gate.
     from app.models import User
-    from app.security import create_admin_access_token, hash_password
+    from app.security import hash_password
+    from tests.admin_session_helpers import admin_session_token
 
     user = User(id=uuid.uuid4(), email=email, role=role, password_hash=hash_password(PASSWORD))
     db_session.add(user)
     db_session.commit()
 
-    token, _ = create_admin_access_token(user.id, user.email, role)
+    token = admin_session_token(db_session, user.id)
     return token
 
 
 def _auth(token):
-    return {"Authorization": f"Bearer {token}"}
+    return admin_auth(token)
 
 
 def test_create_source_defaults_to_disabled(client, db_session):

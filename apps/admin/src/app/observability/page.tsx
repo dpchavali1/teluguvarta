@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 
 import { Badge, EmptyState, PageHeader, StatTile, type Tone, useToast } from "@/components/ui";
 import { BUDGET_MODE, type BudgetMode, budgetModeMessage, usd } from "@/lib/aiBudget";
-import { apiUrl, clearSession, getToken } from "@/lib/auth";
+import { apiFetch, apiUrl, clearSession, isSignedIn } from "@/lib/auth";
 import { STALE_QUEUE_SECONDS, ago, duration } from "@/lib/time";
 
 interface SourceIngestionHealth {
@@ -130,13 +130,13 @@ export default function ObservabilityPage() {
   const [refreshFailedAt, setRefreshFailedAt] = useState<Date | null>(null);
 
   const load = useCallback(() => {
-    const token = getToken();
-    if (!token) {
+    const signedIn = isSignedIn();
+    if (!signedIn) {
       router.replace("/login");
       return;
     }
     const get = (path: string) =>
-      fetch(`${apiUrl()}/v1/admin${path}`, { headers: { Authorization: `Bearer ${token}` } }).then((response) => {
+      apiFetch(`${apiUrl()}/v1/admin${path}`).then((response) => {
         if (response.status === 401) {
           clearSession();
           router.replace("/login");
@@ -165,12 +165,11 @@ export default function ObservabilityPage() {
   }, [load]);
 
   async function togglePause(account: XAccount) {
-    const token = getToken();
     setPausingSourceId(account.source_id);
     try {
-      const response = await fetch(`${apiUrl()}/v1/admin/sources/${account.source_id}`, {
+      const response = await apiFetch(`${apiUrl()}/v1/admin/sources/${account.source_id}`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ active: !account.active })
       });
       if (!response.ok) {

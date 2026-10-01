@@ -278,14 +278,37 @@ class AdminLoginRequest(BaseModel):
 
 
 class AdminLoginResponse(BaseModel):
-    access_token: str
-    token_type: Literal["bearer"] = "bearer"
+    # ADR-028: the session itself is the HttpOnly `tte_admin` cookie set on
+    # this response; the body carries nothing a script could reuse.
     expires_in: int
     role: Literal["EDITOR", "ADMIN"]
-    # ADR-012: true when access_token is a restricted mfa_enrollment-scope
-    # token (no mfa_secret set yet) — only /mfa/setup and /mfa/enroll accept
-    # it. The admin UI must route straight to enrollment, not a normal session.
+    # ADR-012: true when the session is a restricted mfa_enrollment one (no
+    # mfa_secret set yet) — only /mfa/setup and /mfa/enroll accept it. The
+    # admin UI must route straight to enrollment, not a normal session.
     mfa_enrollment_required: bool = False
+
+
+class AdminCurrentSessionOut(BaseModel):
+    email: str
+    role: Literal["EDITOR", "ADMIN"]
+    mfa_enrollment_required: bool
+    # The session ends at the earlier of these unless a request comes first
+    # (which moves `idle_expires_at`).
+    expires_at: datetime
+    idle_expires_at: datetime
+
+
+class AdminSessionOut(BaseModel):
+    id: UUID
+    created_at: datetime
+    last_seen_at: datetime
+    expires_at: datetime
+    user_agent: str | None
+    current: bool
+
+
+class AdminSessionListOut(BaseModel):
+    items: list[AdminSessionOut]
 
 
 class MfaSetupResponse(BaseModel):

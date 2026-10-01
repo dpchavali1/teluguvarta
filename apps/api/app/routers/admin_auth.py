@@ -1,29 +1,44 @@
-"""Admin login (docs/tickets/T05.md). Deliberately its own router with no
-`current_admin` dependency — logging in is how you obtain the token that
-dependency checks.
+"""Admin login (docs/tickets/T05.md) and sessions (ADR-028). Login has no
+`current_admin` dependency — logging in is how you obtain the session cookie
+that dependency checks.
 """
 
 from datetime import UTC, datetime
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, Request, Response
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.admin_sessions import (
+    COOKIE_NAME,
+    SCOPE_FULL,
+    SCOPE_MFA_ENROLLMENT,
+    clear_session_cookie,
+    create_session,
+    idle_expires_at,
+    live_sessions_for_user,
+    require_csrf_header,
+    resolve_session,
+    revoke,
+    revoke_all_for_user,
+    set_session_cookie,
+)
 from app.auth import AdminPrincipal, current_admin, current_admin_for_enrollment
 from app.db import get_db
 from app.errors import APIError
 from app.models import User
 from app.schemas import (
+    AdminCurrentSessionOut,
     AdminLoginRequest,
     AdminLoginResponse,
+    AdminSessionListOut,
+    AdminSessionOut,
     MfaDisableRequest,
     MfaEnrollRequest,
     MfaSetupResponse,
     MfaStatusResponse,
 )
 from app.security import (
-    create_admin_access_token,
-    create_admin_enrollment_token,
     decrypt_mfa_secret,
     encrypt_mfa_secret,
     generate_mfa_secret,
@@ -38,7 +53,11 @@ router = APIRouter(prefix="/v1/admin/auth", tags=["admin-auth"])
 
 
 @router.post("/login")
-def login(body: AdminLoginRequest, request: Request, db: Session = Depends(get_db)) -> AdminLoginResponse:
+def login(
+    body: AdminLoginRequest, request: Request, response: Response, db: Session = Depends(get_db)
+) -> AdminLoginResponse:
+    # Login CSRF: a cross-site form can't sign the browser into another account.
+    require_csrf_header(request)
     email = body.email.strip().lower()
     client_ip = request.client.host if request.client else None
 
@@ -65,20 +84,70 @@ def login(body: AdminLoginRequest, request: Request, db: Session = Depends(get_d
     user.last_login_at = datetime.now(UTC)
     db.commit()
 
+    # Signing in again ends the session this browser already had.
+    previous = resolve_session(db, request.cookies.get(COOKIE_NAME))
+    if previous is not None:
+        revoke(db, previous)
+
     # ADR-012: an account with no mfa_secret yet gets a restricted
-    # enrollment-scope token, not a full session — it can only reach
-    # /mfa/setup and /mfa/enroll (see current_admin_for_enrollment).
-    if mfa_enrolled:
-        access_token, expires_in = create_admin_access_token(user.id, user.email, user.role)
-    else:
-        access_token, expires_in = create_admin_enrollment_token(user.id, user.email, user.role)
+    # enrollment session, not a full one — it can only reach /mfa/setup and
+    # /mfa/enroll (see current_admin_for_enrollment).
+    scope = SCOPE_FULL if mfa_enrolled else SCOPE_MFA_ENROLLMENT
+    token, session = create_session(db, user.id, scope, request.headers.get("user-agent"))
+    set_session_cookie(response, token, session)
 
     return AdminLoginResponse(
-        access_token=access_token,
-        expires_in=expires_in,
+        expires_in=int((session.expires_at - session.created_at).total_seconds()),
         role=user.role,
         mfa_enrollment_required=not mfa_enrolled,
     )
+
+
+@router.get("/session")
+def current_session(admin: AdminPrincipal = Depends(current_admin_for_enrollment)) -> AdminCurrentSessionOut:
+    """Who is signed in. The admin app calls this instead of reading a token."""
+    return AdminCurrentSessionOut(
+        email=admin.email,
+        role=admin.role,
+        mfa_enrollment_required=admin.session.scope == SCOPE_MFA_ENROLLMENT,
+        expires_at=admin.session.expires_at,
+        idle_expires_at=idle_expires_at(admin.session),
+    )
+
+
+@router.get("/sessions")
+def list_sessions(admin: AdminPrincipal = Depends(current_admin), db: Session = Depends(get_db)) -> AdminSessionListOut:
+    """This account's live sessions, most recently active first."""
+    return AdminSessionListOut(
+        items=[
+            AdminSessionOut(
+                id=row.id,
+                created_at=row.created_at,
+                last_seen_at=row.last_seen_at,
+                expires_at=row.expires_at,
+                user_agent=row.user_agent,
+                current=row.id == admin.session.id,
+            )
+            for row in live_sessions_for_user(db, admin.session.user_id)
+        ]
+    )
+
+
+@router.post("/logout", status_code=204)
+def logout(
+    response: Response, admin: AdminPrincipal = Depends(current_admin_for_enrollment), db: Session = Depends(get_db)
+) -> None:
+    revoke(db, admin.session)
+    clear_session_cookie(response)
+
+
+@router.post("/logout-everywhere", status_code=204)
+def logout_everywhere(
+    response: Response, admin: AdminPrincipal = Depends(current_admin), db: Session = Depends(get_db)
+) -> None:
+    """Ends every session of this account, this one included."""
+    revoke_all_for_user(db, admin.session.user_id)
+    clear_session_cookie(response)
 
 
 @router.get("/mfa")
@@ -99,6 +168,7 @@ def mfa_setup(admin: AdminPrincipal = Depends(current_admin_for_enrollment)) -> 
 @router.post("/mfa/enroll")
 def mfa_enroll(
     body: MfaEnrollRequest,
+    response: Response,
     admin: AdminPrincipal = Depends(current_admin_for_enrollment),
     db: Session = Depends(get_db),
 ) -> MfaStatusResponse:
@@ -109,6 +179,11 @@ def mfa_enroll(
         raise APIError(404, "NOT_FOUND", "Admin user not found")
     user.mfa_secret = encrypt_mfa_secret(body.secret)
     db.commit()
+    # An enrollment session never becomes a full one: the editor signs in
+    # again with a code, which proves the authenticator works.
+    if admin.session.scope == SCOPE_MFA_ENROLLMENT:
+        revoke(db, admin.session)
+        clear_session_cookie(response)
     return MfaStatusResponse(enabled=True)
 
 

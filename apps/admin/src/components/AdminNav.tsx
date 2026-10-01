@@ -5,8 +5,11 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 import ThemeToggle from "@/components/ThemeToggle";
-import { clearSession, getRole, getToken } from "@/lib/auth";
-import { adminFetch, type ReaderReportList } from "@/lib/reports";
+import { getRole, isSignedIn, setSession, signOut } from "@/lib/auth";
+import { adminFetch, SessionExpired, type ReaderReportList } from "@/lib/reports";
+import type { components } from "@teluguvarta/contracts";
+
+type CurrentSession = components["schemas"]["AdminCurrentSessionOut"];
 
 const LINKS = [
   { href: "/", label: "Home" },
@@ -30,14 +33,29 @@ export default function AdminNav() {
 
   useEffect(() => {
     setRole(getRole());
-    const signedIn = Boolean(getToken());
+    const signedIn = isSignedIn();
     setHasToken(signedIn);
     if (!signedIn || pathname === "/login") return;
+    // ADR-028: the cookie can't be read here, so ask the API who is signed
+    // in; that refreshes the role hint and notices a session that ended.
+    adminFetch<CurrentSession>("/v1/admin/auth/session")
+      .then((session) => {
+        if (session.mfa_enrollment_required) throw new SessionExpired("Enrollment only");
+        setSession(session.role);
+        setRole(session.role);
+      })
+      .catch((err) => {
+        if (err instanceof SessionExpired) {
+          void signOut().catch(() => undefined);
+          setHasToken(false);
+          router.replace("/login");
+        }
+      });
     // ADR-029: open reader reports, refreshed on every navigation.
     adminFetch<ReaderReportList>("/v1/admin/reports?limit=1")
       .then((list) => setOpenReports(list.open_count))
       .catch(() => setOpenReports(null));
-  }, [pathname]);
+  }, [pathname, router]);
 
   if (pathname === "/login" || !hasToken) return null;
 
@@ -60,10 +78,13 @@ export default function AdminNav() {
       <div className="admin-nav__footer">
         {role ? <span className="admin-nav__role">{role}</span> : null}
         <ThemeToggle />
+        <Link href="/sessions" className={pathname === "/sessions" ? "is-active" : ""}>
+          Sessions
+        </Link>
         <button
           type="button"
-          onClick={() => {
-            clearSession();
+          onClick={async () => {
+            await signOut().catch(() => undefined);
             router.push("/login");
           }}
         >

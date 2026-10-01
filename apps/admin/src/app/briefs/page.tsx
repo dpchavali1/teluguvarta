@@ -6,7 +6,7 @@ import type { components } from "@teluguvarta/contracts";
 import { useRouter } from "next/navigation";
 
 import { Badge, EmptyState, PageHeader } from "@/components/ui";
-import { apiUrl, clearSession, getToken } from "@/lib/auth";
+import { apiFetch, apiUrl, clearSession, isSignedIn } from "@/lib/auth";
 import { age } from "@/lib/time";
 
 type AutoBrief = components["schemas"]["AdminAutoBriefOut"];
@@ -23,13 +23,13 @@ export default function AutoBriefsPage() {
 
   useEffect(() => {
     setError(null);
-    const token = getToken();
-    if (!token) {
+    const signedIn = isSignedIn();
+    if (!signedIn) {
       router.replace("/login");
       return;
     }
     const get = (path: string) =>
-      fetch(`${apiUrl()}${path}`, { headers: { Authorization: `Bearer ${token}` } }).then((response) => {
+      apiFetch(`${apiUrl()}${path}`).then((response) => {
         if (!response.ok) {
           if (response.status === 401) {
             clearSession();

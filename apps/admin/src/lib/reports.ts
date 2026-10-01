@@ -1,6 +1,6 @@
 import type { components } from "@teluguvarta/contracts";
 
-import { apiUrl, clearSession, getToken } from "@/lib/auth";
+import { apiFetch, apiUrl, clearSession, isSignedIn } from "@/lib/auth";
 
 // ADR-029: private reader reports.
 export type ReaderReport = components["schemas"]["AdminReaderReportOut"];
@@ -31,11 +31,11 @@ export class SessionExpired extends Error {}
 
 /** Authenticated admin request; clears the session on 401 and surfaces the API's error message. */
 export async function adminFetch<T>(path: string, init: RequestInit = {}, failure = "Request failed"): Promise<T> {
-  const token = getToken();
-  if (!token) throw new SessionExpired("Not signed in");
-  const response = await fetch(`${apiUrl()}${path}`, {
+  const signedIn = isSignedIn();
+  if (!signedIn) throw new SessionExpired("Not signed in");
+  const response = await apiFetch(`${apiUrl()}${path}`, {
     ...init,
-    headers: { Authorization: `Bearer ${token}`, ...(init.body ? { "Content-Type": "application/json" } : {}), ...init.headers },
+    headers: { ...(init.body ? { "Content-Type": "application/json" } : {}), ...init.headers },
   });
   if (response.status === 401) {
     clearSession();

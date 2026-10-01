@@ -17,15 +17,20 @@ require_budget_config()
 app = FastAPI(title="TTE — The Telugu Edit API")
 
 # apps/web and apps/admin call this API directly from the browser (no
-# server-side proxy) using a Bearer token, never cookies — so no origin
-# needs `allow_credentials`. Without this, every client-side fetch (admin
-# login, web analytics events, web onboarding's /v1/config) is silently
-# blocked by the browser's CORS preflight, even though curl/pytest/jsdom
-# checks never exercise real CORS and so never catch it.
+# server-side proxy). Without this, every client-side fetch (admin login, web
+# analytics events, web onboarding's /v1/config) is silently blocked by the
+# browser's CORS preflight, even though curl/pytest/jsdom checks never
+# exercise real CORS and so never catch it. ADR-028: admin sends its
+# HttpOnly session cookie (`credentials: "include"`), so credentials are
+# allowed — only for this explicit allowlist, never a wildcard. The cookie is
+# host-only on the API under /v1/admin, and only apps/admin sends it.
 _cors_origins = [o.strip() for o in os.environ.get("CORS_ALLOWED_ORIGINS", "").split(",") if o.strip()]
+if "*" in _cors_origins:
+    raise RuntimeError("CORS_ALLOWED_ORIGINS must list origins; '*' would expose admin sessions to any site")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=_cors_origins,
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 
-import { apiUrl, getRole, getToken } from "@/lib/auth";
+import { apiFetch, apiUrl, getRole } from "@/lib/auth";
 
 // ADR-025 option 3: translations whose AI retries ran out. The story keeps
 // serving English, so without this list nobody would notice.
@@ -23,7 +23,7 @@ export function TranslationHolds() {
   const [busy, setBusy] = useState<string | null>(null);
 
   const load = useCallback(() => {
-    fetch(`${apiUrl()}/v1/admin/ai-holds`, { headers: { Authorization: `Bearer ${getToken()}` } })
+    apiFetch(`${apiUrl()}/v1/admin/ai-holds`)
       .then((response) => (response.ok ? response.json() : Promise.reject(new Error("Couldn't load AI holds"))))
       .then((all: AiHold[]) => setHolds(all.filter((h) => h.stage === "TRANSLATE")))
       .catch((err: Error) => setError(err.message));
@@ -37,9 +37,9 @@ export function TranslationHolds() {
     setBusy(storyId);
     setError(null);
     try {
-      const response = await fetch(`${apiUrl()}/v1/admin/stories/${storyId}/retry-ai`, {
+      const response = await apiFetch(`${apiUrl()}/v1/admin/stories/${storyId}/retry-ai`, {
         method: "POST",
-        headers: { Authorization: `Bearer ${getToken()}`, "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ stage: "TRANSLATE", reason }),
       });
       if (!response.ok) {

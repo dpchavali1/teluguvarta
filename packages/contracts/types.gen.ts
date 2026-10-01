@@ -122,6 +122,43 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/admin/auth/logout": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Logout */
+        post: operations["logout_v1_admin_auth_logout_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/admin/auth/logout-everywhere": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Logout Everywhere
+         * @description Ends every session of this account, this one included.
+         */
+        post: operations["logout_everywhere_v1_admin_auth_logout_everywhere_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/admin/auth/mfa": {
         parameters: {
             query?: never;
@@ -168,6 +205,46 @@ export interface paths {
         put?: never;
         /** Mfa Setup */
         post: operations["mfa_setup_v1_admin_auth_mfa_setup_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/admin/auth/session": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Current Session
+         * @description Who is signed in. The admin app calls this instead of reading a token.
+         */
+        get: operations["current_session_v1_admin_auth_session_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/admin/auth/sessions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Sessions
+         * @description This account's live sessions, most recently active first.
+         */
+        get: operations["list_sessions_v1_admin_auth_sessions_get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -1120,6 +1197,28 @@ export interface components {
             /** Reason */
             reason?: string | null;
         };
+        /** AdminCurrentSessionOut */
+        AdminCurrentSessionOut: {
+            /** Email */
+            email: string;
+            /**
+             * Expires At
+             * Format: date-time
+             */
+            expires_at: string;
+            /**
+             * Idle Expires At
+             * Format: date-time
+             */
+            idle_expires_at: string;
+            /** Mfa Enrollment Required */
+            mfa_enrollment_required: boolean;
+            /**
+             * Role
+             * @enum {string}
+             */
+            role: "EDITOR" | "ADMIN";
+        };
         /**
          * AdminDraftRequest
          * @description An editor-written story variant for a story still in review — the
@@ -1198,8 +1297,6 @@ export interface components {
         };
         /** AdminLoginResponse */
         AdminLoginResponse: {
-            /** Access Token */
-            access_token: string;
             /** Expires In */
             expires_in: number;
             /**
@@ -1212,12 +1309,6 @@ export interface components {
              * @enum {string}
              */
             role: "EDITOR" | "ADMIN";
-            /**
-             * Token Type
-             * @default bearer
-             * @constant
-             */
-            token_type: "bearer";
         };
         /** AdminReaderReportListOut */
         AdminReaderReportListOut: {
@@ -1327,6 +1418,38 @@ export interface components {
              * @enum {string}
              */
             stage: "GENERATE" | "TRANSLATE";
+        };
+        /** AdminSessionListOut */
+        AdminSessionListOut: {
+            /** Items */
+            items: components["schemas"]["AdminSessionOut"][];
+        };
+        /** AdminSessionOut */
+        AdminSessionOut: {
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Current */
+            current: boolean;
+            /**
+             * Expires At
+             * Format: date-time
+             */
+            expires_at: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Last Seen At
+             * Format: date-time
+             */
+            last_seen_at: string;
+            /** User Agent */
+            user_agent: string | null;
         };
         /** AdminSourceCreate */
         AdminSourceCreate: {
@@ -2743,9 +2866,7 @@ export interface operations {
                 start?: string | null;
                 end?: string | null;
             };
-            header?: {
-                authorization?: string | null;
-            };
+            header?: never;
             path?: never;
             cookie?: never;
         };
@@ -2774,9 +2895,7 @@ export interface operations {
     list_ai_holds_v1_admin_ai_holds_get: {
         parameters: {
             query?: never;
-            header?: {
-                authorization?: string | null;
-            };
+            header?: never;
             path?: never;
             cookie?: never;
         };
@@ -2789,15 +2908,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AdminAiHoldOut"][];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
@@ -2814,9 +2924,7 @@ export interface operations {
                 since?: string | null;
                 until?: string | null;
             };
-            header?: {
-                authorization?: string | null;
-            };
+            header?: never;
             path?: never;
             cookie?: never;
         };
@@ -2875,12 +2983,46 @@ export interface operations {
             };
         };
     };
+    logout_v1_admin_auth_logout_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    logout_everywhere_v1_admin_auth_logout_everywhere_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     mfa_status_v1_admin_auth_mfa_get: {
         parameters: {
             query?: never;
-            header?: {
-                authorization?: string | null;
-            };
+            header?: never;
             path?: never;
             cookie?: never;
         };
@@ -2895,23 +3037,12 @@ export interface operations {
                     "application/json": components["schemas"]["MfaStatusResponse"];
                 };
             };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
         };
     };
     mfa_disable_v1_admin_auth_mfa_delete: {
         parameters: {
             query?: never;
-            header?: {
-                authorization?: string | null;
-            };
+            header?: never;
             path?: never;
             cookie?: never;
         };
@@ -2944,9 +3075,7 @@ export interface operations {
     mfa_enroll_v1_admin_auth_mfa_enroll_post: {
         parameters: {
             query?: never;
-            header?: {
-                authorization?: string | null;
-            };
+            header?: never;
             path?: never;
             cookie?: never;
         };
@@ -2979,9 +3108,7 @@ export interface operations {
     mfa_setup_v1_admin_auth_mfa_setup_post: {
         parameters: {
             query?: never;
-            header?: {
-                authorization?: string | null;
-            };
+            header?: never;
             path?: never;
             cookie?: never;
         };
@@ -2996,13 +3123,44 @@ export interface operations {
                     "application/json": components["schemas"]["MfaSetupResponse"];
                 };
             };
-            /** @description Validation Error */
-            422: {
+        };
+    };
+    current_session_v1_admin_auth_session_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["AdminCurrentSessionOut"];
+                };
+            };
+        };
+    };
+    list_sessions_v1_admin_auth_sessions_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminSessionListOut"];
                 };
             };
         };
@@ -3010,9 +3168,7 @@ export interface operations {
     list_recent_briefs_v1_admin_briefs_recent_get: {
         parameters: {
             query?: never;
-            header?: {
-                authorization?: string | null;
-            };
+            header?: never;
             path?: never;
             cookie?: never;
         };
@@ -3027,15 +3183,6 @@ export interface operations {
                     "application/json": components["schemas"]["AdminAutoBriefOut"][];
                 };
             };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
         };
     };
     get_coverage_v1_admin_coverage_get: {
@@ -3044,9 +3191,7 @@ export interface operations {
                 start?: string | null;
                 end?: string | null;
             };
-            header?: {
-                authorization?: string | null;
-            };
+            header?: never;
             path?: never;
             cookie?: never;
         };
@@ -3075,9 +3220,7 @@ export interface operations {
     list_jobs_v1_admin_jobs_get: {
         parameters: {
             query?: never;
-            header?: {
-                authorization?: string | null;
-            };
+            header?: never;
             path?: never;
             cookie?: never;
         };
@@ -3092,23 +3235,12 @@ export interface operations {
                     "application/json": components["schemas"]["AdminJobOut"][];
                 };
             };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
         };
     };
     get_kill_switches_v1_admin_kill_switches_get: {
         parameters: {
             query?: never;
-            header?: {
-                authorization?: string | null;
-            };
+            header?: never;
             path?: never;
             cookie?: never;
         };
@@ -3123,23 +3255,12 @@ export interface operations {
                     "application/json": components["schemas"]["KillSwitchesOut"];
                 };
             };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
         };
     };
     get_observability_v1_admin_observability_get: {
         parameters: {
             query?: never;
-            header?: {
-                authorization?: string | null;
-            };
+            header?: never;
             path?: never;
             cookie?: never;
         };
@@ -3154,23 +3275,12 @@ export interface operations {
                     "application/json": components["schemas"]["ObservabilityOut"];
                 };
             };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
         };
     };
     get_pipeline_v1_admin_pipeline_get: {
         parameters: {
             query?: never;
-            header?: {
-                authorization?: string | null;
-            };
+            header?: never;
             path?: never;
             cookie?: never;
         };
@@ -3185,15 +3295,6 @@ export interface operations {
                     "application/json": components["schemas"]["PipelineStatusOut"];
                 };
             };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
         };
     };
     list_reader_reports_v1_admin_reports_get: {
@@ -3205,9 +3306,7 @@ export interface operations {
                 limit?: number;
                 offset?: number;
             };
-            header?: {
-                authorization?: string | null;
-            };
+            header?: never;
             path?: never;
             cookie?: never;
         };
@@ -3236,9 +3335,7 @@ export interface operations {
     get_reader_report_v1_admin_reports__report_id__get: {
         parameters: {
             query?: never;
-            header?: {
-                authorization?: string | null;
-            };
+            header?: never;
             path: {
                 report_id: string;
             };
@@ -3269,9 +3366,7 @@ export interface operations {
     resolve_reader_report_v1_admin_reports__report_id__resolve_post: {
         parameters: {
             query?: never;
-            header?: {
-                authorization?: string | null;
-            };
+            header?: never;
             path: {
                 report_id: string;
             };
@@ -3316,9 +3411,7 @@ export interface operations {
                 telugu?: ("MISSING" | "PENDING" | "PASSED" | "FAILED") | null;
                 older_than_hours?: number | null;
             };
-            header?: {
-                authorization?: string | null;
-            };
+            header?: never;
             path?: never;
             cookie?: never;
         };
@@ -3347,9 +3440,7 @@ export interface operations {
     list_sources_v1_admin_sources_get: {
         parameters: {
             query?: never;
-            header?: {
-                authorization?: string | null;
-            };
+            header?: never;
             path?: never;
             cookie?: never;
         };
@@ -3364,23 +3455,12 @@ export interface operations {
                     "application/json": components["schemas"]["AdminSourceOut"][];
                 };
             };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
         };
     };
     create_source_v1_admin_sources_post: {
         parameters: {
             query?: never;
-            header?: {
-                authorization?: string | null;
-            };
+            header?: never;
             path?: never;
             cookie?: never;
         };
@@ -3413,9 +3493,7 @@ export interface operations {
     test_feed_v1_admin_sources_test_feed_post: {
         parameters: {
             query?: never;
-            header?: {
-                authorization?: string | null;
-            };
+            header?: never;
             path?: never;
             cookie?: never;
         };
@@ -3448,9 +3526,7 @@ export interface operations {
     update_source_v1_admin_sources__source_id__patch: {
         parameters: {
             query?: never;
-            header?: {
-                authorization?: string | null;
-            };
+            header?: never;
             path: {
                 source_id: string;
             };
@@ -3485,9 +3561,7 @@ export interface operations {
     create_x_account_v1_admin_sources__source_id__x_account_post: {
         parameters: {
             query?: never;
-            header?: {
-                authorization?: string | null;
-            };
+            header?: never;
             path: {
                 source_id: string;
             };
@@ -3522,9 +3596,7 @@ export interface operations {
     update_x_account_v1_admin_sources__source_id__x_account_patch: {
         parameters: {
             query?: never;
-            header?: {
-                authorization?: string | null;
-            };
+            header?: never;
             path: {
                 source_id: string;
             };
@@ -3569,9 +3641,7 @@ export interface operations {
                 limit?: number;
                 offset?: number;
             };
-            header?: {
-                authorization?: string | null;
-            };
+            header?: never;
             path?: never;
             cookie?: never;
         };
@@ -3600,9 +3670,7 @@ export interface operations {
     get_story_detail_v1_admin_stories__story_id__get: {
         parameters: {
             query?: never;
-            header?: {
-                authorization?: string | null;
-            };
+            header?: never;
             path: {
                 story_id: string;
             };
@@ -3633,9 +3701,7 @@ export interface operations {
     approve_story_v1_admin_stories__story_id__approve_post: {
         parameters: {
             query?: never;
-            header?: {
-                authorization?: string | null;
-            };
+            header?: never;
             path: {
                 story_id: string;
             };
@@ -3670,9 +3736,7 @@ export interface operations {
     approve_breaking_alert_v1_admin_stories__story_id__approve_breaking_alert_post: {
         parameters: {
             query?: never;
-            header?: {
-                authorization?: string | null;
-            };
+            header?: never;
             path: {
                 story_id: string;
             };
@@ -3707,9 +3771,7 @@ export interface operations {
     correct_story_v1_admin_stories__story_id__correct_post: {
         parameters: {
             query?: never;
-            header?: {
-                authorization?: string | null;
-            };
+            header?: never;
             path: {
                 story_id: string;
             };
@@ -3744,9 +3806,7 @@ export interface operations {
     set_story_countries_v1_admin_stories__story_id__countries_put: {
         parameters: {
             query?: never;
-            header?: {
-                authorization?: string | null;
-            };
+            header?: never;
             path: {
                 story_id: string;
             };
@@ -3781,9 +3841,7 @@ export interface operations {
     set_story_importance_v1_admin_stories__story_id__importance_put: {
         parameters: {
             query?: never;
-            header?: {
-                authorization?: string | null;
-            };
+            header?: never;
             path: {
                 story_id: string;
             };
@@ -3818,9 +3876,7 @@ export interface operations {
     reject_story_v1_admin_stories__story_id__reject_post: {
         parameters: {
             query?: never;
-            header?: {
-                authorization?: string | null;
-            };
+            header?: never;
             path: {
                 story_id: string;
             };
@@ -3855,9 +3911,7 @@ export interface operations {
     retract_story_v1_admin_stories__story_id__retract_post: {
         parameters: {
             query?: never;
-            header?: {
-                authorization?: string | null;
-            };
+            header?: never;
             path: {
                 story_id: string;
             };
@@ -3892,9 +3946,7 @@ export interface operations {
     retry_ai_v1_admin_stories__story_id__retry_ai_post: {
         parameters: {
             query?: never;
-            header?: {
-                authorization?: string | null;
-            };
+            header?: never;
             path: {
                 story_id: string;
             };
@@ -3929,9 +3981,7 @@ export interface operations {
     set_story_topics_v1_admin_stories__story_id__topics_put: {
         parameters: {
             query?: never;
-            header?: {
-                authorization?: string | null;
-            };
+            header?: never;
             path: {
                 story_id: string;
             };
@@ -3966,9 +4016,7 @@ export interface operations {
     write_story_draft_v1_admin_stories__story_id__variants__language__put: {
         parameters: {
             query?: never;
-            header?: {
-                authorization?: string | null;
-            };
+            header?: never;
             path: {
                 story_id: string;
                 language: "en" | "te";
@@ -4004,9 +4052,7 @@ export interface operations {
     list_x_accounts_v1_admin_x_accounts_get: {
         parameters: {
             query?: never;
-            header?: {
-                authorization?: string | null;
-            };
+            header?: never;
             path?: never;
             cookie?: never;
         };
@@ -4019,15 +4065,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AdminXAccountOut"][];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

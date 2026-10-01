@@ -112,16 +112,14 @@ def test_search_is_rate_limited_per_client(client, monkeypatch):
 
 
 def test_admin_surface_is_rate_limited_per_client(client, db_session, monkeypatch):
-    from app.security import create_admin_access_token
+    from tests.admin_session_helpers import admin_auth, admin_session_token
 
-    monkeypatch.setenv("ADMIN_JWT_SECRET", "test-secret")
     monkeypatch.setattr(rate_limit, "ADMIN_MAX_REQUESTS", 2)
 
     user = User(id=uuid.uuid4(), email="admin@example.com", role="ADMIN")
     db_session.add(user)
     db_session.commit()
-    token, _ = create_admin_access_token(user.id, user.email, "ADMIN")
-    headers = _auth(token)
+    headers = admin_auth(admin_session_token(db_session, user.id))
 
     for _ in range(2):
         assert client.get("/v1/admin/sources", headers=headers).status_code == 200

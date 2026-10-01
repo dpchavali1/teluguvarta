@@ -59,7 +59,7 @@ class User(Base):
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     # ADR-006 device-scoped anonymous identity (T17): the opaque token the
     # client mints on first launch and sends as `Authorization: Bearer`.
-    # NULL for admin users (identified by JWT, see app/routers/admin_auth.py).
+    # NULL for admin users (identified by an admin session, see app/admin_sessions.py).
     client_token: Mapped[str | None] = mapped_column(Text, nullable=True)
 
 
@@ -549,3 +549,23 @@ class AdminLoginAttempt(Base):
     ip: Mapped[str | None] = mapped_column(Text, nullable=True)
     success: Mapped[bool] = mapped_column(Boolean, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+
+
+class AdminSession(Base):
+    """ADR-028: a server-side admin session. The browser holds only a random
+    id in an HttpOnly cookie; this row stores its SHA-256, so a database read
+    can't be replayed as a cookie. Revoked by logout, sign-out-everywhere, or
+    the first request after the account is deleted or demoted."""
+
+    __tablename__ = "admin_sessions"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    token_hash: Mapped[str] = mapped_column(Text, nullable=False, unique=True)
+    user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    # "full", or "mfa_enrollment" (ADR-012: reaches only /mfa/setup and /mfa/enroll).
+    scope: Mapped[str] = mapped_column(Text, nullable=False)
+    user_agent: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    last_seen_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

@@ -1,6 +1,6 @@
 # ADR-028: Admin session storage and revocation
 
-- **Status**: proposed
+- **Status**: accepted (option A, owner 2026-09-30)
 - **Date**: 2026-09-30
 - **Ticket**: review #15 (`docs/reviews/2026-09-29-comprehensive-review.md`)
 
@@ -21,7 +21,7 @@ The spec is silent on admin session mechanics, and each option below changes the
 admin/API contract and the deployment's cookie domain, so this isn't a call to make
 while implementing.
 
-## Decision (proposed; owner to choose)
+## Decision (owner chose A, 2026-09-30)
 
 **Recommended: A.** HttpOnly session cookie, with sessions stored server-side.
 

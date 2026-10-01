@@ -4,7 +4,7 @@ import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { Badge, EmptyState, Field, PageHeader, useToast } from "@/components/ui";
-import { apiUrl, clearSession, getRole, getToken } from "@/lib/auth";
+import { apiFetch, apiUrl, clearSession, getRole, isSignedIn } from "@/lib/auth";
 import { ago } from "@/lib/time";
 
 interface RightsEvidence {
@@ -70,9 +70,9 @@ const PRESETS: Preset[] = [
 const BLANK_FORM = { name: "", feed_url: "", base_url: "", source_type: "news", country: "", language: "en", refresh_minutes: 30, category: "" };
 
 async function api(path: string, method: string, body?: unknown): Promise<unknown> {
-  const response = await fetch(`${apiUrl()}/v1/admin${path}`, {
+  const response = await apiFetch(`${apiUrl()}/v1/admin${path}`, {
     method,
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${getToken()}` },
+    headers: { "Content-Type": "application/json" },
     body: body === undefined ? undefined : JSON.stringify(body)
   });
   if (!response.ok) {
@@ -426,12 +426,12 @@ export default function SourcesPage() {
   const [adding, setAdding] = useState(false);
 
   function load() {
-    const token = getToken();
-    if (!token) {
+    const signedIn = isSignedIn();
+    if (!signedIn) {
       router.replace("/login");
       return;
     }
-    fetch(`${apiUrl()}/v1/admin/sources`, { headers: { Authorization: `Bearer ${token}` } })
+    apiFetch(`${apiUrl()}/v1/admin/sources`)
       .then((response) => {
         if (response.status === 401) {
           clearSession();

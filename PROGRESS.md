@@ -172,6 +172,30 @@ login and mobile were inspected through code, not authenticated/device journeys.
   stays reachable from Home), persisted offline reading (cache is still memory only; needs an ADR on
   expiry and correction/retraction), and every device check (large text, TalkBack/VoiceOver, poor network,
   push opening, Unicode shared links). Next: R11.
+- **R11 in progress (2026-09-30, committed locally, NOT pushed/deployed): ADR-028 accepted, option A (owner).**
+  Done: `admin_sessions` table (migration `b8e3f1a6d2c9`, stores SHA-256 of the cookie only);
+  `app/admin_sessions.py` (cookie `tte_admin`: HttpOnly, Secure unless `ADMIN_COOKIE_SECURE=false`,
+  SameSite=Strict, host-only, Path=/v1/admin; 30 min idle / 12 h absolute, enrollment 5 min; last_seen
+  written ≤ once/min). `current_admin` reads the cookie (bearer JWTs no longer accepted; JWT helpers
+  removed, `ADMIN_JWT_SECRET` stays for report hashes), 401 before the CSRF check, then
+  `X-TTE-Admin: 1` required on non-GET; login needs it too. Demoted/deleted account → all its sessions
+  revoked on first request. New `GET /auth/session`, `GET /auth/sessions`, `POST /auth/logout`,
+  `POST /auth/logout-everywhere`; re-login revokes the browser's previous session; completed MFA
+  enrollment ends the enrollment session. Login body no longer has `access_token` (**breaking: deploy API +
+  admin together**). CORS `allow_credentials=True`, `*` refused at boot. Daily `cleanup` also deletes
+  sessions ended > 30 d. Admin: `lib/auth.ts` keeps only a role hint (deletes the old `tg_admin_token`);
+  `apiFetch` sends `credentials: "include"` + CSRF header everywhere; nav checks `/auth/session` per
+  navigation; new `/sessions` page (device, signed in, last active, "Sign out everywhere"). Contracts
+  regenerated. Tests: `test_admin_auth.py` rewritten (cookie attrs, hash-only storage, no bearer, CSRF,
+  idle/absolute expiry, keep-alive, logout, logout-everywhere, re-login, purge, enrollment);
+  `tests/admin_session_helpers.py` used by the other admin tests. Full API suite before the 401/CSRF
+  ordering fix: 506 passed + 1 fixed failure + 3 known flaky fixture errors (pass alone). Admin
+  typecheck/lint clean. **Remaining for R11:** (1) nonce CSP for admin via Next middleware
+  (`default-src 'self'`; `connect-src` API origin + Sentry ingest host if `NEXT_PUBLIC_SENTRY_DSN`;
+  `img-src 'self' data:`; `object-src 'none'`; `base-uri 'self'`; `frame-ancestors 'none'`; nonce on
+  THEME_INIT_SCRIPT in `src/app/layout.tsx`; Google fonts are self-hosted by next/font); (2) admin build,
+  full API suite rerun, mypy, ruff; (3) set `ADMIN_COOKIE_SECURE=false` in local API env docs; (4) browser
+  check of login/MFA/sign-out against a local API (cookie across localhost:3001 → :8000); then push.
 
 Update this file at the end of every ticket. This is the source of truth for
 "what's actually done" — trust it over assumptions, git log archaeology, or

@@ -7,7 +7,7 @@ import type { components } from "@teluguvarta/contracts";
 
 import { EmptyState, PageHeader, StatTile, Tone } from "@/components/ui";
 import { BUDGET_MODE, type BudgetMode, budgetModeMessage, usd } from "@/lib/aiBudget";
-import { apiUrl, clearSession, getRole, getToken } from "@/lib/auth";
+import { apiFetch, apiUrl, clearSession, getRole, isSignedIn } from "@/lib/auth";
 import { captureException } from "@/lib/errorTracking";
 import { STALE_QUEUE_SECONDS, age, duration } from "@/lib/time";
 
@@ -44,14 +44,14 @@ export default function Home() {
   const [role, setRole] = useState<string | null>(null);
 
   useEffect(() => {
-    const token = getToken();
-    if (!token) {
+    const signedIn = isSignedIn();
+    if (!signedIn) {
       router.replace("/login");
       return;
     }
     setRole(getRole());
     const get = (path: string) =>
-      fetch(`${apiUrl()}/v1/admin${path}`, { headers: { Authorization: `Bearer ${token}` } }).then((response) => {
+      apiFetch(`${apiUrl()}/v1/admin${path}`).then((response) => {
         if (response.status === 401) {
           clearSession();
           router.replace("/login");

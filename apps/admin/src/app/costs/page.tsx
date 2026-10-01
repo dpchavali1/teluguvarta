@@ -8,7 +8,7 @@ import type { components } from "@teluguvarta/contracts";
 import { RangePicker } from "@/components/RangePicker";
 import { Badge, EmptyState, PageHeader, StatTile } from "@/components/ui";
 import { usd } from "@/lib/aiBudget";
-import { apiUrl, clearSession, getToken } from "@/lib/auth";
+import { apiFetch, apiUrl, clearSession, isSignedIn } from "@/lib/auth";
 import { presets } from "@/lib/dateRange";
 import { humanize } from "@/lib/reviewReasons";
 
@@ -39,13 +39,13 @@ export default function CostsPage() {
   const [loading, setLoading] = useState(false);
 
   const load = useCallback(() => {
-    const token = getToken();
-    if (!token) {
+    const signedIn = isSignedIn();
+    if (!signedIn) {
       router.replace("/login");
       return;
     }
     setLoading(true);
-    fetch(`${apiUrl()}/v1/admin/ai-costs?start=${range.start}&end=${range.end}`, { headers: { Authorization: `Bearer ${token}` } })
+    apiFetch(`${apiUrl()}/v1/admin/ai-costs?start=${range.start}&end=${range.end}`)
       .then(async (response) => {
         if (response.status === 401) {
           clearSession();
