@@ -204,6 +204,10 @@ login and mobile were inspected through code, not authenticated/device journeys.
   noise). Admin + web build, mobile 27 passed. **Not done:** an in-browser login → MFA → `/sessions` →
   sign-out click-through (browser extension not connected; MFA code generation not permitted to the
   agent) — owner should do this locally before deploying. **Deploy API + admin together** (breaking).
+- **Mobile reader options planned (2026-09-30, not started):** `docs/plans/mobile-reader-options.md`. Owner
+  asked for a light/dark choice (app only follows the system today). Order: M1 Appearance → M2 edit
+  profile/interests → M3 settings basics → R10 device checks → M4 text size → M5 hide topics → M6 read history;
+  offline saved, Home/Latest, digest time, TTS and iOS build need a decision/ADR first.
 
 Update this file at the end of every ticket. This is the source of truth for
 "what's actually done" — trust it over assumptions, git log archaeology, or
