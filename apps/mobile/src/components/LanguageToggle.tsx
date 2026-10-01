@@ -29,7 +29,7 @@ export function LanguageToggle() {
       <Pressable
         onPress={() => choose("en")}
         accessibilityRole="radio"
-        accessibilityState={{ selected: language === "en" }}
+        accessibilityState={{ checked: language === "en" }}
         accessibilityLabel="English"
         style={[styles.button, language === "en" && styles.buttonActive]}
       >
@@ -39,7 +39,7 @@ export function LanguageToggle() {
       <Pressable
         onPress={() => choose("te")}
         accessibilityRole="radio"
-        accessibilityState={{ selected: language === "te" }}
+        accessibilityState={{ checked: language === "te" }}
         accessibilityLabel="తెలుగు"
         style={[styles.button, styles.buttonRight, language === "te" && styles.buttonActive]}
       >

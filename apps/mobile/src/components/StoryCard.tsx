@@ -220,7 +220,7 @@ export function StoryCard({
               <Pressable
                 onPress={() => handleLanguageSwitch("en")}
                 accessibilityRole="radio"
-                accessibilityState={{ selected: language === "en" }}
+                accessibilityState={{ checked: language === "en" }}
                 accessibilityLabel="English"
                 style={[styles.langButton, language === "en" && styles.langButtonActive]}
               >
@@ -229,7 +229,7 @@ export function StoryCard({
               <Pressable
                 onPress={() => handleLanguageSwitch("te")}
                 accessibilityRole="radio"
-                accessibilityState={{ selected: language === "te" }}
+                accessibilityState={{ checked: language === "te" }}
                 accessibilityLabel="Telugu"
                 style={[styles.langButton, language === "te" && styles.langButtonActive]}
               >

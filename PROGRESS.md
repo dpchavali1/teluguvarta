@@ -204,6 +204,24 @@ login and mobile were inspected through code, not authenticated/device journeys.
   noise). Admin + web build, mobile 27 passed. **Not done:** an in-browser login → MFA → `/sessions` →
   sign-out click-through (browser extension not connected; MFA code generation not permitted to the
   agent) — owner should do this locally before deploying. **Deploy API + admin together** (breaking).
+- **R10 device checks partly done (2026-09-30, pushed; release APK installed on the owner's Android phone):**
+  Checked over adb on the Android phone (dark), each setting restored afterwards (font scale 1.0, Wi-Fi and
+  data on, app language English). **Unicode shared links:** a percent-encoded `tte://story/<Telugu slug>`
+  opens the right story. **Found and fixed:** a cold-start link built the stack from the path alone, so the
+  story had no back arrow and Back left the app. `linking.config.initialRouteName = "Main"` (config moved to
+  `src/navigation/linking.ts`) puts Home underneath. Side effect: a link opened before onboarding now backs
+  out to Home, not Onboarding; onboarding still shows on the next launch. **Large text (font scale 1.5):**
+  story (English and Telugu), action buttons (wrap to a second row), Home and the tab bar all fit, and
+  Telugu vowel signs aren't clipped. The "Story"/screen headers don't scale (native header). **TalkBack
+  (accessibility tree only, TalkBack not run):** both language toggles (header EN/తె, story English/Telugu)
+  were radios with `selected` but not `checkable`, so TalkBack couldn't say which was checked. They now
+  use `checked`, like Appearance. Tests: `device-checks.test.tsx` (2; the link test fails without the fix).
+  Mobile 45 passed, typecheck clean, bundle-check exports. **Not done** (owner was using the phone): fix
+  verified on the device, poor network (offline banner on a cached story, Home refresh error), opening from
+  a real push (code path: `navigate`, so Home stays underneath), TalkBack by ear, iOS. A real `https://`
+  link still opens the browser, not the app: no Android intentFilters/assetlinks yet (needs the Play
+  signing fingerprint). Noted: "Why this matters:" stays English in Telugu mode, the same as web
+  (`lang="en"`), so left as is. Next: owner runs the remaining checks, then M4.
 - **M3 Settings basics done (2026-09-30, pushed; release APK on the owner's Android phone):** Settings → ABOUT:
   "About The Telugu Edit", "How we use AI", "Privacy policy", "Terms of use" open the web pages
   (`siteUrl()` + `/about`, `/ai-disclosure`, `/privacy`, `/terms`) in the browser (role link, "Opens in your
@@ -235,7 +253,7 @@ login and mobile were inspected through code, not authenticated/device journeys.
   `appearance.test.tsx` (5). Mobile 32 passed, typecheck clean, bundle-check exports. Device: Settings shows
   the section with the phone-setting row checked in dark; tapping Light/Dark on the device not yet checked
   by the agent (owner was using the phone).
-- **Mobile reader options planned (2026-09-30):** `docs/plans/mobile-reader-options.md`. M1–M3 done; next R10 device checks, then M4. Owner
+- **Mobile reader options planned (2026-09-30):** `docs/plans/mobile-reader-options.md`. M1–M3 done; R10 device checks partly done (see entry); next M4. Owner
   asked for a light/dark choice (app only follows the system today). Order: M1 Appearance → M2 edit
   profile/interests → M3 settings basics → R10 device checks → M4 text size → M5 hide topics → M6 read history;
   offline saved, Home/Latest, digest time, TTS and iOS build need a decision/ADR first.
