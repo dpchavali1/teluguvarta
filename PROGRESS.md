@@ -222,7 +222,7 @@ login and mobile were inspected through code, not authenticated/device journeys.
   link still opens the browser, not the app: no Android intentFilters/assetlinks yet (needs the Play
   signing fingerprint). Noted: "Why this matters:" stays English in Telugu mode, the same as web
   (`lang="en"`), so left as is. Next: owner runs the remaining checks, then M4.
-- **M5 Show less done (2026-09-30, not pushed; release APK on the owner's Android phone):** Home and Latest cards
+- **M5 Show less done (2026-09-30, pushed; release APK on the owner's Android phone):** Home and Latest cards
   get a "Show less" button (only where the story has topics) that opens "Hide stories about" with up to three of
   the story's topics plus Cancel; picking one announces it and hides the topic. `HiddenTopicsProvider`
   (`src/lib/HiddenTopicsContext.tsx`, inside `StoryCacheProvider` in `App`) keeps slugs on the device
@@ -237,7 +237,7 @@ login and mobile were inspected through code, not authenticated/device journeys.
   topics listed it, "Show again" brought both back (phone left with nothing hidden). Open question for the
   owner: hiding a topic also hides breaking or human-reviewed stories tagged with it; no exemption was added.
   Next: M6.
-- **M4 Text size done (2026-09-30, not pushed; release APK on the owner's Android phone):** Settings → TEXT SIZE:
+- **M4 Text size done (2026-09-30, pushed; release APK on the owner's Android phone):** Settings → TEXT SIZE:
   Small / Default / Large / Extra large (radio rows, ×0.9/1/1.15/1.3), hint "Story headlines and text. Your
   phone's text size still applies." `TextSizeProvider` (`src/theme/TextSizeContext.tsx`, inside the theme
   provider in `App`) holds the choice (`tg_text_size_v1`, so delete-data clears it; Privacy also resets the live
