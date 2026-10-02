@@ -22,6 +22,7 @@ interface Source {
   name: string;
   base_url: string | null;
   feed_url: string | null;
+  source_type: string | null;
   rights_status: string;
   rights_evidence_url: string | null;
   rights_reviewed_at: string | null;
@@ -40,6 +41,13 @@ interface FeedTest {
   item_count: number;
   headlines: string[];
   error: string | null;
+}
+
+interface XAccount {
+  source_id: string;
+  handle: string;
+  x_user_id: string;
+  polling_cadence: number | null;
 }
 
 // ADR-015 decision 3 allowlist (apps/api/app/ai/privacy.py ALLOWLIST_V1). Only
@@ -120,18 +128,19 @@ function AddSourcePanel({ onCreated, onClose }: { onCreated: () => void; onClose
     event.preventDefault();
     setBusy(true);
     try {
+      const isX = form.source_type === "X_ACCOUNT";
       await api("/sources", "POST", {
         name: form.name.trim(),
-        feed_url: blankToNull(form.feed_url),
+        feed_url: isX ? null : blankToNull(form.feed_url),
         base_url: blankToNull(form.base_url),
         source_type: form.source_type,
         country: blankToNull(form.country),
         language: blankToNull(form.language),
-        refresh_minutes: form.refresh_minutes,
+        refresh_minutes: isX ? null : form.refresh_minutes,
         category: blankToNull(form.category),
         // Same ADR-002 gate as the rights form: the API rejects this unless the
         // caller is an ADMIN and evidence URL + reviewer are present.
-        ...(enableNow
+        ...(enableNow && !isX
           ? {
               rights_status: "LINK_ONLY",
               rights_evidence_url: blankToNull(evidenceUrl),
@@ -148,7 +157,7 @@ function AddSourcePanel({ onCreated, onClose }: { onCreated: () => void; onClose
             }
           : {})
       });
-      toast("ok", enableNow ? `Added ${form.name.trim()} — enabled and active.` : `Added ${form.name.trim()} — review its rights to enable it.`);
+      toast("ok", isX ? `Added ${form.name.trim()} disabled. Link its verified X user ID, then review rights to enable polling.` : enableNow ? `Added ${form.name.trim()} — enabled and active.` : `Added ${form.name.trim()} — review its rights to enable it.`);
       setEnableNow(false);
       setEvidenceUrl("");
       setReviewer("");
@@ -166,7 +175,7 @@ function AddSourcePanel({ onCreated, onClose }: { onCreated: () => void; onClose
   return (
     <form className="panel" onSubmit={submit}>
       <h2>Add a source</h2>
-      <p className="field__hint" style={{ marginBottom: "0.75rem" }}>Start from a preset, then fill in the name and feed URL. New sources start DISABLED and inactive.</p>
+      <p className="field__hint" style={{ marginBottom: "0.75rem" }}>Start from a preset or choose X account. X sources start disabled until their account and rights are reviewed.</p>
       <div className="preset-row" role="group" aria-label="Presets">
         {PRESETS.map((p) => (
           <button key={p.label} type="button" className={preset === p.label ? "is-selected" : "button-secondary"} onClick={() => applyPreset(p)}>
@@ -178,9 +187,9 @@ function AddSourcePanel({ onCreated, onClose }: { onCreated: () => void; onClose
         <Field label="Name" htmlFor="new-name">
           <input id="new-name" required value={form.name} onChange={set("name")} />
         </Field>
-        <Field label="Feed URL (RSS/Atom)" htmlFor="new-feed">
+        {form.source_type !== "X_ACCOUNT" ? <Field label="Feed URL (RSS/Atom)" htmlFor="new-feed">
           <input id="new-feed" type="url" required value={form.feed_url} onChange={(e) => { setTest(null); set("feed_url")(e); }} placeholder="https://…/feed.xml" />
-        </Field>
+        </Field> : null}
         <Field label="Site URL" htmlFor="new-base">
           <input id="new-base" type="url" value={form.base_url} onChange={set("base_url")} />
         </Field>
@@ -189,6 +198,7 @@ function AddSourcePanel({ onCreated, onClose }: { onCreated: () => void; onClose
             <option value="news">news</option>
             <option value="government">government</option>
             <option value="blog">blog</option>
+            <option value="X_ACCOUNT">X account</option>
           </select>
         </Field>
         <Field label="Country" htmlFor="new-country" hint="e.g. US, IN">
@@ -197,14 +207,14 @@ function AddSourcePanel({ onCreated, onClose }: { onCreated: () => void; onClose
         <Field label="Language" htmlFor="new-lang" hint="e.g. en, te">
           <input id="new-lang" value={form.language} onChange={set("language")} />
         </Field>
-        <Field label="Refresh every (minutes)" htmlFor="new-refresh">
+        {form.source_type !== "X_ACCOUNT" ? <Field label="Refresh every (minutes)" htmlFor="new-refresh">
           <input id="new-refresh" type="number" min={5} value={form.refresh_minutes} onChange={set("refresh_minutes")} />
-        </Field>
+        </Field> : null}
         <Field label="Category" htmlFor="new-cat" hint={`Free AI tier: ${FREE_TIER_CATEGORIES.join(", ")}. Anything else routes to paid AI.`}>
           <input id="new-cat" list="source-categories" value={form.category} onChange={set("category")} />
         </Field>
       </div>
-      <fieldset className="enable-now">
+      {form.source_type !== "X_ACCOUNT" ? <fieldset className="enable-now">
         <legend>Rights</legend>
         <label htmlFor="enable-now">
           <input id="enable-now" type="checkbox" checked={enableNow} disabled={!isAdmin} onChange={(e) => setEnableNow(e.target.checked)} />
@@ -223,7 +233,7 @@ function AddSourcePanel({ onCreated, onClose }: { onCreated: () => void; onClose
         ) : (
           <p className="field__hint">Leave unchecked to add it disabled and review rights later.</p>
         )}
-      </fieldset>
+      </fieldset> : <p className="field__hint">After adding the source, link its stable X user ID below. Only then review rights and activate polling.</p>}
       {test ? (
         test.ok ? (
           <div className="test-result" role="status">
@@ -239,9 +249,9 @@ function AddSourcePanel({ onCreated, onClose }: { onCreated: () => void; onClose
         )
       ) : null}
       <div className="card__foot">
-        <button type="button" className="button-secondary" disabled={testing || form.feed_url.trim() === ""} onClick={testFeed}>
+        {form.source_type !== "X_ACCOUNT" ? <button type="button" className="button-secondary" disabled={testing || form.feed_url.trim() === ""} onClick={testFeed}>
           {testing ? "Testing…" : "Test feed"}
-        </button>
+        </button> : null}
         <button type="submit" disabled={busy}>
           {busy ? "Adding…" : enableNow ? "Add and activate" : "Add source"}
         </button>
@@ -353,7 +363,54 @@ function RightsForm({ source, onSaved }: { source: Source; onSaved: () => void }
   );
 }
 
-function SourceCard({ source, onChanged }: { source: Source; onChanged: () => void }) {
+function XAccountForm({ source, onChanged }: { source: Source; onChanged: () => void }) {
+  const toast = useToast();
+  const [busy, setBusy] = useState(false);
+
+  async function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const data = new FormData(event.currentTarget);
+    setBusy(true);
+    try {
+      await api(`/sources/${source.id}/x-account`, "POST", {
+        x_user_id: String(data.get("x_user_id") ?? "").trim(),
+        handle: String(data.get("handle") ?? "").trim().replace(/^@/, ""),
+        polling_cadence: Number(data.get("polling_cadence")),
+        budget_class: String(data.get("budget_class"))
+      });
+      toast("ok", `Linked X account to ${source.name}. Review rights before activating.`);
+      onChanged();
+    } catch (err) {
+      toast("danger", err instanceof Error ? err.message : "Failed to link X account");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return <form onSubmit={submit} style={{ marginTop: "1rem" }}>
+    <p className="field__hint">Verify official ownership and the stable numeric user ID before linking. The handle alone is not enough. No X API key belongs in this form.</p>
+    <div className="field-grid">
+      <Field label="X handle" htmlFor={`x-handle-${source.id}`}>
+        <input id={`x-handle-${source.id}`} name="handle" required pattern="@?[A-Za-z0-9_]{1,15}" placeholder="@USCIS" />
+      </Field>
+      <Field label="Stable X user ID" htmlFor={`x-id-${source.id}`}>
+        <input id={`x-id-${source.id}`} name="x_user_id" required pattern="[0-9]+" inputMode="numeric" />
+      </Field>
+      <Field label="Poll every (minutes)" htmlFor={`x-cadence-${source.id}`}>
+        <input id={`x-cadence-${source.id}`} name="polling_cadence" type="number" min="5" defaultValue="30" required />
+      </Field>
+      <Field label="Budget priority" htmlFor={`x-budget-${source.id}`}>
+        <select id={`x-budget-${source.id}`} name="budget_class" defaultValue="LOW">
+          <option value="LOW">Low — pause when monthly budget is reached</option>
+          <option value="STANDARD">Standard — continue past monthly budget</option>
+        </select>
+      </Field>
+    </div>
+    <div className="card__foot"><button type="submit" disabled={busy}>{busy ? "Linking…" : "Link X account"}</button></div>
+  </form>;
+}
+
+function SourceCard({ source, xAccount, xAccountsLoaded, onChanged }: { source: Source; xAccount?: XAccount; xAccountsLoaded: boolean; onChanged: () => void }) {
   const toast = useToast();
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState<string | null>(null);
@@ -362,6 +419,7 @@ function SourceCard({ source, onChanged }: { source: Source; onChanged: () => vo
   const current = (draft ?? source.category ?? "").trim();
   const dirty = draft !== null && current !== (source.category ?? "");
   const enabled = source.rights_status !== "DISABLED";
+  const isX = source.source_type === "X_ACCOUNT";
   const freeTier = FREE_TIER_CATEGORIES.includes(current.toLowerCase());
 
   async function saveCategory() {
@@ -385,11 +443,12 @@ function SourceCard({ source, onChanged }: { source: Source; onChanged: () => vo
         <span className="pill-row">
           <Badge tone={enabled ? "ok" : "warn"}>{source.rights_status}</Badge>
           <Badge tone={source.active ? "ok" : "neutral"}>{source.active ? "active" : "inactive"}</Badge>
+          {isX ? <Badge tone="neutral">X account</Badge> : null}
           {source.fail_count > 0 ? <Badge tone="danger">failing</Badge> : null}
           <Badge tone={freeTier ? "ok" : "neutral"}>{freeTier ? "free AI tier" : "paid AI only"}</Badge>
         </span>
       </div>
-      <p className="card__meta">{source.feed_url ?? source.base_url ?? "No feed URL"}</p>
+      <p className="card__meta">{isX ? xAccount ? `@${xAccount.handle} · ID ${xAccount.x_user_id} · every ${xAccount.polling_cadence ?? "—"} min` : xAccountsLoaded ? "X account not linked" : "Loading X account…" : source.feed_url ?? source.base_url ?? "No feed URL"}</p>
       {enabled ? (
         <p className="card__meta" title={source.last_success_at ? new Date(source.last_success_at).toLocaleString() : undefined}>
           {source.last_success_at ? `Last fetched ${ago(source.last_success_at)}` : "Never fetched"}
@@ -414,6 +473,7 @@ function SourceCard({ source, onChanged }: { source: Source; onChanged: () => vo
           {open ? "Close" : enabled ? "Edit rights" : "Review rights"}
         </button>
       </div>
+      {isX && xAccountsLoaded && !xAccount ? <XAccountForm source={source} onChanged={onChanged} /> : null}
       {open ? <RightsForm source={source} onSaved={onChanged} /> : null}
     </article>
   );
@@ -423,6 +483,7 @@ export default function SourcesPage() {
   const router = useRouter();
   const toast = useToast();
   const [sources, setSources] = useState<Source[] | null>(null);
+  const [xAccounts, setXAccounts] = useState<XAccount[] | null>(null);
   const [adding, setAdding] = useState(false);
 
   function load() {
@@ -441,6 +502,9 @@ export default function SourcesPage() {
       })
       .then((body: Source[]) => setSources(body))
       .catch((err) => toast("danger", err instanceof Error ? err.message : "Failed to load sources"));
+    api("/x-accounts", "GET")
+      .then((body) => setXAccounts(body as XAccount[]))
+      .catch((err) => toast("danger", err instanceof Error ? err.message : "Failed to load X accounts"));
   }
 
   useEffect(load, [router]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -473,7 +537,7 @@ export default function SourcesPage() {
       ) : (
         <div className="card-list">
           {sources.map((source) => (
-            <SourceCard key={source.id} source={source} onChanged={load} />
+            <SourceCard key={source.id} source={source} xAccount={xAccounts?.find((account) => account.source_id === source.id)} xAccountsLoaded={xAccounts !== null} onChanged={load} />
           ))}
         </div>
       )}

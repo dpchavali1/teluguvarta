@@ -7,6 +7,15 @@ through T14-search. See the [improvement plan](docs/reviews/2026-10-01-improveme
 for the ordered follow-ups and the [ADR registry](docs/adr/README.md) for decisions.
 Local implementation is distinct from deployment and device acceptance.
 
+**X activation follow-up (2026-10-01):** The admin Sources page can now add a
+disabled `X_ACCOUNT` source and link a verified numeric X user ID, handle,
+cadence and budget class. Its existing rights form remains the activation
+gate. The regular RSS scheduler explicitly excludes X sources, including ones
+given a feed cadence in error. See the [activation handoff](docs/reviews/2026-10-01-x-activation.md)
+for official-account candidates and the live setup sequence. No production
+account, X credential, or poll has been enabled; ADR-037 placement and
+ADR-036 deployment topology remain open.
+
 ## Build status
 
 | Ticket | Current status |
@@ -22,10 +31,10 @@ locally; UI12–UI14 still have device, language and production acceptance gates
 T19-maintenance and UI15 are implemented locally as described below. No entry
 on this page implies a production deployment or app-store release.
 
-**Current T19/X5 follow-up (2026-10-01, uncommitted):** The requested release
+**T19/X5 follow-up (2026-10-01, merged to main at `e1afb85`):** The requested release
 proof is in progress. [Preflight evidence](docs/reviews/2026-10-01-release-preflight.md)
 shows CI for `fa780eb` failed on an RSS type-only import and an unpatched
-high-severity node-forge advisory in Expo CLI. The RSS import is fixed locally;
+high-severity node-forge advisory in Expo CLI. The RSS import is fixed on main;
 bandit, mypy, ruff, 17 focused X/RSS tests, the full API suite (564 passed),
 and ten simulated restore/alert tests pass. CI remains blocked by node-forge.
 No production deploy/restore/alert/

@@ -62,6 +62,7 @@ def schedule_due_source_fetches(db: Session) -> int:
     sources = db.query(Source).filter(
         Source.active.is_(True),
         Source.rights_status != "DISABLED",
+        Source.source_type.is_distinct_from("X_ACCOUNT"),
         Source.refresh_minutes.isnot(None),
     ).all()
 

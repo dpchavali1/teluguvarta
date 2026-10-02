@@ -81,6 +81,48 @@ def test_create_x_account_links_to_source(client, db_session):
     assert body["active"] is False
 
 
+def test_cannot_link_x_account_to_rss_source(client, db_session):
+    token = _token(client, db_session)
+    source = client.post(
+        "/v1/admin/sources",
+        json={"name": "RSS", "source_type": "news", "feed_url": "https://example.com/feed.xml"},
+        headers=_auth(token),
+    ).json()
+
+    response = client.post(
+        f"/v1/admin/sources/{source['id']}/x-account",
+        json={"x_user_id": "123456789", "handle": "@example"},
+        headers=_auth(token),
+    )
+    assert response.status_code == 422
+    assert response.json()["error"]["code"] == "SOURCE_NOT_X_ACCOUNT"
+
+
+def test_x_account_must_be_linked_before_rights_review(client, db_session):
+    token = _token(client, db_session)
+    source_id = _make_source(client, token)
+    reviewed = client.patch(
+        f"/v1/admin/sources/{source_id}",
+        json={
+            "rights_status": "LINK_ONLY",
+            "rights_evidence_url": "https://example.com/evidence",
+            "rights_reviewed_at": "2026-01-01T00:00:00Z",
+            "reviewer": "reviewer@example.com",
+            "active": True,
+        },
+        headers=_auth(token),
+    )
+    assert reviewed.status_code == 200
+
+    response = client.post(
+        f"/v1/admin/sources/{source_id}/x-account",
+        json={"x_user_id": "123456789", "handle": "@example"},
+        headers=_auth(token),
+    )
+    assert response.status_code == 409
+    assert response.json()["error"]["code"] == "X_ACCOUNT_REVIEW_REQUIRED"
+
+
 def test_x_account_cannot_be_active_without_source_rights_evidence(client, db_session):
     """Enabling the X account goes through T06's existing rights gate on the
     linked Source — there is no separate X-account approval endpoint."""

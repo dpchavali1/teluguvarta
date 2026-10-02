@@ -134,7 +134,10 @@ def test_schedule_skips_disabled_and_circuit_broken_sources(migrated_database):
         circuit_broken = _make_source(
             name="Circuit broken", fail_count=source_fetch.CIRCUIT_BREAKER_THRESHOLD
         )
-        db.add_all([good, disabled, circuit_broken])
+        # An X source belongs only to the X scheduler even if an admin has
+        # accidentally given it a regular feed cadence.
+        x_source = _make_source(name="X account", source_type="X_ACCOUNT")
+        db.add_all([good, disabled, circuit_broken, x_source])
         db.commit()
 
         enqueued = source_fetch.schedule_due_source_fetches(db)

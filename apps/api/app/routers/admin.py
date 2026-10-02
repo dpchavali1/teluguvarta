@@ -381,6 +381,17 @@ def create_x_account(
     source = db.get(Source, source_id)
     if source is None:
         raise APIError(404, "SOURCE_NOT_FOUND", f"No source with id '{source_id}'")
+    if source.source_type != "X_ACCOUNT":
+        raise APIError(422, "SOURCE_NOT_X_ACCOUNT", "Only an X_ACCOUNT source can link an X account")
+    if (
+        source.rights_status != "DISABLED"
+        or source.active
+        or source.rights_reviewed_at
+        or source.rights_evidence_url
+        or source.reviewer
+        or source.rights_evidence
+    ):
+        raise APIError(409, "X_ACCOUNT_REVIEW_REQUIRED", "Link the account to a new, unreviewed disabled X source, then review its rights")
     if db.scalar(select(XAccount).where(XAccount.source_id == source_id)) is not None:
         raise APIError(409, "X_ACCOUNT_ALREADY_LINKED", f"Source '{source_id}' already has an X account linked")
     if db.scalar(select(XAccount).where(XAccount.x_user_id == body.x_user_id)) is not None:
