@@ -12,7 +12,13 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { trackEvent } from "./src/lib/api";
 import { initializeMobileAnalytics } from "./src/lib/mobileAnalytics";
-import { listenForPushTokenRefresh, registerForPushNotificationsAsync, resolveNotificationDeepLink } from "./src/lib/push";
+import {
+  listenForNotificationOpens,
+  listenForPushTokenRefresh,
+  registerForPushNotificationsAsync,
+  resolveNotificationDeepLink,
+  type DeepLinkRoute,
+} from "./src/lib/push";
 import { HiddenTopicsProvider } from "./src/lib/HiddenTopicsContext";
 import { StoryCacheProvider } from "./src/lib/StoryCacheContext";
 import { linking } from "./src/navigation/linking";
@@ -50,6 +56,19 @@ export default function App() {
 
 function AppContent() {
   const registeredForPush = useRef(false);
+  // A cold-start tap resolves before NavigationContainer is ready; hold the
+  // route here and apply it from onReady.
+  const pendingRoute = useRef<DeepLinkRoute | null>(null);
+  const flushPendingRoute = () => {
+    const route = pendingRoute.current;
+    if (!route || !navigationRef.isReady()) return;
+    pendingRoute.current = null;
+    if (route.screen === "StoryDetail") {
+      navigationRef.navigate("StoryDetail", { slug: route.slug });
+    } else {
+      navigationRef.navigate("Main", { screen: "Home" });
+    }
+  };
   // ADR-014: this was a static, light-only Theme, so every native-stack
   // header/background (Topic, StoryDetail, Settings' pushed screens, etc.)
   // ignored system dark mode — the same functional bug as MainTabs' tab
@@ -88,24 +107,15 @@ function AppContent() {
     // back to Home if there's no story (DAILY_BRIEFING) or it's since
     // become unavailable (apps/api/app/jobs/notify.py resolves the slug at
     // send time, so a retracted/deleted story already arrives as `null`).
-    const responseSub = Notifications.addNotificationResponseReceivedListener((response) => {
-      const data = response.notification.request.content.data as Record<string, unknown>;
+    const stopOpens = listenForNotificationOpens((data) => {
       trackEvent("notification_open", { data });
-      const route = resolveNotificationDeepLink({
-        type: data.type as "DAILY_BRIEFING" | "TOPIC_ALERT" | "BREAKING_ALERT" | undefined,
-        story_slug: data.story_slug as string | null | undefined,
-      });
-      if (!navigationRef.isReady()) return;
-      if (route.screen === "StoryDetail") {
-        navigationRef.navigate("StoryDetail", { slug: route.slug });
-      } else {
-        navigationRef.navigate("Main", { screen: "Home" });
-      }
+      pendingRoute.current = resolveNotificationDeepLink(data);
+      flushPendingRoute();
     });
 
     return () => {
       receivedSub.remove();
-      responseSub.remove();
+      stopOpens();
       unsubscribeTokenRefresh();
     };
   }, []);
@@ -114,7 +124,7 @@ function AppContent() {
     <SafeAreaProvider>
       <StoryCacheProvider>
         <HiddenTopicsProvider>
-          <NavigationContainer ref={navigationRef} theme={navigationTheme} linking={linking}>
+          <NavigationContainer ref={navigationRef} theme={navigationTheme} linking={linking} onReady={flushPendingRoute}>
             <RootNavigator />
             {/* "auto" follows the system, which is wrong once the reader picks a scheme. */}
             <StatusBar style={scheme === "dark" ? "light" : "dark"} />

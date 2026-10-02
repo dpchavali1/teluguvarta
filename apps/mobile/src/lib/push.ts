@@ -1,8 +1,10 @@
 import * as Device from "expo-device";
 import * as Notifications from "expo-notifications";
 import {
+  getInitialNotification,
   getMessaging,
   getToken,
+  onNotificationOpenedApp,
   onTokenRefresh,
   registerDeviceForRemoteMessages,
   setAutoInitEnabled,
@@ -43,6 +45,29 @@ export function listenForPushTokenRefresh(): () => void {
       const platform = Platform.OS === "ios" ? "ios" : "android";
       registerPushToken(token, platform).catch(() => undefined);
     });
+  } catch {
+    return () => undefined;
+  }
+}
+
+// Taps on FCM notifications reach JS through Firebase, not expo-notifications:
+// onNotificationOpenedApp covers background, getInitialNotification a cold start.
+export function listenForNotificationOpens(onOpen: (data: NotificationDeepLinkData) => void): () => void {
+  try {
+    const messaging = getMessaging();
+    let active = true;
+    getInitialNotification(messaging)
+      .then((message) => {
+        if (active && message) onOpen((message.data ?? {}) as NotificationDeepLinkData);
+      })
+      .catch(() => undefined);
+    const unsubscribe = onNotificationOpenedApp(messaging, (message) =>
+      onOpen((message.data ?? {}) as NotificationDeepLinkData)
+    );
+    return () => {
+      active = false;
+      unsubscribe();
+    };
   } catch {
     return () => undefined;
   }

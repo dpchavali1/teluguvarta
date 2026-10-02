@@ -1,7 +1,7 @@
 import * as Notifications from "expo-notifications";
-import { getToken, setAutoInitEnabled } from "@react-native-firebase/messaging";
+import { getInitialNotification, getToken, onNotificationOpenedApp, setAutoInitEnabled } from "@react-native-firebase/messaging";
 import { registerPushToken } from "../lib/api";
-import { registerForPushNotificationsAsync, resolveNotificationDeepLink } from "../lib/push";
+import { listenForNotificationOpens, registerForPushNotificationsAsync, resolveNotificationDeepLink } from "../lib/push";
 
 jest.mock("expo-device", () => ({ isDevice: true }));
 jest.mock("expo-notifications", () => ({
@@ -44,4 +44,24 @@ test("falls back to Home for a daily briefing (no story)", () => {
 
 test("falls back to Home when the story is unavailable/retracted", () => {
   expect(resolveNotificationDeepLink({ type: "BREAKING_ALERT", story_slug: undefined })).toEqual({ screen: "Home" });
+});
+
+describe("listenForNotificationOpens", () => {
+  it("delivers a cold-start tap and background taps, and unsubscribes", async () => {
+    const unsubscribe = jest.fn();
+    let backgroundHandler: (m: { data?: Record<string, string> }) => void = () => undefined;
+    jest.mocked(getInitialNotification).mockResolvedValueOnce({ data: { story_slug: "cold" } } as never);
+    jest.mocked(onNotificationOpenedApp).mockImplementationOnce(((_m: unknown, handler: typeof backgroundHandler) => {
+      backgroundHandler = handler;
+      return unsubscribe;
+    }) as never);
+    const onOpen = jest.fn();
+    const stop = listenForNotificationOpens(onOpen);
+    await new Promise((resolve) => setImmediate(resolve));
+    expect(onOpen).toHaveBeenCalledWith({ story_slug: "cold" });
+    backgroundHandler({ data: { story_slug: "warm" } });
+    expect(onOpen).toHaveBeenCalledWith({ story_slug: "warm" });
+    stop();
+    expect(unsubscribe).toHaveBeenCalled();
+  });
 });
