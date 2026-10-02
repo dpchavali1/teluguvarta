@@ -1,6 +1,6 @@
 # Progress tracker
 
-**UI13 language stability follow-up (2026-10-01, local only):** available bilingual
+**UI13 language stability follow-up (2026-10-01, `ebec12c` pushed, web not yet deployed):** available bilingual
 story copy is rendered in SSR HTML, with the existing localStorage preference
 applied in the head before paint. One visible/accessible headline and one set of
 actions remain; English canonical metadata and missing-Telugu fallback are
@@ -24,9 +24,9 @@ Resource JS sums include prefetch/cache timing and do not prove a bundle decreas
 Reports/screenshots: `/tmp/tte-ui13-matrix/`, `/tmp/tte-ui13-performance/`,
 `/tmp/tte-ui13-slow/`. These are synthetic Chromium results, not production Core
 Web Vitals or native-device acceptance. Plan/README/ticket contain reproduction
-and remaining gates. Changes remain uncommitted and undeployed.
+and remaining gates. Pushed in `ebec12c`; web not yet deployed.
 
-**Interface program UI01–UI14 (2026-10-01, local changes, not deployed):**
+**Interface program UI01–UI14 (2026-10-01, `ebec12c` pushed; release APK on the owner's Android phone 2026-10-01; web not yet deployed):**
 UI01–UI11 implementation is complete locally: compact web/app Home, topic-scroll
 controls, complete grid summaries, clearer source/detail actions, honest search
 caps and recovery, resilient Saved storage, native card icons/wrapping, cached
@@ -107,7 +107,7 @@ Also proposes clearer today/month/hard-cap AI spend, editorial/pipeline drilldow
 private reader-report handling and web/mobile visual improvements. Review only;
 no implementation ticket completed or production behavior changed. Admin beyond
 login and mobile were inspected through code, not authenticated/device journeys.
-- **ADR-032 every stale hold expires (2026-10-01, committed, not yet deployed):** after ADR-031 the live queue
+- **ADR-032 every stale hold expires (2026-10-01, `286fc4e` deployed 2026-10-01 per owner):** after ADR-031 the live queue
   was still growing: 380 pending, 0 `AUTO_PUBLISH_DISABLED`, ~8 new holds/hour, all editorial reasons ADR-031
   left alone (138 `SUMMARY_TOO_SHORT`, 87 sensitive, 77 low-confidence, 50 `NO_PAID_PROVIDER`, …). Owner chose
   "expire all after 24h". `publish.expire_stale_holds` runs first in every publish sweep, regardless of env flag
