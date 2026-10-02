@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from email.utils import parsedate_to_datetime
-from typing import TYPE_CHECKING
+from typing import Any, Protocol, cast
 
 import httpx
 
@@ -20,8 +20,13 @@ import httpx
 # is a drop-in replacement with the same API, hardened against those.
 from defusedxml import ElementTree as ET
 
-if TYPE_CHECKING:
-    from xml.etree.ElementTree import Element
+
+class _FeedElement(Protocol):
+    """Only the parsed-node operations needed by the RSS and Atom readers."""
+
+    def find(self, path: str) -> _FeedElement | None: ...
+    def findtext(self, path: str) -> str | None: ...
+    def get(self, key: str) -> str | None: ...
 
 from .base import RawItem, RawItems, SourceAdapter
 from .safe_fetch import fetch_public
@@ -41,7 +46,7 @@ class RssFeedAdapter(SourceAdapter):
         return RawItems(items=items)
 
 
-def _from_rss_item(entry: Element) -> RawItem:
+def _from_rss_item(entry: _FeedElement) -> RawItem:
     link = (entry.findtext("link") or "").strip()
     guid = (entry.findtext("guid") or link).strip()
     return RawItem(
@@ -49,12 +54,12 @@ def _from_rss_item(entry: Element) -> RawItem:
         url=link,
         title=_clean_title(entry.findtext("title")),
         published_at=_parse_rfc822(entry.findtext("pubDate")),
-        raw_bytes=ET.tostring(entry, encoding="utf-8"),
+        raw_bytes=ET.tostring(cast(Any, entry), encoding="utf-8"),
         description=entry.findtext("description"),
     )
 
 
-def _from_atom_entry(entry: Element) -> RawItem:
+def _from_atom_entry(entry: _FeedElement) -> RawItem:
     link_el = entry.find(f"{ATOM_NS}link")
     link = (link_el.get("href") or "").strip() if link_el is not None else ""
     guid = (entry.findtext(f"{ATOM_NS}id") or link).strip()
@@ -64,7 +69,7 @@ def _from_atom_entry(entry: Element) -> RawItem:
         url=link,
         title=_clean_title(entry.findtext(f"{ATOM_NS}title")),
         published_at=_parse_iso8601(published),
-        raw_bytes=ET.tostring(entry, encoding="utf-8"),
+        raw_bytes=ET.tostring(cast(Any, entry), encoding="utf-8"),
         description=entry.findtext(f"{ATOM_NS}summary") or entry.findtext(f"{ATOM_NS}content"),
     )
 

@@ -189,6 +189,9 @@ def test_published_x_story_shows_canonical_attribution_to_account_and_post(migra
         out = story_to_out(db, story)
         assert len(out.sources) == 1
         assert out.sources[0].url == "https://x.com/official_agency/status/902"
+        assert out.sources[0].title == "Official Account"
+        assert out.sources[0].is_x_post is True
+        assert "revised form instructions" not in out.sources[0].title
 
 
 @requires_postgres

@@ -425,3 +425,19 @@ and web/admin lint/typecheck/build pass. Synthetic Chromium search checks pass
 WCAG axe with no serious/critical findings. Phone/desktop Telugu light/dark
 screenshots were inspected under `/tmp/tte-ui15-browser/`. Native device
 appearance, screen readers and release behavior still require device evidence.
+
+### T19 release proof and X5 official updates — follow-up 2026-10-01
+
+The [release preflight](2026-10-01-release-preflight.md) records current
+GitHub CI blockers, local recovery checks and the production evidence still
+needed. ADR-036 is proposed because accepted ADR-007 names a managed
+Vercel/Render/Supabase stack while the later production scripts target one
+VPS; no target has been confirmed and no production action was run.
+
+The owner also requested official X visa updates in the app. X1–X4 already
+provide official-API ingestion and the normal rights/editorial pipeline. X5
+and proposed ADR-037 scope reader presentation; account approval and placement
+are pending. A safety follow-up removes raw X post text from public source
+titles, keeps the canonical post URL, and labels X-origin links in native
+story cards. Published visa stories still require human review. Local
+X/RSS and native regressions pass; no live X account or post was enabled.

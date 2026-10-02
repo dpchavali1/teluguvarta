@@ -35,6 +35,7 @@ step named in "insert after"):
 | X2 | T07 | Incremental X fetch via `GET /2/users/{id}/tweets`, since_id, backoff |
 | X3 | X2, T09 | X post → SourceItem → normal pipeline, dedupe by X post ID |
 | X4 | X3, T18 | X account health/budget monitoring + guard in admin |
+| X5 | X4, T14/T15, ADR-037 | Owner-requested official X updates in reader surfaces; placement/account approval pending. |
 | S1 | T03/T14/T15 | Student life-stage profile + onboarding + Student Briefing view |
 | S2 | S1 | Student topic taxonomy + independent student alerts |
 | T13-repair | T13 | Accepted ADR-034 A: audited existing-Telugu withholding and separately requested bounded regeneration; production quality evidence remains separate. |

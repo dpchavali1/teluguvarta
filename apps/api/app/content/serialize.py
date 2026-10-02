@@ -105,7 +105,15 @@ def story_to_out(db: Session, story: Story, loaded: StoryRelations | None = None
         item = loaded.items.get(link.source_item_id)
         if item is None:
             continue
-        sources_out.append(StorySourceOut(url=item.url, title=item.title, published_at=item.published_at))
+        source = loaded.sources.get(item.source_id)
+        # LINK_ONLY X posts are evidence for our original story, not copy to
+        # republish. The raw post text lives in SourceItem.title for internal
+        # classification, so public attribution uses the reviewed source name.
+        is_x_post = source is not None and source.source_type == "X_ACCOUNT"
+        title = source.name if source is not None and source.source_type == "X_ACCOUNT" else item.title
+        sources_out.append(StorySourceOut(
+            url=item.url, title=title, published_at=item.published_at, is_x_post=is_x_post,
+        ))
     countries = list(loaded.countries[story.id])
 
     topics = loaded.topics[story.id]

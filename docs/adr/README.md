@@ -102,3 +102,9 @@ accepted. Add ad-hoc ADRs below this table as they're written.
 - ADR-035 | Rounded controls and paired modern colors | UI15 |
   **accepted** (owner 2026-10-01) — see
   [ADR-035](ADR-035-rounded-modern-color-system.md)
+- ADR-036 | Production deployment topology for T19 release proof |
+  **proposed** (live target needed) — see
+  [ADR-036](ADR-036-production-deployment-topology.md)
+- ADR-037 | Reader presentation of official X updates | X5 |
+  **proposed** (placement/account decision needed) — see
+  [ADR-037](ADR-037-x-updates-reader-presentation.md)

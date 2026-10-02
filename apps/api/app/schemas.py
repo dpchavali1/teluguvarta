@@ -55,6 +55,7 @@ class StorySourceOut(BaseModel):
     url: str
     title: str | None = None
     published_at: datetime | None = None
+    is_x_post: bool = False
 
 
 class PersonalizationOut(BaseModel):

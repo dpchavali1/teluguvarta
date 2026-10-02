@@ -92,6 +92,9 @@ If a requested drill fails, `ops-evidence.sh --drill` still finishes the evidenc
 report but exits nonzero. Plain report mode only collects observations; a zero
 exit is not acceptance of the checklist. `OPS_EVIDENCE_REPORT_DIR` can select an
 existing writable report directory (default `/root`).
+Likewise, `--test-alert` exits nonzero if the monitor URL is unset, the test
+cannot be posted, or the recipient does not confirm receipt; the report still
+finishes so the failure is visible.
 
 Backups, the offsite copy, restore drills, monitor runs and confirmed alert
 tests are also recorded in `ops_checks` (`ops-record.sh`), and admin

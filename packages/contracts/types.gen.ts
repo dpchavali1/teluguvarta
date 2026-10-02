@@ -2840,6 +2840,11 @@ export interface components {
         };
         /** StorySourceOut */
         StorySourceOut: {
+            /**
+             * Is X Post
+             * @default false
+             */
+            is_x_post: boolean;
             /** Published At */
             published_at?: string | null;
             /** Title */

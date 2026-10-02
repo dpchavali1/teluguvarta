@@ -231,7 +231,7 @@ export function StoryCard({
           <Pressable
             onPress={() => void handleOpenSource(primarySource.url)}
             accessibilityRole="link"
-            accessibilityLabel={`Read the original source${primarySource.title ? `: ${primarySource.title}` : ""}`}
+            accessibilityLabel={`${primarySource.is_x_post ? "View original X post" : "Read the original source"}${primarySource.title ? `: ${primarySource.title}` : ""}`}
             style={[styles.touchTarget, styles.sourceRow]}
           >
             <Ionicons name="open-outline" size={16} color={colors.text} accessible={false} />
@@ -239,8 +239,8 @@ export function StoryCard({
                 source title shows on story detail and in the label. */}
             <Text style={styles.sourceLink}>
               {onOpen
-                ? `Read the original source · ${sourceDomain(primarySource.url)}`
-                : `Read the original source${primarySource.title ? `: ${primarySource.title}` : ""}`}
+                ? `${primarySource.is_x_post ? "Official X update · View post" : "Read the original source"} · ${sourceDomain(primarySource.url)}`
+                : `${primarySource.is_x_post ? "View original X post" : "Read the original source"}${primarySource.title ? `: ${primarySource.title}` : ""}`}
             </Text>
           </Pressable>
         )}

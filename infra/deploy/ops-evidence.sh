@@ -110,6 +110,7 @@ if [ "$test_alert" -eq 1 ]; then
   url="$(env_get MONITOR_HEALTHCHECK_URL)"
   if [ -z "$url" ]; then
     echo "MONITOR_HEALTHCHECK_URL unset — cannot test"
+    report_status=1
   elif curl -fsS -m 10 --retry 3 --data-raw "TEST from ops-evidence.sh — not a real outage" "$url/fail" >/dev/null; then
     sent="$(date -u +%FT%TZ)"
     echo "Test failure posted at $sent. Check your email/phone for the healthchecks.io alert."
@@ -120,10 +121,12 @@ if [ "$test_alert" -eq 1 ]; then
     else
       "$repo_root/infra/deploy/ops-record.sh" ALERT_TEST fail "monitor test alert sent $sent, not received"
       echo "ALERT TEST NOT RECEIVED — check the healthchecks.io integration"
+      report_status=1
     fi
     curl -fsS -m 10 --retry 3 "$url" >/dev/null || true
   else
     echo "could not reach MONITOR_HEALTHCHECK_URL"
+    report_status=1
   fi
 fi
 

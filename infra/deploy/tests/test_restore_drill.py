@@ -162,6 +162,11 @@ class RestoreDrillTests(unittest.TestCase):
         self.assertFalse(any(command[0] == "rm" for command in commands))
         self.assertEqual(len(list(self.state.glob("restore_drill_*"))), 1)
 
+    def test_requested_alert_test_fails_when_monitor_url_is_unset(self):
+        result = self.run_script("ops-evidence.sh", "--test-alert")
+        self.assertNotEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn("MONITOR_HEALTHCHECK_URL unset — cannot test", result.stdout)
+
     def test_decryption_failure_cleans_partial_dump_without_restoring(self):
         result = self.run_script("restore-drill.sh", step="decrypt")
         self.assert_failure(result)

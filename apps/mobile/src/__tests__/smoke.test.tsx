@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react-native";
 import React from "react";
-import { Share } from "react-native";
+import { Linking, Share } from "react-native";
 
 import App from "../../App";
 
@@ -81,4 +81,27 @@ test("onboarding skip -> home -> story open -> save -> share", async () => {
   await waitFor(() => expect(Share.share).toHaveBeenCalledTimes(1));
   const payload = (Share.share as jest.Mock).mock.calls[0][0];
   expect(payload.message).toContain(`/story/${STORY.canonical_slug}`);
+});
+
+test("approved X-derived story labels its original post link", async () => {
+  const xStory = {
+    ...STORY,
+    sources: [{ url: "https://x.com/TravelGov/status/123", title: "U.S. Consular Affairs", is_x_post: true }],
+  };
+  globalThis.fetch = jest.fn((input: RequestInfo | URL) => {
+    const path = new URL(typeof input === "string" ? input : input.toString()).pathname;
+    if (path === "/v1/home") return jsonResponse({ top_stories: [xStory], topics: [] });
+    if (path === "/v1/config") return jsonResponse({ topics: [], features: {} });
+    return jsonResponse({});
+  }) as unknown as typeof fetch;
+  const openURL = jest.spyOn(Linking, "openURL").mockResolvedValue(undefined);
+
+  await render(<App />);
+  const skip = screen.queryByLabelText("Continue without login");
+  if (skip) fireEvent.press(skip);
+  const source = await screen.findByLabelText("View original X post: U.S. Consular Affairs");
+  fireEvent.press(source);
+
+  await waitFor(() => expect(openURL).toHaveBeenCalledWith("https://x.com/TravelGov/status/123"));
+  expect(screen.getByText(/Official X update · View post/)).toBeTruthy();
 });

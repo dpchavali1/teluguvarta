@@ -107,7 +107,7 @@ test("a link-first brief keeps the source action and suppresses unexpected comme
   const brief: StoryOut = {
     ...story, format: "BRIEF",
     variants: { en: { ...story.variants.en!, why_matters: "Unexpected extra commentary" } },
-    sources: [{ url: "https://example.test/announcement", title: "Announcement" }],
+    sources: [{ url: "https://example.test/announcement", title: "Announcement", is_x_post: false }],
   };
   await renderWithSize(<StoryCard story={brief} layout="detail" onOpenSource={() => {}} />);
   await screen.findByText("Visa rules change");

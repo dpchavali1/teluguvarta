@@ -22,6 +22,20 @@ locally; UI12–UI14 still have device, language and production acceptance gates
 T19-maintenance and UI15 are implemented locally as described below. No entry
 on this page implies a production deployment or app-store release.
 
+**Current T19/X5 follow-up (2026-10-01, uncommitted):** The requested release
+proof is in progress. [Preflight evidence](docs/reviews/2026-10-01-release-preflight.md)
+shows CI for `fa780eb` failed on an RSS type-only import and an unpatched
+high-severity node-forge advisory in Expo CLI. The RSS import is fixed locally;
+bandit, mypy, ruff, 17 focused X/RSS tests, the full API suite (564 passed),
+and ten simulated restore/alert tests pass. CI remains blocked by node-forge.
+No production deploy/restore/alert/
+rollback has been attempted. ADR-036 awaits the actual deployment topology.
+For X5, public X attribution now uses the reviewed source name instead of
+raw post text while retaining the post link; API contracts expose `is_x_post`
+and native cards label the original post action. Mobile typecheck, 74 tests
+and Android/iOS export pass. ADR-037 awaits reader placement
+and curated account approval; no X account was enabled or live post shown.
+
 ## Latest local work — 2026-10-01
 
 **T19-maintenance:** The API mypy count fell from 70 errors in 15 files to

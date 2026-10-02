@@ -5014,6 +5014,11 @@
       },
       "StorySourceOut": {
         "properties": {
+          "is_x_post": {
+            "default": false,
+            "title": "Is X Post",
+            "type": "boolean"
+          },
           "published_at": {
             "anyOf": [
               {
