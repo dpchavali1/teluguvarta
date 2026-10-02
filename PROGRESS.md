@@ -15,8 +15,12 @@ only the public Git SHA. Shell syntax and three monitor failure-path tests
 pass; the focused API revision test, Ruff/mypy, admin/web lint, typechecks and
 production builds pass. Database-backed API health tests could not run locally
 without Postgres; the first CI run's API job passed. Its contracts job found
-stale generated files, which are regenerated in the follow-up. Live VPS deployment and
-recovery evidence remain separate. See [T19-release](docs/tickets/T19-release.md).
+stale generated files, which were regenerated in the follow-up. The owner
+reported deployment, and the API, web, and admin publicly report the exact
+`5048385` revision; readiness, Search, Review, and Coverage return HTTP 200.
+The [release smoke evidence](docs/reviews/2026-10-02-release-smoke.md) records
+these checks. VPS monitor execution and recovery evidence remain open. See
+[T19-release](docs/tickets/T19-release.md).
 The current CI dependency scan is still red on an unpatched Expo CLI
 `node-forge` advisory; accepted
 [ADR-038](docs/adr/ADR-038-unpatched-expo-cli-advisory.md) keeps the audit gate
@@ -40,13 +44,13 @@ source evidence immediately after the draft and its decision controls after
 the review material on phones. Existing API actions, audit reasons and
 human-review gates are unchanged. See [UI17](docs/tickets/UI17.md).
 Admin lint, typecheck and production build pass. Live phone/browser visual
-acceptance and exact deployed VPS revision remain open. The owner confirmed
-seeing the new phone layout in the installed admin web app.
+acceptance remains open. The owner confirmed seeing the new phone layout in
+the installed admin web app; the exact deployed revision is now verified.
 Production follow-up: `/coverage` returned 404 because its existing page was
 hidden by the generic Git `coverage/` ignore rule. The rule now exempts the
 admin route and the page is tracked. A clean-checkout admin build must include
 `/coverage`; admin lint, typecheck and production build pass with that route
-present. VPS redeployment is still required.
+present. The redeployed `/coverage` route now returns HTTP 200.
 
 **UI16 (2026-10-02):** Mobile Settings now has one Alerts row; its former
 empty inbox path is removed. The screen keeps existing preferences, makes
@@ -140,9 +144,9 @@ fidelity, and cache/production evidence remain open.
 
 ## Next work and gates
 
-1. Deploy compatible API/admin/web versions and confirm migrations, public
-   search cursors, repair flow, account deletion, and rollback path. Deploy API
-   before or with search readers. No deployment has been performed in this work.
+1. On the deployed `5048385` revision, confirm migrations, public search
+   cursors, repair flow, account deletion, and rollback path. Public revision
+   and route smoke checks passed; the deeper journeys need production evidence.
 2. Exercise T19 against managed infrastructure: admin MFA/logout and rate
    limits, backup age and restore RPO/RTO, alert delivery, and live-provider
    golden eval. Keep rights and sensitive-story review gates intact.
