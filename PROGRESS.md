@@ -1,11 +1,24 @@
 # Progress — current handoff
 
-Updated 2026-10-01. This page is the current status for build-order decisions.
+Updated 2026-10-02. This page is the current status for build-order decisions.
 The [verbatim prior tracker](docs/history/PROGRESS-through-T14-search-2026-10-01.md)
 preserves the full implementation chronology, commands, results, and rationale
 through T14-search. See the [improvement plan](docs/reviews/2026-10-01-improvement-plan.md)
 for the ordered follow-ups and the [ADR registry](docs/adr/README.md) for decisions.
 Local implementation is distinct from deployment and device acceptance.
+
+**T19-release (2026-10-02):** The VPS deploy/monitor gate now verifies that
+API, admin and web serve the exact checkout revision and that public Search and
+admin Review/Coverage routes respond. Admin displays the short deployed SHA.
+CI checks that required admin routes are tracked. The revision probes expose
+only the public Git SHA. Shell syntax and three monitor failure-path tests
+pass; the focused API revision test, Ruff/mypy, admin/web lint, typechecks and
+production builds pass. Database-backed API health tests could not run locally
+without Postgres; CI runs them. Live VPS deployment and
+recovery evidence remain separate. See [T19-release](docs/tickets/T19-release.md).
+The current CI dependency scan is still red on an unpatched Expo CLI
+`node-forge` advisory; [ADR-038](docs/adr/ADR-038-unpatched-expo-cli-advisory.md)
+records the release decision needed. The audit gate has not been weakened.
 
 **UI17 (2026-10-02):** Admin phone navigation is a compact menu with the
 current destination shown. The review queue uses readable cards at phone
@@ -15,7 +28,8 @@ source evidence immediately after the draft and its decision controls after
 the review material on phones. Existing API actions, audit reasons and
 human-review gates are unchanged. See [UI17](docs/tickets/UI17.md).
 Admin lint, typecheck and production build pass. Live phone/browser visual
-acceptance and VPS deployment remain open.
+acceptance and exact deployed VPS revision remain open. The owner confirmed
+seeing the new phone layout in the installed admin web app.
 Production follow-up: `/coverage` returned 404 because its existing page was
 hidden by the generic Git `coverage/` ignore rule. The rule now exempts the
 admin route and the page is tracked. A clean-checkout admin build must include

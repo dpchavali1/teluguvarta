@@ -15,6 +15,17 @@ def test_health_returns_ok() -> None:
     assert response.json() == {"status": "ok"}
 
 
+def test_revision_is_public_non_cached_and_matches_environment(monkeypatch) -> None:
+    monkeypatch.setenv("RELEASE_SHA", "a" * 40)
+    response = client.get("/health/revision")
+    assert response.status_code == 200
+    assert response.text == "a" * 40
+    assert response.headers["cache-control"] == "no-store"
+
+    monkeypatch.setenv("RELEASE_SHA", "invalid-or-secret")
+    assert client.get("/health/revision").text == "unknown"
+
+
 def test_ready_checks_the_database(client) -> None:
     response = client.get("/health/ready")
     assert response.status_code == 200

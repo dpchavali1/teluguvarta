@@ -30,6 +30,8 @@ if [ -d .git ] && [ "${NO_PULL:-0}" != "1" ] && [ -z "${DEPLOY_PULLED:-}" ]; the
   DEPLOY_PULLED=1 exec "$repo_root/infra/deploy/deploy.sh" "$@"
 fi
 ENV_FILE="$repo_root/.env.prod"
+RELEASE_SHA="$(git rev-parse HEAD)"
+export RELEASE_SHA
 COMPOSE=(docker compose -f infra/deploy/docker-compose.prod.yml --env-file "$ENV_FILE")
 
 [ "$(id -u)" -eq 0 ] || { echo "Run as root (sudo)." >&2; exit 1; }
@@ -216,6 +218,7 @@ if [ "$healthy" -ne 1 ]; then
   exit 1
 fi
 echo "All healthy."
+echo "Verified deployed revision: $RELEASE_SHA"
 
 domain="$(grep '^DOMAIN=' "$ENV_FILE" | cut -d= -f2-)"
 echo

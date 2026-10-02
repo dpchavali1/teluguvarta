@@ -40,9 +40,27 @@ check_http() {
   curl -fsS -o /dev/null -m 15 "$2" 2>/dev/null || failures+=("$1: $2 not answering")
 }
 
+expected_revision="$(git rev-parse HEAD 2>/dev/null)"
+if [ -z "$expected_revision" ]; then
+  failures+=("REVISION_UNKNOWN: checkout has no Git HEAD")
+fi
+check_revision() {
+  local actual
+  actual="$(curl -fsS -m 15 "$2" 2>/dev/null)" || actual=""
+  if [ -z "$expected_revision" ] || [ "$actual" != "$expected_revision" ]; then
+    failures+=("$1: expected ${expected_revision:-Git HEAD}, got ${actual:-unavailable} at $2")
+  fi
+}
+
 check_http API_NOT_READY http://127.0.0.1:18000/health/ready
 check_http WEB_DOWN http://127.0.0.1:13000/
 check_http ADMIN_DOWN http://127.0.0.1:13001/
+check_http WEB_SEARCH_MISSING http://127.0.0.1:13000/search
+check_http ADMIN_REVIEW_MISSING http://127.0.0.1:13001/review
+check_http ADMIN_COVERAGE_MISSING http://127.0.0.1:13001/coverage
+check_revision API_REVISION_MISMATCH http://127.0.0.1:18000/health/revision
+check_revision WEB_REVISION_MISMATCH http://127.0.0.1:13000/revision
+check_revision ADMIN_REVISION_MISMATCH http://127.0.0.1:13001/revision
 # </dev/null: under `timeout`, compose is outside the terminal's foreground
 # group, so reading the tty (as it does when deploy.sh runs interactively)
 # stops it until the timeout fires.

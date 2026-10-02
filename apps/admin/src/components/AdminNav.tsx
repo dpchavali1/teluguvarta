@@ -31,8 +31,16 @@ export default function AdminNav() {
   const [hasToken, setHasToken] = useState(false);
   const [openReports, setOpenReports] = useState<number | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [releaseSha, setReleaseSha] = useState<string | null>(null);
 
   useEffect(() => { setMenuOpen(false); }, [pathname]);
+
+  useEffect(() => {
+    fetch("/revision", { cache: "no-store" })
+      .then((response) => response.ok ? response.text() : Promise.reject(new Error("Revision unavailable")))
+      .then(setReleaseSha)
+      .catch(() => setReleaseSha(null));
+  }, []);
 
   useEffect(() => {
     setRole(getRole());
@@ -84,6 +92,7 @@ export default function AdminNav() {
       </div>
       <div className="admin-nav__footer">
         {role ? <span className="admin-nav__role">{role}</span> : null}
+        {releaseSha && releaseSha !== "unknown" ? <span className="admin-nav__revision" title={`Deployed revision ${releaseSha}`}>Build {releaseSha.slice(0, 7)}</span> : null}
         <ThemeToggle />
         <Link href="/sessions" className={pathname === "/sessions" ? "is-active" : ""}>
           Sessions

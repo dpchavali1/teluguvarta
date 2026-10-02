@@ -23,6 +23,8 @@ services:
     build: { context: ../.., dockerfile: infra/deploy/api.Dockerfile }
     restart: unless-stopped
     env_file: ../../.env.prod
+    environment:
+      RELEASE_SHA: ${RELEASE_SHA:-unknown}
     ports: ["127.0.0.1:18000:8000"]
     depends_on: { postgres: { condition: service_healthy } }
     healthcheck:
@@ -37,6 +39,8 @@ services:
     restart: unless-stopped
     command: ["python", "-m", "app.jobs.worker"]
     env_file: ../../.env.prod
+    environment:
+      RELEASE_SHA: ${RELEASE_SHA:-unknown}
     depends_on: { postgres: { condition: service_healthy } }
 
   admin:
@@ -50,6 +54,8 @@ services:
         NEXT_PUBLIC_API_URL: https://api.${DOMAIN}
         NEXT_PUBLIC_WEB_URL: ${WEB_URL}
         NEXT_PUBLIC_SENTRY_DSN: ${NEXT_PUBLIC_SENTRY_DSN:-}
+    environment:
+      RELEASE_SHA: ${RELEASE_SHA:-unknown}
     restart: unless-stopped
 
   # Public site at https://${DOMAIN} (www redirects there, see nginx-setup.sh).
@@ -64,6 +70,8 @@ services:
         NEXT_PUBLIC_API_URL: https://api.${DOMAIN}
         NEXT_PUBLIC_WEB_URL: ${WEB_URL}
         NEXT_PUBLIC_SENTRY_DSN: ${NEXT_PUBLIC_SENTRY_DSN:-}
+    environment:
+      RELEASE_SHA: ${RELEASE_SHA:-unknown}
     restart: unless-stopped
 
 

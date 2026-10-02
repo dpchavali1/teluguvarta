@@ -11,6 +11,8 @@ what a deploy checks, and rollback. Background: review 2026-09-29 #9.
 | Worker alive | `python -m app.jobs.monitor`, run in the **api** container: some job claimed in the last 10 min, or one holding a live lease | `WORKER_STALE` |
 | Queue keeping up | no due `PENDING` job older than 15 min | `QUEUE_BACKLOG` |
 | Web and admin answer | HTTP to ports 13000 / 13001 on localhost | `WEB_DOWN`, `ADMIN_DOWN` |
+| Expected routes exist | public `/search`, admin `/review` and `/coverage` return HTTP 200 | `WEB_SEARCH_MISSING`, `ADMIN_REVIEW_MISSING`, `ADMIN_COVERAGE_MISSING` |
+| Running revision matches checkout | API, web and admin `/revision` probes match `git rev-parse HEAD` | `*_REVISION_MISMATCH` |
 
 `infra/deploy/monitor.sh` runs all of them. It is used in two places:
 - **Cron**, every 5 minutes (`/etc/cron.d/teluguvarta-monitor`, log
@@ -21,6 +23,10 @@ what a deploy checks, and rollback. Background: review 2026-09-29 #9.
 
 The api container also has a Compose healthcheck on `/health/ready`, so
 `docker compose ps` shows `healthy`/`unhealthy`.
+The signed-in admin menu shows the short deployed revision. Revision probes
+return only the public Git SHA and are never cached. A release is not accepted
+if any container still serves a previous revision or a required route is
+missing.
 
 The worker's own alerts (`app/alerts.py`, sent to `ALERT_WEBHOOK_URL`) cover
 budget, source and job error rates. They can't report the worker being gone,

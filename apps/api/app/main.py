@@ -1,4 +1,5 @@
 import os
+import re
 
 from fastapi import FastAPI, Response
 from fastapi.middleware.cors import CORSMiddleware
@@ -47,6 +48,17 @@ app.include_router(admin.router)
 @app.get("/health")
 def health() -> dict[str, str]:
     return {"status": "ok"}
+
+
+@app.get("/health/revision")
+def revision() -> Response:
+    candidate = os.environ.get("RELEASE_SHA", "")
+    release_sha = candidate if re.fullmatch(r"[0-9a-f]{40}", candidate) else "unknown"
+    return Response(
+        content=release_sha,
+        media_type="text/plain",
+        headers={"Cache-Control": "no-store"},
+    )
 
 
 @app.get("/health/ready")

@@ -354,6 +354,12 @@ td button {
   font-family: var(--font-mono-stack);
 }
 
+.admin-nav__revision {
+  color: var(--color-faint);
+  font-family: var(--font-mono-stack);
+  font-size: 0.7rem;
+}
+
 .admin-nav button {
   box-shadow: none;
   background: transparent;

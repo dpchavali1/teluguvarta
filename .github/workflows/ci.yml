@@ -29,6 +29,11 @@ jobs:
       # also checks that the builds fall back instead of failing.
       - run: pnpm --filter @teluguvarta/web run build
       - run: pnpm --filter @teluguvarta/admin run build
+      - name: Required admin routes are tracked in the clean checkout
+        run: |
+          test -f apps/admin/src/app/review/page.tsx
+          test -f apps/admin/src/app/coverage/page.tsx
+          git ls-files --error-unmatch apps/admin/src/app/review/page.tsx apps/admin/src/app/coverage/page.tsx
       - name: Dependency scan (T19 §16 baseline)
         # Real gate as of the T20 Next.js 15 upgrade (was informational
         # while next@14.2.35 had no 14.x fix for its unauthenticated RCEs).
@@ -64,6 +69,7 @@ jobs:
         run: |
           bash -n ../../infra/deploy/restore-drill.sh
           bash -n ../../infra/deploy/ops-evidence.sh
+          bash -n ../../infra/deploy/deploy.sh ../../infra/deploy/monitor.sh
           python -m unittest discover -s ../../infra/deploy/tests -v
       - uses: astral-sh/setup-uv@v6
       - name: Fail if requirements.lock is stale
