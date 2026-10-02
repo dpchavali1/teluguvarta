@@ -1,6 +1,6 @@
 # ADR-038: Handle the unpatched Expo CLI node-forge advisory
 
-- **Status**: proposed — security/release decision pending
+- **Status**: accepted
 - **Date**: 2026-10-02
 - **Ticket**: T19 release hardening
 
@@ -20,27 +20,18 @@ The repo requires a real dependency-scan gate. Silencing this one advisory,
 forking cryptographic verification, or claiming a clean release changes the
 security posture and cannot be inferred from the build passing.
 
-## Decision needed
+## Decision
 
-Choose one documented release policy after assessing where Expo CLI runs and
-whether any vulnerable verification path processes untrusted input:
-
-1. Keep the full audit gate failing and defer a release until an upstream
-   patched package is available. Upgrade and rerun the full mobile build/test
-   matrix then.
-2. Accept a time-bounded, narrowly scoped exception for the Expo CLI advisory
-   with an owner, expiry, explicit exposure analysis, compensating controls and
-   a separate production-runtime audit gate. Continue to report the exception
-   as an open risk.
-
-No CI gate change or security exception is implemented by this ADR proposal.
+The owner chose to keep the full audit gate blocking releases on 2026-10-02.
+Do not suppress the advisory or create a scoped exception. Wait for a
+published, reviewed upstream fix; then upgrade the dependency, rerun the
+full audit and mobile build/test matrix, and resume the release gate only
+when they pass. Safe local implementation and verification may continue.
 
 ## Consequences
 
-Option 1 preserves the current security standard but blocks green CI and
-formal release proof. Option 2 may allow unrelated changes to ship while the
-upstream patch is pending, but needs explicit risk acceptance and continued
-tracking; it is not a vulnerability fix.
+This preserves the current security standard but blocks green CI and formal
+production deployment while the advisory remains unresolved.
 
 ## Alternatives considered
 
@@ -49,3 +40,5 @@ tracking; it is not a vulnerability fix.
   vulnerabilities.
 - Vendor an unmerged cryptographic patch: rejected without a focused security
   review and regression suite.
+- Time-bounded exception for the Expo CLI path: rejected by the owner for this
+  release; it would not fix the vulnerability.

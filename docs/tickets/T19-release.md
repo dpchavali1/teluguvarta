@@ -13,4 +13,5 @@ persist secrets in probe output.
 Acceptance: a current stack and routes pass; a stale revision, missing route,
 or unavailable service fails the gate with a clear error. Shell syntax and
 failure-path tests pass, and API/admin/web tests or builds scoped to changes
-pass. The live VPS release/restore proof still requires host evidence.
+pass. Regenerate OpenAPI/TypeScript contracts after adding the API revision
+probe. The live VPS release/restore proof still requires host evidence.

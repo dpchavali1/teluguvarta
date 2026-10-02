@@ -14,11 +14,19 @@ CI checks that required admin routes are tracked. The revision probes expose
 only the public Git SHA. Shell syntax and three monitor failure-path tests
 pass; the focused API revision test, Ruff/mypy, admin/web lint, typechecks and
 production builds pass. Database-backed API health tests could not run locally
-without Postgres; CI runs them. Live VPS deployment and
+without Postgres; the first CI run's API job passed. Its contracts job found
+stale generated files, which are regenerated in the follow-up. Live VPS deployment and
 recovery evidence remain separate. See [T19-release](docs/tickets/T19-release.md).
 The current CI dependency scan is still red on an unpatched Expo CLI
-`node-forge` advisory; [ADR-038](docs/adr/ADR-038-unpatched-expo-cli-advisory.md)
-records the release decision needed. The audit gate has not been weakened.
+`node-forge` advisory; accepted
+[ADR-038](docs/adr/ADR-038-unpatched-expo-cli-advisory.md) keeps the audit gate
+blocking releases until a published fix is upgraded and validated. The audit
+gate has not been weakened.
+The [public editorial baseline](docs/reviews/2026-10-02-public-editorial-baseline.md)
+samples 300 recent published stories and flags publisher concentration,
+missing Telugu variants and no immigration/visa/student-tagged story for
+admin Coverage and editorial review; it changes no rights or publication
+setting.
 
 **UI17 (2026-10-02):** Admin phone navigation is a compact menu with the
 current destination shown. The review queue uses readable cards at phone

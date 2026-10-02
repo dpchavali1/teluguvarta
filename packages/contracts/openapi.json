@@ -5298,6 +5298,22 @@
         "summary": "Ready"
       }
     },
+    "/health/revision": {
+      "get": {
+        "operationId": "revision_health_revision_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Revision"
+      }
+    },
     "/v1/admin/ai-costs": {
       "get": {
         "description": "Review 2026-09-30 R5: AI spend over inclusive UTC days (default: the\nmonth to date), bounded so the aggregate stays cheap.",
