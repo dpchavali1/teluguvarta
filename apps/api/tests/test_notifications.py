@@ -41,6 +41,7 @@ from app.models import (
     Story,
     StorySource,
     StoryTopic,
+    StoryVariant,
     Topic,
     User,
     UserTopic,
@@ -386,3 +387,20 @@ def test_unavailable_story_deep_link_returns_standard_error_envelope_not_a_crash
     response = client.get("/v1/stories/does-not-exist-at-all")
     assert response.status_code == 404
     assert set(response.json()["error"].keys()) == {"code", "message", "request_id"}
+
+
+def test_story_alert_push_body_is_the_story_headline(db_session):
+    from app.jobs.notify import _push_copy
+
+    topic = _make_topic(db_session, "headline-topic")
+    story = _make_published_story(db_session, topics=[topic])
+    db_session.add(StoryVariant(story_id=story.id, language="en", headline="Headline EN", summary="s"))
+    db_session.add(StoryVariant(story_id=story.id, language="te", headline="Headline TE", summary="s", qa_status="PENDING"))
+    user = _make_user_with_topic(db_session, topic)
+    db_session.commit()
+
+    alert = Notification(user_id=user.id, story_id=story.id, type="TOPIC_ALERT", notification_key="k")
+    # Telugu is hidden until QA passes, so the English headline is used.
+    assert _push_copy(db_session, alert)[1] == "Headline EN"
+    no_story = Notification(user_id=user.id, story_id=None, type="TOPIC_ALERT", notification_key="k2")
+    assert _push_copy(db_session, no_story)[1] == "Open to read the full story."

@@ -59,6 +59,7 @@ from app.models import (
     Story,
     StorySource,
     StoryTopic,
+    StoryVariant,
     Topic,
     UserTopic,
 )
@@ -201,12 +202,26 @@ def _sent_today_count(db: Session, user_id, now: datetime) -> int:
     ) or 0
 
 
-def _push_copy(notification: Notification) -> tuple[str, str]:
+def _story_headline(db: Session, story_id, language: str) -> str | None:
+    # Same visibility rule as the public API: English always, Telugu only after QA.
+    variants = {
+        v.language: v.headline
+        for v in db.scalars(select(StoryVariant).where(StoryVariant.story_id == story_id)).all()
+        if v.language == "en" or v.qa_status == "PASSED"
+    }
+    return variants.get(language) or variants.get("en")
+
+
+def _push_copy(db: Session, notification: Notification) -> tuple[str, str]:
     if notification.type == "DAILY_BRIEFING":
         return "Your TTE briefing", "Today's top stories are ready."
-    if notification.type == "BREAKING_ALERT":
-        return "Breaking", "A breaking story just published."
-    return "New story in a topic you follow", "Open to read the full story."
+    title = "Breaking" if notification.type == "BREAKING_ALERT" else "New story in a topic you follow"
+    profile = db.get(Profile, notification.user_id)
+    headline = (
+        _story_headline(db, notification.story_id, profile.language if profile else "en")
+        if notification.story_id else None
+    )
+    return title, headline or "Open to read the full story."
 
 
 def _process_one(db: Session, notification: Notification, now: datetime) -> None:
@@ -235,7 +250,7 @@ def _process_one(db: Session, notification: Notification, now: datetime) -> None
     tokens = db.scalars(
         select(PushToken.token).where(PushToken.user_id == notification.user_id, PushToken.active.is_(True))
     ).all()
-    title, body = _push_copy(notification)
+    title, body = _push_copy(db, notification)
     # The deep-link target the client navigates by (T14/T15 route on slug,
     # not id) — None when there's no story (DAILY_BRIEFING) or it's since
     # become unreachable, both of which the client already falls back to

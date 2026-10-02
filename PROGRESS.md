@@ -50,6 +50,22 @@ token. ADR-039 replaces that path with Firebase. See the revised
 was sent or activated; a rebuilt app, provider credential, and device proof
 are still required.
 
+**T17 push live on Android (2026-10-02):** The `tte-fcm-sender` JSON key is
+installed on the VPS (`secrets/firebase-messaging.json`, mode 0400), `.env.prod`
+has `FCM_PROJECT_ID` and `GOOGLE_APPLICATION_CREDENTIALS`, and
+`PUSH_NOTIFICATIONS_ENABLED=true` (rollback: set it to `false` and
+`docker compose ... up -d api worker`). On the owner's Android phone: a native
+FCM token registered, a manually inserted `DAILY_BRIEFING` was `SENT` and
+displayed, and a story-linked `TOPIC_ALERT` opened the story from the
+background. Fixes after that test: taps now use Firebase
+`onNotificationOpenedApp`/`getInitialNotification` (expo-notifications did not
+see FCM taps; a cold-start tap is held until navigation is ready), and story
+alerts now show the story headline (profile language; Telugu only after QA).
+Cold-start tap, quiet hours, daily cap, breaking alerts and iOS (needs APNs
+key and an iPhone) remain unverified. ADR-038 still blocks release. API tests:
+`test_editor_sets_event_countries_and_importance` already fails on `main` in
+the full suite (passes alone); unrelated to push.
+
 **T19-release (2026-10-02):** The VPS deploy/monitor gate now verifies that
 API, admin and web serve the exact checkout revision and that public Search and
 admin Review/Coverage routes respond. Admin displays the short deployed SHA.
