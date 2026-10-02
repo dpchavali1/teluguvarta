@@ -27,6 +27,10 @@ samples 300 recent published stories and flags publisher concentration,
 missing Telugu variants and no immigration/visa/student-tagged story for
 admin Coverage and editorial review; it changes no rights or publication
 setting.
+The owner's two-day phone testing is supported by the
+[device checklist](docs/reviews/2026-10-02-device-check.md). PageSpeed's
+unauthenticated mobile request returned 429; field Core Web Vitals remain
+unmeasured.
 
 **UI17 (2026-10-02):** Admin phone navigation is a compact menu with the
 current destination shown. The review queue uses readable cards at phone
