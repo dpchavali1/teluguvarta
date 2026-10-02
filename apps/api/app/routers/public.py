@@ -17,6 +17,7 @@ from sqlalchemy.orm import Session
 from app import analytics, reader_reports
 from app.content.geography import EVENT, normalize_country
 from app.content.ranking import Preferences, rank_stories
+from app.content.search_cursor import decode_search_cursor, encode_search_cursor
 from app.content.serialize import (
     PUBLIC_STATUSES,
     active_topics_out,
@@ -265,18 +266,33 @@ def get_topic(slug: str, cursor: str | None = Query(default=None), db: Session =
 
 @router.get("/search", dependencies=[Depends(rate_limit_search)])
 def search(
-    q: str = Query(min_length=1), limit: int = Query(default=DEFAULT_PAGE_SIZE, ge=1, le=100),
+    q: str = Query(min_length=1, max_length=200), limit: int = Query(default=DEFAULT_PAGE_SIZE, ge=1, le=100),
+    cursor: str | None = Query(default=None, max_length=512),
     db: Session = Depends(get_db),
 ) -> SearchResponse:
+    q = q.strip()
+    if not q:
+        raise APIError(422, "QUERY_REQUIRED", "Enter a search query")
+    boundary = decode_search_cursor(cursor, q)
     # Search only displayable variants, preserving the English fallback gate.
     pattern = "%" + q.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%"
     matching = select(StoryVariant.story_id).where(
         or_(StoryVariant.language == "en", and_(StoryVariant.language == "te", StoryVariant.qa_status == "PASSED")),
         or_(StoryVariant.headline.ilike(pattern, escape="\\"), StoryVariant.summary.ilike(pattern, escape="\\")),
     )
-    stories = list(db.scalars(_published_query().where(Story.id.in_(matching)).limit(limit)))
+    stmt = _published_query().where(Story.id.in_(matching))
+    if boundary is not None:
+        at, story_id = boundary
+        if at is None:
+            stmt = stmt.where(Story.published_at.is_(None), Story.id > story_id)
+        else:
+            stmt = stmt.where(or_(Story.published_at < at, Story.published_at.is_(None),
+                                  and_(Story.published_at == at, Story.id > story_id)))
+    rows = list(db.scalars(stmt.limit(limit + 1)))
+    stories = rows[:limit]
     loaded = load_story_relations(db, [s.id for s in stories])
-    return SearchResponse(query=q, items=[story_to_out(db, s, loaded) for s in stories])
+    next_cursor = encode_search_cursor(q, stories[-1].published_at, stories[-1].id) if len(rows) > limit else None
+    return SearchResponse(query=q, items=[story_to_out(db, s, loaded) for s in stories], next_cursor=next_cursor)
 
 
 @router.get("/config")

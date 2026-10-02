@@ -23,6 +23,10 @@ export function SearchScreen() {
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [nextCursor, setNextCursor] = useState<string | null | undefined>(undefined);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [pageError, setPageError] = useState<string | null>(null);
+  const paging = useRef(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const requestId = useRef(0);
@@ -30,6 +34,10 @@ export function SearchScreen() {
   const runSearch = useCallback(
     async (q: string) => {
       const current = ++requestId.current;
+      paging.current = false;
+      setLoadingMore(false);
+      setPageError(null);
+      setNextCursor(undefined);
       if (debounceRef.current) clearTimeout(debounceRef.current);
       if (q.trim().length === 0) {
         setResults([]);
@@ -45,6 +53,7 @@ export function SearchScreen() {
         const result = await search(q.trim());
         if (current !== requestId.current) return;
         setResults(result.items);
+        setNextCursor(result.next_cursor);
         put(result.items);
         trackEvent("search", { query: q.trim(), result_count: result.items.length });
       } catch (err) {
@@ -61,9 +70,36 @@ export function SearchScreen() {
     [put]
   );
 
+  async function loadMore() {
+    if (!nextCursor || paging.current || loading) return;
+    const current = requestId.current;
+    paging.current = true;
+    setLoadingMore(true);
+    setPageError(null);
+    try {
+      const page = await search(resultQuery, nextCursor);
+      if (current !== requestId.current) return;
+      setResults((previous) => [...new Map([...previous, ...page.items].map((story) => [story.id, story])).values()]);
+      setNextCursor(page.next_cursor);
+      put(page.items);
+    } catch (err) {
+      if (current !== requestId.current) return;
+      setPageError(err instanceof ApiNetworkError ? "You're offline. Earlier results are still here." : "Couldn't load more results. Earlier results are still here.");
+    } finally {
+      if (current === requestId.current) {
+        paging.current = false;
+        setLoadingMore(false);
+      }
+    }
+  }
+
   function onChangeText(q: string) {
     setQuery(q);
     requestId.current += 1;
+    paging.current = false;
+    setLoadingMore(false);
+    setPageError(null);
+    setNextCursor(undefined);
     if (debounceRef.current) clearTimeout(debounceRef.current);
     if (!q.trim()) { void runSearch(q); return; }
     setLoading(true);
@@ -84,6 +120,7 @@ export function SearchScreen() {
       <View style={styles.searchRow}>
       <TextInput
         value={query}
+        maxLength={200}
         onChangeText={onChangeText}
         placeholder="Search stories"
         placeholderTextColor={ui.textTertiary}
@@ -97,7 +134,7 @@ export function SearchScreen() {
       {query.length > 0 && <Pressable onPress={() => onChangeText("")} accessibilityRole="button" accessibilityLabel="Clear search" style={styles.clearButton}><Text style={styles.retryButtonText}>Clear</Text></Pressable>}
       </View>
       {searched && !loading && !error && <Text style={styles.resultCount} accessibilityLiveRegion="polite">
-        Showing {results.length} {results.length === 1 ? "story" : "stories"}{results.length === SEARCH_RESULT_LIMIT ? ` · Up to ${SEARCH_RESULT_LIMIT} matches shown. Narrow your search to find more.` : ""}
+        Showing {results.length} {results.length === 1 ? "story" : "stories"} · Newest first{nextCursor === undefined && results.length === SEARCH_RESULT_LIMIT ? ` · Up to ${SEARCH_RESULT_LIMIT} matches shown. Narrow your search to find more.` : ""}
       </Text>}
       {loading ? (
         <View style={styles.center}>
@@ -119,7 +156,13 @@ export function SearchScreen() {
         <StoryList
           stories={results}
           emptyLabel={searched ? `No stories match “${resultQuery}”. Try a broader word or browse topics.` : "Search for a story."}
-          footer={results.length === 0 ? <Pressable onPress={() => navigation.navigate("Main", { screen: "Topics" })} accessibilityRole="button" style={styles.browseButton}><Text style={styles.message}>Browse topics</Text></Pressable> : undefined}
+          footer={results.length === 0 ? <Pressable onPress={() => navigation.navigate("Main", { screen: "Topics" })} accessibilityRole="button" style={styles.browseButton}><Text style={styles.message}>Browse topics</Text></Pressable> : nextCursor ? <View style={styles.pageFooter}>
+            {pageError && <Text style={styles.message} accessibilityRole="alert">{pageError}</Text>}
+            {loadingMore && <ActivityIndicator accessibilityLabel="Loading more results" />}
+            <Pressable onPress={() => void loadMore()} disabled={loadingMore} accessibilityRole="button" accessibilityState={{ disabled: loadingMore, busy: loadingMore }} style={styles.retryButton}>
+              <Text style={styles.retryButtonText}>{pageError ? "Retry more results" : "More results"}</Text>
+            </Pressable>
+          </View> : undefined}
         />
       )}
     </View>
@@ -134,6 +177,7 @@ function createStyles(colors: AppTheme["colors"], ui: AppTheme["ui"]) {
     clearButton: { minHeight: 44, justifyContent: "center", paddingHorizontal: spacing.sm, borderRadius: radius.md, backgroundColor: colors.text },
     browseButton: { minHeight: 44, justifyContent: "center", alignSelf: "center" },
     resultCount: { color: colors.muted, paddingHorizontal: spacing.md, paddingBottom: spacing.sm },
+    pageFooter: { padding: spacing.lg, gap: spacing.md, alignItems: "center" },
     input: {
       flex: 1,
       minHeight: 44,

@@ -77,5 +77,29 @@ delivery remains a separate limitation.
 These are local synthetic measurements, not production Core Web Vitals or
 native-device accessibility evidence.
 
+### Search pagination checks
+
+T14-search uses the same fixture with 22 paged EN/TE stories and repeatable
+single-failure pages. Stop other servers using this app's `.next` before building.
+Start the fixture and website in separate terminals:
+
+```sh
+INTERFACE_API_PORT=8076 node scripts/interface-fixture-api.cjs
+NEXT_PUBLIC_API_URL=http://127.0.0.1:8076 pnpm build
+NEXT_PUBLIC_API_URL=http://127.0.0.1:8076 pnpm exec next start -p 3076
+node scripts/search-pagination-check.mjs
+```
+
+`SEARCH_BASE_URL`/`SEARCH_FIXTURE_API` override the loopback defaults; the running
+website's server-side API must also point at that fixture. The checker tests 12
+320/390/1440px theme/language layouts, query-preserving page links, new-query
+reset, keyboard activation, retry/malformed-page recovery, empty results, overflow
+and axe. It waits for streamed navigation metadata before inspecting accessibility.
+`SEARCH_JOURNEYS_ONLY=1` reruns recovery/keyboard checks after a passing matrix.
+Phone/desktop screenshots default to `/tmp/tte-search-browser` (`SEARCH_CHECK_OUT`
+overrides it). Fixtures do not verify production relevance or native device speech.
+The API contract, ordering, rollout and freshness limits are in
+[`docs/SEARCH_PAGINATION.md`](../../docs/SEARCH_PAGINATION.md).
+
 The final acceptance record and remaining native/production gates are in
 [`docs/reviews/2026-10-01-improvement-plan.md`](../../docs/reviews/2026-10-01-improvement-plan.md).

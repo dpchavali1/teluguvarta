@@ -9,6 +9,7 @@ rather than failed, since T02's local Postgres is an opt-in dev dependency.
 """
 
 import os
+import time
 from pathlib import Path
 from uuid import uuid4
 
@@ -63,6 +64,21 @@ def _admin_connect():
     return conn, url
 
 
+def _drop_scratch_database(admin_conn, db_name):
+    # Local teardown can briefly refuse FORCE after all application engines
+    # have closed. Give those backends time to finish; never change privileges
+    # or swallow a persistent refusal. The caller owns this unique database.
+    for attempt in range(10):
+        try:
+            with admin_conn.cursor() as cur:
+                cur.execute(sql.SQL("DROP DATABASE {} WITH (FORCE)").format(sql.Identifier(db_name)))
+            return
+        except psycopg.errors.InsufficientPrivilege:
+            if attempt == 9:
+                raise
+            time.sleep(0.1)
+
+
 @pytest.fixture
 def scratch_database():
     """Create a unique owned database; never pre-drop another run's database."""
@@ -81,10 +97,7 @@ def scratch_database():
     finally:
         try:
             if created:
-                with admin_conn.cursor() as cur:
-                    cur.execute(
-                        sql.SQL("DROP DATABASE {} WITH (FORCE)").format(sql.Identifier(db_name))
-                    )
+                _drop_scratch_database(admin_conn, db_name)
         finally:
             admin_conn.close()
 

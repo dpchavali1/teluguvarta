@@ -16,8 +16,8 @@ holds across sweeps, not just within one job row:
 
 What happens to an exhausted story is the caller's call (generation routes
 it to editorial review; translation leaves the English fallback in place).
-Resetting an exhausted row by hand is not implemented here — see the
-held-story recovery ADR (ADR-025, proposed).
+Administrator resets use the audited, capped recovery routes in ADR-025 and
+ADR-034. Their shared history also invalidates older in-flight translations.
 """
 
 from __future__ import annotations
@@ -27,12 +27,13 @@ import json
 import os
 import time
 from datetime import UTC, datetime, timedelta
+from uuid import UUID
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.ai import GatewayStatus
-from app.models import AiWorkState
+from app.models import AiWorkState, AuditEvent
 
 STAGE_GENERATE = "GENERATE"
 STAGE_TRANSLATE = "TRANSLATE"
@@ -79,6 +80,14 @@ def input_version(payload: object) -> str:
     inputs, not the prompt: prompts carry a random per-call boundary."""
     encoded = json.dumps(payload, sort_keys=True, ensure_ascii=False, default=str)
     return hashlib.sha256(encoded.encode("utf-8")).hexdigest()
+
+
+def manual_resets_used(db: Session, story_id: UUID, stage: str) -> int:
+    """The shared, append-only reset history for ADR-025 and ADR-034."""
+    events = db.scalars(select(AuditEvent).where(
+        AuditEvent.entity_id == story_id, AuditEvent.action == "AI_RETRY_RESET",
+    )).all()
+    return sum(1 for event in events if (event.metadata_ or {}).get("stage") == stage)
 
 
 def load_state(db: Session, story_id, stage: str, version: str) -> AiWorkState | None:

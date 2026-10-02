@@ -31,7 +31,7 @@ function normalizeStory(raw: RawStoryOut): StoryOut {
 export type HomeResponse = { top_stories: StoryOut[]; topics: TopicOut[] };
 export type StoriesListResponse = { items: StoryOut[]; next_cursor: string | null | undefined };
 export type TopicDetailResponse = { topic: TopicOut; stories: StoryOut[]; next_cursor?: string | null };
-export type SearchResponse = { query: string; items: StoryOut[] };
+export type SearchResponse = Omit<components["schemas"]["SearchResponse"], "items"> & { items: StoryOut[] };
 export type ConfigResponse = components["schemas"]["ConfigResponse"] & { topics: TopicOut[] };
 
 export function apiUrl(): string {
@@ -141,9 +141,9 @@ export async function getTopic(slug: string, cursor?: string): Promise<TopicDeta
 
 export const SEARCH_RESULT_LIMIT = 20;
 
-export async function search(q: string): Promise<SearchResponse> {
-  const raw = await apiGet<components["schemas"]["SearchResponse"]>("/v1/search", { q, limit: String(SEARCH_RESULT_LIMIT) });
-  return { query: raw.query, items: (raw.items ?? []).map(normalizeStory) };
+export async function search(q: string, cursor?: string): Promise<SearchResponse> {
+  const raw = await apiGet<components["schemas"]["SearchResponse"]>("/v1/search", { q, cursor, limit: String(SEARCH_RESULT_LIMIT) });
+  return { ...raw, items: (raw.items ?? []).map(normalizeStory) };
 }
 
 export async function getConfig(): Promise<ConfigResponse> {

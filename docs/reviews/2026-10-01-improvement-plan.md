@@ -28,9 +28,9 @@ assuming those fixes are live.
 | Order | Improvement | Scope and completion evidence |
 |---|---|---|
 | 1 | Reliable regression checks (T19) | Unique scratch DB per fixture, close pooled application connections before dropping it, cleanup on setup failure. API suite passes without the previously recorded fixture error. |
-| 2 | Release and recovery proof (T19/R3) | Confirm deployed API/admin versions together, migration heads, cookie/MFA/logout journeys, backup age, restore RPO/RTO and alert receipt. Owner evidence required for infrastructure and device checks; scripts alone do not close this. |
-| 3 | Telugu quality lifecycle (R2) | Withhold contaminated variants, show failed-field diagnostics, and define an audited repair path for already-PASSED variants before implementation. Native-speaker sample establishes fidelity; deterministic script checks alone cannot. New retry/lifecycle behavior needs an ADR. |
-| 4 | Search usability (R12) | First label returned results honestly; then scope bounded pagination and Postgres relevance, with bilingual queries, empty/error states and stable paging tests. Decide regional tagging through an ADR before promising hometown relevance. |
+| 2 | Release and recovery proof (T19/R3) | Restore-script concurrency/ownership/failure hardening implemented locally with nine regressions (record below). Confirm deployed API/admin versions together, migration heads, cookie/MFA/logout journeys, backup age, restore RPO/RTO and alert receipt. Owner evidence required for infrastructure and device checks; scripts alone do not close this. |
+| 3 | Telugu quality lifecycle (R2) | ADR-034 A accepted and implemented locally: audited ADMIN withholding plus bounded regeneration sharing the two-reset cap. Deploy API/admin together; explicitly review live inventory and a native-speaker sample before closing quality acceptance. |
+| 4 | Search usability (R12) | Honest result wording and bounded newest-first search pagination implemented locally in T14-search across API/contracts/web/app. Query-bound keyset boundaries, EN/TE visibility, retry and stale-response handling verified. Postgres relevance remains a separate measured follow-up; regional tagging needs an ADR before promising hometown relevance. Deployment/device evidence pending. |
 | 5 | Editorial usefulness and coverage (R8/R9) | Use existing yield dashboard to investigate SUMMARY_TOO_SHORT holds and publisher/topic imbalance. Sample actual output against the brevity guide. Accept ADR-030 before changing taxonomy/navigation; preserve rights and sensitive-review gates. |
 | 6 | Reading design and accessibility | Verify existing compact cards and EN/TE detail on phone/desktop; refine spacing, horizontal-navigation affordances, source actions and loading/failure states using current tokens. Keyboard/axe and large-text checks must support changes. |
 | 7 | Mobile completion (R10) | Finish Android/iOS accessibility, poor-network, background-return and push journeys; validate release parity. Persisted offline reading needs an accepted expiry/correction/retraction ADR first. |
@@ -272,4 +272,132 @@ script leaves that boundary loading. Static Home's script-disabled English SSR
 is verified. Fully script-disabled detail delivery remains a separate follow-up.
 No production, physical-device, native-speaker or store acceptance is implied.
 Native checks above remain evidence from the earlier implementation; this
-follow-up changes only the website. All changes remain local and uncommitted.
+follow-up changes only the website. Delivery update from PROGRESS: interface
+changes were pushed in `ebec12c`; web deployment remains pending. The release
+APK reached the owner's Android phone on 2026-10-01, but receipt does not close
+the device acceptance checks listed above.
+
+### T19/R3 follow-up — restore-drill isolation (2026-10-01)
+
+The recovery-script review found that simultaneous drills used the same
+container plaintext dump path and could choose the same seconds-based database
+name. Cleanup also attempted to drop that database after a failed CREATE,
+without establishing ownership, and printed success before cleanup errors were
+known. The surrounding evidence report swallowed a requested drill failure.
+
+Drills now reserve unique names with `mktemp`, use a matching per-run plaintext
+dump path, and drop only a database they successfully created. Failure cleans
+partial dumps where possible; cleanup errors identify resources needing manual
+attention and prevent a successful verdict. Schema/count checks and RTO/RPO
+data-point semantics are preserved. `ops-evidence.sh --drill` completes its
+observations but exits nonzero when the drill fails. A configurable existing
+report directory retains `/root` as the default.
+
+Changed files: `infra/deploy/restore-drill.sh`, `ops-evidence.sh`, new
+`tests/test_restore_drill.py`, BACKUPS/OPERATIONS runbooks, the CI workflow,
+T19 ticket, PROGRESS and this plan. Verification: shell syntax checks, scoped
+Python lint and **nine subprocess regression tests pass**, including concurrent
+drills, failed-CREATE ownership, decryption/restore/schema/data/cleanup failures
+and wrapper propagation. CI runs the same checks without extra dependencies.
+
+The tests use fake Docker, age and date commands; they verify orchestration,
+not a restored production archive. No production database, deployment or alert
+was touched. Real backup/offsite age, restore RTO/RPO, receipt of alerts,
+deployed versions/migrations and authenticated/device journeys remain required.
+Backlog item 2 and T19/R3 stay partial; this follow-up is uncommitted local work.
+
+### T13/R2 follow-up — existing translation repair decision (2026-10-01)
+
+Code review confirms that current public/search serving checks the stored Telugu
+PASSED flag, generation QA applies only to new/editor-written variants, the
+translation sweep skips existing FAILED rows, and manual AI reset requires an
+EXHAUSTED state. Published manual drafts are also outside the current editor
+write path. An audited repair of older translations needs a scoped lifecycle
+decision instead of changing correct English or deleting rows without a record.
+
+[ADR-034](../adr/ADR-034-audited-telugu-variant-repair.md) proposes ADMIN-only
+withholding and a separate bounded regeneration action sharing ADR-025's existing
+two manual resets per story/stage, with reasons/hashes/QA diagnostics, stale-input
+protection, normal gateway/review safeguards and cache limitations. The alternative
+implements withholding only. The proposal includes implementation acceptance
+criteria; owner selection is pending under NON_NEGOTIABLES #11. No runtime
+implementation, new provider calls, production repairs or fresh live-quality
+assessment occurred. Updated T13, ADR registry and PROGRESS; backlog item 3 is
+still open.
+
+### ADR-034 A implementation — existing Telugu repair (2026-10-01)
+
+Owner selected option A. `T13-repair` implements current QA diagnostics in admin
+detail without mutating reads, and an ADMIN-only repair endpoint requiring
+reason/current English and Telugu hashes. Withholding sets FAILED and retains
+text; regeneration is a separate confirmed action that atomically removes the
+withheld row/work state and records repair-origin AI_RETRY_RESET. It shares the
+two-reset cap with exhausted-AI retries. Story locks serialize both reset paths,
+draft/correction writes and translation completion. Completion rechecks refreshed
+input/variant/work-state snapshots and reset audit history before recording success or failure, so a
+response in flight cannot restore obsolete text/state or overwrite editor Telugu.
+English/publication/review/rights and normal gateway/QA/sampling behavior are
+preserved. Cache refresh limits are explicit in UI and the repair runbook.
+
+Changed groups: API schemas/admin routes/translation worker; new repair API
+regressions; generated contracts; admin `TeluguRepair` and detail integration;
+synthetic browser checker using existing web QA tools; admin README, repair
+runbook, accepted ADR-034, T13-repair/T13/BUILD_ORDER and progress. A recurring local
+scratch-database teardown permission failure also received a bounded retry with
+two regressions; persistent refusals remain visible and privileges are unchanged.
+
+Verification: 22 repair tests and 54 repair/fixture/translation/retry tests pass; admin
+lint/typecheck/build and contracts typecheck pass. Mypy remains at 70 existing
+errors versus the CI baseline of 71. Browser fixtures cover required reason,
+confirmation/cancel, stale error/reload and current hashes, withholding/regeneration,
+shared cap, EDITOR visibility, phone overflow and scoped axe (no serious/critical
+findings). Phone and desktop screenshots inspected; outputs `/tmp/tte-repair-admin-final/`.
+Initial full API run: 544 bodies pass with 14 teardown errors; all 14 rerun clean.
+Final full API suite after the cleanup retry and reset-history guard: **547
+passed, 10 warnings, zero teardown errors** (138.50s). The absent-row reset race
+was reproduced before the guard and passes after it. Generated OpenAPI matches
+the current API; scoped ruff and diff whitespace checks pass. Three owned inactive
+UUID scratch databases left by the earlier run were removed after ownership and
+session checks. No application data or database privileges changed.
+
+No migration/new infrastructure/provider SDK, real provider call, production
+repair or deployment. API/admin must deploy together. Live inventory review,
+native-speaker fidelity and production/cache acceptance remain separate; backlog
+item 3's local workflow is done, its quality-evidence gate is still open.
+
+### T14-search implementation — bounded search pagination (2026-10-01)
+
+Backlog item 4's next scoped change is implemented locally. Added query-bound
+publication-date/UUID keyset cursors to the existing public search, fetching
+limit + 1 and serializing at most limit. Public/EN/PASSED-TE gates, literal
+wildcard escaping, newest-first order and rate limiting remain. Bound query and
+cursor inputs and reject invalid/mismatched pages. Tied and null publication
+dates have deterministic boundaries; newer inserts and removal of returned
+matches do not shift later pages. This is a live view, not a retained snapshot.
+
+Web page links/first-page recovery and retry preserve query/cursor; changing
+query starts from page one. App paging retains existing rows on loading/failure,
+retries the same cursor, updates/deduplicates IDs and discards stale pages after
+query changes, clear or unmount. Explicit busy controls prevent duplicate
+requests. Generated contracts drive both API adapters; older missing-cursor
+responses retain cap guidance. No total-count claim or new relevance policy.
+
+Changed API public schema/route/new cursor helper/tests; contracts; web/app
+Search/API adapters and native regressions; fixture/browser checker, README,
+build order, T14-search ticket, search guide and progress. Verification: **17
+new search API cases**, **51 focused / 564 full API tests** pass; full run has
+10 warnings and no teardown errors. Scoped ruff clean, mypy unchanged at 70.
+Web lint/typecheck/11 tests/build, contracts typecheck and mobile
+typecheck/73 tests/Android+iOS export pass. Browser matrix: 12 layouts across
+320/390/1440px, EN/TE and light/dark; page/new-query navigation, recovery,
+overflow and scoped WCAG axe checks pass with no serious/critical findings.
+Phone/desktop Telugu screenshots visually checked in `/tmp/tte-search-browser/`.
+Final keyboard activation/first-page axe, retry with query/cursor retention,
+invalid-page recovery, empty state and legacy missing-cursor guidance all pass.
+Navigation metadata is allowed to settle before axe; fixtures use a new failure
+cursor each run so the one-failure retry check is reproducible.
+
+No new dependency, infrastructure, migration, real provider call, deployment or
+production data edit. Deploy API before/with readers. Native TalkBack/VoiceOver
+and release evidence remain pending. Relevance scoring awaits separately scoped
+inventory/latency evidence; regional tagging still requires its product decision.

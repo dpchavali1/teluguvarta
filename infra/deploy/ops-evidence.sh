@@ -39,7 +39,8 @@ name_age_min() {
   echo $(( ( $(date -u +%s) - $(date -u -d "$ts" +%s) ) / 60 ))
 }
 
-report="/root/teluguvarta-ops-evidence-$(date -u +%Y%m%dT%H%M%SZ).txt"
+report="${OPS_EVIDENCE_REPORT_DIR:-/root}/teluguvarta-ops-evidence-$(date -u +%Y%m%dT%H%M%SZ).txt"
+report_status=0
 exec > >(tee "$report") 2>&1
 
 echo "# TTE ops evidence — $(date -u +%FT%TZ) — $(git rev-parse --short HEAD)"
@@ -98,7 +99,10 @@ fi
 
 if [ "$drill" -eq 1 ]; then
   echo; echo "## Restore drill"
-  "$repo_root/infra/deploy/restore-drill.sh" </dev/null || echo "(restore drill exited non-zero)"
+  if ! "$repo_root/infra/deploy/restore-drill.sh" </dev/null; then
+    echo "(restore drill exited non-zero)"
+    report_status=1
+  fi
 fi
 
 if [ "$test_alert" -eq 1 ]; then
@@ -130,3 +134,4 @@ echo; echo "## ops_checks (what admin Observability shows)"
 
 echo; echo "Not checkable from here: a copy of .env.prod kept off the server (password manager)."
 echo "Report saved to $report"
+exit "$report_status"

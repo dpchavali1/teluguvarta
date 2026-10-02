@@ -37,6 +37,8 @@ step named in "insert after"):
 | X4 | X3, T18 | X account health/budget monitoring + guard in admin |
 | S1 | T03/T14/T15 | Student life-stage profile + onboarding + Student Briefing view |
 | S2 | S1 | Student topic taxonomy + independent student alerts |
+| T13-repair | T13 | Accepted ADR-034 A: audited existing-Telugu withholding and separately requested bounded regeneration; production quality evidence remains separate. |
+| T14-search | T14/T15 | Owner-authorized R12 follow-up: bounded newest-first search paging across API/contracts/web/app; relevance and regional tagging remain separate. |
 | UI01–UI14 | T14/T15 | Owner-authorized 2026-10-01 interface follow-ups, implemented sequentially; scope/status in `docs/reviews/2026-10-01-improvement-plan.md` and individual `docs/tickets/UIxx.md`. Device/release evidence remains separate from local implementation. |
 
 ## Vertical-slice milestone (before broadening scope)

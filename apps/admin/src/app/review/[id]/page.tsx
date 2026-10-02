@@ -5,6 +5,8 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 
 import { Badge, EmptyState, Field, PageHeader, useToast } from "@/components/ui";
+import { TeluguRepair } from "@/components/TeluguRepair";
+import type { components } from "@teluguvarta/contracts";
 import { apiFetch, apiUrl, clearSession, getRole, isSignedIn } from "@/lib/auth";
 import { isUnclassified, reasonHelp, reasonTone } from "@/lib/reviewReasons";
 import { useUnsavedGuard } from "@/lib/unsaved";
@@ -64,6 +66,7 @@ interface StoryDetail {
   classification_confidence?: number | null;
   published_at: string | null;
   variants: Record<string, StoryVariant>;
+  telugu_repair?: components["schemas"]["AdminTeluguRepairOut"] | null;
   topics?: string[];
   countries?: string[];
   sources: StorySource[];
@@ -665,6 +668,11 @@ export default function StoryReviewPage() {
               </div>
             ) : null}
           </section>
+
+          {story.telugu_repair ? <TeluguRepair
+            key={`${story.telugu_repair.english_text_hash}-${story.telugu_repair.telugu_text_hash}-${te?.qa_status}-${story.telugu_repair.resets_left}`}
+            storyId={story.id} info={story.telugu_repair} onSaved={load}
+          /> : null}
 
           <section>
             <h2>Topics</h2>

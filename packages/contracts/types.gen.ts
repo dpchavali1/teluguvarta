@@ -677,6 +677,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/admin/stories/{story_id}/repair-telugu": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Repair Telugu */
+        post: operations["repair_telugu_v1_admin_stories__story_id__repair_telugu_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/admin/stories/{story_id}/retract": {
         parameters: {
             query?: never;
@@ -1641,6 +1658,7 @@ export interface components {
              * @enum {string}
              */
             status: "DRAFT" | "AI_READY" | "REVIEW_REQUIRED" | "APPROVED" | "SCHEDULED" | "PUBLISHED" | "UPDATED" | "RETRACTED" | "CORRECTION_PENDING" | "ARCHIVED";
+            telugu_repair?: components["schemas"]["AdminTeluguRepairOut"] | null;
             /** Topics */
             topics?: string[];
             /** Variants */
@@ -1730,6 +1748,33 @@ export interface components {
             title?: string | null;
             /** Url */
             url: string;
+        };
+        /** AdminTeluguRepairOut */
+        AdminTeluguRepairOut: {
+            /** Can Regenerate */
+            can_regenerate: boolean;
+            /** English Text Hash */
+            english_text_hash?: string | null;
+            /** Qa Issues */
+            qa_issues?: string[];
+            /** Resets Left */
+            resets_left: number;
+            /** Telugu Text Hash */
+            telugu_text_hash?: string | null;
+        };
+        /** AdminTeluguRepairRequest */
+        AdminTeluguRepairRequest: {
+            /**
+             * Action
+             * @enum {string}
+             */
+            action: "withhold" | "regenerate";
+            /** English Text Hash */
+            english_text_hash: string;
+            /** Reason */
+            reason: string;
+            /** Telugu Text Hash */
+            telugu_text_hash: string;
         };
         /**
          * AdminTopicsRequest
@@ -2694,6 +2739,8 @@ export interface components {
         SearchResponse: {
             /** Items */
             items?: components["schemas"]["StoryOut"][];
+            /** Next Cursor */
+            next_cursor?: string | null;
             /** Query */
             query: string;
         };
@@ -3977,6 +4024,41 @@ export interface operations {
             };
         };
     };
+    repair_telugu_v1_admin_stories__story_id__repair_telugu_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                story_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminTeluguRepairRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminActionResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     retract_story_v1_admin_stories__story_id__retract_post: {
         parameters: {
             query?: never;
@@ -4517,6 +4599,7 @@ export interface operations {
             query: {
                 q: string;
                 limit?: number;
+                cursor?: string | null;
             };
             header?: never;
             path?: never;

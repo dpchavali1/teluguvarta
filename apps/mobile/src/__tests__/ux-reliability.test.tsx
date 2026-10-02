@@ -30,7 +30,7 @@ const story = (headline: string): StoryOut => ({
   countries: [], topics: [], sources: [], variants: { en: { language: "en", headline, summary: "Summary", qa_status: "PASSED" } },
 });
 
-beforeEach(async () => { jest.clearAllMocks(); await AsyncStorage.clear(); });
+beforeEach(async () => { jest.clearAllMocks(); jest.mocked(search).mockReset(); await AsyncStorage.clear(); });
 afterEach(() => { jest.useRealTimers(); });
 
 test("cache publication does not refetch an idle home", async () => {
@@ -88,6 +88,69 @@ test("late search results cannot replace a newer query or a cleared field", asyn
   await act(async () => { pending({ query: "third", items: [story("Third")] }); });
   await waitFor(() => expect(screen.getByText("Search for a story.")).toBeTruthy());
   expect(screen.queryByText("Third UPDATED")).toBeNull();
+});
+
+test("search appends pages, updates duplicate IDs, and prevents duplicate paging requests", async () => {
+  jest.useFakeTimers();
+  let finish!: (value: Awaited<ReturnType<typeof search>>) => void;
+  const older = { ...story("Older search"), id: "22222222-2222-2222-2222-222222222222" };
+  jest.mocked(search).mockResolvedValueOnce({ query: "news", items: [story("First search")], next_cursor: "c1" })
+    .mockImplementationOnce(() => new Promise((resolve) => { finish = resolve; }));
+  await render(<StoryCacheProvider><SearchScreen /></StoryCacheProvider>);
+  await fireEvent.changeText(screen.getByLabelText("Search stories"), "news");
+  await act(async () => { jest.advanceTimersByTime(350); });
+  await screen.findByText("First search UPDATED");
+  await fireEvent.press(screen.getByText("More results"));
+  await fireEvent.press(screen.getByText("More results"));
+  expect(search).toHaveBeenCalledTimes(2);
+  expect(search).toHaveBeenLastCalledWith("news", "c1");
+  expect(screen.getByLabelText("Loading more results")).toBeTruthy();
+  expect(screen.getByText("First search UPDATED")).toBeTruthy();
+  await act(async () => { finish({ query: "news", items: [story("Updated first"), older], next_cursor: null }); });
+  await screen.findByText("Older search UPDATED");
+  expect(screen.getAllByText("Updated first UPDATED")).toHaveLength(1);
+  expect(screen.queryByText("First search UPDATED")).toBeNull();
+  expect(screen.queryByText("More results")).toBeNull();
+  expect(screen.getByText("Showing 2 stories · Newest first")).toBeTruthy();
+});
+
+test("search paging failure retains results and cursor for retry", async () => {
+  jest.useFakeTimers();
+  const older = { ...story("Recovered search"), id: "22222222-2222-2222-2222-222222222222" };
+  jest.mocked(search).mockResolvedValueOnce({ query: "news", items: [story("Retained search")], next_cursor: "c1" })
+    .mockRejectedValueOnce(new ApiNetworkError("offline"))
+    .mockResolvedValueOnce({ query: "news", items: [older], next_cursor: null });
+  await render(<StoryCacheProvider><SearchScreen /></StoryCacheProvider>);
+  await fireEvent.changeText(screen.getByLabelText("Search stories"), "news");
+  await act(async () => { jest.advanceTimersByTime(350); });
+  await fireEvent.press(await screen.findByText("More results"));
+  await screen.findByText("You're offline. Earlier results are still here.");
+  expect(screen.getByText("Retained search UPDATED")).toBeTruthy();
+  await fireEvent.press(screen.getByText("Retry more results"));
+  await screen.findByText("Recovered search UPDATED");
+  expect(search).toHaveBeenLastCalledWith("news", "c1");
+  expect(screen.getByText("Retained search UPDATED")).toBeTruthy();
+});
+
+test.each(["change", "clear", "unmount"])("late search page is ignored after %s", async (action) => {
+  jest.useFakeTimers();
+  let finish!: (value: Awaited<ReturnType<typeof search>>) => void;
+  jest.mocked(search).mockResolvedValueOnce({ query: "news", items: [story("Old query")], next_cursor: "c1" })
+    .mockImplementationOnce(() => new Promise((resolve) => { finish = resolve; }))
+    .mockResolvedValueOnce({ query: "new", items: [story("New query")], next_cursor: null });
+  const view = await render(<StoryCacheProvider><SearchScreen /></StoryCacheProvider>);
+  await fireEvent.changeText(screen.getByLabelText("Search stories"), "news");
+  await act(async () => { jest.advanceTimersByTime(350); });
+  await fireEvent.press(await screen.findByText("More results"));
+  if (action === "unmount") await view.unmount();
+  else {
+    await fireEvent.changeText(screen.getByLabelText("Search stories"), action === "change" ? "new" : "");
+    await act(async () => { jest.advanceTimersByTime(350); });
+  }
+  await act(async () => { finish({ query: "news", items: [story("Late page")], next_cursor: "c2" }); });
+  expect(screen.queryByText("Late page UPDATED")).toBeNull();
+  if (action === "change") expect(screen.getByText("New query UPDATED")).toBeTruthy();
+  if (action === "clear") expect(screen.getByText("Search for a story.")).toBeTruthy();
 });
 
 test("home reloads on resume only once the feed is stale", async () => {

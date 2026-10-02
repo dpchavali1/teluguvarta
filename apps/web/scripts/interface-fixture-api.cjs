@@ -34,6 +34,16 @@ const searchItems = Array.from({ length: 20 }, (_, i) => ({
   id: `10000000-0000-4000-8000-${String(i + 1).padStart(12, '0')}`,
   canonical_slug: `interface-search-${i}`,
 }));
+const pagedItems = Array.from({ length: 22 }, (_, i) => ({
+  ...searchItems[i % searchItems.length],
+  id: `40000000-0000-4000-8000-${String(i + 1).padStart(12, '0')}`,
+  canonical_slug: `paged-search-${i}`,
+  variants: {
+    en: { ...stories[0].variants.en, headline: `Search result ${i + 1}: University application checklist` },
+    te: { ...stories[0].variants.te, headline: `శోధన ఫలితం ${i + 1}: విద్యార్థుల దరఖాస్తు తేదీలు మరియు పత్రాల వివరాలు` },
+  },
+}));
+const failedSearchPages = new Set();
 const fallback = {
   ...stories[0], id: '30000000-0000-4000-8000-000000000001', canonical_slug: 'interface-fallback', status: 'UPDATED',
   updated_at: '2026-10-01T14:00:00Z', variants: { en: stories[0].variants.en },
@@ -59,7 +69,15 @@ http.createServer((req, res) => {
     data = { items: ids ? all.filter((s) => ids.split(',').includes(s.id)).slice(0, ids.split(',').length) : stories, next_cursor: null };
   } else if (path === '/v1/search') {
     if (q === 'failed') { res.statusCode = 503; res.end('{}'); return; }
-    data = { query: q, items: q === 'empty' ? [] : searchItems };
+    const cursor = url.searchParams.get('cursor');
+    if (q === 'page-failure' && cursor && !failedSearchPages.has(cursor)) {
+      failedSearchPages.add(cursor);
+      res.statusCode = 503; res.end('{}'); return;
+    }
+    if (cursor === 'invalid') { res.statusCode = 422; res.end('{}'); return; }
+    data = ['paged', 'తెలుగు', 'page-failure'].includes(q)
+      ? { query: q, items: cursor ? pagedItems.slice(20) : pagedItems.slice(0, 20), next_cursor: cursor ? null : 'fixture-page-2' }
+      : { query: q, items: q === 'empty' ? [] : searchItems };
   } else if (path.startsWith('/v1/topics/')) {
     data = { topic: topics.find((t) => t.slug === path.split('/').pop()) ?? topics[0], stories, next_cursor: null };
   } else if (path.endsWith('/share-meta')) {

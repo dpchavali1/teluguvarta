@@ -60,6 +60,11 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12" # matches infra/deploy/api.Dockerfile
+      - name: Recovery script syntax and failure-path regressions
+        run: |
+          bash -n ../../infra/deploy/restore-drill.sh
+          bash -n ../../infra/deploy/ops-evidence.sh
+          python -m unittest discover -s ../../infra/deploy/tests -v
       - uses: astral-sh/setup-uv@v6
       - name: Fail if requirements.lock is stale
         run: |

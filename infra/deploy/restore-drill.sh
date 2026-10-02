@@ -4,7 +4,7 @@
 #   sudo BACKUP_AGE_IDENTITY=/root/drill-key.txt ./infra/deploy/restore-drill.sh [backup.dump.age]
 #
 # Defaults to the newest local backup. Restores into a throwaway database
-# (restore_drill_<epoch>) inside the running postgres container — never over
+# (restore_drill_<random suffix>) inside the running postgres container — never over
 # the live one — compares schema version and row counts against live, prints
 # the restore time (RTO) and the backup's age (RPO), then drops the drill DB.
 #
@@ -29,28 +29,57 @@ if [ -z "$backup" ]; then
 fi
 [ -n "$backup" ] && [ -f "$backup" ] || { echo "No backup found (looked in $BACKUP_DIR)" >&2; exit 1; }
 
-drill_db="restore_drill_$(date +%s)"
-drill_result=""
+# Reserve a unique name on the host, even when two drills start together.
+run_dir="$(mktemp -d "${TMPDIR:-/tmp}/tte-restore-drill.XXXXXXXXXX")"
+drill_db="restore_drill_${run_dir##*.}"
+dump_path="/tmp/$drill_db.dump"
+drill_db_created=0
+summary="$(basename "$backup"): did not complete"
 psql_in() { "${COMPOSE[@]}" exec -T postgres psql -U teluguvarta -v ON_ERROR_STOP=1 -Atq "$@"; }
 
 cleanup() {
-  # Anything that exits before the verdict (restore error, missing tool) is a failed drill.
-  [ -n "$drill_result" ] || "$repo_root/infra/deploy/ops-record.sh" RESTORE_DRILL fail "$(basename "$backup"): did not complete"
-  "${COMPOSE[@]}" exec -T postgres rm -f /tmp/restore-drill.dump || true
-  psql_in -d postgres -c "DROP DATABASE IF EXISTS \"$drill_db\" WITH (FORCE)" || true
-  echo "Dropped $drill_db. Now delete the identity file: shred -u $identity"
+  local status=$? cleanup_failed=0
+  trap - EXIT HUP INT TERM
+  # A failed CREATE does not give this run ownership of an existing database.
+  if [ "$drill_db_created" -eq 1 ]; then
+    if ! "${COMPOSE[@]}" exec -T postgres rm -f "$dump_path"; then
+      echo "CLEANUP FAILED: could not remove $dump_path" >&2
+      cleanup_failed=1
+    fi
+    if psql_in -d postgres -c "DROP DATABASE \"$drill_db\" WITH (FORCE)"; then
+      echo "Dropped $drill_db"
+    else
+      echo "CLEANUP FAILED: could not drop $drill_db" >&2
+      cleanup_failed=1
+    fi
+  fi
+  if ! rmdir "$run_dir"; then cleanup_failed=1; fi
+  echo "Now delete the identity file: shred -u $identity"
+  if [ "$status" -eq 0 ] && [ "$cleanup_failed" -eq 0 ]; then
+    "$repo_root/infra/deploy/ops-record.sh" RESTORE_DRILL ok "$summary"
+    echo "RESTORE DRILL PASSED"
+  else
+    "$repo_root/infra/deploy/ops-record.sh" RESTORE_DRILL fail "$summary; exit $status, cleanup failed=$cleanup_failed"
+    echo "RESTORE DRILL FAILED" >&2
+    [ "$status" -ne 0 ] || status=1
+  fi
+  exit "$status"
 }
 trap cleanup EXIT
+trap 'exit 129' HUP
+trap 'exit 130' INT
+trap 'exit 143' TERM
 
 echo "==> Restoring $(basename "$backup") into $drill_db"
 psql_in -d postgres -c "CREATE DATABASE \"$drill_db\""
+drill_db_created=1
 start=$(date +%s)
 # backup-prod.sh dumps to a pipe, so the archive has no data offsets; pg_restore
 # can only find blocks in it by seeking, i.e. from a file, not from stdin. The
 # plaintext lives inside the container for the drill only (removed on exit).
 age -d -i "$identity" "$backup" \
-  | "${COMPOSE[@]}" exec -T postgres sh -c 'umask 077; cat > /tmp/restore-drill.dump'
-"${COMPOSE[@]}" exec -T postgres pg_restore -U teluguvarta -d "$drill_db" --no-owner --exit-on-error /tmp/restore-drill.dump
+  | "${COMPOSE[@]}" exec -T postgres sh -c 'umask 077; cat > "$1"' sh "$dump_path"
+"${COMPOSE[@]}" exec -T postgres pg_restore -U teluguvarta -d "$drill_db" --no-owner --exit-on-error "$dump_path"
 elapsed=$(( $(date +%s) - start ))
 
 # Backup names carry their UTC timestamp: teluguvarta_YYYYMMDDTHHMMSSZ.dump.age
@@ -77,11 +106,7 @@ echo
 echo "Restore time (RTO data point): ${elapsed}s"
 echo "Backup age at drill (RPO data point): ${age_min} min"
 summary="$(basename "$backup"): RTO ${elapsed}s, RPO ${age_min} min, schema $drill_ver"
-drill_result=done
-if [ "$fail" -eq 0 ]; then
-  "$repo_root/infra/deploy/ops-record.sh" RESTORE_DRILL ok "$summary"
-  echo "RESTORE DRILL PASSED"
-else
-  "$repo_root/infra/deploy/ops-record.sh" RESTORE_DRILL fail "$summary; restored data did not match live"
-  echo "RESTORE DRILL FAILED"; exit 1
+if [ "$fail" -ne 0 ]; then
+  summary="$summary; restored data did not match live"
+  exit 1
 fi

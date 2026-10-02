@@ -59,13 +59,30 @@ Scripts:
    ```
 
 What the drill does:
-- Restores the newest backup into a throwaway `restore_drill_<epoch>` database,
+- Restores the newest backup into a throwaway `restore_drill_<random suffix>` database,
   never the live one.
+- Reserves a distinct database name and container plaintext dump path for each
+  run, including simultaneous drills. Cleanup drops only a database this run
+  successfully created.
 - Compares the schema version and row counts with the live database.
 - Prints the restore time (RTO) and the backup's age (RPO).
 - Drops the throwaway database.
+- Reports success and records `RESTORE_DRILL` only after validation and cleanup
+  succeed. Failed decryption, restore, comparison or cleanup exits nonzero and
+  records failure; cleanup errors print the remaining database/dump path.
 
 Record the result in `PROGRESS.md`.
+
+Local orchestration regressions run without Docker, production credentials or an
+encryption key:
+
+```sh
+python3 -m unittest discover -s infra/deploy/tests -v
+```
+
+These subprocess-fake tests cover concurrency, database ownership and failure
+reporting. They do not replace the real monthly restore drill or verify archive
+compatibility, RTO/RPO or production recovery.
 
 To restore a backup from the Storage Box, first copy it down:
 ```

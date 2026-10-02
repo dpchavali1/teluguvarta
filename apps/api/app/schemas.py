@@ -106,6 +106,7 @@ class TopicDetailResponse(BaseModel):
 class SearchResponse(BaseModel):
     query: str
     items: list[StoryOut] = Field(default_factory=list)
+    next_cursor: str | None = None
 
 
 class ConfigResponse(BaseModel):
@@ -578,6 +579,21 @@ class AdminActionResponse(BaseModel):
     status: StoryStatus
 
 
+class AdminTeluguRepairRequest(BaseModel):
+    action: Literal["withhold", "regenerate"]
+    reason: str = Field(min_length=1, max_length=500)
+    english_text_hash: str = Field(pattern=r"^[a-f0-9]{64}$")
+    telugu_text_hash: str = Field(pattern=r"^[a-f0-9]{64}$")
+
+
+class AdminTeluguRepairOut(BaseModel):
+    qa_issues: list[str] = Field(default_factory=list)
+    english_text_hash: str | None = None
+    telugu_text_hash: str | None = None
+    resets_left: int
+    can_regenerate: bool
+
+
 class AdminStorySourceOut(BaseModel):
     role: Literal["PRIMARY", "SUPPORTING"]
     url: str
@@ -614,6 +630,7 @@ class AdminStoryDetailOut(BaseModel):
     classification_confidence: float | None = None
     published_at: datetime | None = None
     variants: dict[Language, StoryVariantOut] = Field(default_factory=dict)
+    telugu_repair: AdminTeluguRepairOut | None = None
     topics: list[str] = Field(default_factory=list)
     countries: list[str] = Field(default_factory=list)
     sources: list[AdminStorySourceOut] = Field(default_factory=list)

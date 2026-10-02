@@ -68,7 +68,7 @@ accepted. Add ad-hoc ADRs below this table as they're written.
   review 2026-09-29 #2 | **proposed** (owner decision needed) — see
   [ADR-024](ADR-024-total-ai-spend-ceiling.md)
 - ADR-025 | Recovering stories held by AI failures (audited manual retry) |
-  review 2026-09-29 #1 | **proposed** (owner decision needed) — see
+  review 2026-09-29 #1 | **accepted and implemented** (options 1 and 3, 2026-09-30) — see
   [ADR-025](ADR-025-held-story-recovery.md)
 - ADR-026 | Minimum content for a published story, by format | review
   2026-09-29 #6 | **proposed** (owner decision needed) — see
@@ -96,3 +96,6 @@ accepted. Add ad-hoc ADRs below this table as they're written.
 - ADR-033 | Confirm server deletion before clearing local data; retain identity
   on failure for retry | UI11 | **accepted** (option A, owner 2026-10-01) — see
   [ADR-033](ADR-033-account-deletion-failure-recovery.md)
+- ADR-034 | Audited withholding and optional bounded regeneration of existing
+  Telugu variants | T13 / improvement item 3 | **accepted** (option A, owner
+  2026-10-01) — see [ADR-034](ADR-034-audited-telugu-variant-repair.md)

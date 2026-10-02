@@ -88,6 +88,11 @@ sudo ./infra/deploy/ops-evidence.sh --test-alert    # also fire a TEST alert and
 sudo BACKUP_AGE_IDENTITY=/root/drill-key.txt ./infra/deploy/ops-evidence.sh --drill
 ```
 
+If a requested drill fails, `ops-evidence.sh --drill` still finishes the evidence
+report but exits nonzero. Plain report mode only collects observations; a zero
+exit is not acceptance of the checklist. `OPS_EVIDENCE_REPORT_DIR` can select an
+existing writable report directory (default `/root`).
+
 Backups, the offsite copy, restore drills, monitor runs and confirmed alert
 tests are also recorded in `ops_checks` (`ops-record.sh`), and admin
 Observability shows each one's age, with "Overdue", "Failing" or "No record"

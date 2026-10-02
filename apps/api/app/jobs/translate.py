@@ -40,7 +40,7 @@ from app.content.variants import dispatch_privacy
 from app.jobs import ai_retry
 from app.jobs.generate import _env_flag
 from app.jobs.queue import enqueue_job, renew_lease
-from app.models import Job, ReviewTask, Story, StoryVariant
+from app.models import AiWorkState, Job, ReviewTask, Story, StoryVariant
 
 TRANSLATE_INTERVAL_MINUTES = 2
 
@@ -104,13 +104,25 @@ def _translate_prompt(en: StoryVariant) -> str:
     )
 
 
+def _state_snapshot(state: AiWorkState | None) -> tuple[object, ...] | None:
+    return (state.id, state.input_version, state.updated_at, state.invalid_attempts,
+            state.transient_failures, state.failure_class, state.next_attempt_at) if state else None
+
+
 def _translate_story(db: Session, story: Story, en: StoryVariant) -> bool:
     """Returns False when skipped for backoff, so it doesn't use the batch."""
     # Review 2026-09-29 #1: a corrected English variant is new input, so it
     # gets a fresh retry budget; an exhausted one keeps the English fallback.
     version = ai_retry.input_version([en.headline, en.summary, en.why_matters])
-    state = ai_retry.load_state(db, story.id, ai_retry.STAGE_TRANSLATE, version)
-    if not ai_retry.is_due(state):
+    en_snapshot = (en.id, en.generated_at, en.headline, en.summary, en.why_matters)
+    # Do not mutate retry state before a provider call: a concurrent administrator
+    # may reset it while the response is in flight.
+    state = db.scalars(select(AiWorkState).where(
+        AiWorkState.story_id == story.id, AiWorkState.stage == ai_retry.STAGE_TRANSLATE,
+    )).first()
+    state_snapshot = _state_snapshot(state)
+    reset_snapshot = ai_retry.manual_resets_used(db, story.id, ai_retry.STAGE_TRANSLATE)
+    if state is not None and state.input_version == version and not ai_retry.is_due(state):
         return False
     gateway = AiGateway(db)
     # ADR-015: the persisted decision only; a sensitive story is never
@@ -126,6 +138,29 @@ def _translate_story(db: Session, story: Story, en: StoryVariant) -> bool:
         privacy_decision=decision,
         editor_authored=editor_authored,
     )
+    # ADR-034: serialize completion with repair, draft and correction actions.
+    # Refresh ORM instances too; a Session may still hold the pre-call text.
+    current_story = db.scalars(select(Story).where(Story.id == story.id).with_for_update()
+                               .execution_options(populate_existing=True)).first()
+    current_en = db.scalars(select(StoryVariant).where(StoryVariant.id == en_snapshot[0])
+                           .execution_options(populate_existing=True)).first()
+    current_te = db.scalar(select(StoryVariant.id).where(
+        StoryVariant.story_id == story.id, StoryVariant.language == "te",
+    ))
+    current_state = db.scalars(select(AiWorkState).where(
+        AiWorkState.story_id == story.id, AiWorkState.stage == ai_retry.STAGE_TRANSLATE,
+    ).execution_options(populate_existing=True)).first()
+    if (current_story is None or current_story.status not in TRANSLATABLE_STATUSES
+            or current_en is None or current_te is not None
+            or (current_en.id, current_en.generated_at, current_en.headline, current_en.summary,
+                current_en.why_matters) != en_snapshot
+            or _state_snapshot(current_state) != state_snapshot
+            # A repair can remove a variant and state that were both absent
+            # before this call. Its audit record still invalidates old output.
+            or ai_retry.manual_resets_used(db, story.id, ai_retry.STAGE_TRANSLATE) != reset_snapshot):
+        return True  # The actual gateway cost remains logged; obsolete output/state is discarded.
+    en = current_en
+    state = ai_retry.load_state(db, story.id, ai_retry.STAGE_TRANSLATE, version)
     if outcome.status in (GatewayStatus.HOLD, GatewayStatus.UNAVAILABLE, GatewayStatus.DEFERRED, GatewayStatus.CLASSIFICATION_ONLY):
         # retried once the backoff passes — no `te` variant created, per §7.5
         ai_retry.record_failure(

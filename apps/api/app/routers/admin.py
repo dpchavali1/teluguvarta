@@ -17,8 +17,9 @@ everything else about a source but cannot flip the rights gate itself.
 
 import hashlib
 import os
+from collections.abc import Sequence
 from datetime import UTC, date, datetime, timedelta
-from typing import Any, Literal
+from typing import Any, Literal, cast
 from uuid import NAMESPACE_URL, UUID, uuid5
 
 from fastapi import APIRouter, Depends
@@ -61,6 +62,7 @@ from app.errors import APIError
 from app.jobs import ai_retry
 from app.jobs.brief_lane import BRIEF_ACTOR, briefs_enabled, daily_cap, published_today
 from app.jobs.source_fetch import CIRCUIT_BREAKER_THRESHOLD
+from app.jobs.translate import TRANSLATABLE_STATUSES
 from app.models import (
     AiWorkState,
     AuditEvent,
@@ -108,6 +110,8 @@ from app.schemas import (
     AdminStoryDetailOut,
     AdminStoryListOut,
     AdminStorySourceOut,
+    AdminTeluguRepairOut,
+    AdminTeluguRepairRequest,
     AdminTopicsRequest,
     AdminXAccountCreate,
     AdminXAccountOut,
@@ -521,8 +525,8 @@ def _review_task_out(task: ReviewTask) -> ReviewQueueItemOut:
     )
 
 
-def _get_story_or_404(db: Session, story_id: UUID) -> Story:
-    story = db.get(Story, story_id)
+def _get_story_or_404(db: Session, story_id: UUID, *, lock: bool = False) -> Story:
+    story = db.scalars(select(Story).where(Story.id == story_id).with_for_update()).first() if lock else db.get(Story, story_id)
     if story is None:
         raise APIError(404, "STORY_NOT_FOUND", f"No story with id '{story_id}'")
     return story
@@ -647,6 +651,7 @@ def get_story_detail(story_id: UUID, db: Session = Depends(get_db)) -> AdminStor
             )
             for v in variants
         },
+        telugu_repair=_telugu_repair_info(db, story, variants),
         topics=sorted(db.scalars(
             select(Topic.slug).join(StoryTopic, StoryTopic.topic_id == Topic.id).where(StoryTopic.story_id == story.id)
         ).all()),
@@ -728,7 +733,7 @@ def write_story_draft(
     English variant to derive from, must pass the same QA as machine
     translation, and is invalidated whenever the English is rewritten."""
 
-    story = _get_story_or_404(db, story_id)
+    story = _get_story_or_404(db, story_id, lock=True)
     _require_status(story, "REVIEW_REQUIRED")
 
     headline = body.headline.strip()
@@ -892,10 +897,70 @@ _AI_HOLD_REASONS = ("AI_RETRIES_EXHAUSTED", "NO_PAID_PROVIDER")
 
 
 def _resets_used(db: Session, story_id: UUID, stage: str) -> int:
-    events = db.scalars(
-        select(AuditEvent).where(AuditEvent.entity_id == story_id, AuditEvent.action == AI_RETRY_RESET_ACTION)
-    ).all()
-    return sum(1 for e in events if (e.metadata_ or {}).get("stage") == stage)
+    return ai_retry.manual_resets_used(db, story_id, stage)
+
+
+def _telugu_repair_info(db: Session, story: Story, variants: Sequence[StoryVariant]) -> AdminTeluguRepairOut:
+    en = next((v for v in variants if v.language == "en"), None)
+    te = next((v for v in variants if v.language == "te"), None)
+    left = max(0, MAX_AI_RETRY_RESETS - _resets_used(db, story.id, ai_retry.STAGE_TRANSLATE))
+    return AdminTeluguRepairOut(
+        qa_issues=find_variant_qa_issues(
+            (en.headline, en.summary, en.why_matters), (te.headline, te.summary, te.why_matters)
+        ) if en and te else [],
+        english_text_hash=_story_text_hash(en) if en else None,
+        telugu_text_hash=_story_text_hash(te) if te else None,
+        resets_left=left,
+        can_regenerate=bool(en and te and te.qa_status == "FAILED" and left and story.status in TRANSLATABLE_STATUSES),
+    )
+
+
+@router.post("/stories/{story_id}/repair-telugu")
+def repair_telugu(
+    story_id: UUID, body: AdminTeluguRepairRequest,
+    admin: AdminPrincipal = Depends(current_admin), db: Session = Depends(get_db),
+) -> AdminActionResponse:
+    if admin.role != "ADMIN":
+        raise APIError(403, "FORBIDDEN", "Only an ADMIN can repair Telugu variants")
+    reason = body.reason.strip()
+    if not reason:
+        raise APIError(422, "REASON_REQUIRED", "Enter a reason for this translation repair")
+    story = _get_story_or_404(db, story_id, lock=True)
+    en, te = _get_variant(db, story.id, "en"), _get_variant(db, story.id, "te")
+    if en is None:
+        raise APIError(409, "NO_ENGLISH_DRAFT", "English is required before repairing Telugu")
+    if te is None:
+        raise APIError(409, "NO_TELUGU_VARIANT", "No existing Telugu variant to repair; reload this story")
+    info = _telugu_repair_info(db, story, [en, te])
+    if body.english_text_hash != info.english_text_hash or body.telugu_text_hash != info.telugu_text_hash:
+        raise APIError(409, "STALE_VARIANT", "Story text changed; reload and review the latest text before repairing")
+    metadata = {
+        "reason": reason, "qa_issues": info.qa_issues, "previous_qa_status": te.qa_status,
+        "english_text_hash": info.english_text_hash, "telugu_text_hash": info.telugu_text_hash,
+    }
+    if body.action == "withhold":
+        if te.qa_status != "FAILED":
+            te.qa_status = "FAILED"
+            _write_audit_event(db, admin.email, "TELUGU_VARIANT_WITHHELD", "story", story.id,
+                               {**metadata, "new_qa_status": "FAILED"})
+    else:
+        _require_status(story, *TRANSLATABLE_STATUSES)
+        if te.qa_status != "FAILED":
+            raise APIError(409, "VARIANT_NOT_WITHHELD", "Withhold the Telugu variant before requesting regeneration")
+        if info.resets_left == 0:
+            raise APIError(409, "RETRY_LIMIT_REACHED", "The two manual translation resets are used; no regeneration requested")
+        state = db.scalars(select(AiWorkState).where(
+            AiWorkState.story_id == story.id, AiWorkState.stage == ai_retry.STAGE_TRANSLATE,
+        )).first()
+        if state is not None:
+            db.delete(state)
+        db.delete(te)
+        _write_audit_event(db, admin.email, AI_RETRY_RESET_ACTION, "story", story.id, {
+            **metadata, "stage": ai_retry.STAGE_TRANSLATE, "origin": "telugu_repair",
+            "reset_number": MAX_AI_RETRY_RESETS - info.resets_left + 1,
+        })
+    db.commit()
+    return AdminActionResponse(story_id=story.id, status=cast(StoryStatus, story.status))
 
 
 @router.get("/ai-holds")
@@ -928,7 +993,7 @@ def retry_ai(
 ) -> AdminActionResponse:
     if admin.role != "ADMIN":
         raise APIError(403, "FORBIDDEN", "Only an ADMIN can retry AI on a held story")
-    story = _get_story_or_404(db, story_id)
+    story = _get_story_or_404(db, story_id, lock=True)
     state = db.scalars(
         select(AiWorkState).where(AiWorkState.story_id == story.id, AiWorkState.stage == body.stage)
     ).first()
@@ -1018,7 +1083,7 @@ def approve_breaking_alert(
 def correct_story(
     story_id: UUID, body: AdminCorrectionRequest, admin: AdminPrincipal = Depends(current_admin), db: Session = Depends(get_db)
 ) -> AdminActionResponse:
-    story = _get_story_or_404(db, story_id)
+    story = _get_story_or_404(db, story_id, lock=True)
     _require_status(story, "PUBLISHED", "UPDATED")
 
     if body.headline is None and body.summary is None and body.why_matters is None:

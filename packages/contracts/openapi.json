@@ -1715,6 +1715,16 @@
             "title": "Status",
             "type": "string"
           },
+          "telugu_repair": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AdminTeluguRepairOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "topics": {
             "items": {
               "type": "string"
@@ -2003,6 +2013,89 @@
           "source_rights_status"
         ],
         "title": "AdminStorySourceOut",
+        "type": "object"
+      },
+      "AdminTeluguRepairOut": {
+        "properties": {
+          "can_regenerate": {
+            "title": "Can Regenerate",
+            "type": "boolean"
+          },
+          "english_text_hash": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "English Text Hash"
+          },
+          "qa_issues": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Qa Issues",
+            "type": "array"
+          },
+          "resets_left": {
+            "title": "Resets Left",
+            "type": "integer"
+          },
+          "telugu_text_hash": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Telugu Text Hash"
+          }
+        },
+        "required": [
+          "resets_left",
+          "can_regenerate"
+        ],
+        "title": "AdminTeluguRepairOut",
+        "type": "object"
+      },
+      "AdminTeluguRepairRequest": {
+        "properties": {
+          "action": {
+            "enum": [
+              "withhold",
+              "regenerate"
+            ],
+            "title": "Action",
+            "type": "string"
+          },
+          "english_text_hash": {
+            "pattern": "^[a-f0-9]{64}$",
+            "title": "English Text Hash",
+            "type": "string"
+          },
+          "reason": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Reason",
+            "type": "string"
+          },
+          "telugu_text_hash": {
+            "pattern": "^[a-f0-9]{64}$",
+            "title": "Telugu Text Hash",
+            "type": "string"
+          }
+        },
+        "required": [
+          "action",
+          "reason",
+          "english_text_hash",
+          "telugu_text_hash"
+        ],
+        "title": "AdminTeluguRepairRequest",
         "type": "object"
       },
       "AdminTopicsRequest": {
@@ -4646,6 +4739,17 @@
             "title": "Items",
             "type": "array"
           },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          },
           "query": {
             "title": "Query",
             "type": "string"
@@ -7060,6 +7164,59 @@
         ]
       }
     },
+    "/v1/admin/stories/{story_id}/repair-telugu": {
+      "post": {
+        "operationId": "repair_telugu_v1_admin_stories__story_id__repair_telugu_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "story_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Story Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdminTeluguRepairRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminActionResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Repair Telugu",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
     "/v1/admin/stories/{story_id}/retract": {
       "post": {
         "operationId": "retract_story_v1_admin_stories__story_id__retract_post",
@@ -7991,6 +8148,7 @@
             "name": "q",
             "required": true,
             "schema": {
+              "maxLength": 200,
               "minLength": 1,
               "title": "Q",
               "type": "string"
@@ -8006,6 +8164,23 @@
               "minimum": 1,
               "title": "Limit",
               "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 512,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cursor"
             }
           }
         ],
