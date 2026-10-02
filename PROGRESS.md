@@ -11,10 +11,13 @@ Local implementation is distinct from deployment and device acceptance.
 push delivery and analytics. [ADR-039](docs/adr/ADR-039-firebase-mobile-push-and-analytics.md)
 records native FCM delivery and separate, default-off analytics consent;
 [T17-firebase](docs/tickets/T17-firebase.md) orders implementation and
-activation. Firebase project creation is waiting for the owner's choice of
-Google account: the Firebase CLI's saved sign-in returned 401, while the
-active Google Cloud account lists only unrelated projects. No Firebase
-project, credentials, native build, or live push exists yet; production push
+activation. The owner selected `theteluguedit@gmail.com`, signed in through
+Google Cloud, and a dedicated Cloud project `theteluguedit-app` was created
+under that account. Firebase Management API is enabled, but its conversion
+request returned HTTP 403. The Console's conversion flow requires acceptance
+of Firebase's terms, which the owner approved; the checkbox and conversion
+have not yet been completed in the browser. No Firebase
+apps, credentials, native build, or live push exist yet; production push
 remains disabled. ADR-038 still blocks release.
 
 **T17 push diagnosis (2026-10-02):** Production reports push delivery disabled.
