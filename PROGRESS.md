@@ -34,10 +34,13 @@ role and FCM API is enabled. Its private credential has not been generated or
 installed on the VPS. The production-URL Android release APK was installed
 over the owner's attached phone on 2026-10-02 after a forced fresh JS bundle.
 Android reported the original 2026-09-28 first-install date and a running
-app process after launch. The phone disconnected before FCM token or delivery
-could be checked. Physical-device token registration, delivery/consent proof,
-and production activation remain pending. The production push switch remains
-disabled; ADR-038 still blocks release.
+app process after launch. On reconnection, Android reported notification
+permission granted and a fresh launch logged successful default Firebase app
+initialization without a push-registration error. The deployed API reports
+revision `abf3084` and `push_notifications_enabled=false`. A registered FCM
+token and actual delivery remain unverified; device logs do not expose a
+successful server registration. Analytics consent and production activation
+also remain pending. ADR-038 still blocks release.
 
 **T17 push diagnosis (2026-10-02):** Production reports push delivery disabled.
 The previously installed Android APK has OS notification permission but used
