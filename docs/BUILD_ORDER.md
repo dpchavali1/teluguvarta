@@ -42,6 +42,7 @@ step named in "insert after"):
 | T14-search | T14/T15 | Owner-authorized R12 follow-up: bounded newest-first search paging across API/contracts/web/app; relevance and regional tagging remain separate. |
 | T19-maintenance | T19 | Owner-authorized mypy reduction and concise progress handoff; historical evidence retained. |
 | UI15 | T21/UI14 | Owner-authorized rounded mobile controls and paired modern colors through shared tokens; device/release acceptance separate. |
+| UI16 | T17/UI15 | Owner-authorized single Alerts setting, replacing duplicate notification destinations and clarifying controls; device acceptance separate. |
 | UI01–UI14 | T14/T15 | Owner-authorized 2026-10-01 interface follow-ups, implemented sequentially; scope/status in `docs/reviews/2026-10-01-improvement-plan.md` and individual `docs/tickets/UIxx.md`. Device/release evidence remains separate from local implementation. |
 
 ## Vertical-slice milestone (before broadening scope)

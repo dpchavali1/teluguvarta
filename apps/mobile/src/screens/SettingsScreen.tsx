@@ -24,16 +24,14 @@ export function SettingsScreen() {
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <Text style={styles.groupLabel} accessibilityRole="header">NOTIFICATIONS</Text>
       <View style={styles.group}>
-        {/* Topics is now its own tab (ADR-014 TopicControl) — this group is
-            the notifications-related rows that don't warrant a tab. */}
-        <SettingsRow label="Notifications" onPress={() => navigation.navigate("Notifications")} styles={styles} />
         <SettingsRow
-          label="Notification preferences"
-          onPress={() => navigation.navigate("NotificationPreferences")}
+          label="Alerts"
+          onPress={() => navigation.navigate("Notifications")}
           last
           styles={styles}
         />
       </View>
+      <Text style={styles.groupHint}>Choose what alerts you receive and when.</Text>
       <Text style={styles.groupLabel} accessibilityRole="header">
         APPEARANCE
       </Text>

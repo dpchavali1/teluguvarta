@@ -4,12 +4,13 @@ import React from "react";
 import { Share } from "react-native";
 
 import App from "../../App";
+import { getNotificationPreferences } from "../lib/storage";
 
 /**
  * T18 acceptance criterion: "every event in §17's core list fires at
  * least once in an E2E smoke test." Split into a few focused flows rather
  * than one long one — react-navigation's native-stack screens (StoryDetail,
- * NotificationPreferences, Privacy) cover the whole tab bar once pushed, so
+ * Alerts, Privacy) cover the whole tab bar once pushed, so
  * a flow that needs the tab bar again afterward would have no way back in
  * this RTL environment (no native header back button to query). Each test
  * renders a fresh `<App />` and drives one stack push to its end.
@@ -136,23 +137,27 @@ test("notification_opt_in fires when the master notification switch is re-enable
   await skipOnboarding();
 
   fireEvent.press(await screen.findByLabelText("Settings"));
-  fireEvent.press(await screen.findByLabelText("Notification preferences"));
-  // The Switch itself is nested inside an accessibility-merged Row (one
-  // focusable unit for screen readers) rather than carrying the label, so
-  // it's queried by role — "Enable notifications" is the first of the
-  // form's several Switches.
-  await screen.findByLabelText("Enable notifications, does not affect browsing the feed");
-  const enableSwitch = (await screen.findAllByRole("switch"))[0];
+  expect(screen.queryByLabelText("Notification preferences")).toBeNull();
+  fireEvent.press(await screen.findByLabelText("Alerts"));
+  await screen.findByText("Choose your alerts");
+  const enableSwitch = await screen.findByLabelText("Send alerts");
 
   fireEvent(enableSwitch, "valueChange", false);
   // Let the state update from the first toggle commit before firing the
   // second — otherwise handleChange's `prefs` closure is still stale and
   // both toggles are read as no-ops relative to each other.
   await waitFor(() => expect(enableSwitch.props.value).toBe(false));
+  expect((await screen.findByLabelText("Breaking news alerts")).props.disabled).toBe(true);
+  await screen.findByText(/Your choices below are saved/);
   expect(mockEvent("notification_opt_in")).toBe(false);
 
   fireEvent(enableSwitch, "valueChange", true);
   await waitFor(() => expect(mockEvent("notification_opt_in")).toBe(true));
+  expect((await screen.findByLabelText("Breaking news alerts")).props.disabled).toBe(false);
+
+  fireEvent(await screen.findByLabelText("Pause alerts overnight"), "valueChange", true);
+  fireEvent.press(await screen.findByLabelText("Quiet hours start one hour later"));
+  await waitFor(async () => expect((await getNotificationPreferences()).quietHoursStart).toBe("23:00"));
 });
 
 test("account_delete_request fires from the Privacy screen", async () => {
@@ -162,4 +167,23 @@ test("account_delete_request fires from the Privacy screen", async () => {
   fireEvent.press(await screen.findByLabelText("Privacy & delete account"));
   fireEvent.press(await screen.findByLabelText("Delete account and clear all data on this device"));
   await waitFor(() => expect(mockEvent("account_delete_request")).toBe(true));
+});
+
+test("Alert settings show a retry when server sync fails", async () => {
+  await skipOnboarding();
+  const baseFetch = globalThis.fetch;
+  let failuresLeft = 1;
+  globalThis.fetch = jest.fn((input: RequestInfo | URL, init?: RequestInit) => {
+    const path = new URL(typeof input === "string" ? input : input.toString()).pathname;
+    if (path === "/v1/me/preferences" && init?.method === "PATCH" && failuresLeft-- > 0) {
+      return jsonResponse({}, 503);
+    }
+    return baseFetch(input, init);
+  }) as unknown as typeof fetch;
+
+  fireEvent.press(await screen.findByLabelText("Settings"));
+  fireEvent.press(await screen.findByLabelText("Alerts"));
+  await screen.findByText(/Earlier alerts may still arrive/);
+  fireEvent.press(await screen.findByLabelText("Retry syncing alert settings"));
+  await waitFor(() => expect(screen.queryByText(/Earlier alerts may still arrive/)).toBeNull());
 });

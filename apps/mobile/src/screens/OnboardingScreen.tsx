@@ -87,7 +87,7 @@ export function OnboardingScreen() {
         <Text style={styles.skipAllText}>Continue without login</Text>
       </Pressable>
 
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag">
         {step === 0 && (
           <StepShell title="Welcome to TTE" styles={styles}>
             <Text style={styles.body}>

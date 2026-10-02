@@ -4,7 +4,6 @@ import { ActivityIndicator, View } from "react-native";
 
 import { LanguageScreen } from "../screens/LanguageScreen";
 import { LatestScreen } from "../screens/LatestScreen";
-import { NotificationPreferencesScreen } from "../screens/NotificationPreferencesScreen";
 import { NotificationsScreen } from "../screens/NotificationsScreen";
 import { OnboardingScreen } from "../screens/OnboardingScreen";
 import { HiddenTopicsScreen } from "../screens/HiddenTopicsScreen";
@@ -40,12 +39,7 @@ export function RootNavigator() {
       <Stack.Screen name="Topic" component={TopicScreen} options={({ route }) => ({ title: route.params.name ?? "Topic" })} />
       <Stack.Screen name="Latest" component={LatestScreen} options={{ title: "Latest" }} />
       <Stack.Screen name="StoryDetail" component={StoryDetailScreen} options={{ title: "Story" }} />
-      <Stack.Screen name="Notifications" component={NotificationsScreen} options={{ title: "Notifications" }} />
-      <Stack.Screen
-        name="NotificationPreferences"
-        component={NotificationPreferencesScreen}
-        options={{ title: "Notification preferences" }}
-      />
+      <Stack.Screen name="Notifications" component={NotificationsScreen} options={{ title: "Alerts" }} />
       <Stack.Screen name="Language" component={LanguageScreen} options={{ title: "Language" }} />
       <Stack.Screen name="Profile" component={ProfileScreen} options={{ title: "Your profile" }} />
       <Stack.Screen name="Privacy" component={PrivacyScreen} options={{ title: "Privacy" }} />

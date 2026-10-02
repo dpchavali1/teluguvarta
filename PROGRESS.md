@@ -7,6 +7,27 @@ through T14-search. See the [improvement plan](docs/reviews/2026-10-01-improveme
 for the ordered follow-ups and the [ADR registry](docs/adr/README.md) for decisions.
 Local implementation is distinct from deployment and device acceptance.
 
+**UI16 (2026-10-02):** Mobile Settings now has one Alerts row; its former
+empty inbox path is removed. The screen keeps existing preferences, makes
+the master pause state clear, disables dependent controls while paused, and
+uses accessible hour/cap steppers that match the backend's whole-hour quiet
+periods. Topic alert switches now default off until explicitly selected,
+matching the stored subscription state. Failed server sync shows a retry and
+is retried on the next visit. See [UI16](docs/tickets/UI16.md).
+Mobile typecheck, 76 tests in 14 suites, and Android/iOS Expo export pass.
+The release APK was built with production URLs and installed over the existing
+app on the owner's attached Android phone on 2026-10-02; Android retained the
+original first-install date, the app launched, and the dark Alerts screen was
+visually inspected without an immediate crash. Broader real-device and live
+push-delivery acceptance remain open.
+Device feedback follow-up: timing controls now precede the topic list; topic
+search and a selected-only filter make long general/student lists manageable.
+Mobile typecheck, 77 tests in 14 suites, and Android/iOS export pass. A new
+release APK with production URLs was installed over the existing app on the
+attached Android phone on 2026-10-02; Android retained its first-install date
+and no immediate startup error appeared. Detailed visual/device acceptance
+and live push-delivery verification remain open.
+
 **X activation follow-up (2026-10-01):** The admin Sources page can now add a
 disabled `X_ACCOUNT` source and link a verified numeric X user ID, handle,
 cadence and budget class. Its existing rights form remains the activation
