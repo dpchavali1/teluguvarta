@@ -3,6 +3,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Pressable, StyleSheet, Switch, Text, TextInput, View } from "react-native";
 
 import { getConfig, type TopicOut } from "../lib/api";
+import { pushProjectId } from "../lib/push";
 import type { NotificationPreferences } from "../lib/storage";
 import { radius, spacing, typography } from "../theme/tokens";
 import { useAppTheme, type AppTheme } from "../theme/useAppTheme";
@@ -24,6 +25,7 @@ export function NotificationPreferencesForm({
   const styles = useMemo(() => createStyles(colors, ui), [colors, ui]);
   const [topics, setTopics] = useState<TopicOut[]>([]);
   const [topicsFailed, setTopicsFailed] = useState(false);
+  const [pushServiceEnabled, setPushServiceEnabled] = useState<boolean | null>(null);
   const [search, setSearch] = useState("");
   const [selectedOnly, setSelectedOnly] = useState(false);
   const selectedCount = topics.filter((topic) => value.topics[topic.slug] === true).length;
@@ -39,7 +41,10 @@ export function NotificationPreferencesForm({
     let cancelled = false;
     getConfig()
       .then((config) => {
-        if (!cancelled) setTopics(config.topics);
+        if (!cancelled) {
+          setTopics(config.topics);
+          setPushServiceEnabled(config.features?.push_notifications_enabled ?? null);
+        }
       })
       .catch(() => {
         if (!cancelled) setTopicsFailed(true);
@@ -60,6 +65,11 @@ export function NotificationPreferencesForm({
   return (
     <View style={styles.container}>
       <Text style={styles.groupLabel} accessibilityRole="header">PUSH ALERTS</Text>
+      {(pushServiceEnabled === false || !pushProjectId()) && (
+        <Text style={styles.hint} accessibilityRole="alert">
+          Push alerts are not available yet. Your choices will be saved, but notifications will not arrive until delivery is set up.
+        </Text>
+      )}
       <View style={styles.group}>
         <Row label="Send alerts" styles={styles}>
           <Switch

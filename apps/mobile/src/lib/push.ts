@@ -14,6 +14,14 @@ import { registerPushToken } from "./api";
 export async function registerForPushNotificationsAsync(): Promise<void> {
   if (!Device.isDevice) return; // simulators/emulators have no push token
 
+  const projectId = pushProjectId();
+  if (!projectId) {
+    // Avoid asking for notification permission when this build cannot
+    // register a token or receive a remote alert.
+    console.warn("[push] skipping push-token registration: no EAS projectId configured");
+    return;
+  }
+
   const existing = await Notifications.getPermissionsAsync();
   let status = existing.status;
   if (status !== "granted") {
@@ -22,14 +30,6 @@ export async function registerForPushNotificationsAsync(): Promise<void> {
   }
   if (status !== "granted") return;
 
-  const projectId = Constants.expoConfig?.extra?.eas?.projectId;
-  if (!projectId) {
-    // No EAS project configured yet (see app.json) — expected until this
-    // app is set up with `eas init`; registration is a no-op until then.
-    console.warn("[push] skipping push-token registration: no EAS projectId configured");
-    return;
-  }
-
   try {
     const { data: expoPushToken } = await Notifications.getExpoPushTokenAsync({ projectId });
     const platform = Platform.OS === "ios" ? "ios" : "android";
@@ -37,6 +37,12 @@ export async function registerForPushNotificationsAsync(): Promise<void> {
   } catch (error) {
     console.warn("[push] failed to register push token", error);
   }
+}
+
+// EAS builds may expose the project ID through easConfig even when the
+// checked-in app config has no extra.eas field.
+export function pushProjectId(): string | undefined {
+  return Constants.expoConfig?.extra?.eas?.projectId ?? Constants.easConfig?.projectId;
 }
 
 export type NotificationDeepLinkData = {

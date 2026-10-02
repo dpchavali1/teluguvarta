@@ -16,7 +16,7 @@ jest.mock("@react-navigation/native", () => ({
 }));
 jest.mock("../lib/api", () => ({
   siteUrl: () => "https://example.test",
-  getConfig: () => Promise.resolve({ topics: [
+  getConfig: () => Promise.resolve({ features: { push_notifications_enabled: false }, topics: [
     { slug: "immigration", name: "Immigration" },
     { slug: "travel", name: "Travel" },
     { slug: "opt", name: "OPT" },
@@ -70,6 +70,7 @@ test("topic alerts start off until explicitly selected", async () => {
     </ThemePreferenceProvider>,
   );
   const topic = await screen.findByLabelText("Immigration alerts");
+  expect(screen.getByText(/Push alerts are not available yet/)).toBeOnTheScreen();
   expect(topic.props.value).toBe(false);
   fireEvent(topic, "valueChange", true);
   expect(onChange).toHaveBeenCalledWith(expect.objectContaining({ topics: { immigration: true } }));

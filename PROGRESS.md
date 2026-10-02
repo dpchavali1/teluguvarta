@@ -7,6 +7,16 @@ through T14-search. See the [improvement plan](docs/reviews/2026-10-01-improveme
 for the ordered follow-ups and the [ADR registry](docs/adr/README.md) for decisions.
 Local implementation is distinct from deployment and device acceptance.
 
+**T17 push diagnosis (2026-10-02):** Production reports push delivery disabled.
+The locally installed Android app has OS notification permission, but the
+checked-in app config lacks an EAS project ID, so that build cannot register
+an Expo push token. The VPS sender additionally requires a private Expo push
+access token. Mobile now recognizes the EAS build's project-ID fallback and
+shows when delivery is unavailable; scoped typecheck and tests pass. See the
+[activation steps](docs/reviews/2026-10-02-push-activation.md). No live push
+was sent or activated; EAS/FCM credentials, a rebuilt app, and VPS setup are
+still required.
+
 **T19-release (2026-10-02):** The VPS deploy/monitor gate now verifies that
 API, admin and web serve the exact checkout revision and that public Search and
 admin Review/Coverage routes respond. Admin displays the short deployed SHA.

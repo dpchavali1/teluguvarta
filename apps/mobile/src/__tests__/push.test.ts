@@ -1,4 +1,13 @@
-import { resolveNotificationDeepLink } from "../lib/push";
+import { pushProjectId, resolveNotificationDeepLink } from "../lib/push";
+
+jest.mock("expo-constants", () => ({
+  __esModule: true,
+  default: { expoConfig: null, easConfig: { projectId: "eas-project" } },
+}));
+
+test("EAS project ID is available to push registration outside expoConfig.extra", () => {
+  expect(pushProjectId()).toBe("eas-project");
+});
 
 // T17 deep-link acceptance criterion: opening a notification goes to its
 // story; if there's no story or it's since become unavailable (the backend
