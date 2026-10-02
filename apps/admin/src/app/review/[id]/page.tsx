@@ -606,6 +606,7 @@ export default function StoryReviewPage() {
         </p>
       ) : null}
       {error ? <p role="alert">{error}</p> : null}
+      {story.status === "REVIEW_REQUIRED" ? <a className="mobile-decision-link" href="#review-decision">Go to decision after checking the draft and sources ↓</a> : null}
 
       <div className="detail-layout">
         <div>
@@ -675,17 +676,6 @@ export default function StoryReviewPage() {
           /> : null}
 
           <section>
-            <h2>Topics</h2>
-            <TopicEditor key={(story.topics ?? []).join(",")} storyId={story.id} current={story.topics ?? []} reason={reason} onSaved={load} />
-          </section>
-
-          <section>
-            <h2>Geography and importance</h2>
-            <CountryEditor key={(story.countries ?? []).join(",")} storyId={story.id} current={story.countries ?? []} reason={reason} onSaved={load} />
-            <ImportanceEditor key={story.importance_override ?? "computed"} storyId={story.id} current={story.importance_override ?? null} reason={reason} onSaved={load} />
-          </section>
-
-          <section>
             <h2>Sources ({story.sources.length})</h2>
             <ul className="source-list">
               {story.sources.map((source) => (
@@ -707,6 +697,17 @@ export default function StoryReviewPage() {
                 </li>
               ))}
             </ul>
+          </section>
+
+          <section>
+            <h2>Topics</h2>
+            <TopicEditor key={(story.topics ?? []).join(",")} storyId={story.id} current={story.topics ?? []} reason={reason} onSaved={load} />
+          </section>
+
+          <section>
+            <h2>Geography and importance</h2>
+            <CountryEditor key={(story.countries ?? []).join(",")} storyId={story.id} current={story.countries ?? []} reason={reason} onSaved={load} />
+            <ImportanceEditor key={story.importance_override ?? "computed"} storyId={story.id} current={story.importance_override ?? null} reason={reason} onSaved={load} />
           </section>
 
           {story.status === "PUBLISHED" || story.status === "UPDATED" ? (
@@ -762,7 +763,7 @@ export default function StoryReviewPage() {
           </section>
         </div>
 
-        <aside className="decision-panel" aria-label="Decision">
+        <aside className="decision-panel" id="review-decision" aria-label="Decision">
           <h2>Decision</h2>
           {story.status === "REVIEW_REQUIRED" || story.status === "PUBLISHED" || story.status === "UPDATED" ? (
             <Field label={`Reason${isAlwaysReviewed ? " (required for this category)" : ""}`} htmlFor="reason">

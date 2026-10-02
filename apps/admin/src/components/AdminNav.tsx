@@ -30,6 +30,9 @@ export default function AdminNav() {
   const [role, setRole] = useState<string | null>(null);
   const [hasToken, setHasToken] = useState(false);
   const [openReports, setOpenReports] = useState<number | null>(null);
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  useEffect(() => { setMenuOpen(false); }, [pathname]);
 
   useEffect(() => {
     setRole(getRole());
@@ -60,13 +63,17 @@ export default function AdminNav() {
   if (pathname === "/login" || !hasToken) return null;
 
   return (
-    <nav className="admin-nav" aria-label="Admin">
+    <nav className={`admin-nav${menuOpen ? " admin-nav--open" : ""}`} aria-label="Admin">
       <Link href="/" className="admin-nav__brand">
         TTE<span>Admin</span>
       </Link>
-      <div className="admin-nav__links">
+      <span className="admin-nav__current">{LINKS.find((link) => link.href !== "/" && pathname.startsWith(link.href))?.label ?? (pathname === "/sessions" ? "Sessions" : "Home")}</span>
+      <button type="button" className="admin-nav__menu-toggle" aria-expanded={menuOpen} aria-controls="admin-nav-menu" onClick={() => setMenuOpen((open) => !open)}>
+        {menuOpen ? "Close" : "Menu"}
+      </button>
+      <div className="admin-nav__links" id="admin-nav-menu">
         {LINKS.map((link) => (
-          <Link key={link.href} href={link.href} className={pathname === link.href ? "is-active" : ""}>
+          <Link key={link.href} href={link.href} aria-current={pathname === link.href || (link.href !== "/" && pathname.startsWith(`${link.href}/`)) ? "page" : undefined} className={pathname === link.href || (link.href !== "/" && pathname.startsWith(`${link.href}/`)) ? "is-active" : ""}>
             <span className="admin-nav__dot" aria-hidden="true" />
             {link.label}
             {link.href === "/reports" && openReports ? (

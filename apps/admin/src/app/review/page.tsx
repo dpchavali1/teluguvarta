@@ -50,6 +50,7 @@ export default function ReviewQueuePage() {
   const [search, setSearch] = useState("");
   const [revision, setRevision] = useState(0);
   const [active, setActive] = useState(0);
+  const [showMoreFilters, setShowMoreFilters] = useState(false);
 
   // Design-review fix: a reviewer who filtered yesterday should see the same
   // always-human-reviewed view today.
@@ -109,6 +110,7 @@ export default function ReviewQueuePage() {
 
   const setFilter = (key: keyof Filters, value: string) => setFilters((prev) => ({ ...prev, [key]: value }));
   const filtered = dangerOnly || Object.values(filters).some(Boolean);
+  const advancedFilterCount = [filters.reason, filters.topic, filters.source_id, filters.telugu, filters.older_than_hours].filter(Boolean).length;
 
   const rowsRef = useRef(items);
   rowsRef.current = items;
@@ -135,8 +137,7 @@ export default function ReviewQueuePage() {
 
   const subtitle = page
     ? `${page.pending_total} waiting · ${page.danger_total} always-human-reviewed · ${page.unclassified_total} unclassified` +
-      (page.oldest_created_at ? ` · oldest ${age(page.oldest_created_at)}` : "") +
-      " · j / k to move, Enter to open"
+      (page.oldest_created_at ? ` · oldest ${age(page.oldest_created_at)}` : "")
     : undefined;
 
   return (
@@ -159,6 +160,14 @@ export default function ReviewQueuePage() {
           Search headline or source
           <input type="search" value={search} onChange={(event) => setSearch(event.target.value)} onBlur={() => setFilter("q", search.trim())} />
         </label>
+        <label className="filter-bar__check">
+          <input type="checkbox" checked={dangerOnly} onChange={(event) => setDangerOnly(event.target.checked)} />
+          Only always-human-reviewed
+        </label>
+        <button type="button" className="button-secondary filter-bar__toggle" aria-expanded={showMoreFilters} aria-controls="review-more-filters" onClick={() => setShowMoreFilters((open) => !open)}>
+          {showMoreFilters ? "Fewer filters" : `More filters${advancedFilterCount ? ` (${advancedFilterCount})` : ""}`}
+        </button>
+        <div id="review-more-filters" className={`filter-bar__advanced${showMoreFilters ? " filter-bar__advanced--open" : ""}`}>
         <label>
           Reason
           <select value={filters.reason} onChange={(event) => setFilter("reason", event.target.value)}>
@@ -194,10 +203,7 @@ export default function ReviewQueuePage() {
             {AGE_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
           </select>
         </label>
-        <label className="filter-bar__check">
-          <input type="checkbox" checked={dangerOnly} onChange={(event) => setDangerOnly(event.target.checked)} />
-          Only always-human-reviewed
-        </label>
+        </div>
         {filtered ? (
           <button type="button" className="button-secondary" onClick={() => { setFilters(NO_FILTERS); setSearch(""); setDangerOnly(false); }}>
             Clear filters
@@ -214,7 +220,7 @@ export default function ReviewQueuePage() {
       ) : page ? (
         <>
           {filtered ? <p className="state-note">{page.total} match these filters.</p> : null}
-          <div className="table-scroll"><table>
+          <div className="table-scroll review-queue"><table>
             <thead>
               <tr>
                 <th>Story</th>
@@ -235,13 +241,14 @@ export default function ReviewQueuePage() {
                 >
                   <td>
                     <Link href={`/review/${item.story_id}`}>{item.headline ?? item.source_title ?? "Untitled story"}</Link>
+                    <span className="review-queue__mobile-source">{item.source_names?.join(", ") || "No source linked"}</span>
                     {item.headline ? null : <span className="card__meta"> · no draft yet</span>}
                     {item.te_qa_status !== "PASSED" ? (
                       <span className="card__meta"> · <Badge tone={teluguTone(item.te_qa_status)}>{item.te_qa_status ? `Telugu ${item.te_qa_status.toLowerCase()}` : "no Telugu"}</Badge></span>
                     ) : null}
                   </td>
                   <td className="col-wide-only">{item.source_names?.join(", ") || "No source linked"}</td>
-                  <td>
+                  <td data-label="Review reason">
                     {/* `reason` is a comma-joined list when a story trips more
                         than one gate (see jobs/generate.py). */}
                     <span className="pill-row">
@@ -257,7 +264,7 @@ export default function ReviewQueuePage() {
                     </span>
                     <span className="reason-help">{item.reason.split(",").map(reasonHelp).join(" ")}</span>
                   </td>
-                  <td title={new Date(item.created_at).toLocaleString()}>{age(item.created_at)}</td>
+                  <td data-label="Waiting" title={new Date(item.created_at).toLocaleString()}>{age(item.created_at)}</td>
                   <td className="col-wide-only">
                     <Link href={`/review/${item.story_id}`} aria-label={`Review: ${item.headline ?? item.source_title ?? item.story_id}`}>Review</Link>
                   </td>

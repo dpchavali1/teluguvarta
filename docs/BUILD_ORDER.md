@@ -43,6 +43,7 @@ step named in "insert after"):
 | T19-maintenance | T19 | Owner-authorized mypy reduction and concise progress handoff; historical evidence retained. |
 | UI15 | T21/UI14 | Owner-authorized rounded mobile controls and paired modern colors through shared tokens; device/release acceptance separate. |
 | UI16 | T17/UI15 | Owner-authorized single Alerts setting, replacing duplicate notification destinations and clarifying controls; device acceptance separate. |
+| UI17 | T12/T21 | Owner-authorized phone-first admin review layout: compact navigation, queue cards and safe evidence-before-decision ordering. |
 | UI01–UI14 | T14/T15 | Owner-authorized 2026-10-01 interface follow-ups, implemented sequentially; scope/status in `docs/reviews/2026-10-01-improvement-plan.md` and individual `docs/tickets/UIxx.md`. Device/release evidence remains separate from local implementation. |
 
 ## Vertical-slice milestone (before broadening scope)

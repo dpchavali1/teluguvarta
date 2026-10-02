@@ -7,6 +7,16 @@ through T14-search. See the [improvement plan](docs/reviews/2026-10-01-improveme
 for the ordered follow-ups and the [ADR registry](docs/adr/README.md) for decisions.
 Local implementation is distinct from deployment and device acceptance.
 
+**UI17 (2026-10-02):** Admin phone navigation is a compact menu with the
+current destination shown. The review queue uses readable cards at phone
+widths, keeps search and sensitive-only filtering at hand, and tucks the
+remaining filters behind an applied-filter count. Story detail now places
+source evidence immediately after the draft and its decision controls after
+the review material on phones. Existing API actions, audit reasons and
+human-review gates are unchanged. See [UI17](docs/tickets/UI17.md).
+Admin lint, typecheck and production build pass. Live phone/browser visual
+acceptance and VPS deployment remain open.
+
 **UI16 (2026-10-02):** Mobile Settings now has one Alerts row; its former
 empty inbox path is removed. The screen keeps existing preferences, makes
 the master pause state clear, disables dependent controls while paused, and
