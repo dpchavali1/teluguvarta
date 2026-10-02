@@ -16,6 +16,11 @@ the review material on phones. Existing API actions, audit reasons and
 human-review gates are unchanged. See [UI17](docs/tickets/UI17.md).
 Admin lint, typecheck and production build pass. Live phone/browser visual
 acceptance and VPS deployment remain open.
+Production follow-up: `/coverage` returned 404 because its existing page was
+hidden by the generic Git `coverage/` ignore rule. The rule now exempts the
+admin route and the page is tracked. A clean-checkout admin build must include
+`/coverage`; admin lint, typecheck and production build pass with that route
+present. VPS redeployment is still required.
 
 **UI16 (2026-10-02):** Mobile Settings now has one Alerts row; its former
 empty inbox path is removed. The screen keeps existing preferences, makes

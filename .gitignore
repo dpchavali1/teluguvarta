@@ -36,6 +36,7 @@ pnpm-debug.log*
 
 # Test / coverage
 coverage/
+!apps/admin/src/app/coverage/
 .pytest_cache/
 .turbo/
 
