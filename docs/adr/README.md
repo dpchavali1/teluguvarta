@@ -108,3 +108,9 @@ accepted. Add ad-hoc ADRs below this table as they're written.
 - ADR-037 | Reader presentation of official X updates | X5 |
   **proposed** (placement/account decision needed) — see
   [ADR-037](ADR-037-x-updates-reader-presentation.md)
+- ADR-038 | Keep the release audit blocking on the unpatched Expo CLI
+  advisory | T19 | **accepted** (owner 2026-10-02) — see
+  [ADR-038](ADR-038-unpatched-expo-cli-advisory.md)
+- ADR-039 | Firebase for mobile push and separately consented analytics
+  (amends ADR-007) | T17-firebase | **accepted** (owner 2026-10-02) — see
+  [ADR-039](ADR-039-firebase-mobile-push-and-analytics.md)

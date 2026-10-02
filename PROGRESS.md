@@ -7,6 +7,16 @@ through T14-search. See the [improvement plan](docs/reviews/2026-10-01-improveme
 for the ordered follow-ups and the [ADR registry](docs/adr/README.md) for decisions.
 Local implementation is distinct from deployment and device acceptance.
 
+**T17-firebase (2026-10-02):** The owner selected Firebase for both mobile
+push delivery and analytics. [ADR-039](docs/adr/ADR-039-firebase-mobile-push-and-analytics.md)
+records native FCM delivery and separate, default-off analytics consent;
+[T17-firebase](docs/tickets/T17-firebase.md) orders implementation and
+activation. Firebase project creation is waiting for the owner's choice of
+Google account: the Firebase CLI's saved sign-in returned 401, while the
+active Google Cloud account lists only unrelated projects. No Firebase
+project, credentials, native build, or live push exists yet; production push
+remains disabled. ADR-038 still blocks release.
+
 **T17 push diagnosis (2026-10-02):** Production reports push delivery disabled.
 The locally installed Android app has OS notification permission, but the
 checked-in app config lacks an EAS project ID, so that build cannot register

@@ -45,6 +45,7 @@ step named in "insert after"):
 | UI16 | T17/UI15 | Owner-authorized single Alerts setting, replacing duplicate notification destinations and clarifying controls; device acceptance separate. |
 | UI17 | T12/T21 | Owner-authorized phone-first admin review layout: compact navigation, queue cards and safe evidence-before-decision ordering. |
 | T19-release | T19/UI17 | Owner-authorized deployed-revision and route smoke checks for the VPS release gate. |
+| T17-firebase | T17/ADR-039 | Owner-selected Firebase for native mobile push and separately consented mobile analytics; activate only after credentials, device proof, and the release gate. |
 | UI01–UI14 | T14/T15 | Owner-authorized 2026-10-01 interface follow-ups, implemented sequentially; scope/status in `docs/reviews/2026-10-01-improvement-plan.md` and individual `docs/tickets/UIxx.md`. Device/release evidence remains separate from local implementation. |
 
 ## Vertical-slice milestone (before broadening scope)
