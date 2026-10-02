@@ -31,10 +31,13 @@ and Messaging start off. Five FCM sender tests and scoped API Ruff/mypy pass.
 Database-backed notification tests were skipped locally without Postgres.
 The dedicated `tte-fcm-sender` service account has only the FCM API Admin
 role and FCM API is enabled. Its private credential has not been generated or
-installed on the VPS. Physical-device token registration, delivery/consent
-proof, and production activation remain pending. No Android device was
-attached at the latest check. The production push switch remains disabled;
-ADR-038 still blocks release.
+installed on the VPS. The production-URL Android release APK was installed
+over the owner's attached phone on 2026-10-02 after a forced fresh JS bundle.
+Android reported the original 2026-09-28 first-install date and a running
+app process after launch. The phone disconnected before FCM token or delivery
+could be checked. Physical-device token registration, delivery/consent proof,
+and production activation remain pending. The production push switch remains
+disabled; ADR-038 still blocks release.
 
 **T17 push diagnosis (2026-10-02):** Production reports push delivery disabled.
 The previously installed Android APK has OS notification permission but used
