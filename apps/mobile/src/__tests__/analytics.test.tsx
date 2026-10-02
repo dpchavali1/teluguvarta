@@ -1,24 +1,27 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { logEvent, resetAnalyticsData } from "@react-native-firebase/analytics";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react-native";
 import React from "react";
 import { Share } from "react-native";
 
 import App from "../../App";
+import { resetMobileAnalyticsConsentCacheForTest, setMobileAnalyticsConsent } from "../lib/mobileAnalytics";
 import { getNotificationPreferences } from "../lib/storage";
 
 /**
- * T18 acceptance criterion: "every event in §17's core list fires at
- * least once in an E2E smoke test." Split into a few focused flows rather
+ * ADR-039 permits only coarse interaction names after affirmative mobile
+ * analytics consent. Split the smoke flows into focused tests rather
  * than one long one — react-navigation's native-stack screens (StoryDetail,
  * Alerts, Privacy) cover the whole tab bar once pushed, so
  * a flow that needs the tab bar again afterward would have no way back in
  * this RTL environment (no native header back button to query). Each test
  * renders a fresh `<App />` and drives one stack push to its end.
  *
- * Across the four tests below, every one of §17's 12 events fires at least
- * once: app_open, onboarding_complete, feed_view (test 1); story_open,
+ * With analytics explicitly opted in, safe interaction names fire without
+ * caller properties: onboarding_complete, feed_view (test 1); story_open,
  * language_switch, story_save, story_share, a reader report (test 2); search
- * (test 3); notification_opt_in (test 4); account_delete_request (test 5).
+ * (test 3); notification_opt_in (test 4). Firebase records app_open itself;
+ * account deletion is deliberately not an analytics event.
  */
 
 const STORY = {
@@ -34,7 +37,6 @@ const STORY = {
   sources: [{ url: "https://example.com/original", title: "Example Source" }],
 };
 
-let postedEvents: { event: string; properties: Record<string, unknown> }[];
 let postedReports: Record<string, unknown>[];
 
 function jsonResponse(body: unknown, status = 200) {
@@ -46,7 +48,7 @@ function jsonResponse(body: unknown, status = 200) {
 }
 
 function mockEvent(name: string) {
-  return postedEvents.some((e) => e.event === name);
+  return jest.mocked(logEvent).mock.calls.some(([, event]) => event === name);
 }
 
 beforeEach(async () => {
@@ -55,7 +57,9 @@ beforeEach(async () => {
   // this a later test's `getOnboarded()` would see the first test's
   // completed onboarding and skip straight to Main.
   await AsyncStorage.clear();
-  postedEvents = [];
+  resetMobileAnalyticsConsentCacheForTest();
+  await setMobileAnalyticsConsent(true);
+  jest.clearAllMocks();
   postedReports = [];
   jest.spyOn(Share, "share").mockResolvedValue({ action: "sharedAction" } as never);
 
@@ -65,10 +69,6 @@ beforeEach(async () => {
     if (path === `/v1/stories/${STORY.id}/reports` && init?.method === "POST") {
       postedReports.push(JSON.parse(init.body as string));
       return jsonResponse({ accepted: true }, 201);
-    }
-    if (path === "/v1/events" && init?.method === "POST") {
-      postedEvents.push(JSON.parse(init.body as string));
-      return jsonResponse({ accepted: true });
     }
     if (path === "/v1/home") return jsonResponse({ top_stories: [STORY], topics: [] });
     if (path === `/v1/stories/${STORY.canonical_slug}`) return jsonResponse(STORY);
@@ -84,14 +84,13 @@ afterEach(() => {
 
 async function skipOnboarding() {
   const view = await render(<App />);
-  await waitFor(() => expect(mockEvent("app_open")).toBe(true));
   fireEvent.press(await screen.findByLabelText("Continue without login"));
   await waitFor(() => expect(mockEvent("onboarding_complete")).toBe(true));
   await waitFor(() => expect(mockEvent("feed_view")).toBe(true));
   return view;
 }
 
-test("app_open, onboarding_complete, and feed_view fire from app launch", async () => {
+test("onboarding_complete and feed_view fire after analytics opt-in", async () => {
   await skipOnboarding();
 });
 
@@ -160,13 +159,13 @@ test("notification_opt_in fires when the master notification switch is re-enable
   await waitFor(async () => expect((await getNotificationPreferences()).quietHoursStart).toBe("23:00"));
 });
 
-test("account_delete_request fires from the Privacy screen", async () => {
+test("account deletion resets the Firebase analytics identifier", async () => {
   await skipOnboarding();
 
   fireEvent.press(await screen.findByLabelText("Settings"));
   fireEvent.press(await screen.findByLabelText("Privacy & delete account"));
   fireEvent.press(await screen.findByLabelText("Delete account and clear all data on this device"));
-  await waitFor(() => expect(mockEvent("account_delete_request")).toBe(true));
+  await waitFor(() => expect(resetAnalyticsData).toHaveBeenCalled());
 });
 
 test("Alert settings show a retry when server sync fails", async () => {

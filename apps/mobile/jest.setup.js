@@ -32,3 +32,22 @@ jest.mock("expo-secure-store", () => {
 // jest-expo stubs the native module (randomUUID returns undefined); Node's
 // CSPRNG stands in for the OS one.
 jest.mock("expo-crypto", () => ({ randomUUID: () => require("crypto").randomUUID() }));
+
+jest.mock("@react-native-firebase/analytics", () => {
+  const instance = {};
+  return {
+    getAnalytics: () => instance,
+    setConsent: jest.fn(async () => undefined),
+    setAnalyticsCollectionEnabled: jest.fn(async () => undefined),
+    resetAnalyticsData: jest.fn(async () => undefined),
+    logEvent: jest.fn(async () => undefined),
+  };
+});
+
+jest.mock("@react-native-firebase/messaging", () => ({
+  getMessaging: () => ({}),
+  getToken: jest.fn(async () => "fcm-device-token"),
+  onTokenRefresh: jest.fn(() => () => undefined),
+  registerDeviceForRemoteMessages: jest.fn(async () => undefined),
+  setAutoInitEnabled: jest.fn(async () => undefined),
+}));

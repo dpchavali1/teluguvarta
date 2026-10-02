@@ -1,48 +1,51 @@
-import Constants from "expo-constants";
 import * as Device from "expo-device";
 import * as Notifications from "expo-notifications";
+import {
+  getMessaging,
+  getToken,
+  onTokenRefresh,
+  registerDeviceForRemoteMessages,
+  setAutoInitEnabled,
+} from "@react-native-firebase/messaging";
 import { Platform } from "react-native";
 
 import { registerPushToken } from "./api";
 
-// T17 §10.1: register this device with the backend so `notification_dispatch`
-// (apps/api/app/jobs/notify.py) has somewhere to deliver to. Every failure
-// mode here (no physical device, permission denied, no EAS project
-// configured yet) degrades to "push just doesn't work on this build"
-// instead of crashing the app — matches the on-device-storage try/catch
-// posture already used throughout src/lib/storage.ts.
+// ADR-039: register a native FCM token only after OS notification permission.
+// The native build starts FCM auto-init off in firebase.json.
 export async function registerForPushNotificationsAsync(): Promise<void> {
   if (!Device.isDevice) return; // simulators/emulators have no push token
-
-  const projectId = pushProjectId();
-  if (!projectId) {
-    // Avoid asking for notification permission when this build cannot
-    // register a token or receive a remote alert.
-    console.warn("[push] skipping push-token registration: no EAS projectId configured");
-    return;
-  }
-
-  const existing = await Notifications.getPermissionsAsync();
-  let status = existing.status;
-  if (status !== "granted") {
-    const requested = await Notifications.requestPermissionsAsync();
-    status = requested.status;
-  }
-  if (status !== "granted") return;
-
   try {
-    const { data: expoPushToken } = await Notifications.getExpoPushTokenAsync({ projectId });
+    const existing = await Notifications.getPermissionsAsync();
+    let status = existing.status;
+    if (status !== "granted") {
+      const requested = await Notifications.requestPermissionsAsync();
+      status = requested.status;
+    }
+    const messaging = getMessaging();
+    if (status !== "granted") {
+      await setAutoInitEnabled(messaging, false);
+      return;
+    }
+    await setAutoInitEnabled(messaging, true);
+    if (Platform.OS === "ios") await registerDeviceForRemoteMessages(messaging);
+    const token = await getToken(messaging);
     const platform = Platform.OS === "ios" ? "ios" : "android";
-    await registerPushToken(expoPushToken, platform);
+    await registerPushToken(token, platform);
   } catch (error) {
     console.warn("[push] failed to register push token", error);
   }
 }
 
-// EAS builds may expose the project ID through easConfig even when the
-// checked-in app config has no extra.eas field.
-export function pushProjectId(): string | undefined {
-  return Constants.expoConfig?.extra?.eas?.projectId ?? Constants.easConfig?.projectId;
+export function listenForPushTokenRefresh(): () => void {
+  try {
+    return onTokenRefresh(getMessaging(), (token) => {
+      const platform = Platform.OS === "ios" ? "ios" : "android";
+      registerPushToken(token, platform).catch(() => undefined);
+    });
+  } catch {
+    return () => undefined;
+  }
 }
 
 export type NotificationDeepLinkData = {

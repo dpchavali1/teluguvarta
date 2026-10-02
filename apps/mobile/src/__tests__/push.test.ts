@@ -1,12 +1,30 @@
-import { pushProjectId, resolveNotificationDeepLink } from "../lib/push";
+import * as Notifications from "expo-notifications";
+import { getToken, setAutoInitEnabled } from "@react-native-firebase/messaging";
+import { registerPushToken } from "../lib/api";
+import { registerForPushNotificationsAsync, resolveNotificationDeepLink } from "../lib/push";
 
-jest.mock("expo-constants", () => ({
-  __esModule: true,
-  default: { expoConfig: null, easConfig: { projectId: "eas-project" } },
+jest.mock("expo-device", () => ({ isDevice: true }));
+jest.mock("expo-notifications", () => ({
+  getPermissionsAsync: jest.fn(async () => ({ status: "granted" })),
+  requestPermissionsAsync: jest.fn(async () => ({ status: "granted" })),
 }));
+jest.mock("../lib/api", () => ({ registerPushToken: jest.fn(async () => undefined) }));
 
-test("EAS project ID is available to push registration outside expoConfig.extra", () => {
-  expect(pushProjectId()).toBe("eas-project");
+test("granted notification permission registers an FCM token", async () => {
+  await registerForPushNotificationsAsync();
+  expect(setAutoInitEnabled).toHaveBeenCalledWith(expect.anything(), true);
+  expect(getToken).toHaveBeenCalled();
+  expect(registerPushToken).toHaveBeenCalledWith("fcm-device-token", expect.stringMatching(/ios|android/));
+});
+
+test("denied permission leaves FCM initialization off and registers nothing", async () => {
+  jest.mocked(Notifications.getPermissionsAsync).mockResolvedValueOnce({ status: "denied" } as never);
+  jest.mocked(Notifications.requestPermissionsAsync).mockResolvedValueOnce({ status: "denied" } as never);
+  jest.clearAllMocks();
+  await registerForPushNotificationsAsync();
+  expect(setAutoInitEnabled).toHaveBeenCalledWith(expect.anything(), false);
+  expect(getToken).not.toHaveBeenCalled();
+  expect(registerPushToken).not.toHaveBeenCalled();
 });
 
 // T17 deep-link acceptance criterion: opening a notification goes to its

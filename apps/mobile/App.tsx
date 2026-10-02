@@ -11,7 +11,8 @@ import React, { useEffect, useMemo, useRef } from "react";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { trackEvent } from "./src/lib/api";
-import { registerForPushNotificationsAsync, resolveNotificationDeepLink } from "./src/lib/push";
+import { initializeMobileAnalytics } from "./src/lib/mobileAnalytics";
+import { listenForPushTokenRefresh, registerForPushNotificationsAsync, resolveNotificationDeepLink } from "./src/lib/push";
 import { HiddenTopicsProvider } from "./src/lib/HiddenTopicsContext";
 import { StoryCacheProvider } from "./src/lib/StoryCacheContext";
 import { linking } from "./src/navigation/linking";
@@ -73,9 +74,11 @@ function AppContent() {
   useEffect(() => {
     if (!registeredForPush.current) {
       registeredForPush.current = true;
+      initializeMobileAnalytics().catch(() => undefined);
       registerForPushNotificationsAsync();
-      trackEvent("app_open");
     }
+
+    const unsubscribeTokenRefresh = listenForPushTokenRefresh();
 
     const receivedSub = Notifications.addNotificationReceivedListener((notification) => {
       trackEvent("notification_received", { data: notification.request.content.data });
@@ -103,6 +106,7 @@ function AppContent() {
     return () => {
       receivedSub.remove();
       responseSub.remove();
+      unsubscribeTokenRefresh();
     };
   }, []);
 

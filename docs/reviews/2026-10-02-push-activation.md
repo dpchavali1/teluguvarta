@@ -1,36 +1,42 @@
-# Push delivery diagnosis — 2026-10-02
+# Firebase push activation — 2026-10-02
 
-The production public config returned `push_notifications_enabled: false`.
-`app.push.push_enabled()` also requires `EXPO_PUSH_ACCESS_TOKEN`; the deploy
-template leaves both disabled/empty. This is a server-side delivery block,
-independent of a reader's alert preferences.
+ADR-039 supersedes the earlier Expo/EAS activation path. The Firebase project
+`theteluguedit-app` has Android and iOS apps registered under
+`org.teluguglobal.app`. A new native build registers FCM tokens. The API
+worker now uses FCM HTTP v1, but `PUSH_NOTIFICATIONS_ENABLED` remains false.
+The current installed APK still has the old Expo registration code.
 
-The locally built Android app has notification permission granted on the
-attached device, but its checked-in `apps/mobile/app.json` has no EAS project
-ID. The current APK's registration path skips obtaining an Expo push token
-when the ID is missing. The client now also checks Expo's `easConfig` value,
-which EAS builds can supply; a locally built APK still needs a configured
-project ID and Android FCM credentials. The UI now says when delivery is not
-available while continuing to save the reader's choices.
+To activate after ADR-038's release gate clears:
 
-Activation needs these operator-owned steps, in order:
+1. The dedicated `tte-fcm-sender@theteluguedit-app.iam.gserviceaccount.com`
+   service account now has only the **Firebase Cloud Messaging API Admin**
+   role on `theteluguedit-app`, and FCM API is enabled. Provision its JSON
+   credential on the VPS at
+   `secrets/firebase-messaging.json` (mode 0400, outside Git). The worker
+   mounts this directory read-only at `/run/tte-secrets`. No credential or
+   OAuth access token belongs in the app or Git.
+2. Add `FCM_PROJECT_ID=theteluguedit-app` and
+   `GOOGLE_APPLICATION_CREDENTIALS=/run/tte-secrets/firebase-messaging.json`
+   to the existing VPS `.env.prod`; new installs get these defaults. Keep
+   `PUSH_NOTIFICATIONS_ENABLED=false` while building and deploying the
+   compatible API/worker.
+3. Build/install the updated native app on a physical Android device, grant
+   OS notification permission, and verify a non-Expo FCM registration in
+   `POST /v1/me/push-tokens`. Configure APNs credentials in Firebase before
+   testing iOS. Verify that revoking permission prevents registration.
+4. With a known test device and the sender credential in place, enable the
+   push flag in a controlled test window. Send a test notification through
+   the existing Postgres job. Confirm FCM acceptance and actual device
+   display/open. Verify a topic alert, quiet hours, daily cap, and invalid
+   token deactivation; inspect bounded retries and failure telemetry. Turn
+   the flag off if delivery or duplicate behavior differs from expectation.
+5. Record device, API revision, outcome, and rollback evidence before
+   considering production push live. Existing Expo tokens are never sent to
+   FCM and are deactivated when encountered. Future eligible notifications
+   are generated normally; failed historical rows are not replayed.
 
-1. Create/link the Expo EAS project and configure the Android FCM V1
-   credentials for `org.teluguglobal.app` (and APNs for iOS). Put its public
-   project UUID in the app config and the Android `google-services.json` path
-   in the native build config. Never commit service-account keys or Expo
-   access tokens.
-2. Build and install a new native app, grant notification permission, and
-   verify that it registers an Expo push token with `POST /v1/me/push-tokens`.
-3. Set a private `EXPO_PUSH_ACCESS_TOKEN` in VPS `.env.prod`, then enable
-   `PUSH_NOTIFICATIONS_ENABLED=true` and redeploy API/worker. Check the public
-   `/v1/config` flag afterward.
-4. Send a test notification through Expo to the registered device and verify
-   its ticket and delivery receipt. Then verify one normal daily briefing and
-   one opted-in topic alert, including quiet-hours/cap behavior and admin
-   failure telemetry. Only future eligible alerts are expected; old failed
-   notification attempts are not replayed automatically.
-
-Do not flip the server switch before the device credentials and test build
-exist: the worker's bounded attempts would consume pending deliveries while
-no device can receive them.
+The job records one notification per reader. Acceptance by any active device
+completes that reader's handoff, avoiding duplicate alerts on devices that
+already accepted it. A transient failure affecting another device is reported
+as `PARTIAL_DEVICE_FAILURE`; device-level guaranteed delivery would require
+separate durable per-device bookkeeping and a new ticket.

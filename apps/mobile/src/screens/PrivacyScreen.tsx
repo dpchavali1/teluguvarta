@@ -1,8 +1,9 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import React, { useMemo, useRef, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text } from "react-native";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { Pressable, ScrollView, StyleSheet, Switch, Text, View } from "react-native";
 
-import { deleteAccount, trackEvent } from "../lib/api";
+import { deleteAccount } from "../lib/api";
+import { clearMobileAnalyticsOnDeletion, getMobileAnalyticsConsent, setMobileAnalyticsConsent } from "../lib/mobileAnalytics";
 import { useHiddenTopics } from "../lib/HiddenTopicsContext";
 import { resetClientToken } from "../lib/identity";
 import { LOCAL_DATA_KEYS } from "../lib/storage";
@@ -27,6 +28,9 @@ export function PrivacyScreen() {
   const [cleared, setCleared] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [analyticsEnabled, setAnalyticsEnabled] = useState(false);
+  const [analyticsBusy, setAnalyticsBusy] = useState(false);
+  const [analyticsError, setAnalyticsError] = useState<string | null>(null);
   const inFlight = useRef(false);
   const serverDeleted = useRef(false);
   const { resetPreference: resetThemePreference } = useThemePreference();
@@ -34,25 +38,43 @@ export function PrivacyScreen() {
   const { resetHiddenTopics } = useHiddenTopics();
   const { resetLocalData } = useStoryCache();
 
+  useEffect(() => {
+    getMobileAnalyticsConsent().then(setAnalyticsEnabled).catch(() => setAnalyticsEnabled(false));
+  }, []);
+
+  async function changeAnalyticsConsent(enabled: boolean) {
+    setAnalyticsBusy(true);
+    setAnalyticsError(null);
+    try {
+      await setMobileAnalyticsConsent(enabled);
+      setAnalyticsEnabled(enabled);
+    } catch {
+      setAnalyticsError("Couldn’t update analytics on this phone. Please try again.");
+    } finally {
+      setAnalyticsBusy(false);
+    }
+  }
+
   async function handleClear() {
     if (inFlight.current) return;
     inFlight.current = true;
     setBusy(true);
     setError(null);
     setCleared(false);
-    trackEvent("account_delete_request");
     try {
       // ADR-033 A: retain the identity and choices if server deletion fails.
       if (!serverDeleted.current) {
         await deleteAccount();
         serverDeleted.current = true;
       }
+      await clearMobileAnalyticsOnDeletion();
       await AsyncStorage.removeMany(LOCAL_DATA_KEYS);
       await resetClientToken(true);
       resetThemePreference();
       resetTextSize();
       resetHiddenTopics();
       resetLocalData();
+      setAnalyticsEnabled(false);
       // A later deletion must confirm the identity then in use. Only a failed
       // cleanup retains confirmation so it can finish the same operation.
       serverDeleted.current = false;
@@ -80,6 +102,20 @@ export function PrivacyScreen() {
         push tokens, notification history) from our servers, and clears all data this app has
         stored on this device.
       </Text>
+      <View style={styles.analyticsRow}>
+        <View style={styles.analyticsCopy}>
+          <Text style={styles.analyticsTitle}>Usage analytics</Text>
+          <Text style={styles.body}>Help improve the app by sharing basic usage counts with Google Firebase. This is off until you turn it on. Searches, story IDs, profile details, and notification content are never sent.</Text>
+        </View>
+        <Switch
+          accessibilityLabel="Share usage analytics"
+          value={analyticsEnabled}
+          onValueChange={changeAnalyticsConsent}
+          disabled={analyticsBusy || busy}
+          trackColor={{ true: colors.accent }}
+        />
+      </View>
+      {analyticsError && <Text accessibilityRole="alert" style={styles.error}>{analyticsError}</Text>}
       <Pressable
         onPress={handleClear}
         accessibilityRole="button"
@@ -106,6 +142,9 @@ function createStyles(colors: AppTheme["colors"], ui: AppTheme["ui"]) {
     container: { flexGrow: 1, padding: spacing.lg, gap: spacing.md, backgroundColor: colors.bg },
     title: { ...typography.headline, color: colors.text },
     body: { ...typography.body, color: ui.textSecondary },
+    analyticsRow: { flexDirection: "row", alignItems: "center", gap: spacing.md, paddingVertical: spacing.sm },
+    analyticsCopy: { flex: 1, gap: spacing.xs },
+    analyticsTitle: { ...typography.body, color: colors.text, fontWeight: "600" },
     button: {
       minHeight: 44,
       justifyContent: "center",

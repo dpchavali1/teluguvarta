@@ -17,7 +17,10 @@ const KEYS = {
   textSize: "tg_text_size_v1",
   hiddenTopics: "tg_hidden_topics_v1",
   readHistory: "tg_read_history_v1",
+  analyticsConsent: "tte_firebase_analytics_consent_v1",
 } as const;
+
+export const ANALYTICS_CONSENT_KEY = KEYS.analyticsConsent;
 
 // Every on-device key "Delete account and clear data" must remove. A new key
 // added to KEYS is cleared automatically (the client token lives in

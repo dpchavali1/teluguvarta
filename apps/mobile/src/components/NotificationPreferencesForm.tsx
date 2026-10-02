@@ -3,7 +3,6 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Pressable, StyleSheet, Switch, Text, TextInput, View } from "react-native";
 
 import { getConfig, type TopicOut } from "../lib/api";
-import { pushProjectId } from "../lib/push";
 import type { NotificationPreferences } from "../lib/storage";
 import { radius, spacing, typography } from "../theme/tokens";
 import { useAppTheme, type AppTheme } from "../theme/useAppTheme";
@@ -65,7 +64,7 @@ export function NotificationPreferencesForm({
   return (
     <View style={styles.container}>
       <Text style={styles.groupLabel} accessibilityRole="header">PUSH ALERTS</Text>
-      {(pushServiceEnabled === false || !pushProjectId()) && (
+      {pushServiceEnabled === false && (
         <Text style={styles.hint} accessibilityRole="alert">
           Push alerts are not available yet. Your choices will be saved, but notifications will not arrive until delivery is set up.
         </Text>

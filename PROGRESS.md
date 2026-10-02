@@ -14,23 +14,35 @@ records native FCM delivery and separate, default-off analytics consent;
 activation. The owner selected `theteluguedit@gmail.com`; the dedicated
 `theteluguedit-app` project is now Firebase-enabled. Android and iOS apps
 were registered for `org.teluguglobal.app`, and their public native config
-files are saved in `apps/mobile/` and referenced by Expo config. Google
-Analytics property `557190245` is linked to both app streams under the
+files are saved in `apps/mobile/` and referenced by Expo config. Native
+Firebase app, messaging, and analytics modules are installed; native
+prebuild passes, with Analytics and FCM auto-init default-off before JS
+startup and no iOS Ad ID support. Google Analytics property `557190245` is linked to both app streams under the
 existing account; optional Analytics account data-sharing choices and email
-updates were turned off and verified after reload. This is setup only: the
-native SDK, client consent flow, FCM API sender, provider credentials, native
-build, device delivery test, and privacy-copy changes remain pending. The
-production push switch remains disabled; ADR-038 still blocks release.
+updates were turned off and verified after reload. Mobile analytics consent
+is implemented locally, with safe event names only, revocation, account-
+deletion reset, and updated privacy copy. Native FCM registration and token
+refresh replace Expo registration. The API worker uses FCM HTTP v1 with
+invalid-token retirement and bounded retries; the VPS compose mounts a
+private worker credential directory. Android/iOS prebuild, final Android
+release build, mobile typecheck, 85 tests, and
+Android/iOS export pass; the generated Android manifest confirms Analytics
+and Messaging start off. Five FCM sender tests and scoped API Ruff/mypy pass.
+Database-backed notification tests were skipped locally without Postgres.
+The dedicated `tte-fcm-sender` service account has only the FCM API Admin
+role and FCM API is enabled. Its private credential has not been generated or
+installed on the VPS. Physical-device token registration, delivery/consent
+proof, and production activation remain pending. No Android device was
+attached at the latest check. The production push switch remains disabled;
+ADR-038 still blocks release.
 
 **T17 push diagnosis (2026-10-02):** Production reports push delivery disabled.
-The locally installed Android app has OS notification permission, but the
-checked-in app config lacks an EAS project ID, so that build cannot register
-an Expo push token. The VPS sender additionally requires a private Expo push
-access token. Mobile now recognizes the EAS build's project-ID fallback and
-shows when delivery is unavailable; scoped typecheck and tests pass. See the
+The previously installed Android APK has OS notification permission but used
+Expo registration without an EAS project ID, so it could not obtain a push
+token. ADR-039 replaces that path with Firebase. See the revised
 [activation steps](docs/reviews/2026-10-02-push-activation.md). No live push
-was sent or activated; EAS/FCM credentials, a rebuilt app, and VPS setup are
-still required.
+was sent or activated; a rebuilt app, provider credential, and device proof
+are still required.
 
 **T19-release (2026-10-02):** The VPS deploy/monitor gate now verifies that
 API, admin and web serve the exact checkout revision and that public Search and

@@ -248,6 +248,10 @@ def _process_one(db: Session, notification: Notification, now: datetime) -> None
         list(tokens), title=title, body=body,
         data={"type": notification.type, "story_slug": canonical_slug},
     )
+    if result.invalid_tokens:
+        db.query(PushToken).filter(PushToken.token.in_(result.invalid_tokens)).update(
+            {PushToken.active: False}, synchronize_session=False
+        )
 
     notification.attempts += 1
     if result.ok:
