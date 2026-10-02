@@ -11,14 +11,16 @@ Local implementation is distinct from deployment and device acceptance.
 push delivery and analytics. [ADR-039](docs/adr/ADR-039-firebase-mobile-push-and-analytics.md)
 records native FCM delivery and separate, default-off analytics consent;
 [T17-firebase](docs/tickets/T17-firebase.md) orders implementation and
-activation. The owner selected `theteluguedit@gmail.com`, signed in through
-Google Cloud, and a dedicated Cloud project `theteluguedit-app` was created
-under that account. Firebase Management API is enabled, but its conversion
-request returned HTTP 403. The Console's conversion flow requires acceptance
-of Firebase's terms, which the owner approved; the checkbox and conversion
-have not yet been completed in the browser. No Firebase
-apps, credentials, native build, or live push exist yet; production push
-remains disabled. ADR-038 still blocks release.
+activation. The owner selected `theteluguedit@gmail.com`; the dedicated
+`theteluguedit-app` project is now Firebase-enabled. Android and iOS apps
+were registered for `org.teluguglobal.app`, and their public native config
+files are saved in `apps/mobile/` and referenced by Expo config. Google
+Analytics property `557190245` is linked to both app streams under the
+existing account; optional Analytics account data-sharing choices and email
+updates were turned off and verified after reload. This is setup only: the
+native SDK, client consent flow, FCM API sender, provider credentials, native
+build, device delivery test, and privacy-copy changes remain pending. The
+production push switch remains disabled; ADR-038 still blocks release.
 
 **T17 push diagnosis (2026-10-02):** Production reports push delivery disabled.
 The locally installed Android app has OS notification permission, but the

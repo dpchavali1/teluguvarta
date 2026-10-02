@@ -10,10 +10,12 @@
     "icon": "./assets/icon.png",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "org.teluguglobal.app"
+      "bundleIdentifier": "org.teluguglobal.app",
+      "googleServicesFile": "./GoogleService-Info.plist"
     },
     "android": {
       "package": "org.teluguglobal.app",
+      "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "monochromeImage": "./assets/adaptive-icon-monochrome.png",

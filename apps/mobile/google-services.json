@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "707561935461",
+    "project_id": "theteluguedit-app",
+    "storage_bucket": "theteluguedit-app.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:707561935461:android:2ad85680b8e1b39f95ec8c",
+        "android_client_info": {
+          "package_name": "org.teluguglobal.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCT0rD-rLH46tFz9gZnD4Tj2tj7_sPNcKY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
