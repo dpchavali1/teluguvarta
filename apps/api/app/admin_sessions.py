@@ -116,7 +116,7 @@ def revoke_all_for_user(db: Session, user_id: uuid.UUID, now: datetime | None = 
         .values(revoked_at=now or datetime.now(UTC))
     )
     db.commit()
-    return result.rowcount or 0
+    return getattr(result, "rowcount", 0) or 0
 
 
 def live_sessions_for_user(db: Session, user_id: uuid.UUID, now: datetime | None = None) -> list[AdminSession]:

@@ -39,6 +39,8 @@ step named in "insert after"):
 | S2 | S1 | Student topic taxonomy + independent student alerts |
 | T13-repair | T13 | Accepted ADR-034 A: audited existing-Telugu withholding and separately requested bounded regeneration; production quality evidence remains separate. |
 | T14-search | T14/T15 | Owner-authorized R12 follow-up: bounded newest-first search paging across API/contracts/web/app; relevance and regional tagging remain separate. |
+| T19-maintenance | T19 | Owner-authorized mypy reduction and concise progress handoff; historical evidence retained. |
+| UI15 | T21/UI14 | Owner-authorized rounded mobile controls and paired modern colors through shared tokens; device/release acceptance separate. |
 | UI01–UI14 | T14/T15 | Owner-authorized 2026-10-01 interface follow-ups, implemented sequentially; scope/status in `docs/reviews/2026-10-01-improvement-plan.md` and individual `docs/tickets/UIxx.md`. Device/release evidence remains separate from local implementation. |
 
 ## Vertical-slice milestone (before broadening scope)
@@ -54,6 +56,7 @@ slice works end-to-end.
 
 There is no pre-build validation pilot and no post-hardening pilot ticket.
 Product owner decided the product ships on engineering/editorial judgment
-without a recruited-user validation phase — see `PROGRESS.md`'s 2026-09-16
-pilot-removal entry. T20 (pilot) no longer exists; do not reintroduce it or
+without a recruited-user validation phase — see the 2026-09-16 pilot-removal
+entry in `docs/history/PROGRESS-through-T14-search-2026-10-01.md`. T20 (pilot)
+no longer exists; do not reintroduce it or
 gate any ticket on pilot data.

@@ -19,6 +19,7 @@ admin's own account is out of scope for this self-service endpoint.
 """
 
 from datetime import UTC, datetime
+from typing import Literal, cast
 from uuid import UUID
 
 from fastapi import APIRouter, Depends
@@ -31,6 +32,7 @@ from app.db import get_db
 from app.models import Notification, Profile, PushToken, Topic, User, UserTopic
 from app.schemas import (
     DeleteAccountResponse,
+    Language,
     MeResponse,
     NotificationOut,
     PreferencesUpdate,
@@ -61,7 +63,7 @@ def _profile_out(db: Session, user_id: UUID, profile: Profile | None) -> Profile
         residence_region=profile.residence_region,
         home_state=profile.home_state,
         home_city=profile.home_city,
-        language=profile.language,
+        language=cast(Language, profile.language),
         notification_mode=profile.notification_mode,
         topics=_subscribed_topics(db, user_id),
         breaking_alerts_enabled=profile.breaking_alerts_enabled,
@@ -150,8 +152,10 @@ def list_notifications(
     ).all()
     return [
         NotificationOut(
-            id=n.id, type=n.type, story_id=n.story_id, status=n.status,
-            suppressed_reason=n.suppressed_reason, sent_at=n.sent_at, created_at=n.created_at,
+            id=n.id, type=cast(Literal["DAILY_BRIEFING", "TOPIC_ALERT", "BREAKING_ALERT"], n.type),
+            story_id=n.story_id, status=cast(Literal["PENDING", "SENT", "FAILED", "SUPPRESSED"], n.status),
+            suppressed_reason=cast(Literal["QUIET_HOURS", "DAILY_CAP"] | None, n.suppressed_reason),
+            sent_at=n.sent_at, created_at=n.created_at,
         )
         for n in notifications
     ]

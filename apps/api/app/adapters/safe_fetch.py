@@ -31,7 +31,7 @@ class FeedFetchError(Exception):
 
 
 def _resolve(host: str) -> list[str]:
-    return [info[4][0] for info in socket.getaddrinfo(host, None)]
+    return [str(info[4][0]) for info in socket.getaddrinfo(host, None)]
 
 
 def check_public_url(url: str, resolve: Resolver | None = None) -> None:

@@ -109,8 +109,12 @@ class SearchResponse(BaseModel):
     next_cursor: str | None = None
 
 
+def _default_languages() -> list[Language]:
+    return ["en", "te"]
+
+
 class ConfigResponse(BaseModel):
-    languages: list[Language] = Field(default_factory=lambda: ["en", "te"])
+    languages: list[Language] = Field(default_factory=_default_languages)
     features: dict[str, bool] = Field(default_factory=dict)
     topics: list[TopicOut] = Field(default_factory=list)
 

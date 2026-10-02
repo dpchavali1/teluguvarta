@@ -131,8 +131,10 @@ from app.schemas import (
     ReviewQueueItemOut,
     ReviewQueuePageOut,
     RightsEvidence,
+    RightsStatus,
     RuntimeSwitchOut,
     RuntimeSwitchUpdate,
+    Sensitivity,
     SourceIngestionHealthOut,
     StoryFormat,
     StoryStatus,
@@ -214,7 +216,7 @@ def _source_out(source: Source) -> AdminSourceOut:
         source_type=source.source_type,
         country=source.country,
         language=source.language,
-        rights_status=source.rights_status,
+        rights_status=cast(RightsStatus, source.rights_status),
         rights_evidence_url=source.rights_evidence_url,
         rights_reviewed_at=source.rights_reviewed_at,
         reviewer=source.reviewer,
@@ -277,7 +279,7 @@ def create_source(
         refresh_minutes=body.refresh_minutes,
         category=body.category,
     )
-    if enabling:
+    if enabling and body.rights_status is not None:
         source.rights_status = body.rights_status
         source.rights_evidence_url = body.rights_evidence_url
         source.rights_reviewed_at = reviewed_at
@@ -287,7 +289,7 @@ def create_source(
         source.active = bool(body.active)
     db.add(source)
     db.flush()
-    audit = {"name": source.name}
+    audit: dict[str, object] = {"name": source.name}
     if enabling:
         audit.update(rights_status=source.rights_status, active=source.active, reviewer=source.reviewer)
     _write_audit_event(db, admin.email, "SOURCE_CREATED", "source", source.id, audit)
@@ -351,7 +353,7 @@ def _x_account_out(db: Session, account: XAccount, source: Source) -> AdminXAcco
         polling_cadence=account.polling_cadence,
         since_id=account.since_id,
         budget_class=account.budget_class,
-        rights_status=source.rights_status,
+        rights_status=cast(RightsStatus, source.rights_status),
         active=source.active,
         last_success_at=source.last_success_at,
         last_error_at=source.last_error_at,
@@ -508,7 +510,7 @@ def list_recent_briefs(db: Session = Depends(get_db)) -> list[AdminAutoBriefOut]
         ).all()
         out.append(
             AdminAutoBriefOut(
-                story_id=story.id, status=story.status,
+                story_id=story.id, status=cast(StoryStatus, story.status),
                 headline=en.headline if en else None, summary=en.summary if en else None,
                 source_titles=[t for t in titles if t],
                 matched_tokens=(event.metadata_ or {}).get("title_match", {}).get("matched", []),
@@ -520,7 +522,8 @@ def list_recent_briefs(db: Session = Depends(get_db)) -> list[AdminAutoBriefOut]
 
 def _review_task_out(task: ReviewTask) -> ReviewQueueItemOut:
     return ReviewQueueItemOut(
-        id=task.id, story_id=task.story_id, reason=task.reason, status=task.status,
+        id=task.id, story_id=task.story_id, reason=task.reason,
+        status=cast(Literal["PENDING", "IN_REVIEW", "APPROVED", "REJECTED"], task.status),
         decision=task.decision, created_at=task.created_at,
     )
 
@@ -617,12 +620,12 @@ def get_story_detail(story_id: UUID, db: Session = Depends(get_db)) -> AdminStor
         source = db.get(Source, item.source_id)
         sources_out.append(
             AdminStorySourceOut(
-                role=link.role,
+                role=cast(Literal["PRIMARY", "SUPPORTING"], link.role),
                 url=item.url,
                 title=item.title,
                 published_at=item.published_at,
                 source_name=source.name if source else "unknown",
-                source_rights_status=source.rights_status if source else "DISABLED",
+                source_rights_status=cast(RightsStatus, source.rights_status) if source else "DISABLED",
                 description=item.description,
             )
         )
@@ -637,17 +640,18 @@ def get_story_detail(story_id: UUID, db: Session = Depends(get_db)) -> AdminStor
     return AdminStoryDetailOut(
         id=story.id,
         canonical_slug=story.canonical_slug,
-        status=story.status,
-        sensitivity=story.sensitivity,
-        format=story.format,
+        status=cast(StoryStatus, story.status),
+        sensitivity=cast(Sensitivity, story.sensitivity),
+        format=cast(StoryFormat, story.format),
         importance=story.importance,
         importance_override=story.importance_override,  # type: ignore[arg-type]
         classification_confidence=story.classification_confidence,
         published_at=story.published_at,
         variants={
-            v.language: StoryVariantOut(
-                language=v.language, headline=v.headline, summary=v.summary,
-                why_matters=v.why_matters, qa_status=v.qa_status,
+            cast(Language, v.language): StoryVariantOut(
+                language=cast(Language, v.language), headline=v.headline, summary=v.summary,
+                why_matters=v.why_matters,
+                qa_status=cast(Literal["PENDING", "PASSED", "FAILED"], v.qa_status),
             )
             for v in variants
         },
@@ -715,7 +719,7 @@ def approve_story(
     _write_audit_event(db, admin.email, "STORY_APPROVED", "story", story.id, {"reason": body.reason})
     db.commit()
     db.refresh(story)
-    return AdminActionResponse(story_id=story.id, status=story.status)
+    return AdminActionResponse(story_id=story.id, status=cast(StoryStatus, story.status))
 
 
 @router.put("/stories/{story_id}/variants/{language}")
@@ -776,7 +780,7 @@ def write_story_draft(
     )
     db.commit()
     db.refresh(story)
-    return AdminActionResponse(story_id=story.id, status=story.status)
+    return AdminActionResponse(story_id=story.id, status=cast(StoryStatus, story.status))
 
 
 @router.put("/stories/{story_id}/topics")
@@ -814,7 +818,7 @@ def set_story_topics(
         {"old": old, "new": sorted(slugs), "reason": body.reason},
     )
     db.commit()
-    return AdminActionResponse(story_id=story.id, status=story.status)
+    return AdminActionResponse(story_id=story.id, status=cast(StoryStatus, story.status))
 
 
 @router.put("/stories/{story_id}/countries")
@@ -842,7 +846,7 @@ def set_story_countries(
         {"old": old, "new": sorted(codes), "reason": body.reason},
     )
     db.commit()
-    return AdminActionResponse(story_id=story.id, status=story.status)
+    return AdminActionResponse(story_id=story.id, status=cast(StoryStatus, story.status))
 
 
 @router.put("/stories/{story_id}/importance")
@@ -864,7 +868,7 @@ def set_story_importance(
         {"old": old, "new": {"level": body.level, "importance": story.importance}, "reason": body.reason},
     )
     db.commit()
-    return AdminActionResponse(story_id=story.id, status=story.status)
+    return AdminActionResponse(story_id=story.id, status=cast(StoryStatus, story.status))
 
 
 @router.post("/stories/{story_id}/reject")
@@ -883,7 +887,7 @@ def reject_story(
     )
     db.commit()
     db.refresh(story)
-    return AdminActionResponse(story_id=story.id, status=story.status)
+    return AdminActionResponse(story_id=story.id, status=cast(StoryStatus, story.status))
 
 
 # ADR-025: an ADMIN can send a held story back through the AI a bounded
@@ -1036,7 +1040,7 @@ def retry_ai(
     )
     db.commit()
     db.refresh(story)
-    return AdminActionResponse(story_id=story.id, status=story.status)
+    return AdminActionResponse(story_id=story.id, status=cast(StoryStatus, story.status))
 
 
 @router.post("/stories/{story_id}/retract")
@@ -1052,7 +1056,7 @@ def retract_story(
     _write_audit_event(db, admin.email, "STORY_RETRACTED", "story", story.id, {"reason": body.reason})
     db.commit()
     db.refresh(story)
-    return AdminActionResponse(story_id=story.id, status=story.status)
+    return AdminActionResponse(story_id=story.id, status=cast(StoryStatus, story.status))
 
 
 @router.post("/stories/{story_id}/approve-breaking-alert")
@@ -1076,7 +1080,7 @@ def approve_breaking_alert(
     _write_audit_event(db, admin.email, "BREAKING_ALERT_APPROVED", "story", story.id, {"reason": body.reason})
     db.commit()
     db.refresh(story)
-    return AdminActionResponse(story_id=story.id, status=story.status)
+    return AdminActionResponse(story_id=story.id, status=cast(StoryStatus, story.status))
 
 
 @router.post("/stories/{story_id}/correct")
@@ -1143,7 +1147,7 @@ def correct_story(
     )
     db.commit()
     db.refresh(story)
-    return AdminActionResponse(story_id=story.id, status=story.status)
+    return AdminActionResponse(story_id=story.id, status=cast(StoryStatus, story.status))
 
 
 @router.get("/jobs")
@@ -1153,7 +1157,7 @@ def list_jobs(db: Session = Depends(get_db)) -> list[AdminJobOut]:
         AdminJobOut(
             id=job.id,
             type=job.type,
-            status=job.status,
+            status=cast(Literal["PENDING", "RUNNING", "DONE", "FAILED"], job.status),
             attempts=job.attempts,
             run_after=job.run_after,
             locked_at=job.locked_at,

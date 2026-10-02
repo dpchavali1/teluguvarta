@@ -4,6 +4,7 @@ that dependency checks.
 """
 
 from datetime import UTC, datetime
+from typing import Literal, cast
 
 from fastapi import APIRouter, Depends, Request, Response
 from sqlalchemy import select
@@ -67,7 +68,7 @@ def login(
     user = db.scalar(
         select(User).where(User.email == email, User.role.is_not(None), User.deleted_at.is_(None))
     )
-    if user is None or not user.password_hash or not verify_password(body.password, user.password_hash):
+    if user is None or user.role not in ("EDITOR", "ADMIN") or not user.password_hash or not verify_password(body.password, user.password_hash):
         record_login_attempt(db, email, client_ip, success=False)
         raise APIError(401, "INVALID_CREDENTIALS", "Incorrect email or password")
 
@@ -76,7 +77,7 @@ def login(
         if not body.mfa_code:
             record_login_attempt(db, email, client_ip, success=False)
             raise APIError(401, "MFA_REQUIRED", "Enter your authenticator app code")
-        if not verify_mfa_code(decrypt_mfa_secret(user.mfa_secret), body.mfa_code):
+        if user.mfa_secret is None or not verify_mfa_code(decrypt_mfa_secret(user.mfa_secret), body.mfa_code):
             record_login_attempt(db, email, client_ip, success=False)
             raise APIError(401, "INVALID_MFA_CODE", "Incorrect authenticator app code")
 
@@ -98,7 +99,7 @@ def login(
 
     return AdminLoginResponse(
         expires_in=int((session.expires_at - session.created_at).total_seconds()),
-        role=user.role,
+        role=cast(Literal["EDITOR", "ADMIN"], user.role),
         mfa_enrollment_required=not mfa_enrolled,
     )
 
@@ -108,7 +109,7 @@ def current_session(admin: AdminPrincipal = Depends(current_admin_for_enrollment
     """Who is signed in. The admin app calls this instead of reading a token."""
     return AdminCurrentSessionOut(
         email=admin.email,
-        role=admin.role,
+        role=cast(Literal["EDITOR", "ADMIN"], admin.role),
         mfa_enrollment_required=admin.session.scope == SCOPE_MFA_ENROLLMENT,
         expires_at=admin.session.expires_at,
         idle_expires_at=idle_expires_at(admin.session),

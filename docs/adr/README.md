@@ -24,8 +24,8 @@ accepted. Add ad-hoc ADRs below this table as they're written.
 
 - ADR-002 above was written ahead of T06 per an explicit product decision
   to launch on `LINK_ONLY` sources only; see the ADR for context.
-- ADR-010 | Folio visual redesign (supersedes ADR-008's palette) |
-  ad hoc, user-requested | **accepted** — see
+- ADR-010 | Folio visual redesign (superseded color/shape values by ADR-035) |
+  ad hoc, user-requested | **accepted, historically** — see
   [ADR-010](ADR-010-folio-visual-redesign.md)
 - ADR-011 | Claim evidence sufficiency for unattended publish | P0-1
   follow-up | **proposed** — see
@@ -99,3 +99,6 @@ accepted. Add ad-hoc ADRs below this table as they're written.
 - ADR-034 | Audited withholding and optional bounded regeneration of existing
   Telugu variants | T13 / improvement item 3 | **accepted** (option A, owner
   2026-10-01) — see [ADR-034](ADR-034-audited-telugu-variant-repair.md)
+- ADR-035 | Rounded controls and paired modern colors | UI15 |
+  **accepted** (owner 2026-10-01) — see
+  [ADR-035](ADR-035-rounded-modern-color-system.md)

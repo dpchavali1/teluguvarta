@@ -12,6 +12,7 @@ from __future__ import annotations
 
 from collections import defaultdict
 from dataclasses import dataclass, field
+from typing import Literal, cast
 from uuid import UUID
 
 from sqlalchemy import func, select
@@ -29,7 +30,16 @@ from app.models import (
     StoryVariant,
     Topic,
 )
-from app.schemas import Language, StoryOut, StorySourceOut, StoryVariantOut, TopicOut
+from app.schemas import (
+    Language,
+    Sensitivity,
+    StoryFormat,
+    StoryOut,
+    StorySourceOut,
+    StoryStatus,
+    StoryVariantOut,
+    TopicOut,
+)
 
 # A story shows up to the public only once it has been published at least
 # once (T12's status machine); UPDATED/RETRACTED/CORRECTION_PENDING are all
@@ -70,8 +80,8 @@ def load_story_relations(db: Session, ids: list[UUID]) -> StoryRelations:
 
 def _variant_out(v: StoryVariant) -> StoryVariantOut:
     return StoryVariantOut(
-        language=v.language, headline=v.headline, summary=v.summary,
-        why_matters=v.why_matters, qa_status=v.qa_status,
+        language=cast(Language, v.language), headline=v.headline, summary=v.summary,
+        why_matters=v.why_matters, qa_status=cast(Literal["PENDING", "PASSED", "FAILED"], v.qa_status),
     )
 
 
@@ -107,9 +117,9 @@ def story_to_out(db: Session, story: Story, loaded: StoryRelations | None = None
     return StoryOut(
         id=story.id,
         canonical_slug=story.canonical_slug,
-        status=story.status,
-        sensitivity=story.sensitivity,
-        format=story.format,
+        status=cast(StoryStatus, story.status),
+        sensitivity=cast(Sensitivity, story.sensitivity),
+        format=cast(StoryFormat, story.format),
         importance=story.importance,
         published_at=story.published_at,
         updated_at=updated_at,  # type: ignore[arg-type]

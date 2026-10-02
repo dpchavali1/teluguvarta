@@ -26,8 +26,8 @@ export function PagedStoryList({
   /** Leave out stories from topics the reader hid, and offer "Show less" (Latest, not Topic). */
   respectHiddenTopics?: boolean;
 }) {
-  const { colors } = useAppTheme();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const { colors, ui } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors, ui), [colors, ui]);
   const { put } = useStoryCache();
   const { hiddenTopics } = useHiddenTopics();
   const requestId = useRef(0);
@@ -132,12 +132,12 @@ export function PagedStoryList({
 
 export const HIDDEN_ALL_LABEL = "These stories are all from topics you've hidden. Show them again in Settings → Hidden topics.";
 
-function createStyles(colors: AppTheme["colors"]) {
+function createStyles(colors: AppTheme["colors"], ui: AppTheme["ui"]) {
   return StyleSheet.create({
     center: { flex: 1, alignItems: "center", justifyContent: "center", gap: spacing.md, padding: spacing.lg },
     message: { color: colors.text, textAlign: "center" },
     footer: { padding: spacing.md, gap: spacing.sm, alignItems: "center" },
-    // Ink-filled button, matching apps/web's main button.
+    // Primary action uses the paired light/dark indigo control role.
     button: {
       minHeight: 44,
       minWidth: 44,
@@ -146,8 +146,8 @@ function createStyles(colors: AppTheme["colors"]) {
       alignItems: "center",
       borderRadius: radius.pill,
       borderCurve: "continuous",
-      backgroundColor: colors.text,
+      backgroundColor: ui.actionPrimary,
     },
-    buttonText: { color: colors.bg, fontWeight: "600" },
+    buttonText: { color: ui.actionPrimaryText, fontWeight: "600" },
   });
 }

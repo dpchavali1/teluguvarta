@@ -58,7 +58,7 @@ export const colorSchemes = { light: colors, dark: colorsDark } as const;
 export const ui = {\n${rnSemantic("light")}\n} as const;
 export const uiDark = {\n${rnSemantic("dark")}\n} as const;
 export const uiSchemes = { light: ui, dark: uiDark } as const;
-export const radius = { sm: 0, md: ${tokens.radius.md}, lg: ${tokens.radius.lg}, pill: 0 } as const;
+export const radius = { sm: ${tokens.radius.md}, md: ${tokens.radius.md}, lg: ${tokens.radius.lg}, card: ${tokens.radius.card}, pill: ${tokens.radius.pill} } as const;
 export const spacing = ${JSON.stringify(tokens.spacing, null, 2)} as const;
 export const shadow = {
   sm: { shadowColor: colors.rule, shadowOpacity: 1, shadowRadius: 0, shadowOffset: { width: ${tokens.shadow.sm}, height: ${tokens.shadow.sm} }, elevation: ${tokens.shadow.sm}, boxShadow: \`${tokens.shadow.sm}px ${tokens.shadow.sm}px 0 \${colors.rule}\` },

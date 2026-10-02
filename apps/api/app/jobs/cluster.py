@@ -26,6 +26,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.ai import AiGateway, GatewayStatus, Task
+from app.ai.contracts import GenerationResult
 from app.content.importance import recompute_importance
 from app.jobs.queue import enqueue_job
 from app.models import Job, SourceItem, Story, StorySource
@@ -74,7 +75,7 @@ def _escalate_to_ai(db: Session, item_a: SourceItem, item_b: SourceItem) -> bool
         "publish_recommendation='MATCH' only if they describe the same event."
     )
     outcome = gateway.run_task(Task.DEDUP_CLUSTER_ESCALATION, prompt)
-    if outcome.status != GatewayStatus.OK or outcome.result is None:
+    if outcome.status != GatewayStatus.OK or not isinstance(outcome.result, GenerationResult):
         return False
     return outcome.result.relevant and outcome.result.publish_recommendation == "MATCH"
 

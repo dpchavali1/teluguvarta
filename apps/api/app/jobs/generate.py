@@ -272,9 +272,8 @@ def _resolve_privacy(db: Session, story: Story, items: list[SourceItem]) -> Priv
     """
     from app.models import Source
 
-    categories = {
-        (db.get(Source, item.source_id).category if db.get(Source, item.source_id) else None) for item in items
-    }
+    sources = [db.get(Source, item.source_id) for item in items]
+    categories = {source.category if source is not None else None for source in sources}
     category = next(iter(categories)) if len(categories) == 1 else None
     # ADR-020: descriptions only add text, so they can only tighten this.
     computed = classify_privacy(category, *(item.title for item in items), *(item.description for item in items))
@@ -363,9 +362,10 @@ def _generate_story(db: Session, story: Story) -> bool:
             # queue for later (§7.5) — items stay CLUSTERED until the backoff passes
             _record_failure(db, story, items, state, version, classify_outcome.status, [])
             return True
-        classification = classify_outcome.result
-        if classification is None:
+        raw_classification = classify_outcome.result
+        if not isinstance(raw_classification, GenerationResult):
             return True
+        classification = raw_classification
         classify_status = classify_outcome.status
         state = ai_retry.cache_classification(
             db, state, story_id=story.id, version=version, status=classify_status,
@@ -409,7 +409,7 @@ def _generate_story(db: Session, story: Story) -> bool:
         _record_failure(db, story, items, state, version, generate_outcome.status, reasons)
         return True
     generated = generate_outcome.result
-    if generated is None:
+    if not isinstance(generated, GenerationResult):
         return True
     if generate_outcome.status == GatewayStatus.REVIEW_QUEUE:
         reasons.append("LOW_CONFIDENCE_GENERATION")

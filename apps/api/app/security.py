@@ -48,7 +48,7 @@ def is_login_rate_limited(db: Session, email: str) -> bool:
         .select_from(AdminLoginAttempt)
         .where(AdminLoginAttempt.email == email, AdminLoginAttempt.created_at >= window_start)
     )
-    return count >= LOGIN_RATE_LIMIT_MAX_ATTEMPTS
+    return (count or 0) >= LOGIN_RATE_LIMIT_MAX_ATTEMPTS
 
 
 def record_login_attempt(db: Session, email: str, ip: str | None, success: bool) -> None:

@@ -37,10 +37,8 @@ export function MainTabs() {
     <Tab.Navigator
       screenOptions={({ route }) => ({
         headerShown: true,
-        // Ink for active/emphasized, faint for inactive — matches web's
-        // nav convention of reserving the accent color for fills/rules,
-        // not small foreground text or icons (low contrast on light bone).
-        tabBarActiveTintColor: colors.text,
+        // Indigo marks the active destination in both contrast-checked modes.
+        tabBarActiveTintColor: colors.accent,
         tabBarInactiveTintColor: colors.faint,
         tabBarStyle: { backgroundColor: colors.surface, borderTopColor: colors.border },
         headerStyle: { backgroundColor: colors.surface },

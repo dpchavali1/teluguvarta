@@ -1,6 +1,6 @@
 import { useFocusEffect } from "@react-navigation/native";
 import React, { useCallback, useState } from "react";
-import { ActivityIndicator, Button, Pressable, Text, View } from "react-native";
+import { ActivityIndicator, Pressable, Text, View } from "react-native";
 import { StoryList } from "../components/StoryList";
 import { getSavedStories, type StoryOut } from "../lib/api";
 import { useStoryCache } from "../lib/StoryCacheContext";
@@ -53,7 +53,7 @@ export function SavedScreen() {
             accessibilityState={{ checked: selected }}
             accessibilityLabel={label}
             style={{
-              minHeight: 44, justifyContent: "center", paddingHorizontal: spacing.md, borderRadius: radius.md,
+              minHeight: 44, justifyContent: "center", paddingHorizontal: spacing.md, borderRadius: radius.pill,
               borderWidth: 1, borderColor: ui.borderControl, backgroundColor: selected ? ui.actionPrimary : "transparent",
             }}
           >
@@ -66,7 +66,14 @@ export function SavedScreen() {
 
   let body: React.ReactNode;
   if (loading) body = <ActivityIndicator accessibilityLabel={view === "saved" ? "Loading saved stories" : "Loading recently read stories"} color={colors.text} />;
-  else if (error) body = <View style={{ padding: 24 }}><Text accessibilityRole="alert" style={{ color: colors.text }}>{error}</Text><Button title="Try again" onPress={() => setRevision((value) => value + 1)} /></View>;
+  else if (error) body = <View style={{ padding: spacing.xl, gap: spacing.md }}>
+    <Text accessibilityRole="alert" style={{ color: colors.text }}>{error}</Text>
+    <Pressable onPress={() => setRevision((value) => value + 1)} accessibilityRole="button" accessibilityLabel="Try again"
+      style={{ alignSelf: "flex-start", minHeight: 44, justifyContent: "center", paddingHorizontal: spacing.lg,
+        borderRadius: radius.pill, borderCurve: "continuous", backgroundColor: ui.actionPrimary }}>
+      <Text style={{ color: ui.actionPrimaryText, fontWeight: "600" }}>Try again</Text>
+    </Pressable>
+  </View>;
   else if (view === "saved") {
     body = <>
       {missing > 0 && <Text style={{ padding: 16, color: colors.muted }}>{missing} saved stories are currently unavailable. Your bookmarks have been kept.</Text>}
@@ -85,7 +92,7 @@ export function SavedScreen() {
           <Pressable
             onPress={clearReadHistory}
             accessibilityRole="button"
-            style={{ minHeight: 44, justifyContent: "center", paddingHorizontal: spacing.md, borderRadius: radius.md, borderWidth: 1, borderColor: ui.borderControl }}
+            style={{ minHeight: 44, justifyContent: "center", paddingHorizontal: spacing.md, borderRadius: radius.pill, borderWidth: 1, borderColor: ui.borderControl }}
           >
             <Text style={{ fontWeight: "600", color: colors.text }}>Clear reading history</Text>
           </Pressable>

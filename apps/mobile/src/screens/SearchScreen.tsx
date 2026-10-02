@@ -174,7 +174,7 @@ function createStyles(colors: AppTheme["colors"], ui: AppTheme["ui"]) {
     container: { flex: 1, backgroundColor: colors.bg },
     message: { color: colors.text, textAlign: "center", paddingHorizontal: spacing.lg },
     searchRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm, margin: spacing.md },
-    clearButton: { minHeight: 44, justifyContent: "center", paddingHorizontal: spacing.sm, borderRadius: radius.md, backgroundColor: colors.text },
+    clearButton: { minHeight: 44, justifyContent: "center", paddingHorizontal: spacing.md, borderRadius: radius.pill, backgroundColor: ui.actionPrimary },
     browseButton: { minHeight: 44, justifyContent: "center", alignSelf: "center" },
     resultCount: { color: colors.muted, paddingHorizontal: spacing.md, paddingBottom: spacing.sm },
     pageFooter: { padding: spacing.lg, gap: spacing.md, alignItems: "center" },
@@ -182,14 +182,14 @@ function createStyles(colors: AppTheme["colors"], ui: AppTheme["ui"]) {
       flex: 1,
       minHeight: 44,
       paddingHorizontal: 12,
-      borderRadius: 8,
+      borderRadius: radius.pill,
       borderCurve: "continuous",
       borderWidth: 1,
       borderColor: ui.borderControl,
       color: colors.text,
     },
     center: { flex: 1, alignItems: "center", justifyContent: "center", gap: spacing.md },
-    // Ink-filled button, matching apps/web's main button.
+    // Primary action uses the paired light/dark indigo control role.
     retryButton: {
       minHeight: 44,
       minWidth: 44,
@@ -198,8 +198,8 @@ function createStyles(colors: AppTheme["colors"], ui: AppTheme["ui"]) {
       alignItems: "center",
       borderRadius: radius.pill,
       borderCurve: "continuous",
-      backgroundColor: colors.text,
+      backgroundColor: ui.actionPrimary,
     },
-    retryButtonText: { color: colors.bg, fontWeight: "600" },
+    retryButtonText: { color: ui.actionPrimaryText, fontWeight: "600" },
   });
 }

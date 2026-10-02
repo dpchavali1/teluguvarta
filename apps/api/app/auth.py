@@ -87,6 +87,8 @@ def current_user(
         db.execute(insert_stmt)
         db.commit()
         user = db.scalars(select(User).where(User.client_token == token)).first()
+    if user is None:
+        raise APIError(503, "IDENTITY_UNAVAILABLE", "Could not load reader identity")
     actor = str(user.id)
     request.state.actor = actor
     set_actor(actor)
@@ -99,7 +101,7 @@ def _admin_principal(request: Request, db: Session, *, allow_enrollment: bool) -
         raise APIError(401, "UNAUTHENTICATED", "Not signed in, or the session has expired")
     require_csrf_header(request)
     user = db.get(User, session.user_id)
-    if user is None or user.deleted_at is not None or user.role not in ADMIN_ROLES:
+    if user is None or user.deleted_at is not None or user.role not in ADMIN_ROLES or user.email is None:
         # ADR-028: deleting or demoting an account revokes its sessions. No
         # API path does either, so the first request after it happens does.
         revoke_all_for_user(db, session.user_id)

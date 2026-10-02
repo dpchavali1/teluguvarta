@@ -193,6 +193,12 @@ class AiGateway:
             logger.warning("monthly AI hard cap reached; refusing paid %s call", task.value)
             return GatewayOutcome(status=GatewayStatus.UNAVAILABLE)
 
+        if route.default_model is None:
+            logger.error("provider route %s has no model; refusing %s", route.provider, task.value)
+            record_call(self._db, task=task, provider=route.provider, model=None,
+                        status="UNAVAILABLE", story_id=story_id)
+            return GatewayOutcome(status=GatewayStatus.UNAVAILABLE)
+
         # ADR-018 decisions 5 and 7: a paid call that can't be priced, or that
         # names a moving alias, would slip past the budget gate. Refuse it.
         if route.provider == "gemini_paid" and (

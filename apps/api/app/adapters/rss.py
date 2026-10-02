@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from email.utils import parsedate_to_datetime
+from typing import TYPE_CHECKING
 
 import httpx
 
@@ -18,6 +19,9 @@ import httpx
 # NON_NEGOTIABLES warns about (XXE/billion-laughs). defusedxml.ElementTree
 # is a drop-in replacement with the same API, hardened against those.
 from defusedxml import ElementTree as ET
+
+if TYPE_CHECKING:
+    from xml.etree.ElementTree import Element
 
 from .base import RawItem, RawItems, SourceAdapter
 from .safe_fetch import fetch_public
@@ -37,7 +41,7 @@ class RssFeedAdapter(SourceAdapter):
         return RawItems(items=items)
 
 
-def _from_rss_item(entry: ET.Element) -> RawItem:
+def _from_rss_item(entry: Element) -> RawItem:
     link = (entry.findtext("link") or "").strip()
     guid = (entry.findtext("guid") or link).strip()
     return RawItem(
@@ -50,7 +54,7 @@ def _from_rss_item(entry: ET.Element) -> RawItem:
     )
 
 
-def _from_atom_entry(entry: ET.Element) -> RawItem:
+def _from_atom_entry(entry: Element) -> RawItem:
     link_el = entry.find(f"{ATOM_NS}link")
     link = (link_el.get("href") or "").strip() if link_el is not None else ""
     guid = (entry.findtext(f"{ATOM_NS}id") or link).strip()

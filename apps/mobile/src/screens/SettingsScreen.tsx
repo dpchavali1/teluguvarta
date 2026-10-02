@@ -203,7 +203,7 @@ function createStyles(colors: AppTheme["colors"], ui: AppTheme["ui"]) {
     },
     group: {
       backgroundColor: colors.surface,
-      borderRadius: radius.lg,
+      borderRadius: radius.card,
       borderCurve: "continuous",
       borderWidth: 1,
       borderColor: ui.borderSubtle,

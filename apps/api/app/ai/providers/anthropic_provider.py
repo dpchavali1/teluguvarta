@@ -42,7 +42,7 @@ class AnthropicProvider:
             max_tokens=2048,
             messages=[{"role": "user", "content": text}],
         )
-        content = "".join(block.text for block in response.content if getattr(block, "type", None) == "text")
+        content = "".join(block.text for block in response.content if block.type == "text")
         output, failure = parse_json_output(content or "{}")
         return ProviderResponse(
             output=output,

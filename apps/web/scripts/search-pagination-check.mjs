@@ -42,9 +42,9 @@ try {
         assert(!(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1)), "Overflow");
         const findings = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21aa", "wcag22aa"]).analyze();
         assert.deepEqual(findings.violations.filter((v) => ["serious", "critical"].includes(v.impact)).map((v) => v.id), []);
-        if (theme === "light" && language === "te" && width !== 320) {
+        if (language === "te" && width !== 320) {
           await page.evaluate(() => scrollTo(0, 0));
-          await page.screenshot({ path: `${out}/page-two-${width}-te.png`, fullPage: true });
+          await page.screenshot({ path: `${out}/page-two-${width}-${theme}-te.png`, fullPage: true });
         }
         await page.getByRole("link", { name: "Back to first results", exact: true }).click();
         await page.waitForURL((url) => url.searchParams.get("q") === "paged" && !url.searchParams.has("cursor"));

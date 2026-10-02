@@ -34,7 +34,7 @@ assuming those fixes are live.
 | 5 | Editorial usefulness and coverage (R8/R9) | Use existing yield dashboard to investigate SUMMARY_TOO_SHORT holds and publisher/topic imbalance. Sample actual output against the brevity guide. Accept ADR-030 before changing taxonomy/navigation; preserve rights and sensitive-review gates. |
 | 6 | Reading design and accessibility | Verify existing compact cards and EN/TE detail on phone/desktop; refine spacing, horizontal-navigation affordances, source actions and loading/failure states using current tokens. Keyboard/axe and large-text checks must support changes. |
 | 7 | Mobile completion (R10) | Finish Android/iOS accessibility, poor-network, background-return and push journeys; validate release parity. Persisted offline reading needs an accepted expiry/correction/retraction ADR first. |
-| 8 | Maintainability | Reduce mypy errors module by module, keep contracts/generated tokens reproducible, and shorten PROGRESS into a current summary plus linked history in a separately scoped documentation change. |
+| 8 | Maintainability | T19-maintenance implemented locally: mypy 70 → 0, baseline lowered to zero, and PROGRESS shortened with verbatim history archived. Continue contract/token reproducibility checks. |
 
 Implement one focused ticket at a time, with acceptance tests and progress updates.
 Do not mark T19 complete until its remaining release gates have evidence. No new
@@ -64,8 +64,9 @@ mypy count is 70 (CI baseline 71). This first change touched the API test fixtur
 ## Comprehensive website and app interface program
 
 Owner authorized this interface program on 2026-10-01. It is an incremental
-follow-up to T14/T15 and the accepted ADR-009/010/014 component/token contracts,
-not a new palette or architecture. Infrastructure evidence remains an open T19
+follow-up to T14/T15 and the accepted ADR-009/010/014 component/token contracts.
+The later UI15 request accepted ADR-035, which supersedes ADR-010's palette and
+shape values without changing the architecture. Infrastructure evidence remains an open T19
 track; it does not block independently testable presentation improvements.
 Preserve native implementations, complete original headlines, sources, browsing
 without login, existing topic URLs and bilingual fallback semantics.
@@ -80,7 +81,7 @@ card. Keep source attribution legible and the original-source action prominent.
 
 Design against actual English/Telugu copy, including long headlines and missing
 translations. Do not use truncation to conceal weak editorial copy. Avoid stock
-photography that implies reporting evidence. Reuse Folio tokens and platform
+photography that implies reporting evidence. Reuse shared tokens and platform
 icons; motion must be optional, subtle and respect reduced-motion settings.
 
 ### Sequential interface tickets
@@ -105,6 +106,7 @@ implementation, so complete and record one ticket before starting the next.
 | UI12 | Cross-surface accessibility and localization | Keyboard/focus/landmarks/contrast, reduced motion, dynamic feedback, TalkBack/VoiceOver and Telugu reading checks. Localized chrome needs reviewed strings; do not invent unreviewed Telugu translations. | Browser/code checks complete; device speech/localization evidence pending |
 | UI13 | Performance and layout stability | Compare baseline and changed page weight/CLS/loading; lazy-load only justified features, preserve SSR and accessible skeletons; no new font/icon library unless measured. | Saved and Telugu hydration shifts reduced locally; production/native performance gates open |
 | UI14 | Release visual acceptance | Before/after phone/tablet/desktop screenshots, EN/TE/light/dark, first/returning reader, Android device and iOS when supported; deploy status and app-store release tracked separately. | Local visual acceptance complete; device/production release pending |
+| UI15 | App colors and rounded controls | ADR-035 shared paired light/dark palette, repaired native pill radius generation, rounded app buttons/groups, token contrast and build checks; real-device visual acceptance follows separately. | Implemented locally; device visual acceptance pending |
 
 ### State coverage and delivery rules
 
@@ -232,8 +234,8 @@ Remaining work is explicit: Android/iOS real-device safe-area, system font scale
 live backend/deep-link/push release journeys. No Android device or booted iOS
 simulator was available during this run. UI12–UI14 and T19 release gates stay
 partially open. Broader backlog items 2–5/7–8 remain separate work: recovery
-proof, approved-variant repair decisions, API search pagination/relevance,
-ADR-030 coverage/navigation, durable offline policy and mypy cleanup. This
+proof, live translation quality evidence, search relevance,
+ADR-030 coverage/navigation and durable offline policy. This
 interface implementation does not declare that broader backlog complete.
 
 ### UI13 follow-up — Telugu first paint (2026-10-01)
@@ -401,3 +403,25 @@ No new dependency, infrastructure, migration, real provider call, deployment or
 production data edit. Deploy API before/with readers. Native TalkBack/VoiceOver
 and release evidence remain pending. Relevance scoring awaits separately scoped
 inventory/latency evidence; regional tagging still requires its product decision.
+
+### T19-maintenance and UI15 — 2026-10-01
+
+The maintenance follow-up removed all 70 existing API mypy diagnostics across
+15 files by narrowing nullable values, typed provider responses and response
+schema boundaries; the checked CI baseline is now zero. Ruff and the full API
+suite pass (564 tests, 10 warnings, no teardown errors). The old 4,550-line
+progress tracker is preserved verbatim in
+`docs/history/PROGRESS-through-T14-search-2026-10-01.md`; current `PROGRESS.md`
+is a short handoff with release gates and links to this plan and the ADR registry.
+
+ADR-035's paired cool light/dark colors and 8/12/16/pill radii are generated
+from the existing single token source for web, admin and native. The native
+generator previously emitted `pill: 0` even though the source was 999; it now
+uses the source value. Rounded primary/retry/clear actions, grouped settings,
+saved controls and active navigation tint use the shared semantic palette.
+Token drift and contrast checks, mobile typecheck/73 tests/Android+iOS export,
+and web/admin lint/typecheck/build pass. Synthetic Chromium search checks pass
+12 EN/TE/light/dark layouts at 320/390/1440px, keyboard paging and scoped
+WCAG axe with no serious/critical findings. Phone/desktop Telugu light/dark
+screenshots were inspected under `/tmp/tte-ui15-browser/`. Native device
+appearance, screen readers and release behavior still require device evidence.

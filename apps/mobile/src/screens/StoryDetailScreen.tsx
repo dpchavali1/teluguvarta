@@ -19,8 +19,8 @@ function formatLoadedAt(ms: number): string {
 export function StoryDetailScreen({ route }: Props) {
   const { slug } = route.params;
   const { put, getBySlug, remove, markRead } = useStoryCache();
-  const { colors } = useAppTheme();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const { colors, ui } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors, ui), [colors, ui]);
   const [story, setStory] = useState<StoryOut | null>(null);
   const [error, setError] = useState<string | null>(null);
   // Set while the screen shows a cached copy the API hasn't confirmed:
@@ -139,12 +139,12 @@ export function StoryDetailScreen({ route }: Props) {
   );
 }
 
-function createStyles(colors: AppTheme["colors"]) {
+function createStyles(colors: AppTheme["colors"], ui: AppTheme["ui"]) {
   return StyleSheet.create({
     container: { flex: 1, backgroundColor: colors.bg },
     center: { flex: 1, alignItems: "center", justifyContent: "center", gap: spacing.md, backgroundColor: colors.bg },
     message: { color: colors.text, textAlign: "center", paddingHorizontal: spacing.lg },
-    // Ink-filled button, matching apps/web's main button.
+    // Primary action uses the paired light/dark indigo control role.
     retryButton: {
       minHeight: 44,
       minWidth: 44,
@@ -153,9 +153,9 @@ function createStyles(colors: AppTheme["colors"]) {
       alignItems: "center",
       borderRadius: radius.pill,
       borderCurve: "continuous",
-      backgroundColor: colors.text,
+      backgroundColor: ui.actionPrimary,
     },
-    retryButtonText: { color: colors.bg, fontWeight: "600" },
+    retryButtonText: { color: ui.actionPrimaryText, fontWeight: "600" },
     staleBanner: {
       flexDirection: "row",
       flexWrap: "wrap",

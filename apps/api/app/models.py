@@ -472,6 +472,9 @@ class StoryClaim(Base):
 
 class Job(Base):
     __tablename__ = "jobs"
+    # Only the claiming process holds this token; it is never a DB column.
+    __allow_unmapped__ = True
+    lease_token: datetime | None = None
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     type: Mapped[str] = mapped_column(Text, nullable=False)

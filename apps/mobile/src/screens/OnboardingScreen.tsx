@@ -24,7 +24,7 @@ import {
   type NotificationPreferences,
   type OnboardingProfile,
 } from "../lib/storage";
-import { typography } from "../theme/tokens";
+import { radius, typography } from "../theme/tokens";
 import { useAppTheme, type AppTheme } from "../theme/useAppTheme";
 
 type Styles = ReturnType<typeof createStyles>;
@@ -224,7 +224,7 @@ function createStyles(colors: AppTheme["colors"], ui: AppTheme["ui"]) {
       justifyContent: "center",
       alignItems: "center",
       paddingHorizontal: 16,
-      borderRadius: 8,
+      borderRadius: radius.pill,
       borderCurve: "continuous",
       borderWidth: 1,
       borderColor: ui.borderControl,
