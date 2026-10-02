@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { DeviceEventEmitter, Pressable, StyleSheet, Text, View } from "react-native";
 
-import { getProfile, setLanguage, type OnboardingProfile } from "../lib/storage";
+import { getProfile, setLanguage, LANGUAGE_CHANGE_EVENT, type OnboardingProfile } from "../lib/storage";
 import { spacing, typography } from "../theme/tokens";
 import { useAppTheme, type AppTheme } from "../theme/useAppTheme";
 
@@ -16,7 +16,14 @@ export function LanguageToggle() {
   const [language, setLanguageState] = useState<OnboardingProfile["language"]>("en");
 
   useEffect(() => {
-    getProfile().then((profile) => setLanguageState(profile.language));
+    let active = true;
+    let changed = false;
+    getProfile().then((profile) => { if (active && !changed) setLanguageState(profile.language); });
+    const subscription = DeviceEventEmitter.addListener(LANGUAGE_CHANGE_EVENT, (next: OnboardingProfile["language"]) => {
+      changed = true;
+      setLanguageState(next);
+    });
+    return () => { active = false; subscription.remove(); };
   }, []);
 
   async function choose(next: OnboardingProfile["language"]) {

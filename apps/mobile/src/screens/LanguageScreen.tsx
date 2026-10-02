@@ -26,14 +26,14 @@ export function LanguageScreen() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.groupLabel}>DISPLAY LANGUAGE</Text>
-      <View style={styles.group}>
+      <Text style={styles.groupLabel} accessibilityRole="header">STORY LANGUAGE</Text>
+      <View style={styles.group} accessibilityRole="radiogroup" accessibilityLabel="Story language">
         {OPTIONS.map((option, index) => (
           <Pressable
             key={option.value}
             onPress={() => choose(option.value)}
             accessibilityRole="radio"
-            accessibilityState={{ selected: profile.language === option.value }}
+            accessibilityState={{ checked: profile.language === option.value }}
             accessibilityLabel={option.label}
             style={[styles.row, index < OPTIONS.length - 1 && styles.rowDivider, profile.language === option.value && styles.rowActive]}
           >
@@ -74,6 +74,6 @@ function createStyles(colors: AppTheme["colors"], ui: AppTheme["ui"]) {
     },
     rowDivider: { borderBottomWidth: StyleSheet.hairlineWidth, borderColor: ui.borderSubtle },
     rowActive: { backgroundColor: ui.actionPrimarySoft },
-    label: { ...typography.body, color: colors.text },
+    label: { ...typography.body, flexShrink: 1, color: colors.text },
   });
 }

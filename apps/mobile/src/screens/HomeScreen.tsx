@@ -186,6 +186,24 @@ export function HomeScreen() {
       }
       // Home is a bounded ranked set; Latest pages through everything.
       ListFooterComponent={
+        <>
+          {visibleBriefing.length > 0 && (
+            <View style={styles.briefing} accessibilityLabel="Student Briefing">
+              <Text style={styles.briefingTitle}>Student Briefing</Text>
+              <Text style={styles.briefingSubtitle}>
+                Shown because you selected a student life stage during setup.
+              </Text>
+              {visibleBriefing.map((story) => (
+                <StoryCard
+                  key={story.id}
+                  story={story}
+                  onOpen={() => navigation.navigate("StoryDetail", { slug: story.canonical_slug })}
+                  onOpenSource={(url) => Linking.openURL(url)}
+                  allowHideTopic
+                />
+              ))}
+            </View>
+          )}
         <Pressable
           onPress={() => navigation.navigate("Latest")}
           accessibilityRole="button"
@@ -194,11 +212,17 @@ export function HomeScreen() {
         >
           <Text style={styles.latestLinkText}>All latest stories</Text>
         </Pressable>
+        </>
       }
       ListHeaderComponent={
         <>
           <View style={styles.welcome} accessibilityLabel="Your daily briefing">
-            <Text style={styles.welcomeEyebrow}>TODAY</Text>
+            <View style={styles.welcomeRow}>
+              <Text style={styles.welcomeEyebrow}>TODAY</Text>
+              <Pressable onPress={() => navigation.navigate("Latest")} accessibilityRole="button" accessibilityLabel="Browse latest stories" style={styles.latestInline}>
+                <Text style={styles.latestLinkText}>Latest stories →</Text>
+              </Pressable>
+            </View>
             <Text style={styles.welcomeTitle}>What matters today</Text>
             <Text style={styles.welcomeCopy}>Clear updates for life here and back home.</Text>
           </View>
@@ -230,23 +254,7 @@ export function HomeScreen() {
               )}
             />
           )}
-          {visibleBriefing.length > 0 && (
-            <View style={styles.briefing} accessibilityLabel="Student Briefing">
-              <Text style={styles.briefingTitle}>Student Briefing</Text>
-              <Text style={styles.briefingSubtitle}>
-                Shown because you selected a student life stage during setup.
-              </Text>
-              {visibleBriefing.map((story) => (
-                <StoryCard
-                  key={story.id}
-                  story={story}
-                  onOpen={() => navigation.navigate("StoryDetail", { slug: story.canonical_slug })}
-                  onOpenSource={(url) => Linking.openURL(url)}
-                  allowHideTopic
-                />
-              ))}
-            </View>
-          )}
+
         </>
       }
     />
@@ -278,12 +286,14 @@ function createStyles(colors: AppTheme["colors"], ui: AppTheme["ui"]) {
     paddingVertical: spacing.sm,
   },
   welcomeEyebrow: { ...typography.meta, color: ui.actionText, textTransform: "uppercase" },
-  welcomeTitle: { ...typography.display, color: colors.text, marginTop: spacing.xs },
-  welcomeCopy: { ...typography.body, color: colors.muted, marginTop: spacing.xs },
+  welcomeRow: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: spacing.sm },
+  latestInline: { minHeight: 44, justifyContent: "center" },
+  welcomeTitle: { ...typography.headline, color: colors.text, marginTop: spacing.xs },
+  welcomeCopy: { ...typography.meta, textTransform: "none", color: colors.muted, marginTop: spacing.xs },
   topicRow: { paddingVertical: spacing.sm, paddingHorizontal: spacing.md },
   // Matches web's .pill--topic: transparent, ink text, no fill at rest.
   topicChip: {
-    minHeight: 40,
+    minHeight: 44,
     justifyContent: "center",
     paddingHorizontal: spacing.md,
     marginRight: spacing.sm,

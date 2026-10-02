@@ -8,6 +8,7 @@ import { SiteHeader } from "@/components/SiteHeader";
 import { TrackEvent } from "@/components/TrackEvent";
 import { ErrorTrackingBoot } from "@/components/ErrorTrackingBoot";
 import { getConfig, siteUrl, type TopicOut } from "@/lib/api";
+import { STORY_LANGUAGE_INIT_SCRIPT } from "@/lib/storyLanguage";
 
 import "./globals.css";
 
@@ -75,12 +76,12 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
     <html
       lang="en"
       className={`${fontSans.variable} ${fontTelugu.variable} ${fontTeluguDisplay.variable}`}
-      // THEME_INIT_SCRIPT sets data-theme before hydration, so this attribute
-      // intentionally differs from the server-rendered HTML.
+      // Preference scripts set root attributes before hydration.
       suppressHydrationWarning
     >
       <head>
         <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
+        <script dangerouslySetInnerHTML={{ __html: STORY_LANGUAGE_INIT_SCRIPT }} />
       </head>
       <body>
         <ErrorTrackingBoot />

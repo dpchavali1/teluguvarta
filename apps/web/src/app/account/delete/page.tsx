@@ -6,13 +6,18 @@ import { track } from "@/lib/analytics";
 
 export default function DeleteAccountPage() {
   const [cleared, setCleared] = useState(false);
+  const [error, setError] = useState(false);
 
   function handleClear() {
     track("account_delete_request");
+    setError(false);
+    setCleared(false);
     try {
       window.localStorage.removeItem("tg_saved_stories");
+      window.dispatchEvent(new Event("tg:saved-change"));
     } catch {
-      // storage disabled — nothing to clear
+      setError(true);
+      return;
     }
     setCleared(true);
   }
@@ -33,6 +38,7 @@ export default function DeleteAccountPage() {
       <button type="button" onClick={handleClear}>
         Clear saved stories on this device
       </button>
+      {error && <p role="alert">Your bookmarks couldn’t be cleared. Check that browser storage is available, then try again.</p>}
       {cleared && <p role="status">Saved stories cleared on this device.</p>}
     </div>
   );

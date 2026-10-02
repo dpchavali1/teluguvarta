@@ -31,6 +31,8 @@ export function StoryList({
 
   return (
     <FlatList
+      style={{ flex: 1, backgroundColor: colors.bg }}
+      keyboardShouldPersistTaps="handled"
       data={stories}
       keyExtractor={(story) => story.id}
       renderItem={({ item }) => (

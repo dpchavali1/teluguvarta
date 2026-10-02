@@ -10,11 +10,13 @@ rather than failed, since T02's local Postgres is an opt-in dev dependency.
 
 import os
 from pathlib import Path
+from uuid import uuid4
 
 import psycopg
 import pytest
 from dotenv import load_dotenv
 from fastapi.testclient import TestClient
+from psycopg import sql
 from sqlalchemy import create_engine
 from sqlalchemy.engine import make_url
 from sqlalchemy.orm import Session
@@ -62,20 +64,29 @@ def _admin_connect():
 
 
 @pytest.fixture
-def scratch_database(request):
-    """Creates a fresh, uniquely-named database for one test; drops it after."""
+def scratch_database():
+    """Create a unique owned database; never pre-drop another run's database."""
     admin_conn, url = _admin_connect()
-    db_name = f"teluguvarta_test_{request.node.name}"[:63].lower().replace("[", "_").replace("]", "_")
-    with admin_conn.cursor() as cur:
-        cur.execute(f'DROP DATABASE IF EXISTS "{db_name}" WITH (FORCE)')
-        cur.execute(f'CREATE DATABASE "{db_name}" OWNER "{url.username}"')
-    test_url = url.set(database=db_name).render_as_string(hide_password=False)
+    db_name = f"teluguvarta_test_{uuid4().hex}"
+    created = False
     try:
-        yield test_url
-    finally:
         with admin_conn.cursor() as cur:
-            cur.execute(f'DROP DATABASE IF EXISTS "{db_name}" WITH (FORCE)')
-        admin_conn.close()
+            cur.execute(
+                sql.SQL("CREATE DATABASE {} OWNER {}").format(
+                    sql.Identifier(db_name), sql.Identifier(url.username)
+                )
+            )
+        created = True
+        yield url.set(database=db_name).render_as_string(hide_password=False)
+    finally:
+        try:
+            if created:
+                with admin_conn.cursor() as cur:
+                    cur.execute(
+                        sql.SQL("DROP DATABASE {} WITH (FORCE)").format(sql.Identifier(db_name))
+                    )
+        finally:
+            admin_conn.close()
 
 
 @pytest.fixture
@@ -84,10 +95,30 @@ def migrated_database(scratch_database, monkeypatch):
     from alembic import command
     from alembic.config import Config
 
+    # cache_clear() forgets engines without closing their pooled connections.
+    # Track every application engine, including ones local client fixtures forget,
+    # and dispose them before scratch_database attempts to drop its database.
+    from app import db as app_db
+
+    engines = []
+    original_create_engine = app_db.create_engine
+
+    def tracked_create_engine(*args, **kwargs):
+        engine = original_create_engine(*args, **kwargs)
+        engines.append(engine)
+        return engine
+
+    monkeypatch.setattr(app_db, "create_engine", tracked_create_engine)
+    app_db._engine_for.cache_clear()
     monkeypatch.setenv("DATABASE_URL", scratch_database)
     cfg = Config(str(Path(__file__).resolve().parents[1] / "alembic.ini"))
-    command.upgrade(cfg, "head")
-    yield scratch_database
+    try:
+        command.upgrade(cfg, "head")
+        yield scratch_database
+    finally:
+        for engine in engines:
+            engine.dispose()
+        app_db._engine_for.cache_clear()
 
 
 @pytest.fixture

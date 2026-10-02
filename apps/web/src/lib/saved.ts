@@ -5,14 +5,16 @@
 // pure addition, not a breaking change to this API.
 const STORAGE_KEY = "tg_saved_stories";
 
-function readAll(): string[] {
+function readAll(strict = false): string[] {
   if (typeof window === "undefined") return [];
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY);
     if (!raw) return [];
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed.filter((id) => typeof id === "string") : [];
-  } catch {
+    if (!Array.isArray(parsed)) throw new Error("Bookmarks could not be read");
+    return [...new Set(parsed.filter((id) => typeof id === "string"))];
+  } catch (error) {
+    if (strict) throw error;
     return [];
   }
 }
@@ -29,7 +31,7 @@ export function isSaved(storyId: string): boolean {
 }
 
 export function toggleSaved(storyId: string): boolean {
-  const ids = readAll();
+  const ids = readAll(true);
   const index = ids.indexOf(storyId);
   if (index === -1) {
     ids.push(storyId);
@@ -41,6 +43,6 @@ export function toggleSaved(storyId: string): boolean {
   return false;
 }
 
-export function getSavedIds(): string[] {
-  return readAll();
+export function getSavedIds(strict = false): string[] {
+  return readAll(strict);
 }

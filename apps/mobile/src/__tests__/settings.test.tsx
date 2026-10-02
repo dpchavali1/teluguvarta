@@ -1,8 +1,11 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { fireEvent, render, screen } from "@testing-library/react-native";
+import { act, fireEvent, render, screen } from "@testing-library/react-native";
 import Constants from "expo-constants";
 import React from "react";
-import { Linking } from "react-native";
+import type { OnboardingProfile } from "../lib/storage";
+import * as storage from "../lib/storage";
+import { LanguageToggle } from "../components/LanguageToggle";
+import { DeviceEventEmitter, Linking } from "react-native";
 
 import { SettingsScreen, appVersionLabel } from "../screens/SettingsScreen";
 import { ThemePreferenceProvider } from "../theme/ThemePreferenceContext";
@@ -56,4 +59,16 @@ test("version label shows the build number only when configured", () => {
   expect(appVersionLabel()).toBe("Version 1.2.3");
   setConfig(null);
   expect(appVersionLabel()).toBe("Version unknown");
+});
+
+test("header language follows a settings change even if its initial read finishes late", async () => {
+  let resolve!: (profile: OnboardingProfile) => void;
+  const read = jest.spyOn(storage, "getProfile").mockImplementationOnce(() => new Promise((r) => { resolve = r; }));
+  try {
+    await render(<LanguageToggle />);
+    await act(async () => { DeviceEventEmitter.emit(storage.LANGUAGE_CHANGE_EVENT, "te"); });
+    expect(screen.getByRole("radio", { name: "తెలుగు" }).props.accessibilityState.checked).toBe(true);
+    await act(async () => { resolve({ lifeStages: [], interestTopicSlugs: [], language: "en" }); });
+    expect(screen.getByRole("radio", { name: "తెలుగు" }).props.accessibilityState.checked).toBe(true);
+  } finally { read.mockRestore(); }
 });

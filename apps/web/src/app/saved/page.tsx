@@ -26,7 +26,12 @@ export default function SavedPage() {
   useEffect(() => {
     let cancelled = false;
     setError(null);
-    const ids = getSavedIds();
+    let ids: string[];
+    try { ids = getSavedIds(true); }
+    catch {
+      setError("Your bookmarks couldn’t be read from this browser. Check that browser storage is available, then try again.");
+      return;
+    }
     getSavedStories(ids).then((items) => {
       if (cancelled) return;
       setStories(items);
@@ -40,10 +45,10 @@ export default function SavedPage() {
   return <>
     <PageHeader eyebrow="Your library" title="Saved">Your bookmarks stay on this device. Stories are checked for the latest updates when you open this page.</PageHeader>
     {error ? <div className="callout" role="alert"><p>{error}</p><button className="button" onClick={() => setRevision((value) => value + 1)}>Try again</button></div>
-      : stories === null ? <><p className="visually-hidden" role="status">Loading saved stories…</p><SkeletonGrid count={3} /></>
+      : stories === null ? <><p className="visually-hidden" role="status">Loading saved stories…</p><SkeletonGrid count={1} /></>
       : <>
-        {missingCount > 0 && <p className="callout" role="status">{missingCount} saved {missingCount === 1 ? "story is" : "stories are"} currently unavailable. Your bookmarks have been kept.</p>}
-        <StoryGrid stories={stories} empty={missingCount === 0 ? <>No saved stories yet. Tap the bookmark on any story to keep it here. <Link href="/">Find a story to save</Link>.</> : undefined} />
+        {missingCount > 0 && <p className="callout" role="status">{missingCount} saved {missingCount === 1 ? "story is" : "stories are"} currently unavailable. Your bookmarks have been kept. <Link href="/latest">Browse latest stories</Link>.</p>}
+        <StoryGrid stories={stories} empty={missingCount === 0 ? <>No saved stories yet. Tap the bookmark on any story to keep it here. <Link href="/">Find a story to save</Link>.</> : <>No saved stories are available right now. <Link href="/latest">Browse latest stories</Link>.</>} />
       </>}
   </>;
 }

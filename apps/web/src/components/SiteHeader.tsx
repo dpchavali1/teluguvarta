@@ -5,6 +5,7 @@ import Link from "next/link";
 
 import { Icon } from "@/components/Icon";
 import { LanguageToggle } from "@/components/LanguageToggle";
+import { TopicBar } from "@/components/TopicBar";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import type { TopicOut } from "@/lib/api";
 
@@ -55,20 +56,7 @@ export function SiteHeader({ topics }: { topics: TopicOut[] }) {
           </div>
         </div>
       </div>
-      {topics.length > 0 && (
-        <nav className="topic-bar" aria-label="Topics">
-          <ul className="topic-bar__list">
-            {topics.map((topic) => {
-              const href = `/topic/${topic.slug}`;
-              return (
-                <li key={topic.slug}>
-                  <Link href={href} className="topic-bar__link" aria-current={pathname === href ? "page" : undefined}>{topic.name}</Link>
-                </li>
-              );
-            })}
-          </ul>
-        </nav>
-      )}
+      {topics.length > 0 && <TopicBar topics={topics} pathname={pathname} />}
     </header>
   );
 }

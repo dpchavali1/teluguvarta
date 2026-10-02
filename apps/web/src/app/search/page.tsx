@@ -4,7 +4,7 @@ import Link from "next/link";
 import { Icon } from "@/components/Icon";
 import { PageHeader, StoryGrid } from "@/components/StoryGrid";
 import { TrackEvent } from "@/components/TrackEvent";
-import { getConfig, search, type TopicOut } from "@/lib/api";
+import { getConfig, search, SEARCH_RESULT_LIMIT, type SearchResponse, type TopicOut } from "@/lib/api";
 
 export const metadata: Metadata = { title: "Search" };
 
@@ -20,13 +20,18 @@ async function suggestedTopics(): Promise<TopicOut[]> {
 
 export default async function SearchPage({ searchParams }: Props) {
   const q = (await searchParams).q?.trim() ?? "";
-  const results = q.length > 0 ? await search(q) : null;
-  const topics = results ? [] : await suggestedTopics();
+  let results: SearchResponse | null = null;
+  let failed = false;
+  if (q) {
+    try { results = await search(q); }
+    catch { failed = true; }
+  }
+  const topics = results?.items.length ? [] : await suggestedTopics();
 
   return (
     <>
       {results && <TrackEvent event="search" properties={{ query: q, result_count: results.items.length }} />}
-      <PageHeader eyebrow="Search" title={results ? `Results for “${q}”` : "Search"} />
+      <PageHeader eyebrow="Search" title={q ? `Results for “${q}”` : "Search"} />
       <form className="search-form" role="search" action="/search" method="get">
         <label className="visually-hidden" htmlFor="search-q">Search stories</label>
         <span className="search-form__icon" aria-hidden="true"><Icon name="search" size={20} /></span>
@@ -34,9 +39,15 @@ export default async function SearchPage({ searchParams }: Props) {
         <button className="button button--primary" type="submit">Search</button>
       </form>
 
+      {failed && <div className="callout" role="alert">
+        <p>Search couldn’t load. Your search is still in the field above.</p>
+        <form action="/search" method="get"><input type="hidden" name="q" value={q} /><button className="button" type="submit">Try again</button></form>
+        <Link href="/topics">Browse topics</Link>
+      </div>}
+
       {results && (
         <section aria-live="polite">
-          <p className="result-count">{results.items.length} {results.items.length === 1 ? "story" : "stories"}</p>
+          <p className="result-count">Showing {results.items.length} {results.items.length === 1 ? "story" : "stories"}{results.items.length === SEARCH_RESULT_LIMIT ? ` · Up to ${SEARCH_RESULT_LIMIT} matches shown. Narrow your search to find more.` : ""}</p>
           <StoryGrid stories={results.items} empty={<>No stories match &ldquo;{q}&rdquo;. Try a broader word, or <Link href="/topics">browse topics</Link>.</>} />
         </section>
       )}

@@ -3,7 +3,9 @@
 // judgment call as ./saved.ts and apps/mobile/src/lib/storage.ts. Life-stage
 // values match apps/api's `Segment` (app/schemas.py) directly — unlike
 // apps/mobile's storage.ts, there's no legacy SCREAMING_SNAKE format to map.
-const STORAGE_KEY = "tg_onboarding_profile_v1";
+import { applyStoryLanguage, normalizeStoryLanguage, PROFILE_STORAGE_KEY } from "./storyLanguage";
+
+const STORAGE_KEY = PROFILE_STORAGE_KEY;
 
 export type LifeStage =
   | "international_student"
@@ -37,27 +39,32 @@ export type OnboardingProfile = {
 const EMPTY_PROFILE: OnboardingProfile = { lifeStages: [], topics: [], language: "en" };
 
 export const LANGUAGE_CHANGE_EVENT = "tg:language-change";
+let sessionLanguage: Language | null = null;
 
 export function getPreferredLanguage(): Language {
-  return getOnboardingProfile().language ?? "en";
+  return sessionLanguage ?? normalizeStoryLanguage(getOnboardingProfile().language);
+}
+
+// A relevant change in another tab supersedes a choice held in this tab.
+export function refreshPreferredLanguage(): Language {
+  sessionLanguage = null;
+  return getPreferredLanguage();
 }
 
 export function setPreferredLanguage(language: Language): void {
   setOnboardingProfile({ ...getOnboardingProfile(), language });
-  if (typeof window !== "undefined") {
-    window.dispatchEvent(new CustomEvent<Language>(LANGUAGE_CHANGE_EVENT, { detail: language }));
-  }
 }
 
 export function getOnboardingProfile(): OnboardingProfile {
   if (typeof window === "undefined") return EMPTY_PROFILE;
+  let profile = EMPTY_PROFILE;
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (!raw) return EMPTY_PROFILE;
-    return { ...EMPTY_PROFILE, ...JSON.parse(raw) } as OnboardingProfile;
+    if (raw) profile = { ...EMPTY_PROFILE, ...JSON.parse(raw) } as OnboardingProfile;
   } catch {
-    return EMPTY_PROFILE;
+    // Keep the current session's language even when storage is unavailable.
   }
+  return { ...profile, language: sessionLanguage ?? normalizeStoryLanguage(profile.language) };
 }
 
 export function setOnboardingProfile(profile: OnboardingProfile): void {
@@ -66,6 +73,13 @@ export function setOnboardingProfile(profile: OnboardingProfile): void {
   } catch {
     // Private browsing / storage disabled — onboarding silently doesn't
     // persist rather than breaking the page.
+  }
+  // Reflect the choice for this session even when storage cannot persist it.
+  const language = normalizeStoryLanguage(profile.language);
+  sessionLanguage = language;
+  applyStoryLanguage(language);
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new CustomEvent<Language>(LANGUAGE_CHANGE_EVENT, { detail: language }));
   }
 }
 

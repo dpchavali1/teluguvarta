@@ -258,9 +258,9 @@ button:disabled {
 .icon-button {
   display: inline-grid;
   place-items: center;
-  width: 40px;
-  height: 40px;
-  min-height: 0;
+  width: 44px;
+  height: 44px;
+  min-height: 44px;
   padding: 0;
   border: 0;
   border-radius: var(--radius-pill);
@@ -286,8 +286,9 @@ button:disabled {
 
 .language-toggle button,
 .segmented button {
-  min-height: 30px;
-  padding: 0 12px;
+  min-height: 44px;
+  min-width: 44px;
+  padding: 0 10px;
   border: 0;
   background: transparent;
   color: var(--text-secondary);
@@ -520,29 +521,45 @@ button:disabled {
 }
 
 .topic-bar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
   max-width: var(--page-max);
   margin: 0 auto;
-  /* Fade the edges so it reads as horizontally scrollable. */
-  -webkit-mask-image: linear-gradient(90deg, transparent, #000 var(--gutter), #000 calc(100% - 48px), transparent);
-  mask-image: linear-gradient(90deg, transparent, #000 var(--gutter), #000 calc(100% - 48px), transparent);
+  padding: 0 var(--gutter) 6px;
 }
 
 .topic-bar__list {
   display: flex;
+  flex: 1;
+  min-width: 0;
   gap: 4px;
-  padding: 0 var(--gutter) 8px;
+  padding: 3px;
   overflow-x: auto;
   list-style: none;
-  scrollbar-width: none;
+  scrollbar-width: thin;
   overscroll-behavior-x: contain;
 }
 
-.topic-bar__list::-webkit-scrollbar {
-  display: none;
+.topic-bar__scroll {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 44px;
+  height: 44px;
+  border: 1px solid var(--border-control);
+  border-radius: var(--radius-pill);
+  background: var(--surface);
+  color: var(--action-text);
 }
 
+.topic-bar__scroll--back .icon { transform: rotate(180deg); }
+.topic-bar__scroll:disabled { opacity: 0.4; }
+
 .topic-bar__link {
-  display: block;
+  display: flex;
+  align-items: center;
+  min-height: 44px;
   padding: 5px 12px;
   border-radius: var(--radius-pill);
   color: var(--text-secondary);
@@ -642,42 +659,28 @@ button:disabled {
   color: var(--text-secondary);
 }
 
-.personalize-card {
+.edition-preferences {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: var(--space-md);
-  max-width: 30rem;
-  padding: 12px 12px 12px 16px;
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-card);
-  background: var(--surface);
-  box-shadow: var(--shadow-sm);
+  gap: 0 var(--space-md);
 }
 
-.personalize-card__icon {
-  display: grid;
-  place-items: center;
-  flex: none;
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  background: var(--action-primary-soft);
+.edition-preferences__link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
   color: var(--action-text);
-}
-
-.personalize-card__title {
   font-size: var(--text-small);
   font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 4px;
 }
 
-.personalize-card__text {
+.edition-preferences__hint {
   color: var(--text-secondary);
   font-size: 0.8125rem;
-  line-height: 1.4;
-}
-
-.personalize-card .button {
-  flex: none;
 }
 
 .front-grid {
@@ -937,7 +940,6 @@ button:disabled {
    the photo a news site would normally use. */
 .story-card--lead {
   gap: 14px;
-  height: 100%;
   padding: clamp(20px, 3vw, 36px);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-card);
@@ -963,11 +965,9 @@ button:disabled {
   font-size: 1.125rem;
 }
 
-/* When the rail is taller than the lead, keep the headline block at the
-   top and pin source + actions to the bottom of the card. */
+/* Attribution follows the deck instead of leaving an empty stretched card. */
 .story-card--lead .story-card__source-link--lead {
-  margin-top: auto;
-  padding-top: var(--space-lg);
+  padding-top: var(--space-sm);
 }
 
 /* Brief: compact card; the headline link's ::after stretches over the
@@ -986,10 +986,7 @@ button:disabled {
 }
 
 .story-card--brief .story-card__summary {
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 3;
-  overflow: hidden;
+  line-height: 1.6;
 }
 
 .story-card__footer {
@@ -1005,6 +1002,7 @@ button:disabled {
 
 .story-card__source {
   display: inline-flex;
+  min-height: 44px;
   align-items: center;
   gap: 4px;
   min-width: 0;
@@ -1023,9 +1021,9 @@ button:disabled {
 }
 
 .story-card--brief .story-card__action--save {
-  width: 40px;
-  height: 40px;
-  min-height: 0;
+  width: 44px;
+  height: 44px;
+  min-height: 44px;
   padding: 0;
   border-color: transparent;
   background: transparent;
@@ -1697,13 +1695,22 @@ input[type="checkbox"] {
 }
 
 @media (max-width: 640px) {
-  .personalize-card {
-    max-width: none;
-    width: 100%;
-  }
-
   .edition {
     align-items: stretch;
+    gap: 8px;
+    margin-bottom: var(--space-md);
+  }
+
+  .edition h1 {
+    font-size: clamp(1.5rem, 1.1rem + 2vw, 2rem);
+  }
+
+  .edition__lede {
+    font-size: var(--text-small);
+  }
+
+  .edition-preferences {
+    width: 100%;
   }
 
   .story-card--lead {
@@ -1726,18 +1733,17 @@ input[type="checkbox"] {
 @media (max-width: 380px) {
   .brand__name {
     font-size: 0.9375rem;
+    white-space: normal;
+    max-width: 5rem;
   }
-
-  .personalize-card__text {
-    display: none;
-  }
+  .brand { gap: 6px; }
+  .brand__mark { width: 28px; height: 28px; flex: none; }
 }
 
 /* ADR-014 "StoryLead always above the fold" at short viewports (200% zoom
    on a laptop): tighten the edition header so the lead headline fits. */
 @media (max-height: 560px) {
-  .edition__lede,
-  .personalize-card__text {
+  .edition__lede {
     display: none;
   }
 
@@ -1745,3 +1751,38 @@ input[type="checkbox"] {
     margin-bottom: var(--space-md);
   }
 }
+
+/* UI04: readable bilingual detail and source titles at narrow widths. */
+.story-card__summary[lang="te"],
+.story-card__why[lang="te"] p { line-height: 1.75; }
+.sources__name, .sources__domain { overflow-wrap: anywhere; }
+.story-card--detail .story-card__source-link--lead {
+  align-self: flex-start;
+  min-height: 44px;
+  flex-wrap: wrap;
+  padding: 10px 14px;
+  border: 1px solid var(--border-control);
+  border-radius: var(--radius-md);
+  color: var(--action-text);
+  background: var(--surface);
+}
+.story-card--detail .story-card__actions {
+  padding-top: var(--space-sm);
+  border-top: 1px solid var(--border-subtle);
+}
+
+/* UI13: use the existing preference before hydration, without replacing copy. */
+.story-copy--en { display: block; line-height: inherit; }
+.story-copy--te, .story-copy--fallback { display: none; }
+:root[data-story-language="te"] .story-card[data-bilingual="true"] .story-copy--en { display: none; }
+:root[data-story-language="te"] .story-card[data-bilingual="true"] .story-copy--te,
+:root[data-story-language="te"] .story-copy--fallback { display: block; }
+.story-card__headline .story-copy--te {
+  font-family: var(--font-te-heading);
+  font-weight: 400;
+  line-height: 1.4;
+  letter-spacing: 0;
+}
+.story-card--lead .story-card__headline .story-copy--te,
+.story-card--detail .story-card__headline .story-copy--te { line-height: 1.35; }
+.story-card__summary .story-copy--te { line-height: 1.75; }

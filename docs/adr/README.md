@@ -93,3 +93,6 @@ accepted. Add ad-hoc ADRs below this table as they're written.
 - ADR-032 | Every stale review hold expires (extends ADR-031) | owner
   decision 2026-10-01 | **accepted** — see
   [ADR-032](ADR-032-every-stale-hold-expires.md)
+- ADR-033 | Confirm server deletion before clearing local data; retain identity
+  on failure for retry | UI11 | **accepted** (option A, owner 2026-10-01) — see
+  [ADR-033](ADR-033-account-deletion-failure-recovery.md)

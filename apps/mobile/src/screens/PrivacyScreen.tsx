@@ -1,5 +1,5 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useRef, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text } from "react-native";
 
 import { deleteAccount, trackEvent } from "../lib/api";
@@ -25,29 +25,46 @@ export function PrivacyScreen() {
   const { colors, ui } = useAppTheme();
   const styles = useMemo(() => createStyles(colors, ui), [colors, ui]);
   const [cleared, setCleared] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const inFlight = useRef(false);
+  const serverDeleted = useRef(false);
   const { resetPreference: resetThemePreference } = useThemePreference();
   const { resetTextSize } = useTextSize();
   const { resetHiddenTopics } = useHiddenTopics();
   const { resetLocalData } = useStoryCache();
 
   async function handleClear() {
+    if (inFlight.current) return;
+    inFlight.current = true;
+    setBusy(true);
+    setError(null);
+    setCleared(false);
     trackEvent("account_delete_request");
     try {
-      await deleteAccount();
+      // ADR-033 A: retain the identity and choices if server deletion fails.
+      if (!serverDeleted.current) {
+        await deleteAccount();
+        serverDeleted.current = true;
+      }
+      await AsyncStorage.removeMany(LOCAL_DATA_KEYS);
+      await resetClientToken(true);
+      resetThemePreference();
+      resetTextSize();
+      resetHiddenTopics();
+      resetLocalData();
+      // A later deletion must confirm the identity then in use. Only a failed
+      // cleanup retains confirmation so it can finish the same operation.
+      serverDeleted.current = false;
+      setCleared(true);
     } catch {
-      // Best-effort: a network/server failure must not block clearing
-      // on-device data below, which has no server dependency.
+      setError(serverDeleted.current
+        ? "Account deleted, but some data on this device couldn’t be cleared. Try again to finish clearing it."
+        : "Couldn’t delete your account. Your data and identity have been kept so you can retry. Check your connection and try again.");
+    } finally {
+      inFlight.current = false;
+      setBusy(false);
     }
-    await resetClientToken();
-    await AsyncStorage.removeMany(LOCAL_DATA_KEYS);
-    // The stored choices are gone; also put the live app back on the system
-    // theme, default text size and no hidden topics.
-    resetThemePreference();
-    resetTextSize();
-    resetHiddenTopics();
-    // Saved and read ids are gone from storage; forget them in memory too.
-    resetLocalData();
-    setCleared(true);
   }
 
   return (
@@ -67,10 +84,14 @@ export function PrivacyScreen() {
         onPress={handleClear}
         accessibilityRole="button"
         accessibilityLabel="Delete account and clear all data on this device"
+        disabled={busy}
+        accessibilityState={{ disabled: busy, busy }}
         style={styles.button}
       >
-        <Text style={styles.buttonText}>Delete account and clear data</Text>
+        <Text style={styles.buttonText}>{busy ? "Deleting…" : "Delete account and clear data"}</Text>
       </Pressable>
+      <Text style={styles.body}>If server deletion fails, your data stays on this phone so you can try again.</Text>
+      {error && <Text accessibilityRole="alert" style={styles.error}>{error}</Text>}
       {cleared && (
         <Text accessibilityLiveRegion="polite" style={styles.status}>
           Account deleted and data cleared on this device.
@@ -98,5 +119,6 @@ function createStyles(colors: AppTheme["colors"], ui: AppTheme["ui"]) {
     },
     buttonText: { color: ui.danger, fontWeight: "600" },
     status: { color: ui.success },
+    error: { color: ui.danger },
   });
 }

@@ -139,8 +139,10 @@ export async function getTopic(slug: string, cursor?: string): Promise<TopicDeta
   return { topic: raw.topic, stories: (raw.stories ?? []).map(normalizeStory), next_cursor: raw.next_cursor };
 }
 
+export const SEARCH_RESULT_LIMIT = 20;
+
 export async function search(q: string): Promise<SearchResponse> {
-  const raw = await apiGet<components["schemas"]["SearchResponse"]>("/v1/search", { q });
+  const raw = await apiGet<components["schemas"]["SearchResponse"]>("/v1/search", { q, limit: String(SEARCH_RESULT_LIMIT) });
   return { query: raw.query, items: (raw.items ?? []).map(normalizeStory) };
 }
 

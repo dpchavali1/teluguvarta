@@ -1,5 +1,104 @@
 # Progress tracker
 
+**UI13 language stability follow-up (2026-10-01, local only):** available bilingual
+story copy is rendered in SSR HTML, with the existing localStorage preference
+applied in the head before paint. One visible/accessible headline and one set of
+actions remain; English canonical metadata and missing-Telugu fallback are
+preserved. Controls, onboarding and relevant cross-tab changes synchronize;
+failed storage writes retain the language choice through client navigation and
+onboarding for the current session. No new storage model, fonts or dependencies.
+Web lint/typecheck/11 unit tests/production build pass. Responsive checks: 140
+layouts and 28 phone axe checks pass; five state journeys pass in a separate
+rerun. Dedicated language browser checks cover pre-hydration Telugu, static Home
+without scripts, switching/action labels, fallback, cross-tab changes and quota
+failure. Dynamic detail's existing streamed boundary still needs its inline
+completion script, even when React bundles are blocked; fully script-disabled
+detail loading is not resolved by this change.
+
+Same-fixture pre-fix working-tree comparison: 36 cold/warm cases, worst measured
+CLS **0.211 → 0.025**; the full matrix worst **0.217 → 0.028**. A separate 320px
+Telugu-detail check delaying each JS/font request by 1500ms measures
+**0.172 → 0.010**. Compressed HTML grows 177–449 bytes, CSS 93 bytes, font bytes
+unchanged; rounded first-load JS Home/Saved 114 → 115 kB, shared 103 kB unchanged.
+Resource JS sums include prefetch/cache timing and do not prove a bundle decrease.
+Reports/screenshots: `/tmp/tte-ui13-matrix/`, `/tmp/tte-ui13-performance/`,
+`/tmp/tte-ui13-slow/`. These are synthetic Chromium results, not production Core
+Web Vitals or native-device acceptance. Plan/README/ticket contain reproduction
+and remaining gates. Changes remain uncommitted and undeployed.
+
+**Interface program UI01–UI14 (2026-10-01, local changes, not deployed):**
+UI01–UI11 implementation is complete locally: compact web/app Home, topic-scroll
+controls, complete grid summaries, clearer source/detail actions, honest search
+caps and recovery, resilient Saved storage, native card icons/wrapping, cached
+refresh/resume notices, grouped Settings and retryable deletion. UI12 code/browser
+accessibility work is implemented; UI13 reduced Saved's loading shift and the
+language hydration shift recorded above; UI14 local visual acceptance is recorded. Device/performance/release
+gates remain open. Scope/ticket statuses, file groups, measurements and remaining
+broader project backlog: `docs/reviews/2026-10-01-improvement-plan.md`.
+
+**ADR-033 accepted and implemented (option A, owner 2026-10-01):** server deletion
+must succeed before clearing phone data/identity. Failure retains both for retry;
+local-clear failure after server confirmation says so and retries cleanup.
+Exclusive requests and strict secure reset prevent false success; completed
+cleanup clears live caches and late initial reads cannot restore old IDs. A later
+operation confirms server deletion again. Both surfaces also guard ADR-019 briefs
+against unexpected why-matters commentary.
+
+**Initial local interface checks (superseded by UI13 follow-up above for web):** web lint/typecheck/9 unit tests/production build
+pass; native typecheck/68 tests in 14 suites and Android+iOS Expo export pass.
+Chromium: 140 layouts pass (7 pages × 5 sizes × EN/TE × light/dark), no document
+overflow and Home lead above fold; 28 phone axe checks have no serious/critical
+WCAG 2.2 findings. Five state journeys pass: topic focus/navigation/resize,
+zero/one Home+returning link, English fallback/updated/brief detail, Search cap/
+error/empty, Saved unavailable/corrupt storage. Phone Telugu Home/detail and
+desktop English Home screenshots visually inspected. Synthetic fixture evidence,
+not live content QA. Reusable scripts and reproduction instructions are added under
+`apps/web/scripts/` and `apps/web/README.md` (uncommitted working-tree changes).
+
+**Performance / release limits:** isolated-HEAD (`286fc4e`) same-fixture comparison (18 cold
+contexts) reduces empty Saved phone CLS ~0.151 → ~0.024; compressed page JS grows
+~0.7–1.4 kB and font bytes are unchanged. First-load build JS: Home 114 kB unchanged,
+Saved 113 → 114 kB, shared 102 → 103 kB. This first comparison found Telugu detail
+hydration shifts (~0.148 → ~0.152 at 320px cold; matrix worst ~0.217), addressed
+locally in the follow-up above. Production performance acceptance remains open.
+No Android device/booted iOS simulator, real-device
+1.5/2.0 text-scale, TalkBack/VoiceOver, native-speaker, production/push/store release
+verification. UI12–UI14/T19 release gates remain partial. Local screenshots/reports
+are in `/tmp/tte-interface-final/` and `/tmp/tte-interface-performance/`; native
+exports in `/tmp/tg-mobile-bundle-check/`. No production deployment.
+
+**UI01 complete locally (2026-10-01, not deployed):** Owner authorized the
+comprehensive website/app interface program; 14 sequential steps and acceptance
+criteria added to `docs/reviews/2026-10-01-improvement-plan.md`, with scoped
+`docs/tickets/UI01.md`. Home personalization is now a secondary 44px text link
+with first-visit/returning hint; phone edition type/spacing is tighter, preserving
+feed/headlines and existing preferences. Changed web `OnboardingCta.tsx` and
+`globals.css`. Web lint/typecheck/8 tests/build pass; Chromium fixture matrix
+20/20 layouts (EN/TE, light/dark, 320/390/768/1440 and 640×400) passes overflow,
+lead visibility and target-size checks; axe phone Home has no serious/critical
+issues, focus/edit link checked. Phone Telugu/light and desktop EN/dark visually
+inspected. Fixture comparison places the lead ~78px higher at 390×844; synthetic
+content, not a production audit. Screenshots `/tmp/tte-ui01/`. Final build passed
+with dev stopped after a shared `.next` collision on an earlier attempt. T19
+operational gates remain open. Later interface implementation and remaining acceptance are recorded above
+and in the improvement plan.
+
+**Improvement review + T19 test isolation (2026-10-01):**
+`docs/reviews/2026-10-01-improvement-plan.md` records the updated ordered backlog
+against current implementation, distinguishing pending deployment/evidence from
+new work. First change complete: `tests/conftest.py` uses UUID scratch database
+names, quoted identifiers, no pre-drop, guaranteed admin-connection cleanup,
+and disposes all application engines created during the migrated fixture before
+database teardown (including ones forgotten by cache clears). Added regression
+checks for overlapping databases and connection cleanup after creation failure.
+Verification: scoped schema/runtime tests **20 passed**; full API `pytest -q`
+**523 passed**, no fixture errors in this run; scoped ruff and `git diff --check`
+clean; `mypy app` **70 existing errors**, below the 71-error CI baseline. No
+production behavior/deployment changed. T19 remains partial; next priority is
+release/recovery evidence, then the audited Telugu repair workflow. One clean
+run supports the isolation fix but does not prove every historical flake had
+the same cause.
+
 **Live product/admin review (2026-09-30):**
 `docs/reviews/2026-09-30-live-product-and-admin-plan.md` records the post-launch
 review and proposed improvement sequence. New live findings: Telugu-slug web

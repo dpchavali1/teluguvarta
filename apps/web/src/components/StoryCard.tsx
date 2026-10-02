@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { topicLabel } from "@teluguvarta/domain";
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 
 import { Icon } from "@/components/Icon";
 import { TimeAgo } from "@/components/TimeAgo";
@@ -10,7 +10,8 @@ import { REPORT_CATEGORIES, reportIssue, storyUrl, type Language, type ReportCat
 import { formatDate, sourceDomain } from "@/lib/format";
 import { SAVED_CHANGE_EVENT, isSaved, toggleSaved } from "@/lib/saved";
 import { track } from "@/lib/analytics";
-import { getPreferredLanguage, LANGUAGE_CHANGE_EVENT, setPreferredLanguage } from "@/lib/onboarding";
+import { getPreferredLanguage, LANGUAGE_CHANGE_EVENT, refreshPreferredLanguage, setPreferredLanguage } from "@/lib/onboarding";
+import { PROFILE_STORAGE_KEY } from "@/lib/storyLanguage";
 
 const STATUS_LABEL: Record<string, { text: string; className: string } | undefined> = {
   RETRACTED: { text: "Retracted", className: "badge--danger" },
@@ -56,20 +57,27 @@ export function StoryCard({ story, headingLevel = "h2", display = "default" }: {
   }, [story.id]);
 
   useEffect(() => {
-    setLanguage(getPreferredLanguage());
+    const sync = () => setLanguage(getPreferredLanguage());
+    sync();
     function onLanguageChange(event: Event) {
       const next = (event as CustomEvent<Language>).detail;
       if (next) setLanguage(next);
     }
+    function onStorageChange(event: StorageEvent) {
+      if (event.key === null || event.key === PROFILE_STORAGE_KEY) setLanguage(refreshPreferredLanguage());
+    }
     window.addEventListener(LANGUAGE_CHANGE_EVENT, onLanguageChange);
-    return () => window.removeEventListener(LANGUAGE_CHANGE_EVENT, onLanguageChange);
+    window.addEventListener("storage", onStorageChange);
+    return () => { window.removeEventListener(LANGUAGE_CHANGE_EVENT, onLanguageChange); window.removeEventListener("storage", onStorageChange); };
   }, []);
 
   const variant = story.variants[language] ?? story.variants.en;
   if (!variant) return null;
 
   const renderedLanguage: Language = story.variants[language] ? language : "en";
-  const whyMatters = renderedLanguage === "en" ? story.personalization?.why_matters ?? variant.why_matters : variant.why_matters;
+  const english = story.variants.en ?? variant;
+  const telugu = story.variants.te;
+  const englishWhy = story.personalization?.why_matters ?? english.why_matters;
   const url = storyUrl(story.canonical_slug);
   const statusNotice = STATUS_LABEL[story.status];
   const primarySource = story.sources[0];
@@ -166,22 +174,25 @@ export function StoryCard({ story, headingLevel = "h2", display = "default" }: {
   const variantClass = display === "lead" ? " story-card--lead" : isBrief ? " story-card--brief" : " story-card--detail";
 
   return (
-    <article className={`story-card${variantClass}`} aria-labelledby={`story-${story.id}-headline`}>
+    <article className={`story-card${variantClass}`} data-bilingual={hasTelugu ? "true" : undefined} aria-labelledby={`story-${story.id}-headline`}>
       {meta}
       {badges}
 
       <Heading className="story-card__headline" id={`story-${story.id}-headline`} lang={renderedLanguage}>
-        {isDetail ? variant.headline : <Link className="story-card__link" href={href}>{variant.headline}</Link>}
+        <StoryCopy
+          english={isDetail ? english.headline : <Link className="story-card__link" href={href}>{english.headline}</Link>}
+          telugu={telugu && (isDetail ? telugu.headline : <Link className="story-card__link" href={href}>{telugu.headline}</Link>)}
+        />
       </Heading>
 
-      {language !== renderedLanguage && <p className="story-card__notice" role="status">Telugu translation isn’t available yet. Showing English.</p>}
+      {!hasTelugu && <p className="story-card__notice story-copy--fallback" role="status">Telugu translation isn’t available yet. Showing English.</p>}
 
-      <p className="story-card__summary" lang={renderedLanguage}>{variant.summary}</p>
+      <p className="story-card__summary" lang={renderedLanguage}><StoryCopy english={english.summary} telugu={telugu?.summary} /></p>
 
-      {isDetail && isLinkFirstBrief && primarySource && (
+      {isDetail && primarySource && (
         <a className="story-card__source-link story-card__source-link--lead" href={primarySource.url} target="_blank" rel="noopener noreferrer">
           <span className="sources__domain">{sourceDomain(primarySource.url)}</span>
-          Read the full story at the source
+          {isLinkFirstBrief ? "Read the full story at the source" : "Read the original source"}
           <Icon name="external" size={14} />
         </a>
       )}
@@ -205,10 +216,16 @@ export function StoryCard({ story, headingLevel = "h2", display = "default" }: {
         <p className="story-card__recommendation" lang="en"><Icon name="sparkle" size={15} /> {story.personalization.explanation}</p>
       )}
 
-      {!isBrief && whyMatters && (
-        <aside className="story-card__why" lang={renderedLanguage}>
+      {!isBrief && !isLinkFirstBrief && englishWhy && (
+        <aside className="story-card__why story-copy--en" lang="en">
           <strong lang="en">Why this matters</strong>
-          <p>{whyMatters}</p>
+          <p>{englishWhy}</p>
+        </aside>
+      )}
+      {!isBrief && !isLinkFirstBrief && telugu?.why_matters && (
+        <aside className="story-card__why story-copy--te" lang="te">
+          <strong lang="en">Why this matters</strong>
+          <p>{telugu.why_matters}</p>
         </aside>
       )}
 
@@ -316,4 +333,13 @@ export function StoryCard({ story, headingLevel = "h2", display = "default" }: {
       {!isBrief && reportStatus && <p className="story-card__inline-status" role="status">{reportStatus}</p>}
     </article>
   );
+}
+
+// Both approved variants are in SSR HTML; CSS exposes only the chosen copy.
+// Keeping interactive controls single avoids duplicate actions/tab stops.
+function StoryCopy({ english, telugu }: { english: ReactNode; telugu?: ReactNode }) {
+  return <>
+    <span className="story-copy--en" lang="en">{english}</span>
+    {telugu && <span className="story-copy--te" lang="te">{telugu}</span>}
+  </>;
 }

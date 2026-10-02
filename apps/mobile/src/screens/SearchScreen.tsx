@@ -1,8 +1,11 @@
+import { useNavigation } from "@react-navigation/native";
+import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
+import type { RootStackParamList } from "../navigation/types";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 
 import { StoryList } from "../components/StoryList";
-import { ApiNetworkError, search, trackEvent, type StoryOut } from "../lib/api";
+import { ApiNetworkError, search, SEARCH_RESULT_LIMIT, trackEvent, type StoryOut } from "../lib/api";
 import { useStoryCache } from "../lib/StoryCacheContext";
 import { radius, spacing } from "../theme/tokens";
 import { useAppTheme, type AppTheme } from "../theme/useAppTheme";
@@ -10,10 +13,12 @@ import { useAppTheme, type AppTheme } from "../theme/useAppTheme";
 const DEBOUNCE_MS = 350;
 
 export function SearchScreen() {
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { colors, ui } = useAppTheme();
   const styles = useMemo(() => createStyles(colors, ui), [colors, ui]);
   const { put } = useStoryCache();
   const [query, setQuery] = useState("");
+  const [resultQuery, setResultQuery] = useState("");
   const [results, setResults] = useState<StoryOut[]>([]);
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
@@ -35,6 +40,7 @@ export function SearchScreen() {
       }
       setLoading(true);
       setError(null);
+      setResultQuery(q.trim());
       try {
         const result = await search(q.trim());
         if (current !== requestId.current) return;
@@ -60,6 +66,9 @@ export function SearchScreen() {
     requestId.current += 1;
     if (debounceRef.current) clearTimeout(debounceRef.current);
     if (!q.trim()) { void runSearch(q); return; }
+    setLoading(true);
+    setSearched(false);
+    setError(null);
     debounceRef.current = setTimeout(() => runSearch(q), DEBOUNCE_MS);
   }
 
@@ -72,6 +81,7 @@ export function SearchScreen() {
 
   return (
     <View style={styles.container}>
+      <View style={styles.searchRow}>
       <TextInput
         value={query}
         onChangeText={onChangeText}
@@ -84,6 +94,11 @@ export function SearchScreen() {
         returnKeyType="search"
         onSubmitEditing={() => void runSearch(query)}
       />
+      {query.length > 0 && <Pressable onPress={() => onChangeText("")} accessibilityRole="button" accessibilityLabel="Clear search" style={styles.clearButton}><Text style={styles.retryButtonText}>Clear</Text></Pressable>}
+      </View>
+      {searched && !loading && !error && <Text style={styles.resultCount} accessibilityLiveRegion="polite">
+        Showing {results.length} {results.length === 1 ? "story" : "stories"}{results.length === SEARCH_RESULT_LIMIT ? ` · Up to ${SEARCH_RESULT_LIMIT} matches shown. Narrow your search to find more.` : ""}
+      </Text>}
       {loading ? (
         <View style={styles.center}>
           <ActivityIndicator accessibilityLabel="Searching" />
@@ -103,7 +118,8 @@ export function SearchScreen() {
       ) : (
         <StoryList
           stories={results}
-          emptyLabel={searched ? "No results found." : "Search for a story."}
+          emptyLabel={searched ? `No stories match “${resultQuery}”. Try a broader word or browse topics.` : "Search for a story."}
+          footer={results.length === 0 ? <Pressable onPress={() => navigation.navigate("Main", { screen: "Topics" })} accessibilityRole="button" style={styles.browseButton}><Text style={styles.message}>Browse topics</Text></Pressable> : undefined}
         />
       )}
     </View>
@@ -114,9 +130,13 @@ function createStyles(colors: AppTheme["colors"], ui: AppTheme["ui"]) {
   return StyleSheet.create({
     container: { flex: 1, backgroundColor: colors.bg },
     message: { color: colors.text, textAlign: "center", paddingHorizontal: spacing.lg },
+    searchRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm, margin: spacing.md },
+    clearButton: { minHeight: 44, justifyContent: "center", paddingHorizontal: spacing.sm, borderRadius: radius.md, backgroundColor: colors.text },
+    browseButton: { minHeight: 44, justifyContent: "center", alignSelf: "center" },
+    resultCount: { color: colors.muted, paddingHorizontal: spacing.md, paddingBottom: spacing.sm },
     input: {
+      flex: 1,
       minHeight: 44,
-      margin: 12,
       paddingHorizontal: 12,
       borderRadius: 8,
       borderCurve: "continuous",

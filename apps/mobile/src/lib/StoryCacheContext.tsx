@@ -41,6 +41,7 @@ export function StoryCacheProvider({ children }: { children: React.ReactNode }) 
   const mapRef = useRef(new Map<string, StoryOut>());
   const loadedAtRef = useRef(new Map<string, number>());
   const savedIdsRef = useRef<Set<string>>(new Set());
+  const localGeneration = useRef(0);
   const [savedIds, setSavedIds] = useState<string[]>([]);
   const [savedReady, setSavedReady] = useState(false);
   const [version, setVersion] = useState(0);
@@ -48,16 +49,21 @@ export function StoryCacheProvider({ children }: { children: React.ReactNode }) 
   const [readReady, setReadReady] = useState(false);
 
   useEffect(() => {
+    let active = true;
+    const generation = localGeneration.current;
     getSavedIds().then((ids) => {
+      if (!active || localGeneration.current !== generation) return;
       savedIdsRef.current = new Set(ids);
       setSavedIds(ids);
       setSavedReady(true);
     });
     getReadIds().then((ids) => {
+      if (!active || localGeneration.current !== generation) return;
       // A story opened before the read finished stays on top.
       setReadState((current) => [...new Set([...current, ...ids])].slice(0, READ_HISTORY_LIMIT));
       setReadReady(true);
     });
+    return () => { active = false; };
   }, []);
 
   const put = useCallback((stories: StoryOut[]) => {
@@ -110,6 +116,12 @@ export function StoryCacheProvider({ children }: { children: React.ReactNode }) 
     setReadIds([]);
   }, []);
   const resetLocalData = useCallback(() => {
+    localGeneration.current += 1;
+    mapRef.current.clear();
+    loadedAtRef.current.clear();
+    setVersion((value) => value + 1);
+    setSavedReady(true);
+    setReadReady(true);
     savedIdsRef.current = new Set();
     setSavedIds([]);
     setReadState([]);

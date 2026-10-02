@@ -1,3 +1,4 @@
+import Ionicons from "@expo/vector-icons/Ionicons";
 import { topicLabel } from "@teluguvarta/domain";
 import React, { useEffect, useMemo, useState } from "react";
 import { AccessibilityInfo, DeviceEventEmitter, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
@@ -50,7 +51,7 @@ export function StoryCard({
   // Optional: the detail screen renders this card for a story already
   // open, so the headline shouldn't be a dead tap target pointing nowhere.
   onOpen?: () => void;
-  onOpenSource: (url: string) => void;
+  onOpenSource: (url: string) => void | Promise<unknown>;
   // ADR-014 StoryLead/StoryBrief/StoryActions: "hero" is the lead story on
   // Home — bigger display-scale headline, no box chrome, a rule line
   // instead of a border, full StoryActions (Share/Save/Report). "detail" is
@@ -120,7 +121,13 @@ export function StoryCard({
 
   async function handleShare() {
     trackEvent("story_share", { story_id: story.id });
-    await shareStory(story.canonical_slug, variant!);
+    try { await shareStory(story.canonical_slug, variant!); }
+    catch { setActionStatus("Couldn’t open sharing. Please try again."); }
+  }
+
+  async function handleOpenSource(url: string) {
+    try { await onOpenSource(url); }
+    catch { setActionStatus("Couldn’t open the source link. Please try again."); }
   }
 
   async function handleSaveToggle() {
@@ -175,8 +182,11 @@ export function StoryCard({
           ))}
         </View>
 
-        {story.published_at && <Text style={styles.date}>{new Date(story.published_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</Text>}
-        {language !== renderedLanguage && <Text style={styles.date}>Telugu translation isn’t available yet. Showing English.</Text>}
+        {story.published_at && <Text style={styles.date}>
+          {layout === "detail" ? `Published ${new Date(story.published_at).toLocaleString()}` : new Date(story.published_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+        </Text>}
+        {layout === "detail" && story.status === "UPDATED" && <Text style={styles.date}>Updated {new Date(story.updated_at).toLocaleString()}</Text>}
+        {language !== renderedLanguage && <Text style={styles.date} accessibilityLiveRegion="polite">Telugu translation isn’t available yet. Showing English.</Text>}
         {story.personalization?.explanation && <Text style={styles.date}>{story.personalization.explanation}</Text>}
         {isHumanReviewed && (
           <View style={styles.reviewedBadge}>
@@ -204,18 +214,38 @@ export function StoryCard({
             accessibilityHint={read ? "You've read this story" : undefined}
             style={styles.touchTarget}
           >
-            <Text style={[styles.headline, isCompact ? type.headline : type.display, read && styles.headlineRead]}>
+            <Text accessibilityLanguage={renderedLanguage === "te" ? "te-IN" : "en-US"} style={[styles.headline, isCompact ? type.headline : type.display, read && styles.headlineRead]}>
               {variant.headline}
             </Text>
           </Pressable>
         ) : (
-          <Text style={[styles.headline, isCompact ? type.headline : type.display]} accessibilityRole="header">
+          <Text accessibilityLanguage={renderedLanguage === "te" ? "te-IN" : "en-US"} style={[styles.headline, isCompact ? type.headline : type.display]} accessibilityRole="header">
             {variant.headline}
           </Text>
         )}
 
-        <Text style={[styles.body, type.body]}>{variant.summary}</Text>
-        {!isCompact && whyMatters ? (
+        <Text accessibilityLanguage={renderedLanguage === "te" ? "te-IN" : "en-US"} style={[styles.body, type.body]}>{variant.summary}</Text>
+
+
+        {primarySource && (
+          <Pressable
+            onPress={() => void handleOpenSource(primarySource.url)}
+            accessibilityRole="link"
+            accessibilityLabel={`Read the original source${primarySource.title ? `: ${primarySource.title}` : ""}`}
+            style={[styles.touchTarget, styles.sourceRow]}
+          >
+            <Ionicons name="open-outline" size={16} color={colors.text} accessible={false} />
+            {/* R9: in a feed (onOpen set) attribution stays compact; the full
+                source title shows on story detail and in the label. */}
+            <Text style={styles.sourceLink}>
+              {onOpen
+                ? `Read the original source · ${sourceDomain(primarySource.url)}`
+                : `Read the original source${primarySource.title ? `: ${primarySource.title}` : ""}`}
+            </Text>
+          </Pressable>
+        )}
+
+        {!isCompact && story.format !== "BRIEF" && whyMatters ? (
           <Text
             style={[
               styles.why,
@@ -228,25 +258,7 @@ export function StoryCard({
             Why this matters: {whyMatters}
           </Text>
         ) : null}
-
-        {!isCompact && primarySource && (
-          <Pressable
-            onPress={() => onOpenSource(primarySource.url)}
-            accessibilityRole="link"
-            accessibilityLabel={`Read the original source${primarySource.title ? `: ${primarySource.title}` : ""}`}
-            style={styles.touchTarget}
-          >
-            {/* R9: in a feed (onOpen set) attribution stays compact; the full
-                source title shows on story detail and in the label. */}
-            <Text style={styles.sourceLink}>
-              {onOpen
-                ? `Read the original source · ${sourceDomain(primarySource.url)} ↗`
-                : `Read the original source${primarySource.title ? `: ${primarySource.title}` : ""} ↗`}
-            </Text>
-          </Pressable>
-        )}
-
-        {actionStatus && <Text accessibilityLiveRegion="polite">{actionStatus}</Text>}
+        {actionStatus && <Text style={styles.date} accessibilityLiveRegion="polite">{actionStatus}</Text>}
         <View style={styles.actions}>
           {showLanguageToggle && hasTelugu && (
             <View accessibilityRole="radiogroup" accessibilityLabel="Language" style={styles.langGroup}>
@@ -277,6 +289,7 @@ export function StoryCard({
               accessibilityLabel={`Share: ${variant.headline}`}
               style={[styles.actionButton, styles.actionButtonShare]}
             >
+              <Ionicons name="share-outline" size={17} color={colors.muted} accessible={false} />
               <Text style={styles.actionButtonText}>Share</Text>
             </Pressable>
           )}
@@ -288,6 +301,7 @@ export function StoryCard({
             accessibilityLabel={saved ? `Unsave: ${variant.headline}` : `Save: ${variant.headline}`}
             style={[styles.actionButton, saved && styles.actionButtonSaved]}
           >
+            <Ionicons name={saved ? "bookmark" : "bookmark-outline"} size={17} color={saved ? ui.success : colors.muted} accessible={false} />
             <Text style={[styles.actionButtonText, saved && styles.actionButtonTextActive]}>
               {saved ? "Saved" : "Save"}
             </Text>
@@ -311,6 +325,7 @@ export function StoryCard({
               accessibilityLabel={`Report an issue: ${variant.headline}`}
               style={[styles.actionButton, styles.actionButtonReport]}
             >
+              <Ionicons name="flag-outline" size={17} color={colors.muted} accessible={false} />
               <Text style={styles.actionButtonText}>Report</Text>
             </Pressable>
           )}
@@ -473,9 +488,10 @@ function createStyles(colors: AppTheme["colors"], ui: AppTheme["ui"]) {
       paddingVertical: spacing.sm,
       paddingHorizontal: spacing.md,
     },
-    sourceLink: { color: colors.text, fontWeight: "600", textDecorationLine: "underline" },
+    sourceRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
+    sourceLink: { flexShrink: 1, color: colors.text, fontWeight: "600", textDecorationLine: "underline" },
     actions: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: spacing.sm, marginTop: spacing.xs },
-    langGroup: { flexDirection: "row", gap: spacing.xs },
+    langGroup: { flexDirection: "row", flexWrap: "wrap", gap: spacing.xs, maxWidth: "100%" },
     langButton: {
       minHeight: 44,
       minWidth: 44,
@@ -494,6 +510,7 @@ function createStyles(colors: AppTheme["colors"], ui: AppTheme["ui"]) {
     actionButton: {
       flexDirection: "row",
       alignItems: "center",
+      maxWidth: "100%",
       gap: 5,
       minHeight: 44,
       minWidth: 44,
@@ -508,7 +525,7 @@ function createStyles(colors: AppTheme["colors"], ui: AppTheme["ui"]) {
     actionButtonShare: { backgroundColor: colors.surface },
     actionButtonSaved: { backgroundColor: ui.successSoft, borderColor: ui.success },
     actionButtonReport: { borderColor: ui.borderSubtle },
-    actionButtonText: { ...typography.meta, textTransform: "none", color: colors.muted },
+    actionButtonText: { ...typography.meta, flexShrink: 1, textTransform: "none", color: colors.muted },
     actionButtonTextActive: { color: ui.success },
     reportPanel: { gap: spacing.sm, paddingTop: spacing.sm },
     reportHeading: { ...typography.meta, textTransform: "none", color: colors.text, fontWeight: "700" },

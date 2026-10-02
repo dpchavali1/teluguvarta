@@ -22,7 +22,7 @@ export function SettingsScreen() {
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <Text style={styles.groupLabel}>GENERAL</Text>
+      <Text style={styles.groupLabel} accessibilityRole="header">NOTIFICATIONS</Text>
       <View style={styles.group}>
         {/* Topics is now its own tab (ADR-014 TopicControl) — this group is
             the notifications-related rows that don't warrant a tab. */}
@@ -37,7 +37,7 @@ export function SettingsScreen() {
       <Text style={styles.groupLabel} accessibilityRole="header">
         APPEARANCE
       </Text>
-      <View style={styles.group} accessibilityRole="radiogroup">
+      <View style={styles.group} accessibilityRole="radiogroup" accessibilityLabel="Appearance">
         {THEME_OPTIONS.map((option, i) => (
           <ThemeOptionRow
             key={option.value}
@@ -52,7 +52,7 @@ export function SettingsScreen() {
       <Text style={styles.groupLabel} accessibilityRole="header">
         TEXT SIZE
       </Text>
-      <View style={styles.group} accessibilityRole="radiogroup">
+      <View style={styles.group} accessibilityRole="radiogroup" accessibilityLabel="Story text size">
         {TEXT_SIZE_OPTIONS.map((option, i) => (
           <ThemeOptionRow
             key={option.value}
@@ -65,14 +65,14 @@ export function SettingsScreen() {
         ))}
       </View>
       <Text style={styles.groupHint}>Story headlines and text. Your phone's text size still applies.</Text>
-      <Text style={styles.groupLabel}>ACCOUNT</Text>
+      <Text style={styles.groupLabel} accessibilityRole="header">YOUR READING</Text>
       <View style={styles.group}>
         <SettingsRow label="Your profile" onPress={() => navigation.navigate("Profile")} styles={styles} />
         <SettingsRow label="Language" onPress={() => navigation.navigate("Language")} styles={styles} />
         <SettingsRow label="Hidden topics" onPress={() => navigation.navigate("HiddenTopics")} styles={styles} />
         <SettingsRow label="Privacy & delete account" onPress={() => navigation.navigate("Privacy")} last styles={styles} />
       </View>
-      <Text style={styles.groupLabel}>ABOUT</Text>
+      <Text style={styles.groupLabel} accessibilityRole="header">ABOUT</Text>
       <View style={styles.group}>
         {/* The web site is the one copy of these pages; the app opens them in
             the browser rather than keeping its own text that could drift. */}
@@ -149,7 +149,7 @@ function ThemeOptionRow({
       style={[styles.row, !last && styles.rowDivider]}
     >
       <Text style={styles.rowLabel}>{label}</Text>
-      {selected ? <Ionicons name="checkmark" size={20} style={styles.check} /> : null}
+      {selected ? <Ionicons name="checkmark" size={20} style={styles.check} accessible={false} /> : null}
     </Pressable>
   );
 }
@@ -177,9 +177,9 @@ function SettingsRow({
     >
       <Text style={styles.rowLabel}>{label}</Text>
       {external ? (
-        <Ionicons name="open-outline" size={16} style={styles.chevron} />
+        <Ionicons name="open-outline" size={16} style={styles.chevron} accessible={false} />
       ) : (
-        <Text style={styles.chevron}>›</Text>
+        <Ionicons name="chevron-forward" size={18} style={styles.chevron} accessible={false} />
       )}
     </Pressable>
   );
@@ -214,10 +214,12 @@ function createStyles(colors: AppTheme["colors"], ui: AppTheme["ui"]) {
       flexDirection: "row",
       alignItems: "center",
       justifyContent: "space-between",
+      gap: spacing.sm,
       paddingHorizontal: spacing.md,
+      paddingVertical: spacing.sm,
     },
     rowDivider: { borderBottomWidth: StyleSheet.hairlineWidth, borderColor: ui.borderSubtle },
-    rowLabel: { ...typography.body, color: colors.text },
+    rowLabel: { ...typography.body, flex: 1, color: colors.text },
     chevron: { fontSize: 18, color: ui.textTertiary },
     check: { color: colors.accent },
     groupHint: {

@@ -32,3 +32,14 @@ test("reset clears the token so the next one is new", async () => {
   expect(await SecureStore.getItemAsync("tg_client_token_v1")).toBeNull();
   expect(await getClientToken()).not.toBe(first);
 });
+
+test("strict deletion surfaces secure-storage failure and keeps the identity for retry", async () => {
+  const first = await getClientToken();
+  const remove = jest.spyOn(SecureStore, "deleteItemAsync").mockRejectedValueOnce(new Error("locked"));
+  try {
+    await expect(resetClientToken(true)).rejects.toThrow("locked");
+    expect(await getClientToken()).toBe(first);
+    await resetClientToken(true);
+    expect(await SecureStore.getItemAsync("tg_client_token_v1")).toBeNull();
+  } finally { remove.mockRestore(); }
+});

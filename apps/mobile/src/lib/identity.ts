@@ -50,13 +50,15 @@ export async function getClientToken(): Promise<string> {
 // get-or-create a fresh, empty `users` row under the same identifier,
 // which is harmless but pointless. Clearing it here means the next
 // `getClientToken()` mints a genuinely new one.
-export async function resetClientToken(): Promise<void> {
-  cached = null;
+export async function resetClientToken(strict = false): Promise<void> {
   try {
     await SecureStore.deleteItemAsync(KEY);
     await AsyncStorage.removeItem(KEY);
-  } catch {
-    // Storage unavailable — in-memory `cached` is already cleared, which is
-    // all that matters for the rest of this app session.
+    cached = null;
+  } catch (error) {
+    // Deletion UI needs confirmation of clearing; other callers retain the
+    // existing best-effort reset behavior.
+    if (strict) throw error;
+    cached = null;
   }
 }

@@ -1,3 +1,4 @@
+import Ionicons from "@expo/vector-icons/Ionicons";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
@@ -82,7 +83,7 @@ export function TopicsIndexScreen() {
             <Text style={styles.rowLabel}>{topic.name}</Text>
             <Text style={styles.rowCount}>{storyCountLabel(topic.story_count)}</Text>
           </View>
-          <Text style={styles.chevron}>{"›"}</Text>
+          <Ionicons name="chevron-forward" size={18} color={colors.faint} accessible={false} />
         </Pressable>
       )}
     />

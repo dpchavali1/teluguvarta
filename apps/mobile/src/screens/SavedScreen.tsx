@@ -42,7 +42,7 @@ export function SavedScreen() {
   }, [put, ids, ready, view, revision]));
 
   const tabs = (
-    <View accessibilityRole="radiogroup" style={{ flexDirection: "row", gap: spacing.xs, padding: spacing.md, paddingBottom: 0 }}>
+    <View accessibilityRole="radiogroup" accessibilityLabel="Library view" style={{ flexDirection: "row", flexWrap: "wrap", gap: spacing.xs, padding: spacing.md, paddingBottom: 0 }}>
       {([["saved", "Saved"], ["read", "Recently read"]] as const).map(([value, label]) => {
         const selected = view === value;
         return (
@@ -94,5 +94,5 @@ export function SavedScreen() {
     />;
   }
 
-  return <View style={{ flex: 1 }}>{tabs}{body}</View>;
+  return <View style={{ flex: 1, backgroundColor: colors.bg }}>{tabs}{body}</View>;
 }

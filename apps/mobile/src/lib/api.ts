@@ -130,8 +130,10 @@ export async function getTopic(slug: string, cursor?: string): Promise<TopicDeta
   return { topic: raw.topic, stories: (raw.stories ?? []).map(normalizeStory), next_cursor: raw.next_cursor };
 }
 
+export const SEARCH_RESULT_LIMIT = 20;
+
 export async function search(q: string): Promise<SearchResponse> {
-  const raw = await apiGet<components["schemas"]["SearchResponse"]>("/v1/search", { q });
+  const raw = await apiGet<components["schemas"]["SearchResponse"]>("/v1/search", { q, limit: String(SEARCH_RESULT_LIMIT) });
   return { query: raw.query, items: (raw.items ?? []).map(normalizeStory) };
 }
 
@@ -174,8 +176,8 @@ export function registerPushToken(token: string, platform: "ios" | "android"): P
 // T19 §16/§5.5 cross-system deletion: deletes the server-side `users` row
 // (profile/push tokens/notification history cascade in Postgres — see
 // apps/api/app/routers/me.py), not just the on-device clear PrivacyScreen
-// already did. Best-effort: a network failure here must not block clearing
-// on-device data, since that part always works with no server dependency.
+// already did. ADR-033 A: the combined deletion UI confirms this request
+// before clearing local data/identity, retaining both on network failure.
 export async function deleteAccount(): Promise<void> {
   await authedRequest("DELETE", "/v1/me/account");
 }

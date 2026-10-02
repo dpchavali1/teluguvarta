@@ -102,3 +102,15 @@ test("clearing data puts story text back to the default size", async () => {
   await waitFor(() => expect(fontSizeOf("What changed and when.")).toBe(typography.body.fontSize));
   expect(await AsyncStorage.getItem("tg_text_size_v1")).toBeNull();
 });
+
+test("a link-first brief keeps the source action and suppresses unexpected commentary", async () => {
+  const brief: StoryOut = {
+    ...story, format: "BRIEF",
+    variants: { en: { ...story.variants.en!, why_matters: "Unexpected extra commentary" } },
+    sources: [{ url: "https://example.test/announcement", title: "Announcement" }],
+  };
+  await renderWithSize(<StoryCard story={brief} layout="detail" onOpenSource={() => {}} />);
+  await screen.findByText("Visa rules change");
+  expect(screen.getByRole("link", { name: "Read the original source: Announcement" })).toBeTruthy();
+  expect(screen.queryByText(/Unexpected extra commentary/)).toBeNull();
+});

@@ -143,7 +143,7 @@ test("story detail shows the cached copy at once, then the API version", async (
   jest.mocked(getStory).mockImplementationOnce(() => new Promise((r) => { resolve = r; }));
   await render(<StoryCacheProvider><SeedCache stories={[story("From feed")]}>{detail()}</SeedCache></StoryCacheProvider>);
   await screen.findByText("From feed UPDATED");
-  expect(screen.queryByText(/Showing the copy loaded/)).toBeNull();
+  expect(screen.getByText(/Checking for updates\. Showing the copy loaded/)).toBeTruthy();
   await act(async () => { resolve(story("Corrected")); });
   await screen.findByText("Corrected UPDATED");
 });
@@ -167,4 +167,34 @@ test("story detail drops a cached copy the API no longer serves", async () => {
   await fireEvent.press(screen.getByLabelText("Retry"));
   await screen.findByText("You're offline. Check your connection.");
   expect(screen.queryByText("Retracted later UPDATED")).toBeNull();
+});
+
+
+test("detail rechecks stale content on resume without discarding the reading view", async () => {
+  let onChange: ((state: AppStateStatus) => void) | undefined;
+  jest.spyOn(AppState, "addEventListener").mockImplementation((_type, handler) => {
+    onChange = handler as (state: AppStateStatus) => void;
+    return { remove: jest.fn() };
+  });
+  let now = 1_000_000;
+  jest.spyOn(Date, "now").mockImplementation(() => now);
+  let resolve!: (value: StoryOut) => void;
+  jest.mocked(getStory).mockResolvedValueOnce(story("Read this"))
+    .mockImplementationOnce(() => new Promise((r) => { resolve = r; }));
+  try {
+    await render(<StoryCacheProvider>{detail()}</StoryCacheProvider>);
+    await screen.findByText("Read this UPDATED");
+    now += HOME_STALE_MS - 1;
+    await act(async () => { onChange?.("active"); });
+    expect(getStory).toHaveBeenCalledTimes(1);
+    now += 1;
+    await act(async () => { onChange?.("active"); });
+    expect(screen.getByText("Read this UPDATED")).toBeTruthy();
+    expect(screen.getByText(/Checking for updates/)).toBeTruthy();
+    await act(async () => { onChange?.("active"); });
+    expect(getStory).toHaveBeenCalledTimes(2);
+    await act(async () => { resolve(story("Latest correction")); });
+    await screen.findByText("Latest correction UPDATED");
+    expect(screen.queryByText(/Checking for updates/)).toBeNull();
+  } finally { jest.restoreAllMocks(); }
 });

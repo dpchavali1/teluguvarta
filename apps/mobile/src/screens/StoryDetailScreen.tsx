@@ -1,6 +1,7 @@
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
-import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { ActivityIndicator, ScrollView, Linking, Pressable, StyleSheet, Text, View } from "react-native";
+import { useFocusEffect } from "@react-navigation/native";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ActivityIndicator, AppState, ScrollView, Linking, Pressable, StyleSheet, Text, View } from "react-native";
 
 import { StoryCard } from "../components/StoryCard";
 import { ApiNetworkError, ApiNotFoundError, getStory, trackEvent, type StoryOut } from "../lib/api";
@@ -12,7 +13,7 @@ import type { RootStackParamList } from "../navigation/types";
 type Props = NativeStackScreenProps<RootStackParamList, "StoryDetail">;
 
 function formatLoadedAt(ms: number): string {
-  return new Date(ms).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+  return new Date(ms).toLocaleString();
 }
 
 export function StoryDetailScreen({ route }: Props) {
@@ -26,6 +27,8 @@ export function StoryDetailScreen({ route }: Props) {
   // `refreshing` during the fetch, then a reason if the fetch failed.
   const [stale, setStale] = useState<{ loadedAt: number; reason: "refreshing" | "offline" | "failed" } | null>(null);
   const [retryKey, setRetryKey] = useState(0);
+  const checkedAt = useRef(0);
+  const inFlight = useRef(false);
 
   // Plan M6: a story counts as read once it's on screen (cached copy or API).
   const storyId = story?.id;
@@ -35,6 +38,8 @@ export function StoryDetailScreen({ route }: Props) {
 
   const load = useCallback(() => {
     let cancelled = false;
+    checkedAt.current = Date.now();
+    inFlight.current = true;
     // Review R10: open from the copy the feed already loaded instead of a
     // blank spinner, then replace it with the API's current version.
     const cached = getBySlug(slug);
@@ -65,13 +70,27 @@ export function StoryDetailScreen({ route }: Props) {
           return;
         }
         setError(offline ? "You're offline. Check your connection." : "Couldn't load this story.");
-      });
+      }).finally(() => { if (!cancelled) inFlight.current = false; });
     return () => {
       cancelled = true;
+      inFlight.current = false;
     };
   }, [slug, put, getBySlug, remove]);
 
   useEffect(() => load(), [load, retryKey]);
+
+  const refreshIfStale = useCallback(() => {
+    if (checkedAt.current > 0 && !inFlight.current && Date.now() - checkedAt.current >= 5 * 60 * 1000) {
+      setRetryKey((key) => key + 1);
+    }
+  }, []);
+  useFocusEffect(refreshIfStale);
+  useEffect(() => {
+    const subscription = AppState.addEventListener("change", (state) => {
+      if (state === "active") refreshIfStale();
+    });
+    return () => subscription.remove();
+  }, [refreshIfStale]);
 
   if (error) {
     return (
@@ -99,20 +118,20 @@ export function StoryDetailScreen({ route }: Props) {
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: spacing.xl }} contentInsetAdjustmentBehavior="automatic" accessibilityLabel="Story content">
-      {stale && stale.reason !== "refreshing" ? (
-        <View style={styles.staleBanner} accessibilityRole="alert">
+      {stale ? (
+        <View style={styles.staleBanner} accessibilityLiveRegion="polite">
           <Text style={styles.staleText}>
-            {stale.reason === "offline" ? "You're offline. " : "Couldn't refresh this story. "}
+            {stale.reason === "refreshing" ? "Checking for updates. " : stale.reason === "offline" ? "You're offline. " : "Couldn't refresh this story. "}
             Showing the copy loaded at {formatLoadedAt(stale.loadedAt)}; it may not include later corrections.
           </Text>
-          <Pressable
+          {stale.reason !== "refreshing" && <Pressable
             onPress={() => setRetryKey((k) => k + 1)}
             accessibilityRole="button"
             accessibilityLabel="Retry loading the latest version"
             style={styles.staleRetry}
           >
             <Text style={styles.staleRetryText}>Retry</Text>
-          </Pressable>
+          </Pressable>}
         </View>
       ) : null}
       <StoryCard story={story} layout="detail" onOpenSource={(url) => Linking.openURL(url)} />
@@ -139,6 +158,7 @@ function createStyles(colors: AppTheme["colors"]) {
     retryButtonText: { color: colors.bg, fontWeight: "600" },
     staleBanner: {
       flexDirection: "row",
+      flexWrap: "wrap",
       alignItems: "center",
       gap: spacing.md,
       margin: spacing.md,
@@ -149,7 +169,7 @@ function createStyles(colors: AppTheme["colors"]) {
       borderColor: colors.border,
       backgroundColor: colors.surface,
     },
-    staleText: { flex: 1, color: colors.text },
+    staleText: { flex: 1, minWidth: 180, color: colors.text },
     staleRetry: { minHeight: 44, minWidth: 44, justifyContent: "center", alignItems: "center" },
     staleRetryText: { color: colors.text, fontWeight: "600", textDecorationLine: "underline" },
   });
