@@ -30,6 +30,8 @@ export function SettingsScreen() {
   const { preference, setPreference } = useThemePreference();
   const { textSize, setTextSize, teluguFont, setTeluguFont, readingStyle, setReadingStyle } = useTextSize();
   const [persona, setPersona] = useState<PersonaState | null>(null);
+  const [quickOpen, setQuickOpen] = useState(false);
+  const appliedCount = persona ? Object.values(persona.applied).filter(Boolean).length : 0;
 
   useEffect(() => {
     let active = true;
@@ -53,8 +55,24 @@ export function SettingsScreen() {
       {persona ? (
         <>
           <Text style={styles.groupLabel} accessibilityRole="header">QUICK SETUP</Text>
-          <PersonaPresetPicker state={persona} onChange={changePersona} />
-          <Text style={styles.groupHint}>Pick any that fit. Each one only turns on its own topics and alerts, and unchecking it turns off just those. You can still change everything afterwards.</Text>
+          <View style={styles.group}>
+            <Pressable
+              onPress={() => setQuickOpen((open) => !open)}
+              accessibilityRole="button"
+              accessibilityState={{ expanded: quickOpen }}
+              accessibilityLabel="Quick setup"
+              style={[styles.row, quickOpen && styles.rowDivider]}
+            >
+              <Text style={styles.rowLabel}>
+                {appliedCount > 0 ? `${appliedCount} selected` : "Pick what fits you"}
+              </Text>
+              <Ionicons name={quickOpen ? "chevron-up" : "chevron-down"} size={18} style={styles.chevron} accessible={false} />
+            </Pressable>
+            {quickOpen ? <PersonaPresetPicker state={persona} onChange={changePersona} embedded /> : null}
+          </View>
+          {quickOpen ? (
+            <Text style={styles.groupHint}>Each one only turns on its own topics and alerts, and unchecking it turns off just those. You can still change everything afterwards.</Text>
+          ) : null}
         </>
       ) : null}
       <Text style={styles.groupLabel} accessibilityRole="header">NOTIFICATIONS</Text>
@@ -67,37 +85,13 @@ export function SettingsScreen() {
         />
       </View>
       <Text style={styles.groupHint}>Choose what alerts you receive and when.</Text>
-      <Text style={styles.groupLabel} accessibilityRole="header">
-        APPEARANCE
-      </Text>
-      <View style={styles.group} accessibilityRole="radiogroup" accessibilityLabel="Appearance">
-        {THEME_OPTIONS.map((option, i) => (
-          <ThemeOptionRow
-            key={option.value}
-            label={option.label}
-            selected={preference === option.value}
-            onPress={() => setPreference(option.value)}
-            last={i === THEME_OPTIONS.length - 1}
-            styles={styles}
-          />
-        ))}
+      <Text style={styles.groupLabel} accessibilityRole="header">READING & DISPLAY</Text>
+      <View style={styles.group}>
+        <SegmentedRow title="Appearance" options={THEME_OPTIONS} value={preference} onChange={setPreference} styles={styles} />
+        <SegmentedRow title="Text size" options={TEXT_SIZE_OPTIONS} value={textSize} onChange={setTextSize} styles={styles} />
+        <SegmentedRow title="Story length" options={READING_STYLE_OPTIONS} value={readingStyle} onChange={setReadingStyle} last styles={styles} />
       </View>
-      <Text style={styles.groupLabel} accessibilityRole="header">
-        TEXT SIZE
-      </Text>
-      <View style={styles.group} accessibilityRole="radiogroup" accessibilityLabel="Story text size">
-        {TEXT_SIZE_OPTIONS.map((option, i) => (
-          <ThemeOptionRow
-            key={option.value}
-            label={option.label}
-            selected={textSize === option.value}
-            onPress={() => setTextSize(option.value)}
-            last={i === TEXT_SIZE_OPTIONS.length - 1}
-            styles={styles}
-          />
-        ))}
-      </View>
-      <Text style={styles.groupHint}>Story headlines and text. Your phone's text size still applies.</Text>
+      <Text style={styles.groupHint}>Short trims feed cards to the headline and two lines; opening a story always shows everything. Your phone's text size still applies.</Text>
       <Text style={styles.groupLabel} accessibilityRole="header">
         TELUGU FONT
       </Text>
@@ -114,22 +108,6 @@ export function SettingsScreen() {
         ))}
       </View>
       <Text style={styles.groupHint}>Used for Telugu story text. If a font can't load, your phone's font is used.</Text>
-      <Text style={styles.groupLabel} accessibilityRole="header">
-        STORY LENGTH
-      </Text>
-      <View style={styles.group} accessibilityRole="radiogroup" accessibilityLabel="Story length in lists">
-        {READING_STYLE_OPTIONS.map((option, i) => (
-          <ThemeOptionRow
-            key={option.value}
-            label={option.label}
-            selected={readingStyle === option.value}
-            onPress={() => setReadingStyle(option.value)}
-            last={i === READING_STYLE_OPTIONS.length - 1}
-            styles={styles}
-          />
-        ))}
-      </View>
-      <Text style={styles.groupHint}>Short trims feed cards to the headline and two lines. Opening a story always shows everything.</Text>
       <Text style={styles.groupLabel} accessibilityRole="header">YOUR READING</Text>
       <View style={styles.group}>
         <SettingsRow label="Your profile" onPress={() => navigation.navigate("Profile")} styles={styles} />
@@ -202,6 +180,47 @@ const READING_STYLE_OPTIONS: { value: ReadingStyle; label: string }[] = [
   { value: "full", label: "Full" },
   { value: "short", label: "Short" },
 ];
+
+function SegmentedRow<T extends string>({
+  title,
+  options,
+  value,
+  onChange,
+  last,
+  styles,
+}: {
+  title: string;
+  options: { value: T; label: string }[];
+  value: T;
+  onChange: (next: T) => void;
+  last?: boolean;
+  styles: ReturnType<typeof createStyles>;
+}) {
+  return (
+    <View style={[styles.segRow, !last && styles.rowDivider]}>
+      <Text style={styles.segTitle}>{title}</Text>
+      <View style={styles.segTrack} accessibilityRole="radiogroup" accessibilityLabel={title}>
+        {options.map((option) => {
+          const selected = option.value === value;
+          return (
+            <Pressable
+              key={option.value}
+              onPress={() => onChange(option.value)}
+              accessibilityRole="radio"
+              accessibilityState={{ checked: selected }}
+              accessibilityLabel={option.label}
+              style={[styles.segItem, selected && styles.segItemSelected]}
+            >
+              <Text style={[styles.segText, selected && styles.segTextSelected]}>
+                {option.label}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </View>
+    </View>
+  );
+}
 
 function ThemeOptionRow({
   label,
@@ -298,6 +317,13 @@ function createStyles(colors: AppTheme["colors"], ui: AppTheme["ui"]) {
     rowLabel: { ...typography.body, flex: 1, color: colors.text },
     chevron: { fontSize: 18, color: ui.textTertiary },
     check: { color: colors.accent },
+    segRow: { gap: spacing.xs, paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
+    segTitle: { ...typography.meta, textTransform: "none", color: colors.faint },
+    segTrack: { flexDirection: "row", backgroundColor: ui.surfaceSubtle, borderRadius: 10, padding: 3 },
+    segItem: { flex: 1, minHeight: 36, alignItems: "center", justifyContent: "center", borderRadius: 8, paddingHorizontal: 4 },
+    segItemSelected: { backgroundColor: colors.surface, borderWidth: 1, borderColor: ui.borderSubtle },
+    segText: { ...typography.meta, textTransform: "none", color: colors.faint, textAlign: "center" },
+    segTextSelected: { color: colors.text, fontWeight: "600" },
     groupHint: {
       ...typography.meta,
       textTransform: "none",
