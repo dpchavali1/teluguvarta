@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
-import { countryCode } from "@teluguvarta/domain";
+import { applyPreset, countryCode, PERSONA_PRESETS, removePreset, type PersonaPresetId, type PersonaState } from "@teluguvarta/domain";
 import { getConfig, type TopicOut } from "@/lib/api";
 import { track } from "@/lib/analytics";
 import { LIFE_STAGES, getOnboardingProfile, setOnboardingProfile, type LifeStage } from "@/lib/onboarding";
@@ -23,6 +23,7 @@ export default function OnboardingPage() {
   const [residenceCountry, setResidenceCountry] = useState("");
   const [homeState, setHomeState] = useState("");
   const [homeCity, setHomeCity] = useState("");
+  const [applied, setApplied] = useState<PersonaState["applied"]>({});
 
   // Loaded client-side only (not as a useState initializer) to avoid an
   // SSR/hydration mismatch — the server always renders the empty/skip
@@ -35,7 +36,27 @@ export default function OnboardingPage() {
     setResidenceCountry(existing.residenceCountry ?? "");
     setHomeState(existing.homeState ?? "");
     setHomeCity(existing.homeCity ?? "");
+    setApplied(existing.personaApplied ?? {});
   }, []);
+
+  // The domain presets use mobile's SCREAMING_SNAKE life stages; web stores
+  // the API's lowercase values. Web has no push alerts, so alert fields stay
+  // empty and unused.
+  function togglePreset(id: PersonaPresetId) {
+    const before: PersonaState = {
+      interests: selectedTopics,
+      lifeStages: lifeStages.map((s) => s.toUpperCase()),
+      alertTopics: {},
+      quietHoursEnabled: false,
+      quietHoursStart: "22:00",
+      quietHoursEnd: "07:00",
+      applied,
+    };
+    const after = applied[id] ? removePreset(before, id) : applyPreset(before, id);
+    setSelectedTopics(after.interests);
+    setLifeStages(after.lifeStages.map((s) => s.toLowerCase() as LifeStage));
+    setApplied(after.applied);
+  }
 
   function toggleLifeStage(stage: LifeStage) {
     setLifeStages((current) =>
@@ -51,6 +72,7 @@ export default function OnboardingPage() {
       topics: selectedTopics,
       homeState: homeState.trim() || undefined,
       homeCity: homeCity.trim() || undefined,
+      personaApplied: applied,
     });
     // A person can select more than one life stage (ADR-005 addendum);
     // report the full set rather than silently dropping every stage but
@@ -69,6 +91,17 @@ export default function OnboardingPage() {
         This personalizes your feed and, for students, adds a Student Briefing section. Every
         question here is optional — TTE works fully without answering any of them.
       </p>
+
+      <fieldset className="onboarding__fieldset">
+        <legend>Quick setup (optional)</legend>
+        <p className="onboarding__hint">Pick any that fit. Each only selects its own topics, and unchecking it removes just those. You can change everything below afterwards.</p>
+        {PERSONA_PRESETS.map((preset) => (
+          <label key={preset.id} className="onboarding__radio">
+            <input type="checkbox" checked={Boolean(applied[preset.id])} onChange={() => togglePreset(preset.id)} />
+            {preset.label}
+          </label>
+        ))}
+      </fieldset>
 
       <fieldset className="onboarding__fieldset">
         <legend>Which best describes you?</legend>

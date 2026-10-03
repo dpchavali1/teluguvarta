@@ -1,10 +1,12 @@
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
+import type { PersonaState } from "@teluguvarta/domain";
 import React, { useMemo, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Switch, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { NotificationPreferencesForm } from "../components/NotificationPreferencesForm";
+import { PersonaPresetPicker } from "../components/PersonaPresetPicker";
 import {
   InterestFields,
   LifeStageFields,
@@ -20,7 +22,10 @@ import {
   EMPTY_PROFILE,
   setNotificationPreferences,
   setOnboarded,
+  setPersonaApplied,
   setProfile,
+  fromPersonaState,
+  toPersonaState,
   type NotificationPreferences,
   type OnboardingProfile,
 } from "../lib/storage";
@@ -46,11 +51,13 @@ export function OnboardingScreen() {
   const [step, setStep] = useState(0);
   const [profile, setProfileDraft] = useState<OnboardingProfile>(EMPTY_PROFILE);
   const [prefs, setPrefsDraft] = useState<NotificationPreferences>(DEFAULT_NOTIFICATION_PREFERENCES);
+  const [applied, setApplied] = useState<PersonaState["applied"]>({});
   const topics = useConfigTopics();
 
   async function finish(finalProfile: OnboardingProfile, finalPrefs: NotificationPreferences) {
     await setProfile(finalProfile);
     await setNotificationPreferences(finalPrefs);
+    await setPersonaApplied(applied);
     await setOnboarded(true);
     // A person can select more than one life stage now (ADR-005 addendum);
     // report the full set plus the primary one the API's `segment` param
@@ -95,6 +102,16 @@ export function OnboardingScreen() {
               account. A few optional questions help personalize your feed — skip any of them at
               any time.
             </Text>
+            <Text style={styles.body}>Quick setup — pick any that fit:</Text>
+            <PersonaPresetPicker
+              state={toPersonaState(profile, prefs, applied)}
+              onChange={(next) => {
+                const result = fromPersonaState(next, profile, prefs);
+                setProfileDraft(result.profile);
+                setPrefsDraft(result.prefs);
+                setApplied(next.applied);
+              }}
+            />
           </StepShell>
         )}
 

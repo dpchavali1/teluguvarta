@@ -12,6 +12,8 @@
     "bundle-check": "expo export --platform ios --platform android --output-dir /tmp/tg-mobile-bundle-check"
   },
   "dependencies": {
+    "@expo-google-fonts/mandali": "^0.4.1",
+    "@expo-google-fonts/noto-serif-telugu": "^0.4.2",
     "@expo/vector-icons": "^15.0.2",
     "@react-native-async-storage/async-storage": "3.1.1",
     "@react-native-firebase/analytics": "^26.4.0",
@@ -27,6 +29,7 @@
     "expo-crypto": "~57.0.3",
     "expo-dev-client": "~57.0.19",
     "expo-device": "^57.0.1",
+    "expo-font": "~57.0.3",
     "expo-notifications": "^57.0.17",
     "expo-secure-store": "~57.0.4",
     "expo-status-bar": "~57.0.1",

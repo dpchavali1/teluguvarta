@@ -2,11 +2,21 @@ import Ionicons from "@expo/vector-icons/Ionicons";
 import Constants from "expo-constants";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import React, { useMemo } from "react";
+import type { PersonaState } from "@teluguvarta/domain";
+import React, { useEffect, useMemo, useState } from "react";
 import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
+import { PersonaPresetPicker } from "../components/PersonaPresetPicker";
 import { siteUrl } from "../lib/api";
-import type { TextSize, ThemePreference } from "../lib/storage";
+import { syncToServer } from "../lib/notificationSync";
+import {
+  getNotificationPreferences,
+  getPersonaApplied,
+  getProfile,
+  savePersonaChange,
+  toPersonaState,
+} from "../lib/storage";
+import type { ReadingStyle, TeluguFont, TextSize, ThemePreference } from "../lib/storage";
 import type { RootStackParamList } from "../navigation/types";
 import { useTextSize } from "../theme/TextSizeContext";
 import { useThemePreference } from "../theme/ThemePreferenceContext";
@@ -18,10 +28,35 @@ export function SettingsScreen() {
   const { colors, ui } = useAppTheme();
   const styles = useMemo(() => createStyles(colors, ui), [colors, ui]);
   const { preference, setPreference } = useThemePreference();
-  const { textSize, setTextSize } = useTextSize();
+  const { textSize, setTextSize, teluguFont, setTeluguFont, readingStyle, setReadingStyle } = useTextSize();
+  const [persona, setPersona] = useState<PersonaState | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    Promise.all([getProfile(), getNotificationPreferences(), getPersonaApplied()]).then(([profile, prefs, applied]) => {
+      if (active) setPersona(toPersonaState(profile, prefs, applied));
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  function changePersona(next: PersonaState) {
+    setPersona(next);
+    savePersonaChange(next)
+      .then((prefs) => syncToServer(prefs))
+      .catch(() => {});
+  }
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+      {persona ? (
+        <>
+          <Text style={styles.groupLabel} accessibilityRole="header">QUICK SETUP</Text>
+          <PersonaPresetPicker state={persona} onChange={changePersona} />
+          <Text style={styles.groupHint}>Pick any that fit. Each one only turns on its own topics and alerts, and unchecking it turns off just those. You can still change everything afterwards.</Text>
+        </>
+      ) : null}
       <Text style={styles.groupLabel} accessibilityRole="header">NOTIFICATIONS</Text>
       <View style={styles.group}>
         <SettingsRow
@@ -63,6 +98,38 @@ export function SettingsScreen() {
         ))}
       </View>
       <Text style={styles.groupHint}>Story headlines and text. Your phone's text size still applies.</Text>
+      <Text style={styles.groupLabel} accessibilityRole="header">
+        TELUGU FONT
+      </Text>
+      <View style={styles.group} accessibilityRole="radiogroup" accessibilityLabel="Telugu font">
+        {TELUGU_FONT_OPTIONS.map((option, i) => (
+          <ThemeOptionRow
+            key={option.value}
+            label={option.label}
+            selected={teluguFont === option.value}
+            onPress={() => setTeluguFont(option.value)}
+            last={i === TELUGU_FONT_OPTIONS.length - 1}
+            styles={styles}
+          />
+        ))}
+      </View>
+      <Text style={styles.groupHint}>Used for Telugu story text. If a font can't load, your phone's font is used.</Text>
+      <Text style={styles.groupLabel} accessibilityRole="header">
+        STORY LENGTH
+      </Text>
+      <View style={styles.group} accessibilityRole="radiogroup" accessibilityLabel="Story length in lists">
+        {READING_STYLE_OPTIONS.map((option, i) => (
+          <ThemeOptionRow
+            key={option.value}
+            label={option.label}
+            selected={readingStyle === option.value}
+            onPress={() => setReadingStyle(option.value)}
+            last={i === READING_STYLE_OPTIONS.length - 1}
+            styles={styles}
+          />
+        ))}
+      </View>
+      <Text style={styles.groupHint}>Short trims feed cards to the headline and two lines. Opening a story always shows everything.</Text>
       <Text style={styles.groupLabel} accessibilityRole="header">YOUR READING</Text>
       <View style={styles.group}>
         <SettingsRow label="Your profile" onPress={() => navigation.navigate("Profile")} styles={styles} />
@@ -123,6 +190,17 @@ const TEXT_SIZE_OPTIONS: { value: TextSize; label: string }[] = [
   { value: "default", label: "Default" },
   { value: "large", label: "Large" },
   { value: "xlarge", label: "Extra large" },
+];
+
+const TELUGU_FONT_OPTIONS: { value: TeluguFont; label: string }[] = [
+  { value: "system", label: "Phone default" },
+  { value: "serif", label: "Noto Serif Telugu" },
+  { value: "mandali", label: "Mandali" },
+];
+
+const READING_STYLE_OPTIONS: { value: ReadingStyle; label: string }[] = [
+  { value: "full", label: "Full" },
+  { value: "short", label: "Short" },
 ];
 
 function ThemeOptionRow({

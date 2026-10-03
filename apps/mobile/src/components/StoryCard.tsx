@@ -68,7 +68,7 @@ export function StoryCard({
   const { colors, ui } = useAppTheme();
   const styles = useMemo(() => createStyles(colors, ui), [colors, ui]);
   const cache = useStoryCache();
-  const { textSize } = useTextSize();
+  const { textSize, activeTeluguFont, readingStyle } = useTextSize();
   const { hideTopic } = useHiddenTopics();
   const [lessOpen, setLessOpen] = useState(false);
   const [language, setLanguage] = useState<Language>("en");
@@ -110,7 +110,7 @@ export function StoryCard({
   // `en` when the requested variant is missing, and the type metrics have to
   // follow the glyphs actually on screen.
   const renderedLanguage: Language = story.variants[language] ? language : "en";
-  const type = scaledStoryType(renderedLanguage, textSize);
+  const type = scaledStoryType(renderedLanguage, textSize, activeTeluguFont);
   const whyMatters = renderedLanguage === "en" ? story.personalization?.why_matters ?? variant.why_matters : variant.why_matters;
 
   const statusNotice = STATUS_LABEL[story.status];
@@ -224,7 +224,7 @@ export function StoryCard({
           </Text>
         )}
 
-        <Text accessibilityLanguage={renderedLanguage === "te" ? "te-IN" : "en-US"} style={[styles.body, type.body]}>{variant.summary}</Text>
+        <Text accessibilityLanguage={renderedLanguage === "te" ? "te-IN" : "en-US"} style={[styles.body, type.body]} numberOfLines={onOpen && readingStyle === "short" ? 2 : undefined}>{variant.summary}</Text>
 
 
         {primarySource && (
@@ -245,7 +245,7 @@ export function StoryCard({
           </Pressable>
         )}
 
-        {!isCompact && story.format !== "BRIEF" && whyMatters ? (
+        {!isCompact && story.format !== "BRIEF" && whyMatters && !(onOpen && readingStyle === "short") ? (
           <Text
             style={[
               styles.why,

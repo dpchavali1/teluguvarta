@@ -220,6 +220,25 @@ fidelity, and cache/production evidence remain open.
 5. Measure production Core Web Vitals and mobile performance against the SPEC
    targets; complete store release evidence separately.
 
+Personalization plan 2026-10-03: tickets P01–P08 and ADR-040 (explicit-signal
+personalization) / ADR-041 (timely trackers) accepted; see `docs/BUILD_ORDER.md`.
+P04 mobile done: Telugu font choice (system / Noto Serif Telugu / Mandali,
+bundled, falls back to system if loading fails) and Short story length for
+feed cards; font size already existed. Mobile typecheck, 89 tests in 16 suites
+and bundle pass; release APK rebuilt. Not yet device-verified (Telugu glyph
+rendering/bold faces need a look on the phone). P04 web parity still open;
+P02, P03, P05–P08 not started.
+
+P01 persona presets done locally (2026-10-03): `packages/domain/personas.ts`
+holds the seven presets and pure apply/remove logic; each preset records only
+what it added (topics, alert topics, student life stage, quiet hours) so
+removing it, or another preset that shares a topic, never touches the user's
+other choices. Mobile: picker in onboarding welcome step and Settings → Quick
+setup (reuses the student life stage, syncs alerts through the existing
+preferences endpoint); web: Quick setup on the onboarding/profile page (no
+alert prefs on web). Mobile typecheck, 93 tests (4 new) and web typecheck/
+build pass. Not device- or browser-verified; web has no persona tests yet.
+
 The [historical tracker](docs/history/PROGRESS-through-T14-search-2026-10-01.md)
 contains detailed earlier statuses and validation. Temporary synthetic screenshots
 and logs are under `/tmp`; they are not production or device evidence.

@@ -6,7 +6,7 @@ import { StyleSheet } from "react-native";
 import { StoryCard } from "../components/StoryCard";
 import type { StoryOut } from "../lib/api";
 import { StoryCacheProvider } from "../lib/StoryCacheContext";
-import { LOCAL_DATA_KEYS, getTextSize, setTextSize } from "../lib/storage";
+import { LOCAL_DATA_KEYS, getReadingStyle, getTeluguFont, getTextSize, setReadingStyle, setTeluguFont, setTextSize } from "../lib/storage";
 import { PrivacyScreen } from "../screens/PrivacyScreen";
 import { SettingsScreen } from "../screens/SettingsScreen";
 import { TextSizeProvider, scaledStoryType } from "../theme/TextSizeContext";
@@ -113,4 +113,35 @@ test("a link-first brief keeps the source action and suppresses unexpected comme
   await screen.findByText("Visa rules change");
   expect(screen.getByRole("link", { name: "Read the original source: Announcement" })).toBeTruthy();
   expect(screen.queryByText(/Unexpected extra commentary/)).toBeNull();
+});
+
+test("Telugu font and story length persist, ignore junk, and are cleared with the other data", async () => {
+  expect(await getTeluguFont()).toBe("system");
+  await setTeluguFont("serif");
+  expect(await getTeluguFont()).toBe("serif");
+  await AsyncStorage.setItem("tg_telugu_font_v1", "comic");
+  expect(await getTeluguFont()).toBe("system");
+  expect(await getReadingStyle()).toBe("full");
+  await setReadingStyle("short");
+  expect(await getReadingStyle()).toBe("short");
+  expect(LOCAL_DATA_KEYS).toEqual(expect.arrayContaining(["tg_telugu_font_v1", "tg_reading_style_v1"]));
+});
+
+test("a Telugu font only styles Telugu text and bold uses its own face", () => {
+  expect(scaledStoryType("te", "default", "system")).toBe(typographyTe);
+  expect(scaledStoryType("en", "default", "serif")).toBe(typography);
+  const serif = scaledStoryType("te", "default", "serif");
+  expect(serif.body).toMatchObject({ fontFamily: "NotoSerifTelugu_400Regular" });
+  expect(serif.headline).toMatchObject({ fontFamily: "NotoSerifTelugu_700Bold", fontWeight: "400" });
+  expect(serif.body.lineHeight).toBeGreaterThan(typographyTe.body.lineHeight);
+  expect(scaledStoryType("te", "default", "mandali").headline).toMatchObject({ fontFamily: "Mandali_400Regular", fontWeight: "700" });
+});
+
+test("short story length trims feed cards but not the story page", async () => {
+  await setReadingStyle("short");
+  const withWhy = { ...story, variants: { en: { ...story.variants.en!, why_it_matters: "It affects visa holders." } } } as StoryOut;
+  await renderWithSize(<StoryCard story={withWhy} layout="compact" onOpen={() => {}} onOpenSource={() => {}} />);
+  const summary = await screen.findByText("What changed and when.");
+  expect(summary.props.numberOfLines).toBe(2);
+  expect(screen.queryByText(/Why this matters/)).toBeNull();
 });

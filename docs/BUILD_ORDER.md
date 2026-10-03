@@ -47,6 +47,14 @@ step named in "insert after"):
 | T19-release | T19/UI17 | Owner-authorized deployed-revision and route smoke checks for the VPS release gate. |
 | T17-firebase | T17/ADR-039 | Owner-selected Firebase for native mobile push and separately consented mobile analytics; activate only after credentials, device proof, and the release gate. |
 | UI01–UI14 | T14/T15 | Owner-authorized 2026-10-01 interface follow-ups, implemented sequentially; scope/status in `docs/reviews/2026-10-01-improvement-plan.md` and individual `docs/tickets/UIxx.md`. Device/release evidence remains separate from local implementation. |
+| P01 | S1/S2/UI16 | Persona presets over explicit preferences. |
+| P02 | UI16/T17-firebase | Digest, per-topic urgency, keyword follows, dual-timezone quiet hours, saved-story updates. |
+| P03 | ADR-027/T16 | Multi-place location follows. |
+| P04 | UI15 | Font size, Telugu font choice, short-summary mode. |
+| P05 | ADR-040, P01, P03 | My Edit feed from explicit signals only. |
+| P06 | T15 | Saved collections, reminders, notes, offline reading. |
+| P07 | ADR-041 (per tracker), P02 | Visa bulletin, then exam/deadline trackers. |
+| P08 | T15/UI15 | WhatsApp share card. |
 
 ## Vertical-slice milestone (before broadening scope)
 

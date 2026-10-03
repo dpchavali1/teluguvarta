@@ -1,4 +1,5 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import type { PersonaState } from "@teluguvarta/domain";
 import { DeviceEventEmitter } from "react-native";
 
 // §3.1/§16 (ADR-006 proposed, not accepted): V1 has no real account/auth
@@ -15,7 +16,10 @@ const KEYS = {
   savedStories: "tg_saved_stories_v1",
   themePreference: "tg_theme_pref_v1",
   textSize: "tg_text_size_v1",
+  teluguFont: "tg_telugu_font_v1",
+  readingStyle: "tg_reading_style_v1",
   hiddenTopics: "tg_hidden_topics_v1",
+  personaPresets: "tg_persona_presets_v1",
   readHistory: "tg_read_history_v1",
   analyticsConsent: "tte_firebase_analytics_consent_v1",
 } as const;
@@ -232,6 +236,48 @@ export async function setTextSize(size: TextSize): Promise<void> {
   }
 }
 
+// Telugu typeface for story text (Settings → Telugu font). "system" is the
+// phone's own Telugu font; the others are bundled open-licence fonts.
+export type TeluguFont = "system" | "serif" | "mandali";
+const TELUGU_FONTS: readonly TeluguFont[] = ["system", "serif", "mandali"];
+
+export async function getTeluguFont(): Promise<TeluguFont> {
+  try {
+    const raw = await AsyncStorage.getItem(KEYS.teluguFont);
+    return TELUGU_FONTS.find((font) => font === raw) ?? "system";
+  } catch {
+    return "system";
+  }
+}
+
+export async function setTeluguFont(font: TeluguFont): Promise<void> {
+  try {
+    await AsyncStorage.setItem(KEYS.teluguFont, font);
+  } catch {
+    // Storage disabled — the choice applies for this session only.
+  }
+}
+
+// "short" trims feed cards to the headline and a two-line summary; the story
+// page always shows everything.
+export type ReadingStyle = "full" | "short";
+
+export async function getReadingStyle(): Promise<ReadingStyle> {
+  try {
+    return (await AsyncStorage.getItem(KEYS.readingStyle)) === "short" ? "short" : "full";
+  } catch {
+    return "full";
+  }
+}
+
+export async function setReadingStyle(style: ReadingStyle): Promise<void> {
+  try {
+    await AsyncStorage.setItem(KEYS.readingStyle, style);
+  } catch {
+    // Storage disabled — the choice applies for this session only.
+  }
+}
+
 // Topic slugs the reader chose "Show less" on. Home and Latest leave out
 // stories tagged with any of them; Settings → Hidden topics undoes it.
 export async function getHiddenTopics(): Promise<string[]> {
@@ -322,4 +368,68 @@ export function toggleSaved(storyId: string): Promise<boolean> {
   const next = savedWrite.then(() => updateSaved(storyId));
   savedWrite = next.catch(() => undefined);
   return next;
+}
+
+// P01: which persona presets are applied and what each one added, so
+// removing a preset reverts only its own choices. Local only (ADR-005).
+export async function getPersonaApplied(): Promise<PersonaState["applied"]> {
+  try {
+    const parsed: unknown = JSON.parse((await AsyncStorage.getItem(KEYS.personaPresets)) ?? "{}");
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? (parsed as PersonaState["applied"]) : {};
+  } catch {
+    return {};
+  }
+}
+
+export function setPersonaApplied(applied: PersonaState["applied"]): Promise<void> {
+  return writeJson(KEYS.personaPresets, applied);
+}
+
+export function toPersonaState(
+  profile: OnboardingProfile,
+  prefs: NotificationPreferences,
+  applied: PersonaState["applied"],
+): PersonaState {
+  return {
+    interests: profile.interestTopicSlugs,
+    lifeStages: profile.lifeStages,
+    alertTopics: prefs.topics,
+    quietHoursEnabled: prefs.quietHoursEnabled,
+    quietHoursStart: prefs.quietHoursStart,
+    quietHoursEnd: prefs.quietHoursEnd,
+    applied,
+  };
+}
+
+export function fromPersonaState(
+  state: PersonaState,
+  profile: OnboardingProfile,
+  prefs: NotificationPreferences,
+): { profile: OnboardingProfile; prefs: NotificationPreferences } {
+  const nextProfile: OnboardingProfile = {
+    ...profile,
+    interestTopicSlugs: state.interests,
+    lifeStages: state.lifeStages as LifeStage[],
+  };
+  if (!asksStudentDetails(nextProfile.lifeStages)) delete nextProfile.student;
+  return {
+    profile: nextProfile,
+    prefs: {
+      ...prefs,
+      topics: state.alertTopics,
+      quietHoursEnabled: state.quietHoursEnabled,
+      quietHoursStart: state.quietHoursStart,
+      quietHoursEnd: state.quietHoursEnd,
+    },
+  };
+}
+
+// Writes a preset change made outside onboarding (Settings): profile,
+// alert preferences and the applied record, then lets Home reload.
+export async function savePersonaChange(state: PersonaState): Promise<NotificationPreferences> {
+  const [profile, prefs] = await Promise.all([getProfile(), getNotificationPreferences()]);
+  const next = fromPersonaState(state, profile, prefs);
+  await Promise.all([setProfile(next.profile), setNotificationPreferences(next.prefs), setPersonaApplied(state.applied)]);
+  DeviceEventEmitter.emit(PROFILE_CHANGE_EVENT);
+  return next.prefs;
 }

@@ -3,6 +3,7 @@
 // judgment call as ./saved.ts and apps/mobile/src/lib/storage.ts. Life-stage
 // values match apps/api's `Segment` (app/schemas.py) directly — unlike
 // apps/mobile's storage.ts, there's no legacy SCREAMING_SNAKE format to map.
+import type { PersonaState } from "@teluguvarta/domain";
 import { applyStoryLanguage, normalizeStoryLanguage, PROFILE_STORAGE_KEY } from "./storyLanguage";
 
 const STORAGE_KEY = PROFILE_STORAGE_KEY;
@@ -30,6 +31,9 @@ export type OnboardingProfile = {
   residenceCountry?: string;
   homeState?: string;
   homeCity?: string;
+  // P01: what each applied persona preset added, so unchecking it reverts
+  // only its own choices. Local only; never sent to the server.
+  personaApplied?: PersonaState["applied"];
   // Design-review fix: previously there was no site-wide language
   // preference at all — every StoryCard defaulted to "en" and reset on
   // every reload. Mirrors apps/mobile/src/lib/storage.ts's profile.language.
