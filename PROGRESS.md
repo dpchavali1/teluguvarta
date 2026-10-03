@@ -61,8 +61,9 @@ background. Fixes after that test: taps now use Firebase
 `onNotificationOpenedApp`/`getInitialNotification` (expo-notifications did not
 see FCM taps; a cold-start tap is held until navigation is ready), and story
 alerts now show the story headline (profile language; Telugu only after QA).
-Cold-start tap, quiet hours, daily cap, breaking alerts and iOS (needs APNs
-key and an iPhone) remain unverified. ADR-038 still blocks release. API tests:
+After deploying `4ba5c39`, a story alert showed the headline and a tap with
+the app force-closed opened the story (verified on device). Quiet hours, daily
+cap, breaking alerts and iOS (needs APNs key and an iPhone) remain unverified. ADR-038 still blocks release. API tests:
 `test_editor_sets_event_countries_and_importance` already fails on `main` in
 the full suite (passes alone); unrelated to push.
 
