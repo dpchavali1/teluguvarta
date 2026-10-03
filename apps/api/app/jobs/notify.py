@@ -41,15 +41,20 @@ from sqlalchemy.orm import Session
 
 from app import analytics
 from app.content.notifications import (
+    DIGEST_WINDOW_HOURS,
     NotifiableStory,
     UserNotificationPrefs,
     breaking_alert_eligible,
     daily_cap_reached,
-    in_quiet_hours,
+    digest_slots_due,
+    digest_story_eligible,
+    in_quiet_hours_any_zone,
+    keyword_alert_eligible,
     topic_alert_eligible,
 )
 from app.jobs.queue import backoff_seconds, enqueue_job
 from app.models import (
+    Correction,
     Job,
     Notification,
     Profile,
@@ -61,6 +66,8 @@ from app.models import (
     StoryTopic,
     StoryVariant,
     Topic,
+    UserKeyword,
+    UserSavedStory,
     UserTopic,
 )
 from app.push import send_push
@@ -94,6 +101,12 @@ def _avg_source_quality(db: Session, story_id) -> float:
     return sum(scores) / len(scores)
 
 
+def _english_headline(db: Session, story_id) -> str | None:
+    return db.scalar(
+        select(StoryVariant.headline).where(StoryVariant.story_id == story_id, StoryVariant.language == "en")
+    )
+
+
 def _to_notifiable(db: Session, story: Story) -> NotifiableStory:
     return NotifiableStory(
         id=str(story.id),
@@ -103,30 +116,42 @@ def _to_notifiable(db: Session, story: Story) -> NotifiableStory:
         sensitivity=story.sensitivity,
         breaking_alert_approved=story.breaking_alert_approved_at is not None,
         avg_source_quality=_avg_source_quality(db, story.id),
+        headline=_english_headline(db, story.id) or "",
     )
 
 
 def _load_prefs(db: Session, user_id) -> UserNotificationPrefs:
     profile = db.get(Profile, user_id)
-    topic_slugs = db.scalars(
-        select(Topic.slug).join(UserTopic, UserTopic.topic_id == Topic.id).where(UserTopic.user_id == user_id)
+    topic_rows = db.execute(
+        select(Topic.slug, UserTopic.urgency).join(UserTopic, UserTopic.topic_id == Topic.id).where(UserTopic.user_id == user_id)
     ).all()
+    keywords = tuple(db.scalars(select(UserKeyword.keyword).where(UserKeyword.user_id == user_id)).all())
+    subscribed = tuple(slug for slug, _ in topic_rows)
+    urgency = {slug: level for slug, level in topic_rows}
     if profile is None:
         return UserNotificationPrefs(
-            subscribed_topics=tuple(topic_slugs),
             breaking_alerts_enabled=True,
             daily_briefing_enabled=True,
             quiet_hours_start=None,
             quiet_hours_end=None,
             max_alerts_per_day=5,
+            subscribed_topics=subscribed,
+            topic_urgency=urgency,
+            keywords=keywords,
         )
     return UserNotificationPrefs(
-        subscribed_topics=tuple(topic_slugs),
         breaking_alerts_enabled=profile.breaking_alerts_enabled,
         daily_briefing_enabled=profile.daily_briefing_enabled,
         quiet_hours_start=profile.quiet_hours_start,
         quiet_hours_end=profile.quiet_hours_end,
         max_alerts_per_day=profile.max_alerts_per_day,
+        home_tz=profile.home_tz,
+        residence_tz=profile.residence_tz,
+        digest_morning_hour=profile.digest_morning_hour,
+        digest_evening_hour=profile.digest_evening_hour,
+        subscribed_topics=subscribed,
+        topic_urgency=urgency,
+        keywords=keywords,
     )
 
 
@@ -162,6 +187,11 @@ def _generate_topic_and_breaking_candidates(db: Session, now: datetime) -> None:
                     .where(Topic.slug.in_(notifiable.topics))
                 ).all()
             )
+        headline = notifiable.headline.lower()
+        if headline:
+            candidate_user_ids |= set(
+                db.scalars(select(UserKeyword.user_id).where(func.strpos(headline, UserKeyword.keyword) > 0)).all()
+            )
         if notifiable.sensitivity == "BREAKING" and notifiable.breaking_alert_approved:
             candidate_user_ids |= set(
                 db.scalars(select(Profile.user_id).where(Profile.breaking_alerts_enabled.is_(True))).all()
@@ -169,7 +199,9 @@ def _generate_topic_and_breaking_candidates(db: Session, now: datetime) -> None:
 
         for user_id in candidate_user_ids:
             prefs = _load_prefs(db, user_id)
-            if topic_alert_eligible(notifiable, prefs):
+            # A keyword match reuses the topic-alert key, so a story that
+            # matches both a topic and a keyword still alerts once.
+            if topic_alert_eligible(notifiable, prefs) or keyword_alert_eligible(notifiable, prefs):
                 _insert_pending(
                     db, user_id=user_id, story_id=story.id,
                     notif_type="TOPIC_ALERT", notification_key=f"topic_alert:{story.id}",
@@ -189,6 +221,64 @@ def _generate_daily_briefing_candidates(db: Session, now: datetime) -> None:
         _insert_pending(
             db, user_id=user_id, story_id=None,
             notif_type="DAILY_BRIEFING", notification_key=f"daily_briefing:{utc_date}",
+        )
+    db.commit()
+
+
+def _digest_story_ids(db: Session, user_id, prefs: UserNotificationPrefs, now: datetime) -> list:
+    """Stories for one user's digest: recent, in a DIGEST-urgency topic, and
+    not already alerted to (or queued for) this user."""
+
+    window_start = now - timedelta(hours=DIGEST_WINDOW_HOURS)
+    stories = db.scalars(
+        select(Story).where(
+            Story.status.in_(("PUBLISHED", "UPDATED")),
+            Story.published_at.is_not(None),
+            Story.published_at >= window_start,
+            ~select(Notification.id)
+            .where(
+                Notification.user_id == user_id,
+                Notification.story_id == Story.id,
+                Notification.status.in_(("PENDING", "SENT")),
+            )
+            .exists(),
+        )
+    ).all()
+    return [story.id for story in stories if digest_story_eligible(_to_notifiable(db, story), prefs)]
+
+
+def _generate_digest_candidates(db: Session, now: datetime) -> None:
+    user_ids = db.scalars(
+        select(Profile.user_id).where(
+            (Profile.digest_morning_hour.is_not(None)) | (Profile.digest_evening_hour.is_not(None))
+        )
+    ).all()
+    for user_id in user_ids:
+        prefs = _load_prefs(db, user_id)
+        for slot, local_date in digest_slots_due(now, prefs):
+            key = f"digest:{local_date}:{slot}"
+            already = db.scalar(
+                select(Notification.id).where(Notification.user_id == user_id, Notification.notification_key == key)
+            )
+            if already is None and _digest_story_ids(db, user_id, prefs, now):
+                _insert_pending(db, user_id=user_id, story_id=None, notif_type="DIGEST", notification_key=key)
+    db.commit()
+
+
+def _generate_story_update_candidates(db: Session, now: datetime) -> None:
+    """A reviewed correction was published for a story the reader saved."""
+
+    lookback_start = now - timedelta(minutes=NOTIFICATION_LOOKBACK_MINUTES)
+    rows = db.execute(
+        select(Correction.id, Correction.story_id, UserSavedStory.user_id)
+        .join(UserSavedStory, UserSavedStory.story_id == Correction.story_id)
+        .join(Story, Story.id == Correction.story_id)
+        .where(Correction.created_at >= lookback_start, Story.status.in_(("PUBLISHED", "UPDATED")))
+    ).all()
+    for correction_id, story_id, user_id in rows:
+        _insert_pending(
+            db, user_id=user_id, story_id=story_id,
+            notif_type="STORY_UPDATE", notification_key=f"story_update:{correction_id}",
         )
     db.commit()
 
@@ -215,6 +305,14 @@ def _story_headline(db: Session, story_id, language: str) -> str | None:
 def _push_copy(db: Session, notification: Notification) -> tuple[str, str]:
     if notification.type == "DAILY_BRIEFING":
         return "Your TTE briefing", "Today's top stories are ready."
+    if notification.type == "DIGEST":
+        prefs = _load_prefs(db, notification.user_id)
+        count = len(_digest_story_ids(db, notification.user_id, prefs, _now()))
+        return "Your TTE digest", f"{count} new stories in topics you follow." if count else "New stories in topics you follow."
+    if notification.type == "STORY_UPDATE":
+        profile = db.get(Profile, notification.user_id)
+        headline = _story_headline(db, notification.story_id, profile.language if profile else "en")
+        return "Updated: a story you saved", headline or "A story you saved was corrected."
     title = "Breaking" if notification.type == "BREAKING_ALERT" else "New story in a topic you follow"
     profile = db.get(Profile, notification.user_id)
     headline = (
@@ -227,7 +325,7 @@ def _push_copy(db: Session, notification: Notification) -> tuple[str, str]:
 def _process_one(db: Session, notification: Notification, now: datetime) -> None:
     prefs = _load_prefs(db, notification.user_id)
 
-    if in_quiet_hours(now.hour, prefs.quiet_hours_start, prefs.quiet_hours_end):
+    if in_quiet_hours_any_zone(now, prefs):
         notification.status = "SUPPRESSED"
         notification.suppressed_reason = "QUIET_HOURS"
         db.commit()
@@ -300,6 +398,8 @@ def run_notification_dispatch(db: Session, job: Job) -> None:
     now = _now()
     _generate_topic_and_breaking_candidates(db, now)
     _generate_daily_briefing_candidates(db, now)
+    _generate_digest_candidates(db, now)
+    _generate_story_update_candidates(db, now)
     _process_pending(db, now)
 
 

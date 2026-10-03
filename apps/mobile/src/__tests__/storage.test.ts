@@ -20,6 +20,7 @@ test("notification preferences persist independently across each field", async (
   expect(await getNotificationPreferences()).toEqual(DEFAULT_NOTIFICATION_PREFERENCES);
 
   const next: NotificationPreferences = {
+    ...DEFAULT_NOTIFICATION_PREFERENCES,
     topics: { immigration: false, sports: true },
     breakingEnabled: false,
     dailyBriefingEnabled: true,
@@ -97,4 +98,15 @@ test("saved writes reject on full storage and concurrent saves preserve both IDs
   await Promise.all([toggleSaved("first"), toggleSaved("second")]);
   expect(await getSavedIds()).toEqual(["first", "second"]);
   jest.restoreAllMocks();
+});
+
+test("smart alert fields persist and old stored prefs fall back to defaults", async () => {
+  await AsyncStorage.setItem("tg_notification_prefs_v1", JSON.stringify({ maxPerDay: 3 }));
+  const old = await getNotificationPreferences();
+  expect(old.maxPerDay).toBe(3);
+  expect(old.keywords).toEqual([]);
+  expect(old.digestMorningHour).toBeNull();
+  const next = { ...old, keywords: ["h-1b"], topicUrgency: { money: "DIGEST" as const }, digestMorningHour: 7, residenceTz: "America/Chicago" };
+  await setNotificationPreferences(next);
+  expect(await getNotificationPreferences()).toEqual(next);
 });

@@ -1,6 +1,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 
 import type { StoryOut } from "./api";
+import { syncSavedStories } from "./notificationSync";
 import { getReadIds, getSavedIds, READ_HISTORY_LIMIT, setReadIds, toggleSaved as toggleSavedStorage } from "./storage";
 
 // Cached content accelerates reading; Saved always resolves current data from the API.
@@ -95,6 +96,7 @@ export function StoryCacheProvider({ children }: { children: React.ReactNode }) 
   const isSaved = useCallback((id: string) => savedIdsRef.current.has(id), []);
   const toggleSaved = useCallback(async (id: string) => {
     const next = await toggleSavedStorage(id);
+    syncSavedStories();
     if (next) savedIdsRef.current.add(id);
     else savedIdsRef.current.delete(id);
     setSavedIds([...savedIdsRef.current]);

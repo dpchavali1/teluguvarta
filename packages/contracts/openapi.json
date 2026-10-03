@@ -3686,7 +3686,9 @@
             "enum": [
               "DAILY_BRIEFING",
               "TOPIC_ALERT",
-              "BREAKING_ALERT"
+              "BREAKING_ALERT",
+              "DIGEST",
+              "STORY_UPDATE"
             ],
             "title": "Type",
             "type": "string"
@@ -4014,6 +4016,32 @@
             ],
             "title": "Daily Briefing Enabled"
           },
+          "digest_evening_hour": {
+            "anyOf": [
+              {
+                "maximum": 23.0,
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Digest Evening Hour"
+          },
+          "digest_morning_hour": {
+            "anyOf": [
+              {
+                "maximum": 23.0,
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Digest Morning Hour"
+          },
           "home_city": {
             "anyOf": [
               {
@@ -4035,6 +4063,32 @@
               }
             ],
             "title": "Home State"
+          },
+          "home_tz": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Home Tz"
+          },
+          "keywords": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "maxItems": 20,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Keywords"
           },
           "language": {
             "anyOf": [
@@ -4117,6 +4171,33 @@
             ],
             "title": "Residence Region"
           },
+          "residence_tz": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Residence Tz"
+          },
+          "saved_story_ids": {
+            "anyOf": [
+              {
+                "items": {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                "maxItems": 200,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Saved Story Ids"
+          },
           "topic_slugs": {
             "anyOf": [
               {
@@ -4130,6 +4211,25 @@
               }
             ],
             "title": "Topic Slugs"
+          },
+          "topic_urgency": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "enum": [
+                    "INSTANT",
+                    "BREAKING_ONLY",
+                    "DIGEST"
+                  ],
+                  "type": "string"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Topic Urgency"
           }
         },
         "title": "PreferencesUpdate",
@@ -4146,6 +4246,28 @@
             "default": true,
             "title": "Daily Briefing Enabled",
             "type": "boolean"
+          },
+          "digest_evening_hour": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Digest Evening Hour"
+          },
+          "digest_morning_hour": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Digest Morning Hour"
           },
           "home_city": {
             "anyOf": [
@@ -4168,6 +4290,24 @@
               }
             ],
             "title": "Home State"
+          },
+          "home_tz": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Home Tz"
+          },
+          "keywords": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Keywords",
+            "type": "array"
           },
           "language": {
             "default": "en",
@@ -4237,6 +4377,37 @@
               }
             ],
             "title": "Residence Region"
+          },
+          "residence_tz": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Residence Tz"
+          },
+          "saved_story_ids": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "title": "Saved Story Ids",
+            "type": "array"
+          },
+          "topic_urgency": {
+            "additionalProperties": {
+              "enum": [
+                "INSTANT",
+                "BREAKING_ONLY",
+                "DIGEST"
+              ],
+              "type": "string"
+            },
+            "title": "Topic Urgency",
+            "type": "object"
           },
           "topics": {
             "items": {

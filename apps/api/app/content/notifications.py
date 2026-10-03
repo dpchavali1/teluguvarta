@@ -19,11 +19,19 @@ decision.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from collections.abc import Mapping
+from dataclasses import dataclass, field
+from datetime import datetime
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 TOPIC_ALERT_MIN_IMPORTANCE = 0.5
 BREAKING_ALERT_MIN_CONFIDENCE = 0.7
 BREAKING_ALERT_MIN_SOURCE_QUALITY = 0.5
+# P02: a digest covers stories published in this many hours before its slot.
+DIGEST_WINDOW_HOURS = 12
+# P02: a digest still goes out if the worker was down for up to this many
+# local hours after the chosen hour, then the slot is skipped.
+DIGEST_GRACE_HOURS = 2
 
 
 @dataclass(frozen=True)
@@ -37,6 +45,7 @@ class NotifiableStory:
     sensitivity: str
     breaking_alert_approved: bool
     avg_source_quality: float
+    headline: str = ""
 
 
 @dataclass(frozen=True)
@@ -47,6 +56,17 @@ class UserNotificationPrefs:
     quiet_hours_start: int | None
     quiet_hours_end: int | None
     max_alerts_per_day: int
+    # P02 / ADR-042. Topics absent from `topic_urgency` are INSTANT.
+    topic_urgency: Mapping[str, str] = field(default_factory=dict)
+    keywords: tuple[str, ...] = ()
+    home_tz: str | None = None
+    residence_tz: str | None = None
+    digest_morning_hour: int | None = None
+    digest_evening_hour: int | None = None
+
+
+def _topics_with(prefs: UserNotificationPrefs, urgency: str) -> set[str]:
+    return {t for t in prefs.subscribed_topics if prefs.topic_urgency.get(t, "INSTANT") == urgency}
 
 
 def topic_alert_eligible(story: NotifiableStory, prefs: UserNotificationPrefs) -> bool:
@@ -58,9 +78,60 @@ def topic_alert_eligible(story: NotifiableStory, prefs: UserNotificationPrefs) -
 
     if story.importance < TOPIC_ALERT_MIN_IMPORTANCE:
         return False
-    if not prefs.subscribed_topics:
+    # DIGEST and BREAKING_ONLY topics never produce an instant topic alert.
+    instant = _topics_with(prefs, "INSTANT")
+    if not instant:
         return False
-    return not set(story.topics).isdisjoint(prefs.subscribed_topics)
+    return not set(story.topics).isdisjoint(instant)
+
+
+def _reviewed_for_alerts(story: NotifiableStory) -> bool:
+    """Digest and keyword paths never carry a BREAKING story that an editor
+    has not approved for alerting (human review stays the gate)."""
+
+    return story.sensitivity != "BREAKING" or story.breaking_alert_approved
+
+
+def keyword_alert_eligible(story: NotifiableStory, prefs: UserNotificationPrefs) -> bool:
+    """The reader explicitly followed a keyword that appears in the headline.
+    Same importance floor as topic alerts; sensitive categories alert only on
+    the approved breaking path, never here."""
+
+    if story.importance < TOPIC_ALERT_MIN_IMPORTANCE or not prefs.keywords:
+        return False
+    if story.sensitivity not in ("NONE",):
+        return False
+    headline = story.headline.lower()
+    return any(keyword in headline for keyword in prefs.keywords)
+
+
+def digest_story_eligible(story: NotifiableStory, prefs: UserNotificationPrefs) -> bool:
+    if story.importance < TOPIC_ALERT_MIN_IMPORTANCE or not _reviewed_for_alerts(story):
+        return False
+    return not set(story.topics).isdisjoint(_topics_with(prefs, "DIGEST"))
+
+
+def _zone(name: str | None) -> ZoneInfo | None:
+    if not name:
+        return None
+    try:
+        return ZoneInfo(name)
+    except (ZoneInfoNotFoundError, ValueError, OSError):
+        return None
+
+
+def digest_slots_due(now: datetime, prefs: UserNotificationPrefs) -> list[tuple[str, str]]:
+    """(`am`|`pm`, local ISO date) for each digest whose chosen local hour has
+    arrived (within the grace window). The reader's zone is where they live
+    now (`residence_tz`), then home, then UTC."""
+
+    zone = _zone(prefs.residence_tz) or _zone(prefs.home_tz) or ZoneInfo("UTC")
+    local = now.astimezone(zone)
+    due: list[tuple[str, str]] = []
+    for slot, hour in (("am", prefs.digest_morning_hour), ("pm", prefs.digest_evening_hour)):
+        if hour is not None and 0 <= local.hour - hour < DIGEST_GRACE_HOURS:
+            due.append((slot, local.date().isoformat()))
+    return due
 
 
 def breaking_alert_eligible(story: NotifiableStory, prefs: UserNotificationPrefs) -> bool:
@@ -98,6 +169,17 @@ def in_quiet_hours(hour: int, start: int | None, end: int | None) -> bool:
     if start < end:
         return start <= hour < end
     return hour >= start or hour < end
+
+
+def in_quiet_hours_any_zone(now: datetime, prefs: UserNotificationPrefs) -> bool:
+    """Quiet when the window covers the local time in *either* the home or the
+    residence zone (a family call at 2am India time is as unwelcome as one at
+    2am Texas time). With no zone set this is the original UTC reading."""
+
+    zones = [z for z in (_zone(prefs.home_tz), _zone(prefs.residence_tz)) if z is not None] or [ZoneInfo("UTC")]
+    return any(
+        in_quiet_hours(now.astimezone(z).hour, prefs.quiet_hours_start, prefs.quiet_hours_end) for z in zones
+    )
 
 
 def daily_cap_reached(sent_today: int, max_alerts_per_day: int) -> bool:

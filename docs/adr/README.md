@@ -114,3 +114,6 @@ accepted. Add ad-hoc ADRs below this table as they're written.
 - ADR-039 | Firebase for mobile push and separately consented analytics
   (amends ADR-007) | T17-firebase | **accepted** (owner 2026-10-02) — see
   [ADR-039](ADR-039-firebase-mobile-push-and-analytics.md)
+- ADR-042 | Sync saved story IDs and followed keywords for alerts (amends
+  ADR-006, bounded) | P02 | **accepted** (owner 2026-10-03) — see
+  [ADR-042](ADR-042-synced-saved-ids-and-keywords.md)

@@ -114,7 +114,18 @@ export type NotificationPreferences = {
   quietHoursEnd: string;
   maxPerDay: number;
   disableAll: boolean;
+  // P02 smart alerts. Absent topics default to INSTANT (existing behavior).
+  topicUrgency: Record<string, TopicUrgency>;
+  keywords: string[];
+  digestMorningHour: number | null;
+  digestEveningHour: number | null;
+  homeTz: string | null;
+  residenceTz: string | null;
 };
+
+export type TopicUrgency = "INSTANT" | "BREAKING_ONLY" | "DIGEST";
+export const MAX_KEYWORDS = 20;
+export const MAX_KEYWORD_LENGTH = 40;
 
 export const DEFAULT_NOTIFICATION_PREFERENCES: NotificationPreferences = {
   topics: {},
@@ -125,6 +136,12 @@ export const DEFAULT_NOTIFICATION_PREFERENCES: NotificationPreferences = {
   quietHoursEnd: "07:00",
   maxPerDay: 5,
   disableAll: false,
+  topicUrgency: {},
+  keywords: [],
+  digestMorningHour: null,
+  digestEveningHour: null,
+  homeTz: null,
+  residenceTz: null,
 };
 
 async function readJson<T>(key: string, fallback: T): Promise<T> {

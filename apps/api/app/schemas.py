@@ -11,10 +11,15 @@ data built from these models until the tickets that produce real data
 from datetime import date, datetime
 from typing import Literal
 from uuid import UUID
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 Language = Literal["en", "te"]
+TopicUrgency = Literal["INSTANT", "BREAKING_ONLY", "DIGEST"]
+MAX_KEYWORDS = 20
+MAX_KEYWORD_LENGTH = 40
+MAX_SAVED_STORIES = 200
 RightsStatus = Literal["DISABLED", "LINK_ONLY", "LICENSED_METADATA", "LICENSED_REPURPOSE"]
 StoryStatus = Literal[
     "DRAFT", "AI_READY", "REVIEW_REQUIRED", "APPROVED", "SCHEDULED",
@@ -144,6 +149,14 @@ class ProfileOut(BaseModel):
     quiet_hours_start: int | None = None
     quiet_hours_end: int | None = None
     max_alerts_per_day: int = 5
+    # P02 / ADR-042
+    home_tz: str | None = None
+    residence_tz: str | None = None
+    digest_morning_hour: int | None = None
+    digest_evening_hour: int | None = None
+    topic_urgency: dict[str, TopicUrgency] = Field(default_factory=dict)
+    keywords: list[str] = Field(default_factory=list)
+    saved_story_ids: list[UUID] = Field(default_factory=list)
 
 
 class MeResponse(BaseModel):
@@ -166,6 +179,40 @@ class PreferencesUpdate(BaseModel):
     quiet_hours_start: int | None = None
     quiet_hours_end: int | None = None
     max_alerts_per_day: int | None = None
+    # P02 / ADR-042. For tz and digest hours an explicit null clears the value;
+    # keywords/saved_story_ids: omitted keeps, [] clears.
+    home_tz: str | None = None
+    residence_tz: str | None = None
+    digest_morning_hour: int | None = Field(default=None, ge=0, le=23)
+    digest_evening_hour: int | None = Field(default=None, ge=0, le=23)
+    topic_urgency: dict[str, TopicUrgency] | None = None
+    keywords: list[str] | None = Field(default=None, max_length=MAX_KEYWORDS)
+    saved_story_ids: list[UUID] | None = Field(default=None, max_length=MAX_SAVED_STORIES)
+
+    @field_validator("home_tz", "residence_tz")
+    @classmethod
+    def _valid_tz(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        try:
+            ZoneInfo(value)
+        except (ZoneInfoNotFoundError, ValueError, OSError) as exc:
+            raise ValueError("must be an IANA timezone name, e.g. America/Chicago") from exc
+        return value
+
+    @field_validator("keywords")
+    @classmethod
+    def _normalize_keywords(cls, value: list[str] | None) -> list[str] | None:
+        if value is None:
+            return None
+        cleaned: list[str] = []
+        for raw in value:
+            keyword = " ".join(raw.lower().split())
+            if not 1 <= len(keyword) <= MAX_KEYWORD_LENGTH:
+                raise ValueError(f"each keyword must be 1-{MAX_KEYWORD_LENGTH} characters")
+            if keyword not in cleaned:
+                cleaned.append(keyword)
+        return cleaned
 
 
 class SavedStoryResponse(BaseModel):
@@ -186,7 +233,7 @@ class DeleteAccountResponse(BaseModel):
     deleted: bool
 
 
-NotificationType = Literal["DAILY_BRIEFING", "TOPIC_ALERT", "BREAKING_ALERT"]
+NotificationType = Literal["DAILY_BRIEFING", "TOPIC_ALERT", "BREAKING_ALERT", "DIGEST", "STORY_UPDATE"]
 
 
 class NotificationOut(BaseModel):

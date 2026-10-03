@@ -2420,7 +2420,7 @@ export interface components {
              * Type
              * @enum {string}
              */
-            type: "DAILY_BRIEFING" | "TOPIC_ALERT" | "BREAKING_ALERT";
+            type: "DAILY_BRIEFING" | "TOPIC_ALERT" | "BREAKING_ALERT" | "DIGEST" | "STORY_UPDATE";
         };
         /** ObservabilityOut */
         ObservabilityOut: {
@@ -2522,10 +2522,18 @@ export interface components {
             breaking_alerts_enabled?: boolean | null;
             /** Daily Briefing Enabled */
             daily_briefing_enabled?: boolean | null;
+            /** Digest Evening Hour */
+            digest_evening_hour?: number | null;
+            /** Digest Morning Hour */
+            digest_morning_hour?: number | null;
             /** Home City */
             home_city?: string | null;
             /** Home State */
             home_state?: string | null;
+            /** Home Tz */
+            home_tz?: string | null;
+            /** Keywords */
+            keywords?: string[] | null;
             /** Language */
             language?: ("en" | "te") | null;
             /** Max Alerts Per Day */
@@ -2540,8 +2548,16 @@ export interface components {
             residence_country?: string | null;
             /** Residence Region */
             residence_region?: string | null;
+            /** Residence Tz */
+            residence_tz?: string | null;
+            /** Saved Story Ids */
+            saved_story_ids?: string[] | null;
             /** Topic Slugs */
             topic_slugs?: string[] | null;
+            /** Topic Urgency */
+            topic_urgency?: {
+                [key: string]: "INSTANT" | "BREAKING_ONLY" | "DIGEST";
+            } | null;
         };
         /** ProfileOut */
         ProfileOut: {
@@ -2555,10 +2571,18 @@ export interface components {
              * @default true
              */
             daily_briefing_enabled: boolean;
+            /** Digest Evening Hour */
+            digest_evening_hour?: number | null;
+            /** Digest Morning Hour */
+            digest_morning_hour?: number | null;
             /** Home City */
             home_city?: string | null;
             /** Home State */
             home_state?: string | null;
+            /** Home Tz */
+            home_tz?: string | null;
+            /** Keywords */
+            keywords?: string[];
             /**
              * Language
              * @default en
@@ -2580,6 +2604,14 @@ export interface components {
             residence_country?: string | null;
             /** Residence Region */
             residence_region?: string | null;
+            /** Residence Tz */
+            residence_tz?: string | null;
+            /** Saved Story Ids */
+            saved_story_ids?: string[];
+            /** Topic Urgency */
+            topic_urgency?: {
+                [key: string]: "INSTANT" | "BREAKING_ONLY" | "DIGEST";
+            };
             /** Topics */
             topics?: components["schemas"]["TopicOut"][];
         };

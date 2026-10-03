@@ -255,6 +255,24 @@ class StoryTopic(Base):
     weight: Mapped[float] = mapped_column(Numeric(), nullable=False, server_default="1")
 
 
+class UserKeyword(Base):
+    """P02/ADR-042: a bounded, lowercase keyword the reader follows."""
+
+    __tablename__ = "user_keywords"
+
+    user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
+    keyword: Mapped[str] = mapped_column(Text, primary_key=True)
+
+
+class UserSavedStory(Base):
+    """P02/ADR-042: opaque saved story ids, only so corrections can alert."""
+
+    __tablename__ = "user_saved_stories"
+
+    user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
+    story_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("stories.id", ondelete="CASCADE"), primary_key=True)
+
+
 class StoryCountry(Base):
     """ADR-027: where the story happens (role EVENT), never where its
     publisher is based. AUDIENCE is reserved and not written yet."""
@@ -291,6 +309,12 @@ class Profile(Base):
     quiet_hours_start: Mapped[int | None] = mapped_column(Integer, nullable=True)
     quiet_hours_end: Mapped[int | None] = mapped_column(Integer, nullable=True)
     max_alerts_per_day: Mapped[int] = mapped_column(Integer, nullable=False, server_default="5")
+    # P02/ADR-042: IANA zone names (validated at the API) so quiet hours and
+    # digest hours are local; the digest hours are NULL when that digest is off.
+    home_tz: Mapped[str | None] = mapped_column(Text, nullable=True)
+    residence_tz: Mapped[str | None] = mapped_column(Text, nullable=True)
+    digest_morning_hour: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    digest_evening_hour: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
 
 class UserTopic(Base):
@@ -299,6 +323,9 @@ class UserTopic(Base):
     user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
     topic_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("topics.id", ondelete="CASCADE"), primary_key=True)
     weight: Mapped[float] = mapped_column(Numeric(), nullable=False, server_default="1")
+    # P02: 'INSTANT' | 'BREAKING_ONLY' | 'DIGEST' per `ck_user_topics_urgency`;
+    # "off" is the absence of the row.
+    urgency: Mapped[str] = mapped_column(Text, nullable=False, server_default="INSTANT")
 
 
 class PushToken(Base):

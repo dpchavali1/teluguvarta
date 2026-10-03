@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
+import { SmartAlertsForm } from "../components/SmartAlertsForm";
 import { NotificationPreferencesForm } from "../components/NotificationPreferencesForm";
 import { trackEvent } from "../lib/api";
 import { syncToServer } from "../lib/notificationSync";
@@ -75,6 +76,7 @@ export function NotificationsScreen() {
         </Pressable>
       </View> : null}
       <NotificationPreferencesForm value={prefs ?? DEFAULT_NOTIFICATION_PREFERENCES} onChange={handleChange} />
+      <SmartAlertsForm value={prefs ?? DEFAULT_NOTIFICATION_PREFERENCES} onChange={handleChange} />
     </ScrollView>
   );
 }

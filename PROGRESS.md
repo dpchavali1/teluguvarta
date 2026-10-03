@@ -227,7 +227,7 @@ bundled, falls back to system if loading fails) and Short story length for
 feed cards; font size already existed. Mobile typecheck, 89 tests in 16 suites
 and bundle pass; release APK rebuilt. Not yet device-verified (Telugu glyph
 rendering/bold faces need a look on the phone). P04 web parity still open;
-P02, P03, P05–P08 not started.
+P03, P05–P08 not started.
 
 P01 persona presets done locally (2026-10-03): `packages/domain/personas.ts`
 holds the seven presets and pure apply/remove logic; each preset records only
@@ -238,6 +238,18 @@ setup (reuses the student life stage, syncs alerts through the existing
 preferences endpoint); web: Quick setup on the onboarding/profile page (no
 alert prefs on web). Mobile typecheck, 93 tests (4 new) and web typecheck/
 build pass. Not device- or browser-verified; web has no persona tests yet.
+
+P02 smart alerts done locally (2026-10-03): [ADR-042](docs/adr/ADR-042-synced-saved-ids-and-keywords.md)
+lets the client sync saved story IDs and keywords (bounded: 200 / 20x40 chars).
+API: IANA home/residence zones, digest hours, per-topic urgency (instant /
+breaking only / digest), keyword follows, and DIGEST + STORY_UPDATE
+notifications through the existing PENDING-row dedupe, retry and daily cap;
+quiet hours apply when either zone is quiet. Mobile Alerts screen has the
+controls; disable-all clears the synced lists; privacy copy updated. Full API
+pytest (594), ruff, mypy, mobile typecheck and 96 tests pass. NOT deployed:
+migration `d4a8c2e6b1f9` must be run on the VPS first; no device push proof;
+web has no alert UI; admin/web builds not rerun since contracts regenerated.
+
 
 The [historical tracker](docs/history/PROGRESS-through-T14-search-2026-10-01.md)
 contains detailed earlier statuses and validation. Temporary synthetic screenshots

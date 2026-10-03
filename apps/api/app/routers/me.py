@@ -29,23 +29,42 @@ from sqlalchemy.orm import Session
 
 from app.auth import Principal, current_user
 from app.db import get_db
-from app.models import Notification, Profile, PushToken, Topic, User, UserTopic
+from app.models import (
+    Notification,
+    Profile,
+    PushToken,
+    Story,
+    Topic,
+    User,
+    UserKeyword,
+    UserSavedStory,
+    UserTopic,
+)
 from app.schemas import (
     DeleteAccountResponse,
     Language,
     MeResponse,
     NotificationOut,
+    NotificationType,
     PreferencesUpdate,
     ProfileOut,
     PushTokenCreate,
     PushTokenResponse,
     SavedStoryResponse,
     TopicOut,
+    TopicUrgency,
 )
 
 router = APIRouter(prefix="/v1/me", tags=["me"])
 
 NOTIFICATION_HISTORY_LIMIT = 100
+
+
+def _topic_urgency(db: Session, user_id: UUID) -> dict[str, str]:
+    rows = db.execute(
+        select(Topic.slug, UserTopic.urgency).join(UserTopic, UserTopic.topic_id == Topic.id).where(UserTopic.user_id == user_id)
+    ).all()
+    return {slug: urgency for slug, urgency in rows}
 
 
 def _subscribed_topics(db: Session, user_id: UUID) -> list[TopicOut]:
@@ -71,6 +90,13 @@ def _profile_out(db: Session, user_id: UUID, profile: Profile | None) -> Profile
         quiet_hours_start=profile.quiet_hours_start,
         quiet_hours_end=profile.quiet_hours_end,
         max_alerts_per_day=profile.max_alerts_per_day,
+        home_tz=profile.home_tz,
+        residence_tz=profile.residence_tz,
+        digest_morning_hour=profile.digest_morning_hour,
+        digest_evening_hour=profile.digest_evening_hour,
+        topic_urgency=cast(dict[str, TopicUrgency], _topic_urgency(db, user_id)),
+        keywords=sorted(db.scalars(select(UserKeyword.keyword).where(UserKeyword.user_id == user_id)).all()),
+        saved_story_ids=list(db.scalars(select(UserSavedStory.story_id).where(UserSavedStory.user_id == user_id)).all()),
     )
 
 
@@ -98,14 +124,38 @@ def update_preferences(
         value = getattr(body, field)
         if value is not None:
             setattr(profile, field, value)
+    # An explicit null clears these (null elsewhere means "not provided").
+    for field in ("home_tz", "residence_tz", "digest_morning_hour", "digest_evening_hour"):
+        if field in body.model_fields_set:
+            setattr(profile, field, getattr(body, field))
     db.flush()
 
     if body.topic_slugs is not None:
+        previous = _topic_urgency(db, principal.user_id)
         db.query(UserTopic).filter(UserTopic.user_id == principal.user_id).delete()
         if body.topic_slugs:
-            topic_ids = db.scalars(select(Topic.id).where(Topic.slug.in_(body.topic_slugs))).all()
-            for topic_id in topic_ids:
-                db.add(UserTopic(user_id=principal.user_id, topic_id=topic_id))
+            topics = db.execute(select(Topic.id, Topic.slug).where(Topic.slug.in_(body.topic_slugs))).all()
+            for topic_id, slug in topics:
+                urgency = (body.topic_urgency or {}).get(slug) or previous.get(slug, "INSTANT")
+                db.add(UserTopic(user_id=principal.user_id, topic_id=topic_id, urgency=urgency))
+    elif body.topic_urgency:
+        for slug, urgency in body.topic_urgency.items():
+            topic_uuid = db.scalar(select(Topic.id).where(Topic.slug == slug))
+            row = db.get(UserTopic, (principal.user_id, topic_uuid)) if topic_uuid else None
+            if row is not None:
+                row.urgency = urgency
+
+    if body.keywords is not None:
+        db.query(UserKeyword).filter(UserKeyword.user_id == principal.user_id).delete()
+        for keyword in body.keywords:
+            db.add(UserKeyword(user_id=principal.user_id, keyword=keyword))
+
+    if body.saved_story_ids is not None:
+        db.query(UserSavedStory).filter(UserSavedStory.user_id == principal.user_id).delete()
+        # Unknown ids are dropped rather than failing the whole sync.
+        known = db.scalars(select(Story.id).where(Story.id.in_(set(body.saved_story_ids)))).all()
+        for story_id in known:
+            db.add(UserSavedStory(user_id=principal.user_id, story_id=story_id))
 
     db.commit()
     db.refresh(profile)
@@ -152,7 +202,7 @@ def list_notifications(
     ).all()
     return [
         NotificationOut(
-            id=n.id, type=cast(Literal["DAILY_BRIEFING", "TOPIC_ALERT", "BREAKING_ALERT"], n.type),
+            id=n.id, type=cast(NotificationType, n.type),
             story_id=n.story_id, status=cast(Literal["PENDING", "SENT", "FAILED", "SUPPRESSED"], n.status),
             suppressed_reason=cast(Literal["QUIET_HOURS", "DAILY_CAP"] | None, n.suppressed_reason),
             sent_at=n.sent_at, created_at=n.created_at,
