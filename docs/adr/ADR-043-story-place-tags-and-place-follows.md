@@ -1,6 +1,6 @@
 # ADR-043: Story place tags below country level, and multi-place follows
 
-- **Status**: proposed (needs owner decision; blocks P03)
+- **Status**: accepted 2026-10-04 (owner decisions below); unblocks P03
 - **Date**: 2026-10-03
 - **Ticket**: P03
 
@@ -40,7 +40,13 @@ this?" reason. ADR-042 allows bounded client-synced lists for alerts.
 5. **Empty state**: a followed place with no stories shows an explicit empty
    state, never a silent fallback to other places.
 
-## Open questions for the owner
+## Owner decisions (2026-10-04)
+
+- Catalog: diaspora set above, maintained in `packages/domain` by the team.
+- Tagging: model-proposed, editors can override; **new stories only**, no backfill.
+- Matching: explicit residence + origin plus up to 10 follows.
+
+## Resolved questions (originally open)
 
 - Confirm catalog scope (which cities) and who maintains it.
 - Is model-proposed tagging acceptable for place tags, or editor-only at first?
