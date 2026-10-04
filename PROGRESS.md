@@ -354,3 +354,10 @@ Home). Admin typecheck/lint/build, mobile tsc and 115 tests pass. Gaps: no web
 reader page; admin screens have no tests (the app has no runner) and were not
 exercised in a browser; mobile screen not seen on a device; exam keys are
 free-form (the screen lists only exams with an approved upcoming date).
+
+**P07 web tracker page (2026-10-04, local):** public `/trackers` on apps/web
+(ISR 1h): latest approved visa bulletin final-action matrix with movement and
+official link, plus upcoming approved exam dates with source links. Read-only —
+web has no follows or alerts. In the footer and sitemap. Web lint/typecheck/20
+tests/build pass. Not viewed in a browser; styling uses existing classes plus a
+bare table, so it may want a polish pass.

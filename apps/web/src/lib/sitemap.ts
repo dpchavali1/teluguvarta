@@ -12,6 +12,7 @@ export const STATIC_ROUTES = [
   "",
   "/latest",
   "/topics",
+  "/trackers",
   "/about",
   "/privacy",
   "/terms",

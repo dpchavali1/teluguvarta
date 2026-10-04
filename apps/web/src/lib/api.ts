@@ -4,6 +4,8 @@ import type { components } from "@teluguvarta/contracts";
 export type StoryVariantOut = components["schemas"]["StoryVariantOut"];
 export type TopicOut = components["schemas"]["TopicOut"];
 export type ShareMetaResponse = components["schemas"]["ShareMetaResponse"];
+export type VisaBulletinOut = components["schemas"]["VisaBulletinOut"];
+export type ExamDeadlineOut = components["schemas"]["ExamDeadlineOut"];
 export type Language = "en" | "te";
 
 // The generated types mark every `Field(default_factory=...)` collection as
@@ -184,4 +186,18 @@ export async function reportIssue(
   });
   if (response.status === 429) throw new Error("You've sent several reports in a short time. Please try again later.");
   if (!response.ok) throw new Error("Couldn't send your report. Please try again.");
+}
+
+// P07: public tracker reads. No approved bulletin yet is a 404, not an error.
+export async function getLatestVisaBulletin(): Promise<VisaBulletinOut | null> {
+  try {
+    return await apiGet<VisaBulletinOut>("/v1/visa-bulletins/latest");
+  } catch (err) {
+    if (err instanceof ApiNotFoundError) return null;
+    throw err;
+  }
+}
+
+export function listExamDeadlines(): Promise<ExamDeadlineOut[]> {
+  return apiGet<ExamDeadlineOut[]>("/v1/exam-deadlines");
 }
