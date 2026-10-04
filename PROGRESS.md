@@ -531,4 +531,7 @@ personality's death story aged out of review (ADR-032, 24h) unseen. `expire_stal
 BREAKING/OBITUARY_ACCUSATION and HIGH_IMPORTANCE holds; `alerts.check_priority_review_alerts` sends
 one alert on entering review plus one reminder after 60 min, deduped per task via `audit_events`,
 max 3 attempts. Existing channel only (log + `ALERT_WEBHOOK_URL`); no migration. Death-word stories
-with sensitivity NONE are not covered. Set `ALERT_WEBHOOK_URL` in prod or alerts only reach logs.
+with sensitivity NONE are covered only when held as RESTRICTED or AI-unclassifiable
+(NO_PAID_PROVIDER / AI_RETRIES_EXHAUSTED) AND a narrow death regex matches the English variant (or
+source-item titles if undrafted): `publish.death_signal_story_ids`; other RESTRICTED topics still
+expire at 24h. Set `ALERT_WEBHOOK_URL` in prod or alerts only reach logs.

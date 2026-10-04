@@ -221,3 +221,25 @@ def test_priority_review_alert_retries_are_bounded(migrated_database):
         for _ in range(alerts.REVIEW_ALERT_MAX_ATTEMPTS + 3):
             alerts.check_priority_review_alerts(db, channel=broken)
         assert len(calls) == alerts.REVIEW_ALERT_MAX_ATTEMPTS
+
+
+def test_priority_review_alert_fires_for_death_held_story(migrated_database):
+    from app.models import SourceItem, StorySource
+
+    engine = create_engine(migrated_database)
+    with Session(engine) as db:
+        src = _make_source()
+        db.add(src)
+        db.flush()
+        death = _review_story(db, reason="AI_RETRIES_EXHAUSTED")
+        other = _review_story(db, reason="AI_RETRIES_EXHAUSTED")
+        for story, title in ((death, "Legendary singer passed away"), (other, "Tax deadline nears")):
+            item = SourceItem(source_id=src.id, external_id=str(uuid.uuid4()), url="https://x.test/a",
+                              title=title, raw_hash="h")
+            db.add(item)
+            db.flush()
+            db.add(StorySource(story_id=story.id, source_item_id=item.id, role="PRIMARY"))
+        db.commit()
+        channel = _FakeChannel()
+        fired = alerts.check_priority_review_alerts(db, channel=channel)
+        assert len(fired) == 1 and len(channel.calls) == 1 and str(death.id) in channel.calls[0][1]

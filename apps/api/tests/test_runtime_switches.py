@@ -295,3 +295,41 @@ def test_breaking_and_high_importance_holds_survive_the_stale_sweep(db_session):
         assert s.status == "REVIEW_REQUIRED"
         assert _task(db_session, s).status == "PENDING"
     assert ordinary.status == "ARCHIVED"
+
+
+def _death_hold(db, *, privacy="RESTRICTED", reason="PRIVACY_RESTRICTED", headline=None, item_title=None, age_hours=72):
+    from app.models import Source, SourceItem, StorySource
+
+    src = Source(name="Test Source", rights_status="LINK_ONLY", active=True)
+    db.add(src)
+    story = Story(canonical_slug=f"story-{uuid.uuid4()}", status="AI_READY", privacy_decision=privacy)
+    db.add(story)
+    db.flush()  # also inserts `src`
+    if headline:
+        db.add(StoryVariant(
+            story_id=story.id, language="en", headline=headline, summary=GOOD_SUMMARY,
+            generated_at=datetime.now(UTC) - timedelta(hours=age_hours),
+        ))
+    if item_title:
+        item = SourceItem(source_id=src.id, external_id=str(uuid.uuid4()), url="https://x.test/a",
+                          title=item_title, raw_hash="h")
+        db.add(item)
+        db.flush()
+        db.add(StorySource(story_id=story.id, source_item_id=item.id, role="PRIMARY"))
+    story.status = "REVIEW_REQUIRED"
+    db.flush()
+    db.add(ReviewTask(story_id=story.id, reason=reason, status="PENDING",
+                      created_at=datetime.now(UTC) - timedelta(hours=age_hours)))
+    db.commit()
+    return story
+
+
+def test_death_signal_holds_survive_the_stale_sweep(db_session):
+    by_variant = _death_hold(db_session, headline="Veteran actor dies at 80")
+    by_item = _death_hold(db_session, item_title="Famous director passed away", reason="NO_PAID_PROVIDER", privacy="UNKNOWN")
+    plain = _death_hold(db_session, headline="H-1B visa fees change", item_title="Legal ruling")
+    # The English draft wins over a source-item title: no death in the draft, so it expires.
+    drafted = _death_hold(db_session, headline="Cooling centres open", item_title="Actor died")
+    assert expire_stale_holds(db_session) == 2
+    assert by_variant.status == "REVIEW_REQUIRED" and by_item.status == "REVIEW_REQUIRED"
+    assert plain.status == "ARCHIVED" and drafted.status == "ARCHIVED"

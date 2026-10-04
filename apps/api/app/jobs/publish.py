@@ -37,6 +37,7 @@ with no independent retry value" precedent as T08/T09/T11:
 from __future__ import annotations
 
 import os
+import re
 from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import select
@@ -47,7 +48,15 @@ from app.content.publication import validate_for_publication
 from app.content.rights import RIGHTS_REVOKED_REASON, unpermitted_sources
 from app.jobs.brief_lane import LaneOutcome, daily_cap, published_today, try_brief_lane
 from app.jobs.queue import enqueue_job
-from app.models import AuditEvent, Job, ReviewTask, Story, StoryVariant
+from app.models import (
+    AuditEvent,
+    Job,
+    ReviewTask,
+    SourceItem,
+    Story,
+    StorySource,
+    StoryVariant,
+)
 from app.switches import ai_paused, auto_publish_paused, env_allows
 
 SCHEDULE_INTERVAL_MINUTES = 2
@@ -115,12 +124,56 @@ def _expire_stale(db: Session, story: Story, task: ReviewTask) -> None:
 
 NO_EXPIRY_SENSITIVITIES = frozenset({"BREAKING", "OBITUARY_ACCUSATION"})
 NO_EXPIRY_REASON = "HIGH_IMPORTANCE"
+# ADR-052: a RESTRICTED or AI-unclassifiable hold that mentions a death is
+# treated like BREAKING. Deliberately narrow: other RESTRICTED topics
+# (immigration, tax, court, ...) keep the 24h expiry.
+DEATH_SIGNAL_PATTERN = re.compile(
+    r"\b(died|dies|death|dead|killed|obituar\w*|pass(?:es|ed)\s+away|demise|funeral)\b", re.IGNORECASE
+)
+DEATH_HOLD_REASONS = ("NO_PAID_PROVIDER", "AI_RETRIES_EXHAUSTED")
 
 
-def never_expires(story: Story, tasks: list[ReviewTask]) -> bool:
-    """ADR-052: breaking/obituary stories and high-importance holds wait for a
-    human however long it takes; only the other classes expire (ADR-032)."""
-    if story.sensitivity in NO_EXPIRY_SENSITIVITIES:
+def _death_hold_candidate(story: Story, tasks: list[ReviewTask]) -> bool:
+    return story.status == "REVIEW_REQUIRED" and (
+        story.privacy_decision == "RESTRICTED"
+        or any(r in t.reason for t in tasks for r in DEATH_HOLD_REASONS)
+    )
+
+
+def death_signal_story_ids(db: Session, pairs: list[tuple[Story, list[ReviewTask]]]) -> frozenset:
+    """Story ids (among `pairs`) held as RESTRICTED / AI-unclassifiable whose English
+    headline+summary mention a death, or, with no English variant yet, whose linked
+    source-item titles do. Two batched queries regardless of queue size."""
+    candidates = [s.id for s, tasks in pairs if _death_hold_candidate(s, tasks)]
+    if not candidates:
+        return frozenset()
+    variants = {
+        sid: f"{headline} {summary}"
+        for sid, headline, summary in db.execute(
+            select(StoryVariant.story_id, StoryVariant.headline, StoryVariant.summary).where(
+                StoryVariant.story_id.in_(candidates), StoryVariant.language == "en"
+            )
+        ).all()
+    }
+    titles: dict = {}
+    undrafted = [sid for sid in candidates if sid not in variants]
+    if undrafted:
+        for sid, title in db.execute(
+            select(StorySource.story_id, SourceItem.title)
+            .join(SourceItem, SourceItem.id == StorySource.source_item_id)
+            .where(StorySource.story_id.in_(undrafted))
+        ).all():
+            titles[sid] = f"{titles.get(sid, '')} {title or ''}"
+    return frozenset(
+        sid for sid in candidates if DEATH_SIGNAL_PATTERN.search(variants.get(sid) or titles.get(sid) or "")
+    )
+
+
+def never_expires(story: Story, tasks: list[ReviewTask], death_ids: frozenset = frozenset()) -> bool:
+    """ADR-052: breaking/obituary stories, high-importance holds and death-signal
+    holds (`death_ids`, from `death_signal_story_ids`) wait for a human however
+    long it takes; only the other classes expire (ADR-032)."""
+    if story.sensitivity in NO_EXPIRY_SENSITIVITIES or story.id in death_ids:
         return True
     return any(NO_EXPIRY_REASON in t.reason.split(",") for t in tasks)
 
@@ -152,13 +205,13 @@ def expire_stale_holds(db: Session) -> int:
     )
     cutoff = _now() - _stale_after()
     stale_after_hours = int(_stale_after().total_seconds() // 3600)
+    stale = {sid: ts for sid, ts in by_story.items() if (drafted.get(sid) or min(t.created_at for t in ts)) < cutoff}
+    stories = {s.id: s for s in db.scalars(select(Story).where(Story.id.in_(stale))).all()} if stale else {}
+    death_ids = death_signal_story_ids(db, [(stories[sid], ts) for sid, ts in stale.items() if sid in stories])
     count = 0
-    for story_id, story_tasks in by_story.items():
-        born = drafted.get(story_id) or min(t.created_at for t in story_tasks)
-        if born >= cutoff:
-            continue
-        story = db.get(Story, story_id)
-        if story is None or (story.status == "REVIEW_REQUIRED" and never_expires(story, story_tasks)):
+    for story_id, story_tasks in stale.items():
+        story = stories.get(story_id)
+        if story is None or (story.status == "REVIEW_REQUIRED" and never_expires(story, story_tasks, death_ids)):
             continue
         for task in story_tasks:
             task.status = "REJECTED"

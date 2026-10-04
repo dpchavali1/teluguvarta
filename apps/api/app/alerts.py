@@ -22,7 +22,7 @@ from app.ai.budget import (
     month_to_date_cost_usd,
     today_cost_usd,
 )
-from app.jobs.publish import never_expires
+from app.jobs.publish import death_signal_story_ids, never_expires
 from app.jobs.source_fetch import CIRCUIT_BREAKER_THRESHOLD
 from app.models import AiCallLog, AuditEvent, Job, ReviewTask, Source, Story
 from app.observability.logging import get_logger
@@ -205,8 +205,9 @@ def check_priority_review_alerts(db: Session, *, now: datetime | None = None, ch
         .where(ReviewTask.status == "PENDING", Story.status == "REVIEW_REQUIRED")
     ).all()
     fired: list[str] = []
+    death_ids = death_signal_story_ids(db, [(story, [task]) for task, story in rows])
     for task, story in rows:
-        if not never_expires(story, [task]):
+        if not never_expires(story, [task], death_ids):
             continue
         label = f"story {story.id} ({story.sensitivity}; {task.reason})"
         result = _send_once(db, task, "NEW", f"Priority story awaiting human review: {label}", channel)

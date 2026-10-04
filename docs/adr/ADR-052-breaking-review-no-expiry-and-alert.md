@@ -28,6 +28,13 @@ The story aged out unseen.
 
 - The review queue can accumulate old priority items; editors must clear them. Rejecting is the
   way to drop one.
-- Stories flagged only by RESTRICTED privacy (death words) with sensitivity `NONE` are not covered.
+- Death-signal addition: a `REVIEW_REQUIRED` story held because `privacy_decision == 'RESTRICTED'`
+  or because no AI route could classify it (task reason contains `NO_PAID_PROVIDER` or
+  `AI_RETRIES_EXHAUSTED`), with sensitivity still `NONE`, is also priority (never expires, gets the
+  alert/reminder) when it matches a narrow death regex (`died|dies|death|dead|killed|obituar*|passed
+  away|demise|funeral`). The text checked is the English variant's headline+summary, or, when no
+  English variant exists yet, the titles of the linked source items. Other RESTRICTED topics
+  (immigration, tax, court, ...) are deliberately excluded and keep the 24h expiry so the queue does
+  not pile up. Human review stays mandatory.
 - Alert latency is bounded by the worker's alert cadence (every 60 loops); webhook delivery is
   fire-and-forget, so a failed POST is logged but not retried.
