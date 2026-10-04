@@ -1,5 +1,5 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import type { PersonaState } from "@teluguvarta/domain";
+import { getPlace, MAX_FOLLOWED_PLACES, type PersonaState } from "@teluguvarta/domain";
 import { DeviceEventEmitter } from "react-native";
 
 // §3.1/§16 (ADR-006 proposed, not accepted): V1 has no real account/auth
@@ -14,6 +14,7 @@ const KEYS = {
   profile: "tg_profile_v1",
   notificationPrefs: "tg_notification_prefs_v1",
   savedStories: "tg_saved_stories_v1",
+  followedPlaces: "tg_followed_places_v1",
   themePreference: "tg_theme_pref_v1",
   textSize: "tg_text_size_v1",
   teluguFont: "tg_telugu_font_v1",
@@ -143,6 +144,36 @@ export const DEFAULT_NOTIFICATION_PREFERENCES: NotificationPreferences = {
   homeTz: null,
   residenceTz: null,
 };
+
+// P03/ADR-043: places the reader follows (at most MAX_FOLLOWED_PLACES, catalog
+// ids only) and a per-place alert switch. On-device is the source of truth;
+// only ids and switches sync to the server, and only for alerts.
+export type FollowedPlace = { placeId: string; alerts: boolean };
+
+export async function getFollowedPlaces(): Promise<FollowedPlace[]> {
+  try {
+    const raw = await AsyncStorage.getItem(KEYS.followedPlaces);
+    const parsed: unknown = raw ? JSON.parse(raw) : [];
+    if (!Array.isArray(parsed)) return [];
+    const seen = new Set<string>();
+    const out: FollowedPlace[] = [];
+    for (const entry of parsed as Partial<FollowedPlace>[]) {
+      if (typeof entry?.placeId !== "string" || !getPlace(entry.placeId) || seen.has(entry.placeId)) continue;
+      seen.add(entry.placeId);
+      out.push({ placeId: entry.placeId, alerts: entry.alerts === true });
+    }
+    return out.slice(0, MAX_FOLLOWED_PLACES);
+  } catch {
+    return [];
+  }
+}
+
+export async function saveFollowedPlaces(places: FollowedPlace[]): Promise<FollowedPlace[]> {
+  const clean = places.filter((p, i) => getPlace(p.placeId) && places.findIndex((q) => q.placeId === p.placeId) === i)
+    .slice(0, MAX_FOLLOWED_PLACES);
+  await writeJson(KEYS.followedPlaces, clean);
+  return clean;
+}
 
 async function readJson<T>(key: string, fallback: T): Promise<T> {
   try {

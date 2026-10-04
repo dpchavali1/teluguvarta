@@ -16,6 +16,12 @@ from sqlalchemy.orm import Session
 
 from app import analytics, reader_reports
 from app.content.geography import EVENT, normalize_country
+from app.content.places import (
+    CATALOG,
+    MAX_FOLLOWED_PLACES,
+    normalize_place_ids,
+    subtree_ids,
+)
 from app.content.ranking import Preferences, rank_stories
 from app.content.search_cursor import decode_search_cursor, encode_search_cursor
 from app.content.serialize import (
@@ -34,6 +40,7 @@ from app.jobs.why_matters import enqueue_why_matters
 from app.models import (
     Story,
     StoryCountry,
+    StoryPlace,
     StoryTopic,
     StoryVariant,
     Topic,
@@ -107,7 +114,7 @@ def _encode_cursor(offset: int) -> str:
     return base64.urlsafe_b64encode(str(offset).encode()).decode()
 
 
-def _published_query(*, topic_slug: str | None = None, country: str | None = None):
+def _published_query(*, topic_slug: str | None = None, country: str | None = None, place: str | None = None):
     stmt = select(Story).where(Story.status.in_(PUBLIC_STATUSES))
     if topic_slug is not None:
         stmt = stmt.where(Story.id.in_(
@@ -121,15 +128,20 @@ def _published_query(*, topic_slug: str | None = None, country: str | None = Non
                 StoryCountry.role == EVENT,
             )
         ))
+    if place is not None:
+        # ADR-043: a story tagged beneath the place matches it; untagged never does.
+        stmt = stmt.where(Story.id.in_(
+            select(StoryPlace.story_id).where(StoryPlace.place_id.in_(subtree_ids(place)), StoryPlace.role == EVENT)
+        ))
     return stmt.order_by(Story.published_at.desc().nulls_last(), Story.id)
 
 
 def _list_page(
     db: Session, *, topic_slug: str | None, country: str | None, limit: int, cursor: str | None,
-    ids: list[UUID] | None = None,
+    ids: list[UUID] | None = None, place: str | None = None,
 ) -> StoriesListResponse:
     offset = _decode_cursor(cursor)
-    stmt = _published_query(topic_slug=topic_slug, country=country)
+    stmt = _published_query(topic_slug=topic_slug, country=country, place=place)
     if ids is not None:
         stmt = stmt.where(Story.id.in_(ids))
     rows = list(db.scalars(stmt.offset(offset).limit(limit + 1)))
@@ -156,6 +168,7 @@ def get_home(
     home_state: str | None = Query(default=None),
     home_city: str | None = Query(default=None),
     topics_pref: str | None = Query(default=None, alias="topics"),
+    places_pref: str | None = Query(default=None, alias="places", max_length=600),
     segment: Segment = Query(default="general"),
     student_briefing: bool = Query(default=False),
     db: Session = Depends(get_db),
@@ -176,6 +189,7 @@ def get_home(
         home_state=home_state,
         home_city=home_city,
         topics=topics_for_prefs,
+        follow_places=tuple(normalize_place_ids(places_pref.split(","))[:MAX_FOLLOWED_PLACES]) if places_pref else (),
     )
 
     if prefs.is_empty():
@@ -216,11 +230,14 @@ def get_home(
 def list_stories(
     topic: str | None = Query(default=None),
     country: str | None = Query(default=None),
+    place: str | None = Query(default=None),
     limit: int = Query(default=DEFAULT_PAGE_SIZE, ge=1, le=100),
     cursor: str | None = Query(default=None),
     ids: str | None = Query(default=None, max_length=3700),
     db: Session = Depends(get_db),
 ) -> StoriesListResponse:
+    if place is not None and place not in {p.id for p in CATALOG}:
+        raise APIError(422, "UNKNOWN_PLACE", f"Not a catalog place: {place}")
     selected_ids = None
     if ids is not None:
         try:
@@ -229,7 +246,7 @@ def list_stories(
             raise APIError(422, "INVALID_STORY_IDS", "Story ids must be comma-separated UUIDs") from err
         if len(selected_ids) > 100:
             raise APIError(422, "TOO_MANY_STORY_IDS", "Request at most 100 saved stories at a time")
-    return _list_page(db, topic_slug=topic, country=country, limit=limit, cursor=cursor, ids=selected_ids)
+    return _list_page(db, topic_slug=topic, country=country, limit=limit, cursor=cursor, ids=selected_ids, place=place)
 
 
 @router.get("/stories/{slug}")

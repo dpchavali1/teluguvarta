@@ -89,6 +89,8 @@ export type HomeParams = {
   topics?: string[];
   segment?: string;
   studentBriefing?: boolean;
+  // ADR-043: followed catalog place ids (explicit, at most 10).
+  places?: string[];
 };
 
 // S1: mirrors apps/web/src/lib/api.ts::getHomeFor — the same `/v1/home`
@@ -103,6 +105,7 @@ export async function getHome(params: HomeParams = {}): Promise<HomeResponse> {
     home_state: params.homeRegion,
     home_city: params.homeCity,
     topics: params.topics && params.topics.length > 0 ? params.topics.join(",") : undefined,
+    places: params.places && params.places.length > 0 ? params.places.join(",") : undefined,
     segment: params.segment,
     student_briefing: params.studentBriefing ? "true" : undefined,
   });
@@ -110,7 +113,7 @@ export async function getHome(params: HomeParams = {}): Promise<HomeResponse> {
 }
 
 export async function listStories(
-  params: { topic?: string; country?: string; cursor?: string; ids?: string; limit?: string } = {}
+  params: { topic?: string; country?: string; place?: string; cursor?: string; ids?: string; limit?: string } = {}
 ): Promise<StoriesListResponse> {
   const raw = await apiGet<components["schemas"]["StoriesListResponse"]>("/v1/stories", params);
   return { items: raw.items.map(normalizeStory), next_cursor: raw.next_cursor };

@@ -49,7 +49,7 @@ step named in "insert after"):
 | UI01–UI14 | T14/T15 | Owner-authorized 2026-10-01 interface follow-ups, implemented sequentially; scope/status in `docs/reviews/2026-10-01-improvement-plan.md` and individual `docs/tickets/UIxx.md`. Device/release evidence remains separate from local implementation. |
 | P01 | S1/S2/UI16 | Persona presets over explicit preferences. |
 | P02 | UI16/T17-firebase | Digest, per-topic urgency, keyword follows, dual-timezone quiet hours, saved-story updates. |
-| P03 | ADR-027/T16 | Multi-place location follows. |
+| P03 | ADR-027/T16, ADR-043 | Multi-place location follows (done locally, see PROGRESS). |
 | P04 | UI15 | Font size, Telugu font choice, short-summary mode. |
 | P05 | ADR-040, P01, P03 | My Edit feed from explicit signals only. |
 | P06 | T15 | Saved collections, reminders, notes, offline reading. |

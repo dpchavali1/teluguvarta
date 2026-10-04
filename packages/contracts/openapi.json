@@ -666,6 +666,35 @@
         "title": "AdminLoginResponse",
         "type": "object"
       },
+      "AdminPlacesRequest": {
+        "description": "ADR-043: the full set of event places for a story (replaces what it had).",
+        "properties": {
+          "places": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 8,
+            "title": "Places",
+            "type": "array"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          }
+        },
+        "required": [
+          "places"
+        ],
+        "title": "AdminPlacesRequest",
+        "type": "object"
+      },
       "AdminReaderReportListOut": {
         "properties": {
           "items": {
@@ -1657,6 +1686,13 @@
               }
             ],
             "title": "Importance Override"
+          },
+          "places": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Places",
+            "type": "array"
           },
           "published_at": {
             "anyOf": [
@@ -3992,6 +4028,25 @@
         "title": "PipelineStatusOut",
         "type": "object"
       },
+      "PlaceFollow": {
+        "description": "ADR-043: a followed catalog place and its per-place alert switch.",
+        "properties": {
+          "alerts": {
+            "default": false,
+            "title": "Alerts",
+            "type": "boolean"
+          },
+          "place_id": {
+            "title": "Place Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "place_id"
+        ],
+        "title": "PlaceFollow",
+        "type": "object"
+      },
       "PreferencesUpdate": {
         "properties": {
           "breaking_alerts_enabled": {
@@ -4041,6 +4096,21 @@
               }
             ],
             "title": "Digest Morning Hour"
+          },
+          "follow_places": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/PlaceFollow"
+                },
+                "maxItems": 10,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Follow Places"
           },
           "home_city": {
             "anyOf": [
@@ -4268,6 +4338,13 @@
               }
             ],
             "title": "Digest Morning Hour"
+          },
+          "follow_places": {
+            "items": {
+              "$ref": "#/components/schemas/PlaceFollow"
+            },
+            "title": "Follow Places",
+            "type": "array"
           },
           "home_city": {
             "anyOf": [
@@ -5098,6 +5175,13 @@
                 "type": "null"
               }
             ]
+          },
+          "places": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Places",
+            "type": "array"
           },
           "published_at": {
             "anyOf": [
@@ -7303,6 +7387,60 @@
         ]
       }
     },
+    "/v1/admin/stories/{story_id}/places": {
+      "put": {
+        "description": "ADR-043: catalog places where the story happens. Generation stores the\nmodel's proposals; editors replace the set. Catalog ids only. Metadata,\nnot story text, so it is audited but needs no re-review.",
+        "operationId": "set_story_places_v1_admin_stories__story_id__places_put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "story_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Story Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdminPlacesRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminActionResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Set Story Places",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
     "/v1/admin/stories/{story_id}/reject": {
       "post": {
         "operationId": "reject_story_v1_admin_stories__story_id__reject_post",
@@ -7891,6 +8029,23 @@
           },
           {
             "in": "query",
+            "name": "places",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 600,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Places"
+            }
+          },
+          {
+            "in": "query",
             "name": "segment",
             "required": false,
             "schema": {
@@ -8438,6 +8593,22 @@
                 }
               ],
               "title": "Country"
+            }
+          },
+          {
+            "in": "query",
+            "name": "place",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Place"
             }
           },
           {

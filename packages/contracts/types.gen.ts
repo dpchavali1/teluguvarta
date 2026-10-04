@@ -677,6 +677,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/admin/stories/{story_id}/places": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Set Story Places
+         * @description ADR-043: catalog places where the story happens. Generation stores the
+         *     model's proposals; editors replace the set. Catalog ids only. Metadata,
+         *     not story text, so it is audited but needs no re-review.
+         */
+        put: operations["set_story_places_v1_admin_stories__story_id__places_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/admin/stories/{story_id}/reject": {
         parameters: {
             query?: never;
@@ -1378,6 +1400,16 @@ export interface components {
              */
             role: "EDITOR" | "ADMIN";
         };
+        /**
+         * AdminPlacesRequest
+         * @description ADR-043: the full set of event places for a story (replaces what it had).
+         */
+        AdminPlacesRequest: {
+            /** Places */
+            places: string[];
+            /** Reason */
+            reason?: string | null;
+        };
         /** AdminReaderReportListOut */
         AdminReaderReportListOut: {
             /** Items */
@@ -1660,6 +1692,8 @@ export interface components {
             importance: number;
             /** Importance Override */
             importance_override?: ("LOW" | "NORMAL" | "HIGH") | null;
+            /** Places */
+            places?: string[];
             /** Published At */
             published_at?: string | null;
             review_task?: components["schemas"]["ReviewQueueItemOut"] | null;
@@ -2516,6 +2550,19 @@ export interface components {
             /** Telugu Missing Oldest Published At */
             telugu_missing_oldest_published_at: string | null;
         };
+        /**
+         * PlaceFollow
+         * @description ADR-043: a followed catalog place and its per-place alert switch.
+         */
+        PlaceFollow: {
+            /**
+             * Alerts
+             * @default false
+             */
+            alerts: boolean;
+            /** Place Id */
+            place_id: string;
+        };
         /** PreferencesUpdate */
         PreferencesUpdate: {
             /** Breaking Alerts Enabled */
@@ -2526,6 +2573,8 @@ export interface components {
             digest_evening_hour?: number | null;
             /** Digest Morning Hour */
             digest_morning_hour?: number | null;
+            /** Follow Places */
+            follow_places?: components["schemas"]["PlaceFollow"][] | null;
             /** Home City */
             home_city?: string | null;
             /** Home State */
@@ -2575,6 +2624,8 @@ export interface components {
             digest_evening_hour?: number | null;
             /** Digest Morning Hour */
             digest_morning_hour?: number | null;
+            /** Follow Places */
+            follow_places?: components["schemas"]["PlaceFollow"][];
             /** Home City */
             home_city?: string | null;
             /** Home State */
@@ -2861,6 +2912,8 @@ export interface components {
             /** Importance */
             importance: number;
             personalization?: components["schemas"]["PersonalizationOut"] | null;
+            /** Places */
+            places?: string[];
             /** Published At */
             published_at?: string | null;
             /**
@@ -4063,6 +4116,41 @@ export interface operations {
             };
         };
     };
+    set_story_places_v1_admin_stories__story_id__places_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                story_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminPlacesRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminActionResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     reject_story_v1_admin_stories__story_id__reject_post: {
         parameters: {
             query?: never;
@@ -4410,6 +4498,7 @@ export interface operations {
                 home_state?: string | null;
                 home_city?: string | null;
                 topics?: string | null;
+                places?: string | null;
                 segment?: "general" | "international_student" | "graduate_opt" | "professional" | "family_parent" | "other";
                 student_briefing?: boolean;
             };
@@ -4706,6 +4795,7 @@ export interface operations {
             query?: {
                 topic?: string | null;
                 country?: string | null;
+                place?: string | null;
                 limit?: number;
                 cursor?: string | null;
                 ids?: string | null;

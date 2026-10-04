@@ -15,6 +15,8 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
+from app.content.places import MAX_FOLLOWED_PLACES
+
 Language = Literal["en", "te"]
 TopicUrgency = Literal["INSTANT", "BREAKING_ONLY", "DIGEST"]
 MAX_KEYWORDS = 20
@@ -86,6 +88,7 @@ class StoryOut(BaseModel):
     updated_at: datetime
     topics: list[str] = Field(default_factory=list)
     countries: list[str] = Field(default_factory=list)
+    places: list[str] = Field(default_factory=list)
     variants: dict[Language, StoryVariantOut] = Field(default_factory=dict)
     sources: list[StorySourceOut] = Field(default_factory=list)
     personalization: PersonalizationOut | None = None
@@ -134,6 +137,13 @@ class ShareMetaResponse(BaseModel):
 
 # --- Authenticated (/v1/me) ---
 
+class PlaceFollow(BaseModel):
+    """ADR-043: a followed catalog place and its per-place alert switch."""
+
+    place_id: str
+    alerts: bool = False
+
+
 class ProfileOut(BaseModel):
     residence_country: str | None = None
     residence_region: str | None = None
@@ -157,6 +167,7 @@ class ProfileOut(BaseModel):
     topic_urgency: dict[str, TopicUrgency] = Field(default_factory=dict)
     keywords: list[str] = Field(default_factory=list)
     saved_story_ids: list[UUID] = Field(default_factory=list)
+    follow_places: list[PlaceFollow] = Field(default_factory=list)
 
 
 class MeResponse(BaseModel):
@@ -188,6 +199,8 @@ class PreferencesUpdate(BaseModel):
     topic_urgency: dict[str, TopicUrgency] | None = None
     keywords: list[str] | None = Field(default=None, max_length=MAX_KEYWORDS)
     saved_story_ids: list[UUID] | None = Field(default=None, max_length=MAX_SAVED_STORIES)
+    # ADR-043: omitted keeps, [] clears; unknown ids are dropped, more than 10 is a 422.
+    follow_places: list[PlaceFollow] | None = Field(default=None, max_length=MAX_FOLLOWED_PLACES)
 
     @field_validator("home_tz", "residence_tz")
     @classmethod
@@ -609,6 +622,13 @@ class AdminCountriesRequest(BaseModel):
     reason: str | None = None
 
 
+class AdminPlacesRequest(BaseModel):
+    """ADR-043: the full set of event places for a story (replaces what it had)."""
+
+    places: list[str] = Field(max_length=8)
+    reason: str | None = None
+
+
 class AdminImportanceRequest(BaseModel):
     """ADR-027: an editor's importance level; null returns to the computed score."""
 
@@ -685,6 +705,7 @@ class AdminStoryDetailOut(BaseModel):
     telugu_repair: AdminTeluguRepairOut | None = None
     topics: list[str] = Field(default_factory=list)
     countries: list[str] = Field(default_factory=list)
+    places: list[str] = Field(default_factory=list)
     sources: list[AdminStorySourceOut] = Field(default_factory=list)
     review_task: ReviewQueueItemOut | None = None
     corrections: list[AdminCorrectionOut] = Field(default_factory=list)

@@ -227,7 +227,23 @@ bundled, falls back to system if loading fails) and Short story length for
 feed cards; font size already existed. Mobile typecheck, 89 tests in 16 suites
 and bundle pass; release APK rebuilt. Not yet device-verified (Telugu glyph
 rendering/bold faces need a look on the phone). P04 web parity still open;
-P03, P05–P08 not started.
+P05–P08 not started (P03 below).
+
+**P03 location follows (2026-10-04, local):** ADR-043 accepted (diaspora catalog,
+explicit residence + origin, up to 10 follows, model-proposed tags with editor
+override, new stories only). Backend: catalog `apps/api/app/content/places.py`
+(TS mirror `packages/domain/places.ts` is generated and drift-tested), tables
+`story_places`/`user_places` (migration `e5b9d3f7a2c8`), generation proposes
+catalog ids and drops unknown ones, `PUT /admin/stories/{id}/places` (audited),
+`GET /stories?place=` (subtree match, 422 on unknown), `/home?places=` ranking
+term with "Because you follow Warangal", `follow_places` sync on
+`/me/preferences` (cap 10, unknown dropped), per-place alert switch reusing the
+topic-alert key. Mobile: Settings → Your places (search, follow, alert switch),
+place stories screen with explicit empty state, Home sends follows. Gaps: AP/TG
+district and US state lists are partial (more by demand, Telugu names need
+native review); no admin place-editor UI yet (API only); web parity and
+native-device check open; `home_state`/`home_city` remain free text.
+No existing stories are backfilled, so many places start empty.
 
 P01 persona presets done locally (2026-10-03): `packages/domain/personas.ts`
 holds the seven presets and pure apply/remove logic; each preset records only

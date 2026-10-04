@@ -40,6 +40,7 @@ from app.ai.tasks import free_tier_enabled, paid_provider_configured
 from app.content.editorial import GENERATION_STYLE
 from app.content.geography import normalize_countries, set_event_countries
 from app.content.importance import recompute_importance
+from app.content.places import catalog_prompt_ids, normalize_place_ids, set_event_places
 from app.jobs import ai_retry
 from app.jobs.cluster import normalized_title_key
 from app.jobs.queue import enqueue_job, renew_lease
@@ -172,9 +173,11 @@ def _classify_prompt(items: list[SourceItem]) -> str:
     return (
         "Classify this news story cluster for a Telugu-diaspora news product. "
         + RELEVANCE_CRITERIA
-        + "Also determine categories, countries, entities, sensitivity "
+        + "Also determine categories, countries, places, entities, sensitivity "
         "(one of NONE/IMMIGRATION/LEGAL/FINANCIAL/BREAKING/OBITUARY_ACCUSATION), "
-        "and urgency (one of NORMAL/HIGH). Evidence items:\n" + _untrusted_data_block(_evidence_block(items))
+        "and urgency (one of NORMAL/HIGH). `places` lists only where the story "
+        "itself happens, using only ids from this list (empty if none fits): "
+        + catalog_prompt_ids() + ". Evidence items:\n" + _untrusted_data_block(_evidence_block(items))
     )
 
 
@@ -436,6 +439,7 @@ def _generate_story(db: Session, story: Story) -> bool:
     _link_entities(db, story, classification.entities)
     _link_topics(db, story, classification.categories)
     set_event_countries(db, story.id, normalize_countries(classification.countries))
+    set_event_places(db, story.id, normalize_place_ids(classification.places))
     recompute_importance(db, story)
 
     # P0-1 audit trail: persist what the gateway decided per claim, so a

@@ -81,7 +81,8 @@ def test_public_page_has_bounded_queries_and_cursor(client, db_session):
     finally:
         event.remove(engine, "before_cursor_execute", capture)
     assert len(first["items"]) == 20
-    assert len(statements) <= 7, statements
+    # One batched query per relation (ADR-043 added story_places), never per story.
+    assert len(statements) <= 8, statements
     assert any("LIMIT" in stmt and "stories" in stmt for stmt in statements)
     second = client.get("/v1/stories", params={"cursor": first["next_cursor"]}).json()
     assert len(second["items"]) == 3

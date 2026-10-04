@@ -24,6 +24,8 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
+from app.content.places import expand_with_ancestors
+
 TOPIC_ALERT_MIN_IMPORTANCE = 0.5
 BREAKING_ALERT_MIN_CONFIDENCE = 0.7
 BREAKING_ALERT_MIN_SOURCE_QUALITY = 0.5
@@ -46,6 +48,8 @@ class NotifiableStory:
     breaking_alert_approved: bool
     avg_source_quality: float
     headline: str = ""
+    # ADR-043: event place tags (ancestors are expanded at match time).
+    places: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -59,6 +63,8 @@ class UserNotificationPrefs:
     # P02 / ADR-042. Topics absent from `topic_urgency` are INSTANT.
     topic_urgency: Mapping[str, str] = field(default_factory=dict)
     keywords: tuple[str, ...] = ()
+    # ADR-043: followed places whose per-place alert switch is on.
+    alert_places: tuple[str, ...] = ()
     home_tz: str | None = None
     residence_tz: str | None = None
     digest_morning_hour: int | None = None
@@ -103,6 +109,18 @@ def keyword_alert_eligible(story: NotifiableStory, prefs: UserNotificationPrefs)
         return False
     headline = story.headline.lower()
     return any(keyword in headline for keyword in prefs.keywords)
+
+
+def place_alert_eligible(story: NotifiableStory, prefs: UserNotificationPrefs) -> bool:
+    """The reader follows a place with its alert switch on and the story is
+    tagged at or beneath it. Same floors as keyword alerts; an untagged story
+    never matches, and sensitive categories use only the approved breaking path."""
+
+    if story.importance < TOPIC_ALERT_MIN_IMPORTANCE or not prefs.alert_places or not story.places:
+        return False
+    if story.sensitivity not in ("NONE",):
+        return False
+    return not set(prefs.alert_places).isdisjoint(expand_with_ancestors(story.places))
 
 
 def digest_story_eligible(story: NotifiableStory, prefs: UserNotificationPrefs) -> bool:

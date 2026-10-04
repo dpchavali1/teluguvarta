@@ -22,6 +22,8 @@ export type RootStackParamList = {
   Privacy: undefined;
   Profile: undefined;
   HiddenTopics: undefined;
+  Places: undefined;
+  PlaceStories: { placeId: string };
 };
 
 declare global {

@@ -19,6 +19,8 @@ class GenerationResult(BaseModel):
     confidence: float = Field(ge=0.0, le=1.0)
     categories: list[str] = Field(default_factory=list)
     countries: list[str] = Field(default_factory=list)
+    # ADR-043: catalog place ids; unknown values are dropped at persist time.
+    places: list[str] = Field(default_factory=list)
     entities: list[str] = Field(default_factory=list)
     sensitivity: str
     urgency: str

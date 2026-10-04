@@ -17,7 +17,12 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import UTC, datetime
 
+from app.content.places import expand_with_ancestors, get_place
+
 FRESHNESS_HALF_LIFE_HOURS = 24.0
+PLACE_WEIGHT = 0.15  # bounded additive term; the base weights are unchanged
+PLACE_EXACT_SCORE = 1.0
+PLACE_ANCESTOR_SCORE = 0.6
 REPETITION_PENALTY_STEP = 0.05
 REPETITION_PENALTY_CAP = 0.2
 REPETITION_PENALTY_TOPIC_CAP = 4
@@ -30,10 +35,13 @@ class Preferences:
     home_state: str | None = None
     home_city: str | None = None
     topics: tuple[str, ...] = ()
+    # ADR-043: followed catalog place ids (explicit signal, at most 10).
+    follow_places: tuple[str, ...] = ()
 
     def is_empty(self) -> bool:
         return not any(
-            (self.residence_country, self.residence_region, self.home_state, self.home_city, self.topics)
+            (self.residence_country, self.residence_region, self.home_state, self.home_city,
+             self.topics, self.follow_places)
         )
 
 
@@ -45,6 +53,7 @@ class RankableStory:
     importance: float
     published_at: datetime | None
     source_quality: float
+    places: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -87,6 +96,24 @@ def _topic_signal(story: RankableStory, prefs: Preferences) -> tuple[float, str 
     return score, f"you follow {labels}"
 
 
+def _place_signal(story: RankableStory, prefs: Preferences) -> tuple[float, str | None]:
+    """ADR-043: a story tagged Warangal matches a follow of Warangal exactly
+    and a follow of Telangana/India through its ancestors. A story with no
+    place tag never matches. The reason names the most specific followed place."""
+    if not prefs.follow_places or not story.places:
+        return 0.0, None
+    exact = [p for p in prefs.follow_places if p in story.places]
+    implied = [p for p in prefs.follow_places if p not in exact and p in expand_with_ancestors(story.places)]
+    if exact:
+        matched, score = exact, PLACE_EXACT_SCORE
+    elif implied:
+        matched, score = implied, PLACE_ANCESTOR_SCORE
+    else:
+        return 0.0, None
+    names = ", ".join(place.name_en if (place := get_place(p)) else p for p in matched[:2])
+    return score, f"you follow {names}"
+
+
 def _freshness_signal(story: RankableStory, now: datetime) -> float:
     if story.published_at is None:
         return 0.0
@@ -103,6 +130,7 @@ def _raw_score_and_signals(
     residence_score, residence_signal = _residence_signal(story, prefs)
     home_score, home_signal = _home_signal(story, prefs)
     topic_score, topic_signal = _topic_signal(story, prefs)
+    place_score, place_signal = _place_signal(story, prefs)
     freshness_score = _freshness_signal(story, now)
     importance_score = max(0.0, min(1.0, story.importance))
     source_quality_score = max(0.0, min(1.0, story.source_quality))
@@ -111,11 +139,12 @@ def _raw_score_and_signals(
         0.28 * residence_score
         + 0.20 * home_score
         + 0.18 * topic_score
+        + PLACE_WEIGHT * place_score
         + 0.16 * freshness_score
         + 0.14 * importance_score
         + 0.04 * source_quality_score
     )
-    signals = tuple(s for s in (residence_signal, home_signal, topic_signal) if s)
+    signals = tuple(s for s in (residence_signal, home_signal, place_signal, topic_signal) if s)
     return raw, signals
 
 

@@ -19,6 +19,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.content.geography import event_countries_many
+from app.content.places import event_places_many
 from app.content.ranking import RankableStory
 from app.content.variants import resolve_display_variant
 from app.models import (
@@ -54,6 +55,7 @@ class StoryRelations:
     links: dict = field(default_factory=lambda: defaultdict(list))
     topics: dict = field(default_factory=lambda: defaultdict(list))
     countries: dict = field(default_factory=lambda: defaultdict(list))
+    places: dict = field(default_factory=lambda: defaultdict(list))
     items: dict = field(default_factory=dict)
     sources: dict = field(default_factory=dict)
 
@@ -75,6 +77,8 @@ def load_story_relations(db: Session, ids: list[UUID]) -> StoryRelations:
         loaded.topics[story_id].append(slug)
     for story_id, codes in event_countries_many(db, ids).items():
         loaded.countries[story_id] = codes
+    for story_id, place_ids in event_places_many(db, ids).items():
+        loaded.places[story_id] = place_ids
     return loaded
 
 
@@ -133,6 +137,7 @@ def story_to_out(db: Session, story: Story, loaded: StoryRelations | None = None
         updated_at=updated_at,  # type: ignore[arg-type]
         topics=topics,
         countries=countries,
+        places=list(loaded.places[story.id]),
         variants=out_variants,
         sources=sources_out,
     )
@@ -181,6 +186,7 @@ def story_to_rankable(db: Session, story: Story, loaded: StoryRelations | None =
     return RankableStory(
         id=str(story.id),
         countries=tuple(loaded.countries[story.id]),
+        places=tuple(loaded.places[story.id]),
         topics=topics,
         importance=story.importance,
         published_at=story.published_at,

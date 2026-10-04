@@ -50,8 +50,10 @@ from app.content.notifications import (
     digest_story_eligible,
     in_quiet_hours_any_zone,
     keyword_alert_eligible,
+    place_alert_eligible,
     topic_alert_eligible,
 )
+from app.content.places import event_places_many, expand_with_ancestors
 from app.jobs.queue import backoff_seconds, enqueue_job
 from app.models import (
     Correction,
@@ -67,6 +69,7 @@ from app.models import (
     StoryVariant,
     Topic,
     UserKeyword,
+    UserPlace,
     UserSavedStory,
     UserTopic,
 )
@@ -117,6 +120,7 @@ def _to_notifiable(db: Session, story: Story) -> NotifiableStory:
         breaking_alert_approved=story.breaking_alert_approved_at is not None,
         avg_source_quality=_avg_source_quality(db, story.id),
         headline=_english_headline(db, story.id) or "",
+        places=tuple(event_places_many(db, [story.id])[story.id]),
     )
 
 
@@ -126,6 +130,9 @@ def _load_prefs(db: Session, user_id) -> UserNotificationPrefs:
         select(Topic.slug, UserTopic.urgency).join(UserTopic, UserTopic.topic_id == Topic.id).where(UserTopic.user_id == user_id)
     ).all()
     keywords = tuple(db.scalars(select(UserKeyword.keyword).where(UserKeyword.user_id == user_id)).all())
+    alert_places = tuple(db.scalars(
+        select(UserPlace.place_id).where(UserPlace.user_id == user_id, UserPlace.alerts.is_(True))
+    ).all())
     subscribed = tuple(slug for slug, _ in topic_rows)
     urgency = {slug: level for slug, level in topic_rows}
     if profile is None:
@@ -138,6 +145,7 @@ def _load_prefs(db: Session, user_id) -> UserNotificationPrefs:
             subscribed_topics=subscribed,
             topic_urgency=urgency,
             keywords=keywords,
+            alert_places=alert_places,
         )
     return UserNotificationPrefs(
         breaking_alerts_enabled=profile.breaking_alerts_enabled,
@@ -152,6 +160,7 @@ def _load_prefs(db: Session, user_id) -> UserNotificationPrefs:
         subscribed_topics=subscribed,
         topic_urgency=urgency,
         keywords=keywords,
+        alert_places=alert_places,
     )
 
 
@@ -192,6 +201,13 @@ def _generate_topic_and_breaking_candidates(db: Session, now: datetime) -> None:
             candidate_user_ids |= set(
                 db.scalars(select(UserKeyword.user_id).where(func.strpos(headline, UserKeyword.keyword) > 0)).all()
             )
+        story_places = expand_with_ancestors(notifiable.places)
+        if story_places:
+            candidate_user_ids |= set(
+                db.scalars(
+                    select(UserPlace.user_id).where(UserPlace.place_id.in_(story_places), UserPlace.alerts.is_(True))
+                ).all()
+            )
         if notifiable.sensitivity == "BREAKING" and notifiable.breaking_alert_approved:
             candidate_user_ids |= set(
                 db.scalars(select(Profile.user_id).where(Profile.breaking_alerts_enabled.is_(True))).all()
@@ -199,9 +215,13 @@ def _generate_topic_and_breaking_candidates(db: Session, now: datetime) -> None:
 
         for user_id in candidate_user_ids:
             prefs = _load_prefs(db, user_id)
-            # A keyword match reuses the topic-alert key, so a story that
-            # matches both a topic and a keyword still alerts once.
-            if topic_alert_eligible(notifiable, prefs) or keyword_alert_eligible(notifiable, prefs):
+            # Keyword and place matches reuse the topic-alert key, so a story
+            # that matches several of them still alerts once.
+            if (
+                topic_alert_eligible(notifiable, prefs)
+                or keyword_alert_eligible(notifiable, prefs)
+                or place_alert_eligible(notifiable, prefs)
+            ):
                 _insert_pending(
                     db, user_id=user_id, story_id=story.id,
                     notif_type="TOPIC_ALERT", notification_key=f"topic_alert:{story.id}",

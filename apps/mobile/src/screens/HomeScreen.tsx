@@ -18,7 +18,7 @@ import { StoryCard } from "../components/StoryCard";
 import { HIDDEN_ALL_LABEL } from "../components/PagedStoryList";
 import { ApiNetworkError, getHome, trackEvent, type StoryOut, type TopicOut } from "../lib/api";
 import { useHiddenTopics, withoutHiddenTopics } from "../lib/HiddenTopicsContext";
-import { getProfile, isStudentSegment, PROFILE_CHANGE_EVENT, primaryLifeStageSegment } from "../lib/storage";
+import { getFollowedPlaces, getProfile, isStudentSegment, PROFILE_CHANGE_EVENT, primaryLifeStageSegment } from "../lib/storage";
 import { useStoryCache } from "../lib/StoryCacheContext";
 import { radius, spacing, typography } from "../theme/tokens";
 import { useAppTheme, type AppTheme } from "../theme/useAppTheme";
@@ -56,6 +56,7 @@ export function HomeScreen() {
         homeRegion: profile.homeRegion,
         homeCity: profile.homeCity,
         topics: profile.interestTopicSlugs,
+        places: (await getFollowedPlaces()).map((p) => p.placeId),
         segment: primaryLifeStageSegment(profile.lifeStages),
       };
       const home = await getHome(homeParams);

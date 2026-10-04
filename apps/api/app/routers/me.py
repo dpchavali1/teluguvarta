@@ -28,6 +28,7 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.orm import Session
 
 from app.auth import Principal, current_user
+from app.content.places import normalize_place_ids
 from app.db import get_db
 from app.models import (
     Notification,
@@ -37,6 +38,7 @@ from app.models import (
     Topic,
     User,
     UserKeyword,
+    UserPlace,
     UserSavedStory,
     UserTopic,
 )
@@ -46,6 +48,7 @@ from app.schemas import (
     MeResponse,
     NotificationOut,
     NotificationType,
+    PlaceFollow,
     PreferencesUpdate,
     ProfileOut,
     PushTokenCreate,
@@ -97,6 +100,12 @@ def _profile_out(db: Session, user_id: UUID, profile: Profile | None) -> Profile
         topic_urgency=cast(dict[str, TopicUrgency], _topic_urgency(db, user_id)),
         keywords=sorted(db.scalars(select(UserKeyword.keyword).where(UserKeyword.user_id == user_id)).all()),
         saved_story_ids=list(db.scalars(select(UserSavedStory.story_id).where(UserSavedStory.user_id == user_id)).all()),
+        follow_places=[
+            PlaceFollow(place_id=pid, alerts=alerts)
+            for pid, alerts in db.execute(
+                select(UserPlace.place_id, UserPlace.alerts).where(UserPlace.user_id == user_id).order_by(UserPlace.place_id)
+            ).all()
+        ],
     )
 
 
@@ -149,6 +158,15 @@ def update_preferences(
         db.query(UserKeyword).filter(UserKeyword.user_id == principal.user_id).delete()
         for keyword in body.keywords:
             db.add(UserKeyword(user_id=principal.user_id, keyword=keyword))
+
+    if body.follow_places is not None:
+        db.query(UserPlace).filter(UserPlace.user_id == principal.user_id).delete()
+        valid = set(normalize_place_ids(f.place_id for f in body.follow_places))
+        seen: set[str] = set()
+        for follow in body.follow_places:
+            if follow.place_id in valid and follow.place_id not in seen:
+                seen.add(follow.place_id)
+                db.add(UserPlace(user_id=principal.user_id, place_id=follow.place_id, alerts=follow.alerts))
 
     if body.saved_story_ids is not None:
         db.query(UserSavedStory).filter(UserSavedStory.user_id == principal.user_id).delete()

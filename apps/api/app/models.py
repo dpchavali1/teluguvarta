@@ -284,6 +284,28 @@ class StoryCountry(Base):
     role: Mapped[str] = mapped_column(Text, primary_key=True, server_default="EVENT")
 
 
+class StoryPlace(Base):
+    """ADR-043: a catalog place (state/district/city/country) where the story
+    happens. EVENT only; ancestors are implied at match time, not stored."""
+
+    __tablename__ = "story_places"
+
+    story_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("stories.id", ondelete="CASCADE"), primary_key=True)
+    place_id: Mapped[str] = mapped_column(Text, primary_key=True)
+    role: Mapped[str] = mapped_column(Text, primary_key=True, server_default="EVENT")
+
+
+class UserPlace(Base):
+    """ADR-043: a place the reader follows for alerts (ADR-042 sync pattern).
+    Capped at 10 per user; `alerts` is the per-place alert switch."""
+
+    __tablename__ = "user_places"
+
+    user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
+    place_id: Mapped[str] = mapped_column(Text, primary_key=True)
+    alerts: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="false")
+
+
 class Profile(Base):
     """T17: first real persistence for §8.1 preferences and §9.4 notification
     controls, gated behind ADR-006's anonymous `users` row rather than a real

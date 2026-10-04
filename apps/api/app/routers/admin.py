@@ -45,6 +45,7 @@ from app.content.geography import (
     set_event_countries,
 )
 from app.content.importance import recompute_importance
+from app.content.places import event_places_many, normalize_place_ids, set_event_places
 from app.content.publication import (
     HEADLINE_COPIES_SOURCE,
     MIN_SUMMARY_SENTENCES,
@@ -99,6 +100,7 @@ from app.schemas import (
     AdminFeedTestRequest,
     AdminImportanceRequest,
     AdminJobOut,
+    AdminPlacesRequest,
     AdminReaderReportListOut,
     AdminReaderReportOut,
     AdminReaderReportResolveRequest,
@@ -671,6 +673,7 @@ def get_story_detail(story_id: UUID, db: Session = Depends(get_db)) -> AdminStor
             select(Topic.slug).join(StoryTopic, StoryTopic.topic_id == Topic.id).where(StoryTopic.story_id == story.id)
         ).all()),
         countries=event_countries_many(db, [story.id])[story.id],
+        places=event_places_many(db, [story.id])[story.id],
         sources=sources_out,
         review_task=_review_task_out(review_task) if review_task else None,
         corrections=[
@@ -827,6 +830,34 @@ def set_story_topics(
     _write_audit_event(
         db, admin.email, "STORY_TOPICS_SET", "story", story.id,
         {"old": old, "new": sorted(slugs), "reason": body.reason},
+    )
+    db.commit()
+    return AdminActionResponse(story_id=story.id, status=cast(StoryStatus, story.status))
+
+
+@router.put("/stories/{story_id}/places")
+def set_story_places(
+    story_id: UUID,
+    body: AdminPlacesRequest,
+    admin: AdminPrincipal = Depends(current_admin),
+    db: Session = Depends(get_db),
+) -> AdminActionResponse:
+    """ADR-043: catalog places where the story happens. Generation stores the
+    model's proposals; editors replace the set. Catalog ids only. Metadata,
+    not story text, so it is audited but needs no re-review."""
+
+    story = _get_story_or_404(db, story_id)
+    requested = list(dict.fromkeys(p.strip() for p in body.places if p.strip()))
+    place_ids = normalize_place_ids(requested)
+    unknown = [p for p in requested if p not in place_ids]
+    if unknown:
+        raise APIError(422, "UNKNOWN_PLACE", f"Not a catalog place: {', '.join(unknown)}")
+
+    old = event_places_many(db, [story.id])[story.id]
+    set_event_places(db, story.id, place_ids)
+    _write_audit_event(
+        db, admin.email, "STORY_PLACES_SET", "story", story.id,
+        {"old": old, "new": sorted(place_ids), "reason": body.reason},
     )
     db.commit()
     return AdminActionResponse(story_id=story.id, status=cast(StoryStatus, story.status))

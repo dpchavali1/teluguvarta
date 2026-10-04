@@ -111,6 +111,7 @@ export function SettingsScreen() {
       <Text style={styles.groupLabel} accessibilityRole="header">YOUR READING</Text>
       <View style={styles.group}>
         <SettingsRow label="Your profile" onPress={() => navigation.navigate("Profile")} styles={styles} />
+        <SettingsRow label="Your places" onPress={() => navigation.navigate("Places")} styles={styles} />
         <SettingsRow label="Language" onPress={() => navigation.navigate("Language")} styles={styles} />
         <SettingsRow label="Hidden topics" onPress={() => navigation.navigate("HiddenTopics")} styles={styles} />
         <SettingsRow label="Privacy & delete account" onPress={() => navigation.navigate("Privacy")} last styles={styles} />

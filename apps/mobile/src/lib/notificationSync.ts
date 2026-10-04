@@ -1,5 +1,5 @@
 import { updatePreferences } from "./api";
-import { getNotificationPreferences, getSavedIds, type NotificationPreferences } from "./storage";
+import { getFollowedPlaces, getNotificationPreferences, getSavedIds, type NotificationPreferences } from "./storage";
 
 function parseHour(hhmm: string): number | null {
   const hour = Number.parseInt(hhmm.split(":")[0] ?? "", 10);
@@ -15,11 +15,13 @@ export async function syncToServer(prefs: NotificationPreferences): Promise<void
   const off = prefs.disableAll;
   const topicSlugs = off ? [] : Object.entries(prefs.topics).filter(([, enabled]) => enabled).map(([slug]) => slug);
   const savedIds = off ? [] : (await getSavedIds()).slice(-200);
+  const followedPlaces = off ? [] : await getFollowedPlaces();
   await updatePreferences({
     topic_slugs: topicSlugs,
     topic_urgency: Object.fromEntries(topicSlugs.map((slug) => [slug, prefs.topicUrgency[slug] ?? "INSTANT"])),
     keywords: off ? [] : prefs.keywords,
     saved_story_ids: savedIds,
+    follow_places: followedPlaces.map((p) => ({ place_id: p.placeId, alerts: p.alerts })),
     breaking_alerts_enabled: !off && prefs.breakingEnabled,
     daily_briefing_enabled: !off && prefs.dailyBriefingEnabled,
     digest_morning_hour: off ? null : prefs.digestMorningHour,

@@ -96,8 +96,8 @@ export function PrivacyScreen() {
         TTE does not require signing in — every story is readable without an account.
         This app does keep a device-scoped identity for notification preferences and push
         delivery, and your onboarding preferences and saved stories live on this device.
-        If alerts are on, the IDs of stories you saved, any keywords you follow, and your
-        chosen time zones are also sent to our servers so alerts and digests can reach you; turning
+        If alerts are on, the IDs of stories you saved, any keywords and places you follow (with each place's alert
+        switch), and your chosen time zones are also sent to our servers so alerts and digests can reach you; turning
         off all notifications clears them.
       </Text>
       <Text style={styles.body}>

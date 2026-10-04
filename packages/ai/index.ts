@@ -14,6 +14,7 @@ export interface GenerationResult {
   confidence: number;
   categories: string[];
   countries: string[];
+  places?: string[];
   entities: string[];
   sensitivity: string;
   urgency: string;
