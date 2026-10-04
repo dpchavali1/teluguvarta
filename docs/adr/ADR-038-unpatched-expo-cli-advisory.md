@@ -1,6 +1,6 @@
 # ADR-038: Handle the unpatched Expo CLI node-forge advisory
 
-- **Status**: accepted
+- **Status**: accepted; the "do not suppress" rule is superseded by [ADR-047](ADR-047-dated-audit-exceptions.md) (2026-10-04)
 - **Date**: 2026-10-02
 - **Ticket**: T19 release hardening
 

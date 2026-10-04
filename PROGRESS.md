@@ -394,9 +394,17 @@ admin can no longer overwrite their authenticator via `/mfa/enroll` (409);
 tracked files or history (the Firebase client key is intended to ship; restrict
 it in GCP). `pip-audit` clean. API ruff, mypy and 628 tests pass.
 Open, awaiting owner decisions in [ADR-046](docs/adr/ADR-046-security-requirements-open-decisions.md):
-`package.json` `ignoreGhsas` contradicting
-ADR-038, Cloudflare/real-IP and security headers, per-exam domain allowlist. Production
+Cloudflare/real-IP and security headers, per-exam domain allowlist, the §7
+cache-bound limit (proposed 3 min / 1 h sitemap), secrets handling, and second-admin
+approval of stories/corrections. Production
 evidence (MFA, rate limits, restore) still not gathered.
+
+**ADR-047 audit exceptions (2026-10-04):** owner chose option B. The node-forge and
+braces `ignoreGhsas` entries (both unpatched upstream, dev/build tooling only) are now
+a recorded, dated exception that supersedes ADR-038's no-suppression rule; CI fails
+after 2026-11-04 (`AUDIT_EXCEPTIONS_EXPIRE` in `ci.yml`) until re-checked. The expiry
+date was my choice: confirm or change it. Earlier "ADR-038 still blocks release"
+lines above are historical. Not yet run in GitHub Actions.
 
 **ADR-046 §5 MFA lifecycle (2026-10-04, local, API + ops script):** a TOTP code is
 now single-use: `users.mfa_last_step` (migration `a1c4e7b9d2f6`, on top of

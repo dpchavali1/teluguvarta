@@ -20,7 +20,7 @@ policy, so they are recorded rather than guessed.
    explicit documented single-admin override; (b) keep as is for a one-person
    team and rely on the audit log. Same question for sensitive stories and
    corrections.
-2. **Dependency-advisory policy.** `package.json` `auditConfig.ignoreGhsas`
+2. **Dependency-advisory policy.** *(Resolved 2026-10-04 by [ADR-047](ADR-047-dated-audit-exceptions.md).)* `package.json` `auditConfig.ignoreGhsas`
    (commit e8c0762) suppresses the node-forge and braces advisories, which
    ADR-038 says must not be suppressed. Either revert the ignore, or supersede
    ADR-038 with a dated expiry, an owner, and a rule for when an ignore is

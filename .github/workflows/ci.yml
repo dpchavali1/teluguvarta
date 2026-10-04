@@ -34,6 +34,13 @@ jobs:
           test -f apps/admin/src/app/review/page.tsx
           test -f apps/admin/src/app/coverage/page.tsx
           git ls-files --error-unmatch apps/admin/src/app/review/page.tsx apps/admin/src/app/coverage/page.tsx
+      - name: Audit exceptions have not expired (ADR-047)
+        env:
+          AUDIT_EXCEPTIONS_EXPIRE: "2026-11-04"
+        run: |
+          if [ "$(date -u +%F)" \> "$AUDIT_EXCEPTIONS_EXPIRE" ]; then
+            echo "ADR-047 audit exceptions expired on $AUDIT_EXCEPTIONS_EXPIRE: re-check advisories, then renew or remove ignoreGhsas"; exit 1
+          fi
       - name: Dependency scan (T19 §16 baseline)
         # Real gate as of the T20 Next.js 15 upgrade (was informational
         # while next@14.2.35 had no 14.x fix for its unauthenticated RCEs).

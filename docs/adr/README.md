@@ -119,3 +119,5 @@ accepted. Add ad-hoc ADRs below this table as they're written.
   [ADR-042](ADR-042-synced-saved-ids-and-keywords.md)
 - ADR-045 | WhatsApp share card vs. ADR-002 (supersedes its Share Card deferral if A) | P08 | **accepted** (owner 2026-10-04, option A) — see
   [ADR-045](ADR-045-whatsapp-share-card.md)
+- ADR-047 | Dated, owned exceptions for unpatched dev-tooling advisories (supersedes ADR-038 suppression ban) | T19 | **accepted** (owner 2026-10-04, option B; expiry date to confirm) — see
+  [ADR-047](ADR-047-dated-audit-exceptions.md)
