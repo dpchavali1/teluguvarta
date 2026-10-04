@@ -1,5 +1,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 
+import { applyMutes } from "@teluguvarta/domain";
+
 import type { StoryOut } from "./api";
 import { getHiddenTopics, setHiddenTopics } from "./storage";
 
@@ -62,8 +64,8 @@ export function useHiddenTopics(): HiddenTopicsValue {
   return useContext(HiddenTopicsContext);
 }
 
-/** Stories not tagged with any hidden topic. Returns the same array when nothing is hidden. */
+/** Stories not tagged with a hidden topic; breaking/immigration/legal/financial ones always stay (ADR-040). */
 export function withoutHiddenTopics(stories: StoryOut[], hiddenTopics: string[]): StoryOut[] {
   if (hiddenTopics.length === 0) return stories;
-  return stories.filter((story) => !story.topics.some((slug) => hiddenTopics.includes(slug)));
+  return applyMutes(stories, hiddenTopics);
 }

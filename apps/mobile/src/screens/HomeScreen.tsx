@@ -14,6 +14,7 @@ import {
   View,
 } from "react-native";
 
+import { buildMyEdit, whySeeing, type MyEditSection } from "@teluguvarta/domain";
 import { StoryCard } from "../components/StoryCard";
 import { HIDDEN_ALL_LABEL } from "../components/PagedStoryList";
 import { ApiNetworkError, getHome, trackEvent, type StoryOut, type TopicOut } from "../lib/api";
@@ -33,7 +34,7 @@ export function HomeScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { colors, ui } = useAppTheme();
   const styles = useMemo(() => createStyles(colors, ui), [colors, ui]);
-  const { put } = useStoryCache();
+  const { put, savedIds, get } = useStoryCache();
   const { hiddenTopics } = useHiddenTopics();
   const [stories, setStories] = useState<StoryOut[]>([]);
   const [topics, setTopics] = useState<TopicOut[]>([]);
@@ -146,6 +147,17 @@ export function HomeScreen() {
   // header; only the main feed (unbounded, highest-traffic) needs
   // virtualization.
   // Plan M5: topics hidden with "Show less" drop out of every part of Home.
+  // P05: sections from explicit signals only; mutes never hide protected news.
+  const savedRefs = [...savedIds].reverse().flatMap((id) => {
+    const saved = get(id);
+    return saved ? [{ id, headline: saved.variants.en?.headline ?? "a story", topics: saved.topics ?? [] }] : [];
+  });
+  const sections = buildMyEdit(stories, { mutedTopics: hiddenTopics, saved: savedRefs, now: new Date() });
+  type Row = { kind: "header"; key: string; title: string } | { kind: "story"; key: string; story: StoryOut; section: MyEditSection<StoryOut>; first: boolean };
+  const rows: Row[] = sections.flatMap((section, si) => [
+    { kind: "header" as const, key: `h-${section.key}-${si}`, title: section.title },
+    ...section.stories.map((story, i) => ({ kind: "story" as const, key: story.id, story, section, first: si === 0 && i === 0 })),
+  ]);
   const visibleStories = withoutHiddenTopics(stories, hiddenTopics);
   const visibleBriefing = withoutHiddenTopics(briefingStories, hiddenTopics);
   const visibleTopics = topics.filter((topic) => !hiddenTopics.includes(topic.slug));
@@ -155,20 +167,22 @@ export function HomeScreen() {
       style={styles.list}
       contentContainerStyle={styles.container}
       accessibilityLabel="Home feed"
-      data={visibleStories}
-      keyExtractor={(story) => story.id}
-      renderItem={({ item, index }) => (
-        <>
-          {index === 1 && <Text style={styles.sectionLabel}>MORE STORIES</Text>}
+      data={rows}
+      keyExtractor={(row) => row.key}
+      renderItem={({ item }) =>
+        item.kind === "header" ? (
+          <Text style={styles.sectionLabel} accessibilityRole="header">{item.title.toUpperCase()}</Text>
+        ) : (
           <StoryCard
-            story={item}
-            layout={index === 0 ? "hero" : "compact"}
-            onOpen={() => navigation.navigate("StoryDetail", { slug: item.canonical_slug })}
+            story={item.story}
+            layout={item.first ? "hero" : "compact"}
+            onOpen={() => navigation.navigate("StoryDetail", { slug: item.story.canonical_slug })}
             onOpenSource={(url) => Linking.openURL(url)}
             allowHideTopic
+            whyText={whySeeing(item.story, item.section)}
           />
-        </>
-      )}
+        )
+      }
       refreshControl={
         <RefreshControl
           refreshing={refreshing}

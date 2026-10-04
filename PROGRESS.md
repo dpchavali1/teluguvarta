@@ -229,6 +229,16 @@ and bundle pass; release APK rebuilt. Not yet device-verified (Telugu glyph
 rendering/bold faces need a look on the phone). P04 web parity still open;
 P05–P08 not started (P03 below).
 
+**P05 My Edit (2026-10-04, local, mobile only):** `packages/domain/myEdit.ts`
+(pure, deterministic) builds Home sections — Top 5 today, For you, Because you
+saved X — from the server-ranked page plus explicit on-device signals (ADR-040).
+Mutes ("Show less") now never hide BREAKING/IMMIGRATION/LEGAL/FINANCIAL stories,
+including in Latest. Every Home card has "Why am I seeing this?". Settings → My
+Edit signals lists follows, hidden topics (reset) and saved count. Mobile
+typecheck and jest (99) pass. Gaps: no web/API change (no server-side mutes or
+sources mute; "mute source" not built); signals page resets hidden topics only
+(follows/saves edited on their own screens); not device-verified.
+
 **P03 location follows (2026-10-04, local):** ADR-043 accepted (diaspora catalog,
 explicit residence + origin, up to 10 follows, model-proposed tags with editor
 override, new stories only). Backend: catalog `apps/api/app/content/places.py`

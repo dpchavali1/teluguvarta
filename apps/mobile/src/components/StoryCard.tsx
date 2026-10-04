@@ -41,8 +41,11 @@ export function StoryCard({
   layout = "compact",
   allowHideTopic = false,
   showRead = true,
+  whyText,
 }: {
   story: StoryOut;
+  // P05: when set, shows a "Why am I seeing this?" toggle with this reason.
+  whyText?: string;
   // Plan M5: Home and Latest offer "Show less" (hide a topic from those
   // feeds). Off elsewhere — Topic/Search/Saved show what the reader asked for.
   allowHideTopic?: boolean;
@@ -71,6 +74,7 @@ export function StoryCard({
   const { textSize, activeTeluguFont, readingStyle } = useTextSize();
   const { hideTopic } = useHiddenTopics();
   const [lessOpen, setLessOpen] = useState(false);
+  const [whyOpen, setWhyOpen] = useState(false);
   const [language, setLanguage] = useState<Language>("en");
   const [actionStatus, setActionStatus] = useState<string | null>(null);
   const [reportOpen, setReportOpen] = useState(false);
@@ -187,7 +191,21 @@ export function StoryCard({
         </Text>}
         {layout === "detail" && story.status === "UPDATED" && <Text style={styles.date}>Updated {new Date(story.updated_at).toLocaleString()}</Text>}
         {language !== renderedLanguage && <Text style={styles.date} accessibilityLiveRegion="polite">Telugu translation isn’t available yet. Showing English.</Text>}
-        {story.personalization?.explanation && <Text style={styles.date}>{story.personalization.explanation}</Text>}
+        {whyText ? (
+          <>
+            <Pressable
+              onPress={() => setWhyOpen((open) => !open)}
+              accessibilityRole="button"
+              accessibilityState={{ expanded: whyOpen }}
+              accessibilityLabel="Why am I seeing this?"
+            >
+              <Text style={[styles.date, { textDecorationLine: "underline" }]}>Why am I seeing this?</Text>
+            </Pressable>
+            {whyOpen && <Text style={styles.date} accessibilityLiveRegion="polite">{whyText}</Text>}
+          </>
+        ) : (
+          story.personalization?.explanation && <Text style={styles.date}>{story.personalization.explanation}</Text>
+        )}
         {isHumanReviewed && (
           <View style={styles.reviewedBadge}>
             <Text style={styles.reviewedBadgeText}>✓ Human-reviewed</Text>
