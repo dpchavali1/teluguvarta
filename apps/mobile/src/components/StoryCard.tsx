@@ -1,5 +1,5 @@
 import Ionicons from "@expo/vector-icons/Ionicons";
-import { topicLabel } from "@teluguvarta/domain";
+import { sourceDomainOf, topicLabel } from "@teluguvarta/domain";
 import React, { useEffect, useMemo, useState } from "react";
 import { AccessibilityInfo, DeviceEventEmitter, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 
@@ -72,7 +72,7 @@ export function StoryCard({
   const styles = useMemo(() => createStyles(colors, ui), [colors, ui]);
   const cache = useStoryCache();
   const { textSize, activeTeluguFont, readingStyle } = useTextSize();
-  const { hideTopic } = useHiddenTopics();
+  const { hideTopic, hideSource } = useHiddenTopics();
   const [lessOpen, setLessOpen] = useState(false);
   const [whyOpen, setWhyOpen] = useState(false);
   const [language, setLanguage] = useState<Language>("en");
@@ -119,6 +119,7 @@ export function StoryCard({
 
   const statusNotice = STATUS_LABEL[story.status];
   const primarySource = story.sources[0];
+  const muteDomain = sourceDomainOf(primarySource?.url);
   const labels = isCompact
     ? (story.topics.length > 0 ? story.topics.slice(0, 1).map(topicLabel) : story.countries.slice(0, 1))
     : [...story.countries.slice(0, 1), ...story.topics.slice(0, 1).map(topicLabel)];
@@ -158,6 +159,13 @@ export function StoryCard({
       `Stories about ${topicLabel(slug)} hidden. Show them again in Settings, Hidden topics.`,
     );
     hideTopic(slug);
+  }
+
+  function handleHideSource(domain: string) {
+    AccessibilityInfo.announceForAccessibility(
+      `Stories from ${domain} hidden. Show them again in Settings, My Edit signals.`,
+    );
+    hideSource(domain);
   }
 
   async function handleReportSubmit() {
@@ -324,7 +332,7 @@ export function StoryCard({
               {saved ? "Saved" : "Save"}
             </Text>
           </Pressable>
-          {allowHideTopic && story.topics.length > 0 && (
+          {allowHideTopic && (story.topics.length > 0 || muteDomain) && (
             <Pressable
               onPress={() => setLessOpen((open) => !open)}
               accessibilityRole="button"
@@ -350,7 +358,7 @@ export function StoryCard({
         </View>
         {allowHideTopic && lessOpen && (
           <View style={styles.reportPanel}>
-            <Text style={styles.reportHeading} accessibilityRole="header">Hide stories about</Text>
+            <Text style={styles.reportHeading} accessibilityRole="header">Show less from</Text>
             <View style={styles.reportChoices}>
               {story.topics.slice(0, 3).map((slug) => (
                 <Pressable
@@ -363,6 +371,16 @@ export function StoryCard({
                   <Text style={styles.actionButtonText}>{topicLabel(slug)}</Text>
                 </Pressable>
               ))}
+              {muteDomain && (
+                <Pressable
+                  onPress={() => handleHideSource(muteDomain)}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Mute source ${muteDomain}`}
+                  style={styles.actionButton}
+                >
+                  <Text style={styles.actionButtonText}>Mute {muteDomain}</Text>
+                </Pressable>
+              )}
               <Pressable onPress={() => setLessOpen(false)} accessibilityRole="button" style={styles.actionButton}>
                 <Text style={styles.actionButtonText}>Cancel</Text>
               </Pressable>

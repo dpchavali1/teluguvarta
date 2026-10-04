@@ -81,7 +81,7 @@ test("'Show less' on a Home card hides every story and chip from that topic, and
 test("Home says why it's empty when every story is hidden", async () => {
   await setHiddenTopics(["politics", "entertainment"]);
   await render(withProviders(<HomeScreen />));
-  expect(await screen.findByText(/all from topics you've hidden/)).toBeTruthy();
+  expect(await screen.findByText(/all from topics or sources you've hidden/)).toBeTruthy();
 });
 
 test("Latest filters and offers 'Show less'; a Topic list does neither", async () => {

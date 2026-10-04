@@ -1,4 +1,4 @@
-import { applyMutes, buildMyEdit, whySeeing } from "@teluguvarta/domain";
+import { applyMutes, buildMyEdit, sourceDomainOf, whySeeing } from "@teluguvarta/domain";
 
 const now = new Date("2026-10-04T12:00:00Z");
 const hoursAgo = (h: number) => new Date(now.getTime() - h * 3600 * 1000).toISOString();
@@ -53,4 +53,19 @@ test("because-you-saved lists related unsaved stories and explains why", () => {
   const saved = sections.find((s) => s.key === "because-saved")!;
   expect(saved.stories.map((s) => s.id)).toEqual(["a"]);
   expect(whySeeing(saved.stories[0], saved)).toContain("H-1B update");
+});
+
+test("muting a source hides its stories by first-source domain, never protected news", () => {
+  const story = (id: string, url: string, sensitivity = "NONE") =>
+    ({ id, topics: [], sensitivity, importance: 1, sources: [{ url }] });
+  const list = [
+    story("a", "https://www.Example.com/x"),
+    story("b", "https://other.org/y"),
+    story("c", "https://example.com/z", "IMMIGRATION"),
+    { id: "d", topics: [], sensitivity: "NONE", importance: 1 },
+  ];
+  expect(applyMutes(list, [], ["example.com"]).map((s) => s.id)).toEqual(["b", "c", "d"]);
+  expect(sourceDomainOf("https://user@www.News.in:8080/p?q")).toBe("news.in");
+  expect(sourceDomainOf("not a url")).toBeNull();
+  expect(sourceDomainOf(undefined)).toBeNull();
 });

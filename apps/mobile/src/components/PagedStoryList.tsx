@@ -29,7 +29,7 @@ export function PagedStoryList({
   const { colors, ui } = useAppTheme();
   const styles = useMemo(() => createStyles(colors, ui), [colors, ui]);
   const { put } = useStoryCache();
-  const { hiddenTopics } = useHiddenTopics();
+  const { hiddenTopics, hiddenSources } = useHiddenTopics();
   const requestId = useRef(0);
   const [cursor, setCursor] = useState<string | null>(null);
   const [moreLoading, setMoreLoading] = useState(false);
@@ -119,7 +119,7 @@ export function PagedStoryList({
     </View>
   );
 
-  const visible = respectHiddenTopics ? withoutHiddenTopics(stories, hiddenTopics) : stories;
+  const visible = respectHiddenTopics ? withoutHiddenTopics(stories, hiddenTopics, hiddenSources) : stories;
   return (
     <StoryList
       stories={visible}
@@ -130,7 +130,7 @@ export function PagedStoryList({
   );
 }
 
-export const HIDDEN_ALL_LABEL = "These stories are all from topics you've hidden. Show them again in Settings → Hidden topics.";
+export const HIDDEN_ALL_LABEL = "These stories are all from topics or sources you've hidden. Show them again in Settings → My Edit signals.";
 
 function createStyles(colors: AppTheme["colors"], ui: AppTheme["ui"]) {
   return StyleSheet.create({

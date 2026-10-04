@@ -35,7 +35,7 @@ export function HomeScreen() {
   const { colors, ui } = useAppTheme();
   const styles = useMemo(() => createStyles(colors, ui), [colors, ui]);
   const { put, savedIds, get } = useStoryCache();
-  const { hiddenTopics } = useHiddenTopics();
+  const { hiddenTopics, hiddenSources } = useHiddenTopics();
   const [stories, setStories] = useState<StoryOut[]>([]);
   const [topics, setTopics] = useState<TopicOut[]>([]);
   const [briefingStories, setBriefingStories] = useState<StoryOut[]>([]);
@@ -152,14 +152,14 @@ export function HomeScreen() {
     const saved = get(id);
     return saved ? [{ id, headline: saved.variants.en?.headline ?? "a story", topics: saved.topics ?? [] }] : [];
   });
-  const sections = buildMyEdit(stories, { mutedTopics: hiddenTopics, saved: savedRefs, now: new Date() });
+  const sections = buildMyEdit(stories, { mutedTopics: hiddenTopics, mutedSources: hiddenSources, saved: savedRefs, now: new Date() });
   type Row = { kind: "header"; key: string; title: string } | { kind: "story"; key: string; story: StoryOut; section: MyEditSection<StoryOut>; first: boolean };
   const rows: Row[] = sections.flatMap((section, si) => [
     { kind: "header" as const, key: `h-${section.key}-${si}`, title: section.title },
     ...section.stories.map((story, i) => ({ kind: "story" as const, key: story.id, story, section, first: si === 0 && i === 0 })),
   ]);
-  const visibleStories = withoutHiddenTopics(stories, hiddenTopics);
-  const visibleBriefing = withoutHiddenTopics(briefingStories, hiddenTopics);
+  const visibleStories = withoutHiddenTopics(stories, hiddenTopics, hiddenSources);
+  const visibleBriefing = withoutHiddenTopics(briefingStories, hiddenTopics, hiddenSources);
   const visibleTopics = topics.filter((topic) => !hiddenTopics.includes(topic.slug));
 
   return (

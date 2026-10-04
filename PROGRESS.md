@@ -239,6 +239,16 @@ typecheck and jest (99) pass. Gaps: no web/API change (no server-side mutes or
 sources mute; "mute source" not built); signals page resets hidden topics only
 (follows/saves edited on their own screens); not device-verified.
 
+**P05 mute source (2026-10-04, local, mobile + domain):** "Show less" on Home and
+Latest cards now also offers "Mute <domain>" (the domain of the card's first
+source, `sourceDomainOf` in `packages/domain/myEdit.ts`). Muted domains are kept
+on-device (`tg_hidden_sources_v1`, cleared by "clear data"), applied with topic
+mutes on Home/Latest (never to breaking/immigration/legal/financial stories) and
+listed/reset in Settings → My Edit signals. Mobile typecheck and 119 tests pass.
+Not device-verified. Server-side mutes were not built: ADR-040 keeps signals
+on-device, so [ADR-048](docs/adr/ADR-048-server-side-mutes.md) (proposed) asks
+the owner to choose. Muting by domain only; the API exposes no publisher name.
+
 **P07 visa bulletin tracker (2026-10-04, local, API only):** travel.state.gov
 returns a Cloudflare 403 to automated fetches (checked, including `robots.txt`),
 so per owner decision there is no ingest job: an editor enters each month from the

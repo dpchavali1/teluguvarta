@@ -17,7 +17,7 @@ export function MySignalsScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { colors, ui } = useAppTheme();
   const styles = useMemo(() => createStyles(colors, ui), [colors, ui]);
-  const { hiddenTopics, showTopic } = useHiddenTopics();
+  const { hiddenTopics, showTopic, hiddenSources, showSource } = useHiddenTopics();
   const { savedIds } = useStoryCache();
   const [followedTopics, setFollowedTopics] = useState<string[]>([]);
   const [places, setPlaces] = useState<string[]>([]);
@@ -45,6 +45,12 @@ export function MySignalsScreen() {
         <Text style={styles.value}>{hiddenTopics.length ? hiddenTopics.map(topicLabel).join(", ") : none}</Text>
         {hiddenTopics.length > 0 && (
           <Link label="Reset hidden topics" onPress={() => [...hiddenTopics].forEach(showTopic)} styles={styles} />
+        )}
+      </Group>
+      <Group title="Muted sources" styles={styles}>
+        <Text style={styles.value}>{hiddenSources.length ? hiddenSources.join(", ") : none}</Text>
+        {hiddenSources.length > 0 && (
+          <Link label="Reset muted sources" onPress={() => [...hiddenSources].forEach(showSource)} styles={styles} />
         )}
       </Group>
       <Group title="Saved stories" styles={styles}>

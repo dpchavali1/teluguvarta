@@ -13,6 +13,8 @@ export type MyEditStory = {
   id: string;
   topics?: string[];
   sensitivity: string;
+  /** The first source is the one the card credits; "Mute source" matches its domain. */
+  sources?: { url: string }[];
   importance: number;
   published_at?: string | null;
   personalization?: { explanation?: string | null } | null;
@@ -35,12 +37,31 @@ export function isMuteProtected(story: Pick<MyEditStory, "sensitivity">): boolea
   return (MUTE_PROTECTED_SENSITIVITIES as readonly string[]).includes(story.sensitivity);
 }
 
-/** Drops stories on a muted topic, except breaking/immigration/legal/financial ones. */
-export function applyMutes<T extends MyEditStory>(stories: T[], mutedTopics: readonly string[]): T[] {
-  if (mutedTopics.length === 0) return stories;
-  return stories.filter(
-    (story) => isMuteProtected(story) || !(story.topics ?? []).some((slug) => mutedTopics.includes(slug)),
-  );
+/**
+ * Lowercased host of a source URL without "www.", or null. Not `new URL()`:
+ * React Native's URL doesn't implement `hostname`.
+ */
+export function sourceDomainOf(url: string | undefined): string | null {
+  const match = /^https?:\/\/(?:[^/?#@]*@)?([^/?#:]+)/i.exec(url ?? "");
+  return match ? match[1].toLowerCase().replace(/^www\./, "") : null;
+}
+
+/**
+ * Drops stories on a muted topic or from a muted source (the domain of their
+ * first source), except breaking/immigration/legal/financial ones.
+ */
+export function applyMutes<T extends MyEditStory>(
+  stories: T[],
+  mutedTopics: readonly string[],
+  mutedSources: readonly string[] = [],
+): T[] {
+  if (mutedTopics.length === 0 && mutedSources.length === 0) return stories;
+  return stories.filter((story) => {
+    if (isMuteProtected(story)) return true;
+    if ((story.topics ?? []).some((slug) => mutedTopics.includes(slug))) return false;
+    const domain = sourceDomainOf(story.sources?.[0]?.url);
+    return !(domain && mutedSources.includes(domain));
+  });
 }
 
 function publishedMs(story: MyEditStory): number {
@@ -59,9 +80,9 @@ export type SavedRef = { id: string; headline: string; topics: readonly string[]
  */
 export function buildMyEdit<T extends MyEditStory>(
   ranked: T[],
-  options: { mutedTopics: readonly string[]; saved: readonly SavedRef[]; now: Date },
+  options: { mutedTopics: readonly string[]; mutedSources?: readonly string[]; saved: readonly SavedRef[]; now: Date },
 ): MyEditSection<T>[] {
-  const visible = applyMutes(ranked, options.mutedTopics);
+  const visible = applyMutes(ranked, options.mutedTopics, options.mutedSources);
   const used = new Set<string>();
   const sections: MyEditSection<T>[] = [];
 

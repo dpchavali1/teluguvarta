@@ -26,6 +26,7 @@ const KEYS = {
   teluguFont: "tg_telugu_font_v1",
   readingStyle: "tg_reading_style_v1",
   hiddenTopics: "tg_hidden_topics_v1",
+  hiddenSources: "tg_hidden_sources_v1",
   personaPresets: "tg_persona_presets_v1",
   readHistory: "tg_read_history_v1",
   analyticsConsent: "tte_firebase_analytics_consent_v1",
@@ -345,6 +346,20 @@ export async function getHiddenTopics(): Promise<string[]> {
 
 export async function setHiddenTopics(slugs: string[]): Promise<void> {
   return writeJson(KEYS.hiddenTopics, slugs);
+}
+
+// P05 "Mute source": domains (no "www.") whose stories Home and Latest leave out.
+export async function getHiddenSources(): Promise<string[]> {
+  try {
+    const parsed: unknown = JSON.parse((await AsyncStorage.getItem(KEYS.hiddenSources)) ?? "[]");
+    return Array.isArray(parsed) ? parsed.filter((d): d is string => typeof d === "string") : [];
+  } catch {
+    return [];
+  }
+}
+
+export async function setHiddenSources(domains: string[]): Promise<void> {
+  return writeJson(KEYS.hiddenSources, domains);
 }
 
 // Plan M6: ids of stories opened on this device, newest first, capped.
