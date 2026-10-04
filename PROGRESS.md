@@ -487,3 +487,10 @@ PDF-copied text (only the pdftotext layout and a one-cell-per-line form are test
 `PDF_UNREADABLE`); paste stays as a fallback. The real October 2026 PDF yields 110 entries, no
 warnings (fixture `tests/fixtures/visabulletin_2026-10.pdf`). **Deploy note:** new dependency
 `pypdf` in `pyproject.toml`/`requirements.lock`, so the API image must be rebuilt.
+
+**P07 tracker discoverability (2026-10-04, local, web + mobile):** web header gets a "Visa dates" link
+(`/trackers`; the mobile-web bottom bar is full, so it stays in the footer there) and the baseline
+"new" tag no longer repeats in every cell. The mobile Trackers screen now shows the full latest
+final-action table (all categories × All/China/India/Mexico/Phil.) above the follow controls, so a
+reader who follows nothing still sees the bulletin. Mobile typecheck + 119 tests, web typecheck,
+lint, 24 tests and production build pass. Release APK built but not yet installed or viewed on a device.

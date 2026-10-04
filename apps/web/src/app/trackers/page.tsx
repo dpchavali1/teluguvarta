@@ -11,7 +11,7 @@ export const metadata: Metadata = {
 };
 
 const COUNTRIES = ["ALL", "CHINA", "INDIA", "MEXICO", "PHILIPPINES"];
-const MOVEMENT: Record<string, string> = { FORWARD: "▲ forward", BACKWARD: "▼ back", SAME: "no change", NEW: "new" };
+const MOVEMENT: Record<string, string> = { FORWARD: "▲ forward", BACKWARD: "▼ back", SAME: "no change", NEW: "" };
 const label = (value: string) => (value === "ALL" ? "All" : value[0] + value.slice(1).toLowerCase());
 const cutoff = (value: string) => (value === "C" ? "Current" : value === "U" ? "Unavailable" : value);
 

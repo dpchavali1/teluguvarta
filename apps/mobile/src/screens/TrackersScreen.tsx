@@ -58,6 +58,10 @@ export function TrackersScreen() {
   const entryFor = (v: FollowedVisa): Entry | undefined =>
     bulletin?.entries.find((e) => e.category === v.category && e.country === v.country && e.chart === "FINAL_ACTION");
 
+  const tableCategories = useMemo(
+    () => [...new Set((bulletin?.entries ?? []).filter((e) => e.chart === "FINAL_ACTION").map((e) => e.category))],
+    [bulletin],
+  );
   const visaFull = visa.length >= MAX_VISA_FOLLOWS;
   const alreadyVisa = visa.some((v) => v.category === category && v.country === country);
   const examKeys = useMemo(() => [...new Set(deadlines.map((d) => d.exam))].sort(), [deadlines]);
@@ -95,8 +99,27 @@ export function TrackersScreen() {
       </Text>
 
       <Text style={styles.groupLabel} accessibilityRole="header">{`VISA BULLETIN${bulletin ? ` · ${bulletin.month}` : ""}`}</Text>
+      {bulletin ? (
+        <View style={styles.group} accessibilityLabel={`Final action dates, ${bulletin.month}`}>
+          <View style={styles.tableRow}>
+            <Text style={[styles.tableHead, styles.tableCat]}>Final action</Text>
+            {TABLE_COUNTRIES.map(([key, short]) => (
+              <Text key={key} style={[styles.tableHead, styles.tableCell]}>{short}</Text>
+            ))}
+          </View>
+          {tableCategories.map((cat) => (
+            <View key={cat} style={[styles.tableRow, styles.divider]}>
+              <Text style={[styles.tableText, styles.tableCat]}>{cat}</Text>
+              {TABLE_COUNTRIES.map(([key]) => {
+                const e = bulletin.entries.find((x) => x.chart === "FINAL_ACTION" && x.category === cat && x.country === key);
+                return <Text key={key} style={[styles.tableText, styles.tableCell]}>{e ? cutoffShort(e.cutoff) : "—"}</Text>;
+              })}
+            </View>
+          ))}
+        </View>
+      ) : null}
       {visa.length === 0 ? (
-        <Text style={styles.hint}>You don't follow any visa categories yet.</Text>
+        <Text style={styles.hint}>Follow a category below to track it and get alerts.</Text>
       ) : (
         <View style={styles.group}>
           {visa.map((v, i) => {
@@ -196,6 +219,15 @@ export function TrackersScreen() {
   );
 }
 
+const TABLE_COUNTRIES: [string, string][] = [["ALL", "All"], ["CHINA", "China"], ["INDIA", "India"], ["MEXICO", "Mexico"], ["PHILIPPINES", "Phil."]];
+const SHORT_MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+// "2023-07-01" -> "1 Jul 23"; C/U stay as the official letters.
+function cutoffShort(value: string): string {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  return m ? `${Number(m[3])} ${SHORT_MONTHS[Number(m[2]) - 1] ?? m[2]} ${m[1].slice(2)}` : value;
+}
+
 function createStyles(colors: AppTheme["colors"], ui: AppTheme["ui"]) {
   return StyleSheet.create({
     container: { flex: 1, backgroundColor: colors.bg },
@@ -215,6 +247,11 @@ function createStyles(colors: AppTheme["colors"], ui: AppTheme["ui"]) {
     divider: { borderBottomWidth: StyleSheet.hairlineWidth, borderColor: ui.borderSubtle },
     grow: { flex: 1 },
     rowLabel: { ...typography.body, color: colors.text, flexShrink: 1 },
+    tableRow: { flexDirection: "row", alignItems: "center", paddingVertical: 6, paddingHorizontal: 8 },
+    tableCat: { width: 62 },
+    tableCell: { flex: 1, textAlign: "center" },
+    tableHead: { ...typography.meta, color: ui.textSecondary, fontWeight: "600" },
+    tableText: { ...typography.meta, color: colors.text },
     rowMeta: { ...typography.meta, color: ui.textSecondary },
     alertGroup: { alignItems: "center" },
     chips: { flexDirection: "row", flexWrap: "wrap", gap: spacing.xs },
