@@ -38,8 +38,26 @@ policy, so they are recorded rather than guessed.
    protection (store last-used step).
 6. **Exam source links.** Per-exam official-domain allowlist (current rule:
    https, no userinfo/backslash, parsed host with a dot).
-7. **Retraction cache bound.** Share cards cache 60 s; state the maximum time a
-   retracted story may remain visible in caches.
+7. **Retraction cache bound.** *(Bounds derived from code 2026-10-04; the owner
+   still has to accept them as the stated limit. They were not measured against
+   production headers.)* A retracted story's API response is live (the public
+   API sets no cache lifetime), but the web layers add up, because both the
+   rendered page and its API fetch revalidate every 60 s (`apps/web/src/lib/api.ts`,
+   each page's `revalidate`):
+   - Story page and listings (home, latest, topic, country): up to about 120 s
+     (60 s page + 60 s fetch), plus one stale response served to the first
+     visitor after expiry. A CDN or browser that holds a copy longer extends
+     this; no CDN is configured yet (§3).
+   - Share card PNG: up to about 180 s (adds the 60 s `max-age` already sent to
+     browsers).
+   - Sitemap (3600 s revalidate): a retracted URL can stay listed up to about
+     1 h 1 min. The story page itself returns 404 within the story-page bound.
+   - Not recallable: push notifications and WhatsApp shares already sent, and
+     copies other sites made. Mobile saves keep an ID only (ADR-044), so no
+     story text outlives a retraction on the device.
+   Proposed limit to accept: **3 minutes for story pages and cards; 1 hour for
+   sitemap listings.** Shortening means a lower `revalidate`, or on-demand
+   revalidation at retraction, which would be a new requirement.
 8. **Secrets.** Where `.env.prod` and the Firebase server key live and how they
    are rotated. Restrict the client Firebase API key to the app bundle IDs.
 
