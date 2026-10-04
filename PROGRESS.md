@@ -249,10 +249,10 @@ previous cutoff and movement). Readers follow up to 5 category+country pairs via
 `follow_visa` on `/me/preferences`; approval queues one `TRACKER_UPDATE` per
 alert-enabled follower whose final-action cutoff moved (the first bulletin is a
 baseline, no alerts), through the normal quiet-hours/daily-cap/dedupe path.
-Migration `f6c0e4a8b3d9`. API ruff, mypy and 613 tests pass. Gaps: no mobile/web/
-admin UI yet; exam/deadline reminders (second half of P07) not started; a single
-admin can approve their own entry (no four-eyes rule was requested); the alert
-deep-links to Home, not a tracker screen; not run against managed infra.
+Migration `f6c0e4a8b3d9`. API ruff, mypy and 613 tests pass. Gaps at the time
+(since closed: mobile/web/admin UI, exam reminders and the tracker deep link, see
+the later P07 entries): a single admin can approve their own entry (ADR-046);
+not run against managed infra.
 
 **P06 saved stories 2.0 (2026-10-04, local, mobile only):** ADR-044 accepted: a
 save stays a bookmark (ID only, no story text on the device, no offline
