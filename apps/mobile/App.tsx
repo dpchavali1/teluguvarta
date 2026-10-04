@@ -19,6 +19,7 @@ import {
   resolveNotificationDeepLink,
   type DeepLinkRoute,
 } from "./src/lib/push";
+import { listenForReadLaterOpens } from "./src/lib/readLater";
 import { HiddenTopicsProvider } from "./src/lib/HiddenTopicsContext";
 import { StoryCacheProvider } from "./src/lib/StoryCacheContext";
 import { linking } from "./src/navigation/linking";
@@ -115,9 +116,17 @@ function AppContent() {
       flushPendingRoute();
     });
 
+    // Read-later reminders are local expo notifications, not FCM.
+    const stopReminderOpens = listenForReadLaterOpens((data) => {
+      trackEvent("notification_open", { data: { type: "READ_LATER", ...data } });
+      pendingRoute.current = resolveNotificationDeepLink(data);
+      flushPendingRoute();
+    });
+
     return () => {
       receivedSub.remove();
       stopOpens();
+      stopReminderOpens();
       unsubscribeTokenRefresh();
     };
   }, []);

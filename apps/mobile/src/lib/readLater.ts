@@ -23,3 +23,36 @@ export async function cancelReadLater(notificationId: string): Promise<void> {
     // Already fired or cancelled.
   }
 }
+
+// Taps on read-later reminders reach JS through expo-notifications (FCM pushes
+// come through Firebase, see `listenForNotificationOpens`). Push triggers are
+// ignored here so a push is never opened twice. getLastNotificationResponseAsync
+// covers a cold start; `handled` stops the same tap being applied twice.
+export function listenForReadLaterOpens(onOpen: (data: { story_slug?: string | null }) => void): () => void {
+  const handled = new Set<string>();
+  const handle = (response: Notifications.NotificationResponse | null | undefined) => {
+    if (!response) return;
+    const request = response.notification.request;
+    const trigger = request.trigger as { type?: string } | null;
+    if (trigger?.type === "push" || handled.has(request.identifier)) return;
+    const slug = (request.content.data as { story_slug?: unknown } | undefined)?.story_slug;
+    if (typeof slug !== "string" || !slug) return;
+    handled.add(request.identifier);
+    onOpen({ story_slug: slug });
+  };
+  let active = true;
+  try {
+    Notifications.getLastNotificationResponseAsync()
+      .then((response) => {
+        if (active) handle(response);
+      })
+      .catch(() => undefined);
+    const sub = Notifications.addNotificationResponseReceivedListener(handle);
+    return () => {
+      active = false;
+      sub.remove();
+    };
+  } catch {
+    return () => undefined;
+  }
+}

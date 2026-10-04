@@ -374,5 +374,13 @@ new reasons `STORY_UNAVAILABLE` / `NO_LONGER_ELIGIBLE` instead of being sent.
 Migration `b8e2a6d4f1c3` (applied to the test DB by the suite; not to
 production). Contracts regenerated. API ruff, mypy and 624 tests pass; admin
 lint/typecheck pass. Not done: rights re-check at delivery (only public status),
-visa-tracker follow re-check, Expo local-reminder tap handling (review medium),
-the security requirements pass, and any production run.
+visa-tracker follow re-check, the security requirements pass, and any production run.
+
+**Review 2026-10-04 — read-later reminder taps (local, mobile):** taps on local
+read-later reminders now open the story, including from a cold start
+(`listenForReadLaterOpens` in `lib/readLater.ts`, wired in `App.tsx` through the
+same navigation-ready queue as FCM taps). Push-trigger responses are ignored so
+a push is not opened twice; each tap is applied once. Mobile tsc and 118 tests
+pass. NOT verified on a device (a real reminder tap from background and from a
+killed app; whether expo-notifications also surfaces FCM taps on Android); no
+APK rebuild.
