@@ -251,7 +251,7 @@ alert-enabled follower whose final-action cutoff moved (the first bulletin is a
 baseline, no alerts), through the normal quiet-hours/daily-cap/dedupe path.
 Migration `f6c0e4a8b3d9`. API ruff, mypy and 613 tests pass. Gaps at the time
 (since closed: mobile/web/admin UI, exam reminders and the tracker deep link, see
-the later P07 entries): a single admin can approve their own entry (ADR-046);
+the later P07 entries): a single admin can approve their own entry (ADR-046; closed by the later separation-of-duties entry);
 not run against managed infra.
 
 **P06 saved stories 2.0 (2026-10-04, local, mobile only):** ADR-044 accepted: a
@@ -394,10 +394,17 @@ admin can no longer overwrite their authenticator via `/mfa/enroll` (409);
 tracked files or history (the Firebase client key is intended to ship; restrict
 it in GCP). `pip-audit` clean. API ruff, mypy and 628 tests pass.
 Open, awaiting owner decisions in [ADR-046](docs/adr/ADR-046-security-requirements-open-decisions.md):
-self-approval of tracker entries, `package.json` `ignoreGhsas` contradicting
+`package.json` `ignoreGhsas` contradicting
 ADR-038, Cloudflare/real-IP and security headers, share-card and login per-IP
 rate limits, TOTP replay and MFA recovery, per-exam domain allowlist. Production
 evidence (MFA, rate limits, restore) still not gathered.
+
+**ADR-046 §1 tracker separation of duties (2026-10-04, local, API):** visa-bulletin
+and exam-deadline approval returns 409 `SELF_APPROVAL_FORBIDDEN` when the approver
+is the entry's last editor. A one-person team sets `ALLOW_SELF_APPROVAL=true`
+(default false) — **set it on the VPS if you are the only admin, or approvals will
+be refused**. Sensitive stories and corrections are not covered (still open in
+ADR-046 §1). Tests: `tests/test_tracker_separation.py`.
 
 **Review 2026-10-04 — delivery re-check gaps closed (local, API):** `_obsolete_reason`
 now also suppresses a queued story alert whose source rights are no longer

@@ -130,3 +130,9 @@ def test_approval_alerts_only_changed_alert_followers_once(client, db_session):
     run_notification_dispatch(db_session, _job())
     db_session.refresh(stale)
     assert (stale.status, stale.suppressed_reason) == ("SUPPRESSED", "NO_LONGER_ELIGIBLE")
+
+
+@pytest.fixture(autouse=True)
+def _single_admin_override(monkeypatch):
+    # These journeys use one admin; separation of duties is tested in test_tracker_separation.py.
+    monkeypatch.setenv("ALLOW_SELF_APPROVAL", "true")

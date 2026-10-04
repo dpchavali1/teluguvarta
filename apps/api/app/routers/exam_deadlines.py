@@ -14,7 +14,7 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.auth import AdminPrincipal, current_admin
+from app.auth import AdminPrincipal, current_admin, require_second_approver
 from app.content.exam_deadline import entry_error, normalize_exam
 from app.content.exam_deadline_db import queue_alerts
 from app.db import get_db
@@ -103,6 +103,7 @@ def approve_item(item_id: UUID, admin: AdminPrincipal = Depends(current_admin), 
     if row.status == "WITHDRAWN":
         raise APIError(409, "WITHDRAWN", "A withdrawn date cannot be approved")
     if row.status != "APPROVED":
+        require_second_approver(row.entered_by, admin)
         row.status, row.approved_by, row.approved_at = "APPROVED", admin.email, datetime.now(UTC)
         db.flush()
         queue_alerts(db, row.id, row.exam, "new")

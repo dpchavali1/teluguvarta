@@ -13,7 +13,8 @@ policy, so they are recorded rather than guessed.
 
 ## Decisions needed
 
-1. **Separation of duties.** Tracker entries (visa bulletin, exam dates) can be
+1. **Separation of duties.** *(Tracker entries: implemented 2026-10-04 as option
+   (a), override `ALLOW_SELF_APPROVAL=true`; stories and corrections still open.)* Tracker entries (visa bulletin, exam dates) can be
    approved by their own author; approval queues pushes. Options: (a) require a
    different admin to approve (409 when `approved_by == entered_by`), with an
    explicit documented single-admin override; (b) keep as is for a one-person

@@ -118,3 +118,9 @@ def test_approval_and_countdown_alert_only_alert_followers_once(client, db_sessi
 @requires_postgres
 def test_admin_routes_require_auth(client, path):
     assert client.get(path).status_code in (401, 403)
+
+
+@pytest.fixture(autouse=True)
+def _single_admin_override(monkeypatch):
+    # These journeys use one admin; separation of duties is tested in test_tracker_separation.py.
+    monkeypatch.setenv("ALLOW_SELF_APPROVAL", "true")

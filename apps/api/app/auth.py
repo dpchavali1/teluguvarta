@@ -124,3 +124,17 @@ def current_admin_for_enrollment(request: Request, db: Session = Depends(get_db)
     a privileged user with no `mfa_secret` can reach the endpoints that let
     them set one up (and can see and end that session)."""
     return _admin_principal(request, db, allow_enrollment=True)
+
+
+def require_second_approver(entered_by: str, admin: AdminPrincipal) -> None:
+    """ADR-046 §1: tracker entries need a different admin to approve them.
+
+    A one-person team opts out explicitly with ALLOW_SELF_APPROVAL=true; the
+    audit log still records both actors.
+    """
+    import os
+
+    from app.errors import APIError
+
+    if entered_by.lower() == admin.email.lower() and os.environ.get("ALLOW_SELF_APPROVAL", "false").strip().lower() != "true":
+        raise APIError(409, "SELF_APPROVAL_FORBIDDEN", "A different admin must approve this entry")

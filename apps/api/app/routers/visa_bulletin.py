@@ -13,7 +13,7 @@ from sqlalchemy import delete, select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.orm import Session
 
-from app.auth import AdminPrincipal, current_admin
+from app.auth import AdminPrincipal, current_admin, require_second_approver
 from app.content.visa_bulletin import entry_errors, movement, official_source_url
 from app.content.visa_bulletin_db import (
     entry_map,
@@ -117,6 +117,7 @@ def approve_bulletin(
     if bulletin is None:
         raise APIError(404, "BULLETIN_NOT_FOUND", f"No bulletin for {month}")
     if bulletin.status != "APPROVED":
+        require_second_approver(bulletin.entered_by, admin)
         bulletin.status = "APPROVED"
         bulletin.approved_by = admin.email
         bulletin.approved_at = datetime.now(UTC)
