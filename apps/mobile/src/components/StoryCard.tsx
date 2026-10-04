@@ -125,7 +125,7 @@ export function StoryCard({
 
   async function handleShare() {
     trackEvent("story_share", { story_id: story.id });
-    try { await shareStory(story.canonical_slug, variant!); }
+    try { await shareStory(story.canonical_slug, variant!, primarySource?.url); }
     catch { setActionStatus("Couldn’t open sharing. Please try again."); }
   }
 

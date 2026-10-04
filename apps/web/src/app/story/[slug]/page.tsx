@@ -33,8 +33,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
         description: meta.description,
         url: meta.canonical_url,
         type: "article",
-        // Text-only social preview in this phase — ADR-002 defers the
-        // branded Share Card image feature, so no `images` field here.
+        // Link preview stays text-only here; the share card (ADR-045) is only
+        // attached by the share action, not advertised as og:image.
       },
       twitter: { card: "summary", title: meta.title, description: meta.description },
     };

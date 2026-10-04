@@ -117,3 +117,5 @@ accepted. Add ad-hoc ADRs below this table as they're written.
 - ADR-042 | Sync saved story IDs and followed keywords for alerts (amends
   ADR-006, bounded) | P02 | **accepted** (owner 2026-10-03) — see
   [ADR-042](ADR-042-synced-saved-ids-and-keywords.md)
+- ADR-045 | WhatsApp share card vs. ADR-002 (supersedes its Share Card deferral if A) | P08 | **accepted** (owner 2026-10-04, option A) — see
+  [ADR-045](ADR-045-whatsapp-share-card.md)

@@ -303,6 +303,20 @@ migration `d4a8c2e6b1f9` must be run on the VPS first; no device push proof;
 web has no alert UI; admin/web builds not rerun since contracts regenerated.
 
 
+**P08 WhatsApp share card (2026-10-04, local):** [ADR-045](docs/adr/ADR-045-whatsapp-share-card.md)
+Option A (owner-accepted): card from TTE-authored text only. Web route
+`/story/[slug]/card?lang=en|te` returns a 1200x630 PNG (our headline, source
+domain, canonical link); 404 for retracted/unpublished stories and for
+link-first briefs (their headline is the source's). Web share attaches the
+card via the Web Share API when files are supported, else text (headline,
+`Source: domain`, URL). Renderer is HarfBuzz outlines + resvg because satori
+and resvg's own text engine both mis-shape Telugu conjuncts (checked visually
+on a sample). Bundled Noto Sans + Noto Sans Telugu (OFL). Mobile shares the
+text only (no file-sharing module installed). Web tests (18) / typecheck /
+lint / build and mobile typecheck + 112 tests pass. NOT verified: real
+WhatsApp/device share sheets, Linux VPS (resvg native package), live API story.
+
+
 The [historical tracker](docs/history/PROGRESS-through-T14-search-2026-10-01.md)
 contains detailed earlier statuses and validation. Temporary synthetic screenshots
 and logs are under `/tmp`; they are not production or device evidence.

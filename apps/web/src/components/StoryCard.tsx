@@ -12,6 +12,7 @@ import { SAVED_CHANGE_EVENT, isSaved, toggleSaved } from "@/lib/saved";
 import { track } from "@/lib/analytics";
 import { getPreferredLanguage, LANGUAGE_CHANGE_EVENT, refreshPreferredLanguage, setPreferredLanguage } from "@/lib/onboarding";
 import { PROFILE_STORAGE_KEY } from "@/lib/storyLanguage";
+import { canRenderShareCard, fetchCardFile, shareText } from "@/lib/shareCard";
 
 const STATUS_LABEL: Record<string, { text: string; className: string } | undefined> = {
   RETRACTED: { text: "Retracted", className: "badge--danger" },
@@ -90,9 +91,16 @@ export function StoryCard({ story, headingLevel = "h2", display = "default" }: {
 
   async function handleShare() {
     track("story_share", { story_id: story.id });
-    const shareData = { title: variant!.headline, text: variant!.summary, url };
+    // ADR-045: our text + attribution + link; plus the card image when the
+    // browser can share files and the story is card-eligible.
+    const shareData: ShareData = { title: variant!.headline, text: shareText(story, renderedLanguage, url), url };
     if (typeof navigator !== "undefined" && "share" in navigator) {
       try {
+        const file = canRenderShareCard(story) ? await fetchCardFile(story.canonical_slug, renderedLanguage) : null;
+        if (file && navigator.canShare?.({ files: [file] })) {
+          await navigator.share({ ...shareData, files: [file] });
+          return;
+        }
         await navigator.share(shareData);
         return;
       } catch (error) {
