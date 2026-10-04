@@ -417,3 +417,18 @@ def test_mfa_disable_requires_current_code(client, db_session):
 
     # MFA no longer required.
     assert _login(client).status_code == 200
+
+
+def test_enrolled_admin_cannot_replace_authenticator(client, db_session):
+    import pyotp
+
+    _seed_admin(db_session)
+    headers = admin_auth(_login_token(client))
+    secret = client.post("/v1/admin/auth/mfa/setup", headers=headers).json()["secret"]
+    client.post("/v1/admin/auth/mfa/enroll", json={"secret": secret, "code": pyotp.TOTP(secret).now()}, headers=headers)
+
+    full = admin_auth(_login_token(client, mfa_code=pyotp.TOTP(secret).now()))
+    other = pyotp.random_base32()
+    again = client.post("/v1/admin/auth/mfa/enroll", json={"secret": other, "code": pyotp.TOTP(other).now()}, headers=full)
+    assert again.status_code == 409
+    assert again.json()["error"]["code"] == "MFA_ALREADY_ENROLLED"

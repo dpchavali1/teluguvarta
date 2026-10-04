@@ -40,7 +40,8 @@ def test_rules():
     assert [normalize_exam(v) for v in (" gre ", "TOEFL-iBT", "x", "bad key", "a" * 21)] == ["GRE", "TOEFL-IBT", None, None, None]
     assert entry_error("GRE", "EXAM_DATE", "t", SRC) is None
     assert all(entry_error(*args) for args in [("x", "EXAM_DATE", "t", SRC), ("GRE", "NOPE", "t", SRC),
-                                               ("GRE", "EXAM_DATE", " ", SRC), ("GRE", "EXAM_DATE", "t", "http://x.example/a")])
+                                               ("GRE", "EXAM_DATE", " ", SRC), ("GRE", "EXAM_DATE", "t", "http://x.example/a"),
+                                               ("GRE", "EXAM_DATE", "t", "https://ets.org\\@evil.example")])
     today = date(2026, 10, 4)
     assert [reminder_tag(today + timedelta(days=n), today) for n in (0, 1, 2, 7, 8)] == [None, "d1", None, "d7", None]
     assert parse_notification_key(notification_key("abc", "d7")) == ("abc", "d7")

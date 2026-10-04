@@ -29,6 +29,8 @@ def valid_cutoff(value: str) -> bool:
 
 
 def official_source_url(url: str) -> bool:
+    if len(url) > 500 or any(c in url for c in "\\@%") or any(c.isspace() or ord(c) < 32 for c in url):
+        return False
     parsed = urlparse(url)
     host = (parsed.hostname or "").lower()
     return parsed.scheme == "https" and (host == OFFICIAL_HOST or host.endswith("." + OFFICIAL_HOST))

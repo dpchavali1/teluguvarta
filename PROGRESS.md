@@ -384,3 +384,17 @@ a push is not opened twice; each tap is applied once. Mobile tsc and 118 tests
 pass. NOT verified on a device (a real reminder tap from background and from a
 killed app; whether expo-notifications also surfaces FCM taps on Android); no
 APK rebuild.
+
+**Security requirements pass (2026-10-04, local, API):** audited secrets, admin
+auth, approval authority, source links, share card, dependencies and perimeter.
+Fixed: visa-bulletin and exam-date source URLs reject backslash, `@`/userinfo,
+whitespace and >500 chars (the visa check was bypassable with `\@`); an enrolled
+admin can no longer overwrite their authenticator via `/mfa/enroll` (409);
+`.env.*` is git-ignored (`.env.example` kept). No credentials were found in
+tracked files or history (the Firebase client key is intended to ship; restrict
+it in GCP). `pip-audit` clean. API ruff, mypy and 628 tests pass.
+Open, awaiting owner decisions in [ADR-046](docs/adr/ADR-046-security-requirements-open-decisions.md):
+self-approval of tracker entries, `package.json` `ignoreGhsas` contradicting
+ADR-038, Cloudflare/real-IP and security headers, share-card and login per-IP
+rate limits, TOTP replay and MFA recovery, per-exam domain allowlist. Production
+evidence (MFA, rate limits, restore) still not gathered.

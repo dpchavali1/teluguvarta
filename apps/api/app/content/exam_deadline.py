@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import re
 from datetime import date
+from urllib.parse import urlparse
 
 KINDS = ("REGISTRATION_DEADLINE", "EXAM_DATE", "RESULT_DATE", "APPLICATION_DEADLINE")
 KIND_LABEL = {
@@ -28,7 +29,11 @@ def normalize_exam(value: str) -> str | None:
 
 
 def https_url(url: str) -> bool:
-    return url.lower().startswith("https://") and len(url) > len("https://") + 3
+    if len(url) > 500 or any(c in url for c in "\\@") or any(c.isspace() or ord(c) < 32 for c in url):
+        return False
+    parsed = urlparse(url)
+    host = parsed.hostname or ""
+    return parsed.scheme == "https" and "." in host
 
 
 def entry_error(exam: str, kind: str, title: str, source_url: str) -> str | None:

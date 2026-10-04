@@ -178,6 +178,10 @@ def mfa_enroll(
     user = db.get(User, admin.user_id)
     if user is None:
         raise APIError(404, "NOT_FOUND", "Admin user not found")
+    if user.mfa_secret is not None:
+        # Replacing an enrolled authenticator would let a stolen session take
+        # over the account; reset is an operator action, not a self-service one.
+        raise APIError(409, "MFA_ALREADY_ENROLLED", "An authenticator is already enrolled")
     user.mfa_secret = encrypt_mfa_secret(body.secret)
     db.commit()
     # An enrollment session never becomes a full one: the editor signs in

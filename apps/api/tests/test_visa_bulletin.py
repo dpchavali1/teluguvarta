@@ -42,6 +42,9 @@ def test_cutoff_validation_and_movement():
     ("https://evil.example/travel.state.gov", False),
     ("http://travel.state.gov/x", False),
     ("https://travel.state.gov.evil.example/x", False),
+    ("https://evil.example\\@travel.state.gov", False),
+    ("https://user@travel.state.gov/x", False),
+    ("https://travel.state.gov/" + "a" * 500, False),
 ])
 def test_only_https_state_department_links(url, ok):
     assert official_source_url(url) is ok
