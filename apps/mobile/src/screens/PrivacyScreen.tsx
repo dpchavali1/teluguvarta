@@ -108,7 +108,7 @@ export function PrivacyScreen() {
       <View style={styles.analyticsRow}>
         <View style={styles.analyticsCopy}>
           <Text style={styles.analyticsTitle}>Usage analytics</Text>
-          <Text style={styles.body}>Help improve the app by sharing basic usage counts with Google Firebase. This is off until you turn it on. Searches, story IDs, profile details, and notification content are never sent.</Text>
+          <Text style={styles.body}>Help improve the app by sharing basic usage counts with Google Firebase. This is on by default; turn it off here any time. Searches, story IDs, profile details, and notification content are never sent.</Text>
         </View>
         <Switch
           accessibilityLabel="Share usage analytics"

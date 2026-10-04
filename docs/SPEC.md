@@ -457,7 +457,7 @@ generation if the QA failure rate spikes.
   validation/output encoding, signed webhook verification, dependency
   scanning, SAST in CI, encrypted backups.
 - **Privacy**: no-account browsing by default, coarse geography only, no GPS
-  in V1, no data sale, separate analytics consent, retention schedules,
+  in V1, no data sale, mobile usage analytics on by default with in-app opt-out (ADR-051), retention schedules,
   cross-system deletion job.
 - **Reliability targets**: API availability 99.5%/month; feed P95 < 800ms
   cached / < 1.5s uncached; story page < 1.5s; job success 95% on first

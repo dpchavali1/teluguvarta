@@ -121,3 +121,5 @@ accepted. Add ad-hoc ADRs below this table as they're written.
   [ADR-045](ADR-045-whatsapp-share-card.md)
 - ADR-047 | Dated, owned exceptions for unpatched dev-tooling advisories (supersedes ADR-038 suppression ban) | T19 | **accepted** (owner 2026-10-04, option B; expiry date to confirm) — see
   [ADR-047](ADR-047-dated-audit-exceptions.md)
+- ADR-051 | Mobile usage analytics default-on vs. ADR-039 / SPEC separate consent | — | **accepted** (owner 2026-10-04, option A) — see
+  [ADR-051](ADR-051-mobile-analytics-default-on.md)

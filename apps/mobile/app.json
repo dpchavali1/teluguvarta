@@ -13,7 +13,7 @@
       "bundleIdentifier": "org.teluguglobal.app",
       "googleServicesFile": "./GoogleService-Info.plist",
       "infoPlist": {
-        "FIREBASE_ANALYTICS_COLLECTION_ENABLED": false
+        "FIREBASE_ANALYTICS_COLLECTION_ENABLED": true
       }
     },
     "android": {

@@ -22,11 +22,20 @@ beforeEach(async () => {
   jest.clearAllMocks();
 });
 
-test("collection starts off and sends no event before affirmative consent", async () => {
+test("collection is on by default (ADR-051) and sends only safe event names", async () => {
+  await initializeMobileAnalytics();
+  expect(await getMobileAnalyticsConsent()).toBe(true);
+  expect(setAnalyticsCollectionEnabled).toHaveBeenCalledWith(expect.anything(), true);
+  await trackEvent("story_open", { story_id: "private-story" });
+  expect(logEvent).toHaveBeenCalledWith(expect.anything(), "story_open");
+});
+
+test("an explicit stored opt-out is respected on launch", async () => {
+  await AsyncStorage.setItem(ANALYTICS_CONSENT_KEY, "false");
   await initializeMobileAnalytics();
   expect(await getMobileAnalyticsConsent()).toBe(false);
   expect(setAnalyticsCollectionEnabled).toHaveBeenCalledWith(expect.anything(), false);
-  await trackEvent("story_open", { story_id: "private-story" });
+  await trackEvent("story_open");
   expect(logEvent).not.toHaveBeenCalled();
 });
 

@@ -516,3 +516,12 @@ DIGEST/STORY_UPDATE routes. **Deploy:** run migration `c3f9a1d7e5b2` before the 
 revision; recreate the worker with `up -d worker`; mobile needs a rebuild + reinstall (new manifest
 meta-data). Not verified on a device: foreground display, channel importance, tap routing. Expect one
 extra briefing on deploy day (old UTC-date key).
+
+**ADR-051 — mobile usage analytics on by default (2026-10-04).** Owner chose option A. Native
+defaults (`firebase.json`, `app.json` Info.plist key) and `mobileAnalytics.ts` now start enabled; an
+explicit stored "false" from the Privacy toggle is still respected. Privacy screen + web `/privacy`
+copy, ADR-039 pt 3 and the SPEC privacy line updated. Needs a mobile rebuild to take effect. Verify
+in Firebase DebugView (`adb shell setprop debug.firebase.analytics.app org.teluguglobal.app`).
+Note: `android/` is gitignored; the local manifest got `tools:replace="android:value"` on the
+`default_notification_channel_id` meta-data to fix a merge conflict with react-native-firebase —
+that edit is lost on `expo prebuild --clean` and should move into the `defaultChannel` config.

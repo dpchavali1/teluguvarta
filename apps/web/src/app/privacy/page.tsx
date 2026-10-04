@@ -24,11 +24,11 @@ export default function PrivacyPage() {
         you explicitly choose.
       </p>
       <p>
-        In the mobile app, optional usage analytics is off until you turn it on
-        in Privacy &amp; delete account. If enabled, Google Firebase Analytics
-        receives basic app interactions and its app-instance identifier. We do
+        In the mobile app, usage analytics is on by default to help us improve
+        the app, and you can turn it off any time in Privacy &amp; delete
+        account. While on, Google Firebase Analytics receives basic app interactions and its app-instance identifier. We do
         not send search text, story IDs, profile details, or notification
-        content. You can turn analytics off again in the app; deleting your
+        content. Advertising uses are never enabled. Deleting your
         account also resets its analytics identifier.
       </p>
     </div>

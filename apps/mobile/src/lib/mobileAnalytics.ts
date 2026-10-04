@@ -8,14 +8,15 @@ import {
 } from "@react-native-firebase/analytics";
 import { ANALYTICS_CONSENT_KEY } from "./storage";
 
-// Separate from alert consent. Native firebase.json and Info.plist keep
-// collection off before JS starts, including on the first launch.
+// Separate from alert consent. On by default (ADR-051); only an explicit "false"
+// stored by the Privacy toggle turns it off. Native firebase.json and Info.plist
+// match that default so first-launch events are not lost.
 let consent: boolean | null = null;
 
 async function storedConsent(): Promise<boolean> {
   if (consent !== null) return consent;
   try {
-    consent = (await AsyncStorage.getItem(ANALYTICS_CONSENT_KEY)) === "true";
+    consent = (await AsyncStorage.getItem(ANALYTICS_CONSENT_KEY)) !== "false";
   } catch {
     consent = false;
   }

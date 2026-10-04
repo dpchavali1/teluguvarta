@@ -29,9 +29,9 @@ in a build.
    app or Git. Native app configuration files contain project identifiers,
    not service-account private keys. No push delivery is enabled until a
    physical-device token, one test send, and its outcome are verified.
-3. Firebase Analytics is mobile-only. It starts disabled before SDK startup,
-   requires a separate, affirmative reader choice, and can be turned off
-   again. Never set Firebase user ID, send authentication tokens, free text,
+3. Firebase Analytics is mobile-only. *(Amended by ADR-051: it now starts
+   enabled and the reader can turn it off; originally it started disabled and
+   required an affirmative choice.)* Never set Firebase user ID, send authentication tokens, free text,
    search terms, story IDs, or sensitive profile attributes as analytics
    properties. The account-deletion flow disables collection and resets
    Firebase's app analytics identifier. Update the privacy copy before

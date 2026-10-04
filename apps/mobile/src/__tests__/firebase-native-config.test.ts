@@ -1,16 +1,16 @@
-// A native SDK can collect before JS runs. Keep these defaults off even when
-// the app is rebuilt or the consent UI changes.
+// A native SDK collects before JS runs, so these native defaults must match
+// the JS default in mobileAnalytics.ts (on, per ADR-051).
 const firebaseConfig = require("../../firebase.json");
 const appConfig = require("../../app.json");
 
-test("Firebase collection and Messaging auto-init start disabled", () => {
+test("Analytics starts on (ADR-051); screen reporting and Messaging auto-init stay off", () => {
   expect(firebaseConfig["react-native"]).toMatchObject({
-    app_data_collection_default_enabled: false,
-    analytics_auto_collection_enabled: false,
+    app_data_collection_default_enabled: true,
+    analytics_auto_collection_enabled: true,
     google_analytics_automatic_screen_reporting_enabled: false,
     messaging_auto_init_enabled: false,
   });
-  expect(appConfig.expo.ios.infoPlist.FIREBASE_ANALYTICS_COLLECTION_ENABLED).toBe(false);
+  expect(appConfig.expo.ios.infoPlist.FIREBASE_ANALYTICS_COLLECTION_ENABLED).toBe(true);
 });
 
 test("native Firebase files belong to the existing app identifiers", () => {
