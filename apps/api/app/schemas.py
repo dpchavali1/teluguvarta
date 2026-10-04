@@ -16,6 +16,7 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from app.content.places import MAX_FOLLOWED_PLACES
+from app.content.visa_bulletin import MAX_VISA_FOLLOWS
 
 Language = Literal["en", "te"]
 TopicUrgency = Literal["INSTANT", "BREAKING_ONLY", "DIGEST"]
@@ -144,6 +145,45 @@ class PlaceFollow(BaseModel):
     alerts: bool = False
 
 
+class VisaFollow(BaseModel):
+    """P07 / ADR-041: a tracked visa bulletin category + country."""
+
+    category: str
+    country: str = "ALL"
+    alerts: bool = False
+
+
+class VisaBulletinEntryIn(BaseModel):
+    chart: str
+    category: str
+    country: str
+    cutoff: str
+
+
+class VisaBulletinIn(BaseModel):
+    """Editor entry from the official bulletin; replaces a DRAFT's entries."""
+
+    source_url: str
+    entries: list[VisaBulletinEntryIn] = Field(min_length=1, max_length=200)
+
+
+class VisaBulletinEntryOut(BaseModel):
+    chart: str
+    category: str
+    country: str
+    cutoff: str
+    previous: str | None = None
+    movement: str
+
+
+class VisaBulletinOut(BaseModel):
+    id: UUID
+    month: str
+    status: str
+    source_url: str
+    entries: list[VisaBulletinEntryOut]
+
+
 class ProfileOut(BaseModel):
     residence_country: str | None = None
     residence_region: str | None = None
@@ -168,6 +208,7 @@ class ProfileOut(BaseModel):
     keywords: list[str] = Field(default_factory=list)
     saved_story_ids: list[UUID] = Field(default_factory=list)
     follow_places: list[PlaceFollow] = Field(default_factory=list)
+    follow_visa: list[VisaFollow] = Field(default_factory=list)
 
 
 class MeResponse(BaseModel):
@@ -201,6 +242,7 @@ class PreferencesUpdate(BaseModel):
     saved_story_ids: list[UUID] | None = Field(default=None, max_length=MAX_SAVED_STORIES)
     # ADR-043: omitted keeps, [] clears; unknown ids are dropped, more than 10 is a 422.
     follow_places: list[PlaceFollow] | None = Field(default=None, max_length=MAX_FOLLOWED_PLACES)
+    follow_visa: list[VisaFollow] | None = Field(default=None, max_length=MAX_VISA_FOLLOWS)
 
     @field_validator("home_tz", "residence_tz")
     @classmethod
@@ -246,7 +288,7 @@ class DeleteAccountResponse(BaseModel):
     deleted: bool
 
 
-NotificationType = Literal["DAILY_BRIEFING", "TOPIC_ALERT", "BREAKING_ALERT", "DIGEST", "STORY_UPDATE"]
+NotificationType = Literal["DAILY_BRIEFING", "TOPIC_ALERT", "BREAKING_ALERT", "DIGEST", "STORY_UPDATE", "TRACKER_UPDATE"]
 
 
 class NotificationOut(BaseModel):

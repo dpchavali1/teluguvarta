@@ -30,3 +30,12 @@ Slower, legally safe. Some trackers may never ship if no permitted feed exists.
 
 Scraping aggregators (rejected: rights gate). A single generic tracker
 framework first (rejected: premature before one source is approved).
+
+## Addendum 2026-10-04 (P07, visa bulletin)
+
+The official bulletin page blocks automated fetching (Cloudflare 403, also for
+`robots.txt`), and we do not work around it. Owner decision: no ingest job;
+editors enter each month's cutoffs by hand from the official notice, with a link
+to the primary source, and a second step approves it. Alerts reach only followers
+whose final-action cutoff moved, and only after approval. A parser may be added
+later if the State Department permits automated access.

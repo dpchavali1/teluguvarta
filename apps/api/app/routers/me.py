@@ -29,6 +29,7 @@ from sqlalchemy.orm import Session
 
 from app.auth import Principal, current_user
 from app.content.places import normalize_place_ids
+from app.content.visa_bulletin import CATEGORIES, COUNTRIES
 from app.db import get_db
 from app.models import (
     Notification,
@@ -41,6 +42,7 @@ from app.models import (
     UserPlace,
     UserSavedStory,
     UserTopic,
+    UserVisaFollow,
 )
 from app.schemas import (
     DeleteAccountResponse,
@@ -56,6 +58,7 @@ from app.schemas import (
     SavedStoryResponse,
     TopicOut,
     TopicUrgency,
+    VisaFollow,
 )
 
 router = APIRouter(prefix="/v1/me", tags=["me"])
@@ -100,6 +103,13 @@ def _profile_out(db: Session, user_id: UUID, profile: Profile | None) -> Profile
         topic_urgency=cast(dict[str, TopicUrgency], _topic_urgency(db, user_id)),
         keywords=sorted(db.scalars(select(UserKeyword.keyword).where(UserKeyword.user_id == user_id)).all()),
         saved_story_ids=list(db.scalars(select(UserSavedStory.story_id).where(UserSavedStory.user_id == user_id)).all()),
+        follow_visa=[
+            VisaFollow(category=cat, country=ctry, alerts=alerts)
+            for cat, ctry, alerts in db.execute(
+                select(UserVisaFollow.category, UserVisaFollow.country, UserVisaFollow.alerts)
+                .where(UserVisaFollow.user_id == user_id).order_by(UserVisaFollow.category, UserVisaFollow.country)
+            ).all()
+        ],
         follow_places=[
             PlaceFollow(place_id=pid, alerts=alerts)
             for pid, alerts in db.execute(
@@ -167,6 +177,15 @@ def update_preferences(
             if follow.place_id in valid and follow.place_id not in seen:
                 seen.add(follow.place_id)
                 db.add(UserPlace(user_id=principal.user_id, place_id=follow.place_id, alerts=follow.alerts))
+
+    if body.follow_visa is not None:
+        db.query(UserVisaFollow).filter(UserVisaFollow.user_id == principal.user_id).delete()
+        seen_visa: set[tuple[str, str]] = set()
+        for vfollow in body.follow_visa:
+            key = (vfollow.category, vfollow.country)
+            if vfollow.category in CATEGORIES and vfollow.country in COUNTRIES and key not in seen_visa:
+                seen_visa.add(key)
+                db.add(UserVisaFollow(user_id=principal.user_id, category=vfollow.category, country=vfollow.country, alerts=vfollow.alerts))
 
     if body.saved_story_ids is not None:
         db.query(UserSavedStory).filter(UserSavedStory.user_id == principal.user_id).delete()

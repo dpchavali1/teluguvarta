@@ -6,10 +6,11 @@ tickets need them; don't mirror every migration column speculatively.
 """
 
 import uuid
-from datetime import datetime
+from datetime import date, datetime
 
 from sqlalchemy import (
     Boolean,
+    Date,
     DateTime,
     Float,
     ForeignKey,
@@ -304,6 +305,45 @@ class UserPlace(Base):
     user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
     place_id: Mapped[str] = mapped_column(Text, primary_key=True)
     alerts: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="false")
+
+
+class UserVisaFollow(Base):
+    """P07 / ADR-041: a visa bulletin category + country the reader tracks.
+    Capped at 5 per user; `alerts` is the per-follow alert switch."""
+
+    __tablename__ = "user_visa_follows"
+
+    user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
+    category: Mapped[str] = mapped_column(Text, primary_key=True)
+    country: Mapped[str] = mapped_column(Text, primary_key=True)
+    alerts: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="false")
+
+
+class VisaBulletin(Base):
+    """P07 / ADR-041: one month's bulletin, entered by an editor from the
+    official notice. DRAFT until a second review step approves it; only
+    APPROVED bulletins are public and alert followers."""
+
+    __tablename__ = "visa_bulletins"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    month: Mapped[date] = mapped_column(Date, nullable=False, unique=True)
+    source_url: Mapped[str] = mapped_column(Text, nullable=False)
+    status: Mapped[str] = mapped_column(Text, nullable=False, server_default="DRAFT")
+    entered_by: Mapped[str] = mapped_column(Text, nullable=False)
+    approved_by: Mapped[str | None] = mapped_column(Text, nullable=True)
+    approved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+
+
+class VisaBulletinEntry(Base):
+    __tablename__ = "visa_bulletin_entries"
+
+    bulletin_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("visa_bulletins.id", ondelete="CASCADE"), primary_key=True)
+    chart: Mapped[str] = mapped_column(Text, primary_key=True)
+    category: Mapped[str] = mapped_column(Text, primary_key=True)
+    country: Mapped[str] = mapped_column(Text, primary_key=True)
+    cutoff: Mapped[str] = mapped_column(Text, nullable=False)
 
 
 class Profile(Base):

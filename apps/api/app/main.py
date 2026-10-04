@@ -9,7 +9,7 @@ from app.ai.budget import require_budget_config
 from app.db import _engine_for
 from app.errors import RequestIDMiddleware, register_error_handlers
 from app.observability.logging import configure_logging, get_logger
-from app.routers import admin, admin_auth, me, public
+from app.routers import admin, admin_auth, me, public, visa_bulletin
 
 configure_logging()
 logger = get_logger(__name__)
@@ -43,6 +43,8 @@ app.include_router(public.router)
 app.include_router(me.router)
 app.include_router(admin_auth.router)
 app.include_router(admin.router)
+app.include_router(visa_bulletin.public_router)
+app.include_router(visa_bulletin.admin_router)
 
 
 @app.get("/health")

@@ -34,6 +34,7 @@ story/topic page; if unavailable, fall back to the inbox or home feed").
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
+from uuid import UUID
 
 from sqlalchemy import func, select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
@@ -54,6 +55,8 @@ from app.content.notifications import (
     topic_alert_eligible,
 )
 from app.content.places import event_places_many, expand_with_ancestors
+from app.content.visa_bulletin_db import followers_changes
+from app.content.visa_bulletin_db import push_copy as visa_push_copy
 from app.jobs.queue import backoff_seconds, enqueue_job
 from app.models import (
     Correction,
@@ -72,6 +75,7 @@ from app.models import (
     UserPlace,
     UserSavedStory,
     UserTopic,
+    VisaBulletin,
 )
 from app.push import send_push
 
@@ -329,6 +333,11 @@ def _push_copy(db: Session, notification: Notification) -> tuple[str, str]:
         prefs = _load_prefs(db, notification.user_id)
         count = len(_digest_story_ids(db, notification.user_id, prefs, _now()))
         return "Your TTE digest", f"{count} new stories in topics you follow." if count else "New stories in topics you follow."
+    if notification.type == "TRACKER_UPDATE":
+        bulletin_id = notification.notification_key.removeprefix("visa_bulletin:")
+        bulletin = db.get(VisaBulletin, UUID(bulletin_id))
+        changes = followers_changes(db, bulletin, notification.user_id).get(notification.user_id, []) if bulletin else []
+        return visa_push_copy(changes)
     if notification.type == "STORY_UPDATE":
         profile = db.get(Profile, notification.user_id)
         headline = _story_headline(db, notification.story_id, profile.language if profile else "en")

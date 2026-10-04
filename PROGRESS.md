@@ -239,6 +239,21 @@ typecheck and jest (99) pass. Gaps: no web/API change (no server-side mutes or
 sources mute; "mute source" not built); signals page resets hidden topics only
 (follows/saves edited on their own screens); not device-verified.
 
+**P07 visa bulletin tracker (2026-10-04, local, API only):** travel.state.gov
+returns a Cloudflare 403 to automated fetches (checked, including `robots.txt`),
+so per owner decision there is no ingest job: an editor enters each month from the
+official notice (`PUT /v1/admin/visa-bulletins/{YYYY-MM}`, source link must be an
+https travel.state.gov page), then approves it (`POST .../approve`). Only APPROVED
+bulletins are public (`GET /v1/visa-bulletins/latest?category=&country=`, with
+previous cutoff and movement). Readers follow up to 5 category+country pairs via
+`follow_visa` on `/me/preferences`; approval queues one `TRACKER_UPDATE` per
+alert-enabled follower whose final-action cutoff moved (the first bulletin is a
+baseline, no alerts), through the normal quiet-hours/daily-cap/dedupe path.
+Migration `f6c0e4a8b3d9`. API ruff, mypy and 613 tests pass. Gaps: no mobile/web/
+admin UI yet; exam/deadline reminders (second half of P07) not started; a single
+admin can approve their own entry (no four-eyes rule was requested); the alert
+deep-links to Home, not a tracker screen; not run against managed infra.
+
 **P06 saved stories 2.0 (2026-10-04, local, mobile only):** ADR-044 accepted: a
 save stays a bookmark (ID only, no story text on the device, no offline
 reading). Added on-device collections (max 20), per-story notes (500 chars) and
