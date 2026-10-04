@@ -522,3 +522,44 @@ def unpermitted_sources_all(db, story):
         .join(StorySource, StorySource.source_item_id == SourceItem.id)
         .where(StorySource.story_id == story.id)
     ).all()
+
+
+def test_journey_alert_queued_then_unsubscribed_through_the_api_is_not_sent(client, db_session):
+    from sqlalchemy import select
+
+    from tests.test_smart_alerts import AUTH
+
+    topic = _make_topic(db_session, "money")
+    story = _make_published_story(db_session, topics=[topic])
+    follow = client.patch("/v1/me/preferences", json={"topic_slugs": ["money"]}, headers=AUTH)
+    assert follow.status_code == 200
+    user_id = db_session.scalar(select(UserTopic.user_id).where(UserTopic.topic_id == topic.id))
+    row = Notification(
+        user_id=user_id, story_id=story.id, type="TOPIC_ALERT",
+        notification_key=f"topic_alert:{story.id}", status="PENDING",
+    )
+    db_session.add(row)
+    db_session.commit()
+
+    unfollow = client.patch("/v1/me/preferences", json={"topic_slugs": []}, headers=AUTH)
+    assert unfollow.status_code == 200
+
+    row = _dispatch_and_reload(db_session, row)
+    assert (row.status, row.suppressed_reason) == ("SUPPRESSED", "NO_LONGER_ELIGIBLE")
+
+
+def test_journey_alert_queued_then_story_retracted_through_the_admin_api_is_not_sent(client, db_session):
+    from tests.test_editorial_workflow import _auth, _token
+
+    topic = _make_topic(db_session, "money")
+    story = _make_published_story(db_session, topics=[topic])
+    user = _make_user_with_topic(db_session, topic)
+    row = _queue(db_session, user, story, "TOPIC_ALERT", f"topic_alert:{story.id}")
+
+    retract = client.post(
+        f"/v1/admin/stories/{story.id}/retract", json={"reason": "wrong"}, headers=_auth(_token(client, db_session))
+    )
+    assert retract.status_code == 200
+
+    row = _dispatch_and_reload(db_session, row)
+    assert (row.status, row.suppressed_reason) == ("SUPPRESSED", "STORY_UNAVAILABLE")
