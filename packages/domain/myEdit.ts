@@ -43,7 +43,8 @@ export function isMuteProtected(story: Pick<MyEditStory, "sensitivity">): boolea
  */
 export function sourceDomainOf(url: string | undefined): string | null {
   const match = /^https?:\/\/(?:[^/?#@]*@)?([^/?#:]+)/i.exec(url ?? "");
-  return match ? match[1].toLowerCase().replace(/^www\./, "") : null;
+  const host = match?.[1];
+  return host ? host.toLowerCase().replace(/^www\./, "") : null;
 }
 
 /**
