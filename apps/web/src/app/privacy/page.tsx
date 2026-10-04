@@ -9,7 +9,8 @@ export default function PrivacyPage() {
       <p>You can read every story on TTE without creating an account.</p>
       <p>
         Saved stories are stored only in your browser&rsquo;s local storage on
-        this device — they are not sent to us or linked to any account.
+        this device, along with any lists and private notes you add to them — they
+        are not sent to us or linked to any account.
       </p>
       <p>
         If TTE account creation is enabled in the future, you will be

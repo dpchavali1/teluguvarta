@@ -1807,3 +1807,28 @@ html[data-reading="short"] .story-card:not(.story-card--detail) .story-card__sum
 html[data-reading="short"] .story-card:not(.story-card--detail) .story-card__why { display: none; }
 
 .reading-controls__preview { margin-block: 0.5rem; }
+
+.saved-organizer {
+  margin-top: var(--space-sm);
+  font-size: var(--text-small);
+}
+
+.saved-organizer summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.saved-organizer label {
+  display: block;
+}
+
+.saved-organizer textarea {
+  width: 100%;
+  margin: var(--space-xs) 0;
+}
+
+.chip[aria-pressed="true"] {
+  border-color: var(--action-primary);
+  background: var(--action-primary-soft);
+  color: var(--action-text);
+}

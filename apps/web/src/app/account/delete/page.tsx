@@ -14,6 +14,7 @@ export default function DeleteAccountPage() {
     setCleared(false);
     try {
       window.localStorage.removeItem("tg_saved_stories");
+      window.localStorage.removeItem("tg_saved_extras_v1");
       window.dispatchEvent(new Event("tg:saved-change"));
     } catch {
       setError(true);

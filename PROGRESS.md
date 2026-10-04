@@ -265,6 +265,15 @@ Mobile typecheck and jest (110) pass. Gaps: no web parity; reminders and the
 Organize sheet not device-verified (permission prompt, delivery, restart); no
 bundle/APK rebuild yet.
 
+**P06 web parity (2026-10-04, local, web only):** Saved on the web now has lists
+(max 20) and private notes (500 chars) per bookmark, per ADR-044: browser-only
+(`tg_saved_extras_v1`), no story text stored, unsaving drops a story's note and
+list membership, and "clear saved stories" and the privacy copy cover them. The
+pure logic moved to `packages/domain/savedExtras.ts` (mobile re-exports it).
+Reminders stay mobile-only (they need local notifications). Web typecheck/lint/
+24 tests/build and mobile typecheck/118 tests pass. Not exercised in a browser;
+no axe/keyboard pass on the new controls.
+
 **P03 location follows (2026-10-04, local):** ADR-043 accepted (diaspora catalog,
 explicit residence + origin, up to 10 follows, model-proposed tags with editor
 override, new stories only). Backend: catalog `apps/api/app/content/places.py`

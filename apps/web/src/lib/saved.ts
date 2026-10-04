@@ -3,6 +3,8 @@
 // and therefore saving, works without login), so V1 saves live in the
 // viewer's own browser; swapping in an account-backed store later is a
 // pure addition, not a breaking change to this API.
+import { dropStoryExtras } from "./savedExtras.ts";
+
 const STORAGE_KEY = "tg_saved_stories";
 
 function readAll(strict = false): string[] {
@@ -40,6 +42,7 @@ export function toggleSaved(storyId: string): boolean {
   }
   ids.splice(index, 1);
   writeAll(ids);
+  dropStoryExtras(storyId);
   return false;
 }
 
