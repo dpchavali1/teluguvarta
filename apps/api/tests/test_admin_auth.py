@@ -289,6 +289,35 @@ def test_login_rate_limit_does_not_affect_other_emails(client, db_session):
     assert _login(client, email="other-admin@example.com").status_code == 200
 
 
+def test_login_is_rate_limited_per_ip_across_emails(client, db_session):
+    from app.models import AdminLoginAttempt
+
+    _seed_admin(db_session)
+
+    # 20 failures from one address against 20 different (even unknown) emails:
+    # no single email reaches its own limit, but the address is blocked.
+    now = datetime.now(UTC)
+    for i in range(20):
+        db_session.add(AdminLoginAttempt(email=f"guess{i}@example.com", ip="testclient", success=False, created_at=now))
+    db_session.commit()
+
+    response = _login(client)
+    assert response.status_code == 429
+    assert response.json()["error"]["code"] == "RATE_LIMITED"
+
+
+def test_successful_logins_do_not_count_toward_the_ip_limit(client, db_session):
+    from app.models import AdminLoginAttempt
+
+    _seed_admin(db_session)
+    now = datetime.now(UTC)
+    for i in range(25):
+        db_session.add(AdminLoginAttempt(email=f"ok{i}@example.com", ip="testclient", success=True, created_at=now))
+    db_session.commit()
+
+    assert _login(client).status_code == 200
+
+
 # --- T19 §16 baseline: MFA on admin sessions ---
 
 

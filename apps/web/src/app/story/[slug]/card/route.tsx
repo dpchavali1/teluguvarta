@@ -1,5 +1,6 @@
 import { ApiNotFoundError, getStory, storyUrl } from "@/lib/api";
 import { pathParam } from "@/lib/pathParam";
+import { shareCardAllowed } from "@/lib/rateLimit";
 import { renderShareCardPng } from "@/lib/renderShareCard";
 import { shareCardContent } from "@/lib/shareCard";
 
@@ -9,6 +10,10 @@ export const revalidate = 60;
 // ADR-045: WhatsApp share card from TTE-authored text only. Missing,
 // retracted/unpublished (API 404) and link-first brief stories return 404.
 export async function GET(request: Request, { params }: { params: Promise<{ slug: string }> }) {
+  // ADR-046 §4: bound CPU spent rendering PNGs; CDN/browser caching absorbs normal traffic.
+  if (!shareCardAllowed(request.headers)) {
+    return new Response("Too many requests", { status: 429, headers: { "retry-after": "60" } });
+  }
   const slug = pathParam((await params).slug);
   if (slug === null) return new Response("Not found", { status: 404 });
   let story;

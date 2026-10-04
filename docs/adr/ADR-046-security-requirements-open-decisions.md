@@ -29,7 +29,9 @@ policy, so they are recorded rather than guessed.
    CDN ranges, `real_ip_header CF-Connecting-IP` in nginx, uvicorn
    `--forwarded-allow-ips` limited to the proxy, otherwise per-IP rate limits
    collapse into one bucket. Security headers (HSTS, CSP) for web and API.
-4. **Public expensive endpoints.** Rate limit and cache `/story/*/card`;
+4. **Public expensive endpoints.** *(Implemented 2026-10-04: share card 20/min per
+   client + 300/min global, in-process, 60 s cache already present; admin login
+   20 failed attempts per IP per 15 min. Client key depends on §3.)* Rate limit and cache `/story/*/card`;
    per-IP limit on admin login (today per email only).
 5. **MFA lifecycle.** Lost-authenticator recovery (operator reset), TOTP replay
    protection (store last-used step).

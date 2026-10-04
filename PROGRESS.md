@@ -395,8 +395,7 @@ tracked files or history (the Firebase client key is intended to ship; restrict
 it in GCP). `pip-audit` clean. API ruff, mypy and 628 tests pass.
 Open, awaiting owner decisions in [ADR-046](docs/adr/ADR-046-security-requirements-open-decisions.md):
 `package.json` `ignoreGhsas` contradicting
-ADR-038, Cloudflare/real-IP and security headers, share-card and login per-IP
-rate limits, TOTP replay and MFA recovery, per-exam domain allowlist. Production
+ADR-038, Cloudflare/real-IP and security headers, TOTP replay and MFA recovery, per-exam domain allowlist. Production
 evidence (MFA, rate limits, restore) still not gathered.
 
 **ADR-046 §1 tracker separation of duties (2026-10-04, local, API):** visa-bulletin
@@ -405,6 +404,16 @@ is the entry's last editor. A one-person team sets `ALLOW_SELF_APPROVAL=true`
 (default false) — **set it on the VPS if you are the only admin, or approvals will
 be refused**. Sensitive stories and corrections are not covered (still open in
 ADR-046 §1). Tests: `tests/test_tracker_separation.py`.
+
+**ADR-046 §4 public rate limits (2026-10-04, local):** web `/story/[slug]/card`
+returns 429 past 20 requests/min per client or 300/min overall (in-process,
+`apps/web/src/lib/rateLimit.ts`; the existing 60 s cache stays). Admin login also
+blocks an address after 20 failed attempts in 15 min across all emails (successes
+don't count); the per-email limit is unchanged. Both key on the client address,
+which behind a proxy is the proxy until ADR-046 §3 (real-IP) is decided, so the
+share-card key uses the last `X-Forwarded-For` hop and the global cap backstops it.
+Not tested against the deployed proxy. Also fixed a ruff DTZ011 in
+`test_tracker_separation.py` that the previous commit shipped.
 
 **Review 2026-10-04 — delivery re-check gaps closed (local, API):** `_obsolete_reason`
 now also suppresses a queued story alert whose source rights are no longer

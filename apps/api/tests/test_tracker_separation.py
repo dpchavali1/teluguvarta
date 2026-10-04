@@ -1,6 +1,6 @@
 """ADR-046 §1: a tracker entry is approved by a different admin than its author."""
 
-from datetime import date, timedelta
+from datetime import UTC, datetime, timedelta
 
 import pytest
 
@@ -38,7 +38,7 @@ def test_visa_bulletin_needs_second_admin(client, db_session, monkeypatch):
 def test_exam_deadline_needs_second_admin(client, db_session):
     author = _token(client, db_session, email="a@example.com")
     other = _token(client, db_session, email="b@example.com")
-    body = {"exam": "gre", "kind": "EXAM_DATE", "title": "GRE", "deadline": str(date.today() + timedelta(days=30)), "source_url": SRC}
+    body = {"exam": "gre", "kind": "EXAM_DATE", "title": "GRE", "deadline": str((datetime.now(UTC) + timedelta(days=30)).date()), "source_url": SRC}
     item = client.post("/v1/admin/exam-deadlines", json=body, headers=_auth(author)).json()
 
     own = client.post(f"/v1/admin/exam-deadlines/{item['id']}/approve", headers=_auth(author))

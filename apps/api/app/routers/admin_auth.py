@@ -43,6 +43,7 @@ from app.security import (
     decrypt_mfa_secret,
     encrypt_mfa_secret,
     generate_mfa_secret,
+    is_login_ip_rate_limited,
     is_login_rate_limited,
     mfa_provisioning_uri,
     record_login_attempt,
@@ -62,7 +63,7 @@ def login(
     email = body.email.strip().lower()
     client_ip = request.client.host if request.client else None
 
-    if is_login_rate_limited(db, email):
+    if is_login_rate_limited(db, email) or is_login_ip_rate_limited(db, client_ip):
         raise APIError(429, "RATE_LIMITED", "Too many login attempts — try again later")
 
     user = db.scalar(

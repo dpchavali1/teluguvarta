@@ -21,6 +21,7 @@ from app.models import AdminLoginAttempt
 # within the window, before further attempts are rejected outright.
 LOGIN_RATE_LIMIT_MAX_ATTEMPTS = 5
 LOGIN_RATE_LIMIT_WINDOW = timedelta(minutes=15)
+LOGIN_IP_RATE_LIMIT_MAX_FAILURES = 20
 
 
 def _jwt_secret() -> str:
@@ -49,6 +50,24 @@ def is_login_rate_limited(db: Session, email: str) -> bool:
         .where(AdminLoginAttempt.email == email, AdminLoginAttempt.created_at >= window_start)
     )
     return (count or 0) >= LOGIN_RATE_LIMIT_MAX_ATTEMPTS
+
+
+def is_login_ip_rate_limited(db: Session, ip: str | None) -> bool:
+    """ADR-046 §4: failed attempts per client address, across emails.
+
+    The per-email limit stops one account being guessed; this stops one client
+    spraying many accounts. Only failures count, so a successful sign-in never
+    locks out an address. Behind a proxy `ip` is the proxy until ADR-046 §3.
+    """
+    if ip is None:
+        return False
+    window_start = datetime.now(UTC) - LOGIN_RATE_LIMIT_WINDOW
+    count = db.scalar(
+        select(func.count())
+        .select_from(AdminLoginAttempt)
+        .where(AdminLoginAttempt.ip == ip, AdminLoginAttempt.success.is_(False), AdminLoginAttempt.created_at >= window_start)
+    )
+    return (count or 0) >= LOGIN_IP_RATE_LIMIT_MAX_FAILURES
 
 
 def record_login_attempt(db: Session, email: str, ip: str | None, success: bool) -> None:
