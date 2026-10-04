@@ -41,6 +41,9 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.orm import Session
 
 from app import analytics
+from app.content.exam_deadline import alert_copy as exam_alert_copy
+from app.content.exam_deadline import parse_notification_key, reminder_tag
+from app.content.exam_deadline_db import queue_alerts as queue_exam_alerts
 from app.content.notifications import (
     DIGEST_WINDOW_HOURS,
     NotifiableStory,
@@ -60,6 +63,7 @@ from app.content.visa_bulletin_db import push_copy as visa_push_copy
 from app.jobs.queue import backoff_seconds, enqueue_job
 from app.models import (
     Correction,
+    ExamDeadline,
     Job,
     Notification,
     Profile,
@@ -289,6 +293,18 @@ def _generate_digest_candidates(db: Session, now: datetime) -> None:
     db.commit()
 
 
+def _generate_exam_reminder_candidates(db: Session, now: datetime) -> None:
+    """Approved exam/deadline dates 7 and 1 days away → one reminder per
+    alert-enabled follower (idempotent per user and tag)."""
+
+    today = now.date()
+    for item in db.scalars(select(ExamDeadline).where(ExamDeadline.status == "APPROVED", ExamDeadline.deadline > today)):
+        tag = reminder_tag(item.deadline, today)
+        if tag is not None:
+            queue_exam_alerts(db, item.id, item.exam, tag)
+    db.commit()
+
+
 def _generate_story_update_candidates(db: Session, now: datetime) -> None:
     """A reviewed correction was published for a story the reader saved."""
 
@@ -334,6 +350,12 @@ def _push_copy(db: Session, notification: Notification) -> tuple[str, str]:
         count = len(_digest_story_ids(db, notification.user_id, prefs, _now()))
         return "Your TTE digest", f"{count} new stories in topics you follow." if count else "New stories in topics you follow."
     if notification.type == "TRACKER_UPDATE":
+        parsed = parse_notification_key(notification.notification_key)
+        if parsed is not None:
+            item = db.get(ExamDeadline, UUID(parsed[0]))
+            if item is None or item.status != "APPROVED":
+                return "Exam reminder", "An exam date you follow has an update."
+            return exam_alert_copy(item.exam, item.kind, item.title, item.deadline, parsed[1])
         bulletin_id = notification.notification_key.removeprefix("visa_bulletin:")
         bulletin = db.get(VisaBulletin, UUID(bulletin_id))
         changes = followers_changes(db, bulletin, notification.user_id).get(notification.user_id, []) if bulletin else []
@@ -429,6 +451,7 @@ def run_notification_dispatch(db: Session, job: Job) -> None:
     _generate_daily_briefing_candidates(db, now)
     _generate_digest_candidates(db, now)
     _generate_story_update_candidates(db, now)
+    _generate_exam_reminder_candidates(db, now)
     _process_pending(db, now)
 
 

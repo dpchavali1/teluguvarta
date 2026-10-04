@@ -329,3 +329,15 @@ loaded on demand), and Short story length (feed cards only: 2-line summary, no
 `tg-reading-v1`, applied pre-paint as `<html>` attributes. No new AI. Web tests
 (20) / typecheck / lint / build pass. NOT verified in a browser (Telugu glyph
 rendering, font loading, line clamp); no dedicated Settings page on web.
+
+**P07 exam/deadline reminders (2026-10-04, local, API only):** editor-entered like
+the visa bulletin (ADR-041 addendum). `POST/PUT /v1/admin/exam-deadlines`,
+`.../{id}/approve`, `.../{id}/withdraw`; public `GET /v1/exam-deadlines?exam=`
+returns APPROVED, upcoming dates only. Followers sync `follow_exams` (max 10,
+keys upper-cased) on `/me/preferences`; approval queues one `TRACKER_UPDATE` per
+alert-enabled follower, and the notification job adds 7- and 1-day reminders
+(UTC date), idempotent per user and tag. Migration `a7d1f5b9c3e2` (checked as
+offline SQL only, not applied to a database). API ruff, mypy and 618 tests pass.
+Gaps: no mobile/web/admin UI; no exam list was named so keys are free-form; any
+https source link is accepted; a single admin can approve their own entry; alert
+deep-links to Home; not run against managed infra.

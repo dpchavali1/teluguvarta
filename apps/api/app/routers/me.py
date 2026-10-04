@@ -28,6 +28,7 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.orm import Session
 
 from app.auth import Principal, current_user
+from app.content.exam_deadline import normalize_exam
 from app.content.places import normalize_place_ids
 from app.content.visa_bulletin import CATEGORIES, COUNTRIES
 from app.db import get_db
@@ -38,6 +39,7 @@ from app.models import (
     Story,
     Topic,
     User,
+    UserExamFollow,
     UserKeyword,
     UserPlace,
     UserSavedStory,
@@ -46,6 +48,7 @@ from app.models import (
 )
 from app.schemas import (
     DeleteAccountResponse,
+    ExamFollow,
     Language,
     MeResponse,
     NotificationOut,
@@ -108,6 +111,12 @@ def _profile_out(db: Session, user_id: UUID, profile: Profile | None) -> Profile
             for cat, ctry, alerts in db.execute(
                 select(UserVisaFollow.category, UserVisaFollow.country, UserVisaFollow.alerts)
                 .where(UserVisaFollow.user_id == user_id).order_by(UserVisaFollow.category, UserVisaFollow.country)
+            ).all()
+        ],
+        follow_exams=[
+            ExamFollow(exam=exam, alerts=alerts)
+            for exam, alerts in db.execute(
+                select(UserExamFollow.exam, UserExamFollow.alerts).where(UserExamFollow.user_id == user_id).order_by(UserExamFollow.exam)
             ).all()
         ],
         follow_places=[
@@ -186,6 +195,15 @@ def update_preferences(
             if vfollow.category in CATEGORIES and vfollow.country in COUNTRIES and key not in seen_visa:
                 seen_visa.add(key)
                 db.add(UserVisaFollow(user_id=principal.user_id, category=vfollow.category, country=vfollow.country, alerts=vfollow.alerts))
+
+    if body.follow_exams is not None:
+        db.query(UserExamFollow).filter(UserExamFollow.user_id == principal.user_id).delete()
+        seen_exams: set[str] = set()
+        for efollow in body.follow_exams:
+            exam_key = normalize_exam(efollow.exam)
+            if exam_key is not None and exam_key not in seen_exams:
+                seen_exams.add(exam_key)
+                db.add(UserExamFollow(user_id=principal.user_id, exam=exam_key, alerts=efollow.alerts))
 
     if body.saved_story_ids is not None:
         db.query(UserSavedStory).filter(UserSavedStory.user_id == principal.user_id).delete()

@@ -39,3 +39,15 @@ editors enter each month's cutoffs by hand from the official notice, with a link
 to the primary source, and a second step approves it. Alerts reach only followers
 whose final-action cutoff moved, and only after approval. A parser may be added
 later if the State Department permits automated access.
+
+## Addendum 2026-10-04 (P07, exam/deadline reminders)
+
+Same model as the visa bulletin: no fetching, no ingest job. An editor enters
+each exam or deadline date by hand from an official page, with an https link to
+it (kind: registration deadline, exam date, result date, application deadline),
+and a second step approves it; a wrong or cancelled date is withdrawn. Exams are
+editor-chosen short keys (e.g. `GRE`), not a fixed list. Readers follow up to 10
+keys; alert-enabled followers get one alert when a date is approved and one
+reminder 7 and 1 days before it, through the normal P02 quiet-hours, daily-cap
+and dedupe path. The source host is not allow-listed (official hosts vary by
+exam), so the approving editor is responsible for checking the link.

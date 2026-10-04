@@ -674,3 +674,33 @@ class RuntimeSwitch(Base):
     updated_by: Mapped[str] = mapped_column(Text, nullable=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
     note: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+
+class ExamDeadline(Base):
+    """P07 / ADR-041: an exam or deadline date entered by an editor from an
+    official page. DRAFT until approved; only APPROVED rows are public and
+    alert followers. WITHDRAWN hides a date that was cancelled or wrong."""
+
+    __tablename__ = "exam_deadlines"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    exam: Mapped[str] = mapped_column(Text, nullable=False)
+    kind: Mapped[str] = mapped_column(Text, nullable=False)
+    title: Mapped[str] = mapped_column(Text, nullable=False)
+    deadline: Mapped[date] = mapped_column(Date, nullable=False)
+    source_url: Mapped[str] = mapped_column(Text, nullable=False)
+    status: Mapped[str] = mapped_column(Text, nullable=False, server_default="DRAFT")
+    entered_by: Mapped[str] = mapped_column(Text, nullable=False)
+    approved_by: Mapped[str | None] = mapped_column(Text, nullable=True)
+    approved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+
+
+class UserExamFollow(Base):
+    """P07 / ADR-041: an exam key the reader tracks (max 10)."""
+
+    __tablename__ = "user_exam_follows"
+
+    user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
+    exam: Mapped[str] = mapped_column(Text, primary_key=True)
+    alerts: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="false")

@@ -15,6 +15,7 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
+from app.content.exam_deadline import MAX_EXAM_FOLLOWS
 from app.content.places import MAX_FOLLOWED_PLACES
 from app.content.visa_bulletin import MAX_VISA_FOLLOWS
 
@@ -153,6 +154,33 @@ class VisaFollow(BaseModel):
     alerts: bool = False
 
 
+class ExamFollow(BaseModel):
+    """P07 / ADR-041: a tracked exam key."""
+
+    exam: str
+    alerts: bool = False
+
+
+class ExamDeadlineIn(BaseModel):
+    """Editor entry from an official page."""
+
+    exam: str = Field(max_length=40)
+    kind: str
+    title: str = Field(max_length=160)
+    deadline: date
+    source_url: str = Field(max_length=500)
+
+
+class ExamDeadlineOut(BaseModel):
+    id: UUID
+    exam: str
+    kind: str
+    title: str
+    deadline: date
+    source_url: str
+    status: str
+
+
 class VisaBulletinEntryIn(BaseModel):
     chart: str
     category: str
@@ -209,6 +237,7 @@ class ProfileOut(BaseModel):
     saved_story_ids: list[UUID] = Field(default_factory=list)
     follow_places: list[PlaceFollow] = Field(default_factory=list)
     follow_visa: list[VisaFollow] = Field(default_factory=list)
+    follow_exams: list[ExamFollow] = Field(default_factory=list)
 
 
 class MeResponse(BaseModel):
@@ -243,6 +272,7 @@ class PreferencesUpdate(BaseModel):
     # ADR-043: omitted keeps, [] clears; unknown ids are dropped, more than 10 is a 422.
     follow_places: list[PlaceFollow] | None = Field(default=None, max_length=MAX_FOLLOWED_PLACES)
     follow_visa: list[VisaFollow] | None = Field(default=None, max_length=MAX_VISA_FOLLOWS)
+    follow_exams: list[ExamFollow] | None = Field(default=None, max_length=MAX_EXAM_FOLLOWS)
 
     @field_validator("home_tz", "residence_tz")
     @classmethod
