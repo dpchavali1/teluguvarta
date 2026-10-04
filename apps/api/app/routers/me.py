@@ -259,7 +259,9 @@ def list_notifications(
         NotificationOut(
             id=n.id, type=cast(NotificationType, n.type),
             story_id=n.story_id, status=cast(Literal["PENDING", "SENT", "FAILED", "SUPPRESSED"], n.status),
-            suppressed_reason=cast(Literal["QUIET_HOURS", "DAILY_CAP"] | None, n.suppressed_reason),
+            suppressed_reason=cast(
+                Literal["QUIET_HOURS", "DAILY_CAP", "STORY_UNAVAILABLE", "NO_LONGER_ELIGIBLE"] | None, n.suppressed_reason,
+            ),
             sent_at=n.sent_at, created_at=n.created_at,
         )
         for n in notifications

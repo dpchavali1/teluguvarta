@@ -226,8 +226,8 @@ P04 mobile done: Telugu font choice (system / Noto Serif Telugu / Mandali,
 bundled, falls back to system if loading fails) and Short story length for
 feed cards; font size already existed. Mobile typecheck, 89 tests in 16 suites
 and bundle pass; release APK rebuilt. Not yet device-verified (Telugu glyph
-rendering/bold faces need a look on the phone). P04 web parity still open;
-P05–P08 not started (P03 below).
+rendering/bold faces need a look on the phone). P04 web parity done later (see
+below); P05–P08 were built afterwards (entries below).
 
 **P05 My Edit (2026-10-04, local, mobile only):** `packages/domain/myEdit.ts`
 (pure, deterministic) builds Home sections — Top 5 today, For you, Because you
@@ -361,3 +361,18 @@ official link, plus upcoming approved exam dates with source links. Read-only �
 web has no follows or alerts. In the footer and sitemap. Web lint/typecheck/20
 tests/build pass. Not viewed in a browser; styling uses existing classes plus a
 bare table, so it may want a polish pass.
+
+**Review 2026-10-04 fixes — notifications and retraction (local, API + admin):**
+[review](docs/reviews/2026-10-04-editorial-safety-and-security-review.md).
+(1) A corrected story (`UPDATED`/`CORRECTION_PENDING`) can now be retracted:
+API, DB transition trigger and the admin Retract button. (2) Every queued alert
+is re-checked at delivery (`_obsolete_reason` in `jobs/notify.py`): a story that
+is no longer PUBLISHED/UPDATED, a topic/keyword/place/breaking alert the reader
+no longer qualifies for, a briefing turned off, an unsaved story's update, and a
+withdrawn exam date or a dropped exam follow are marked `SUPPRESSED` with the
+new reasons `STORY_UNAVAILABLE` / `NO_LONGER_ELIGIBLE` instead of being sent.
+Migration `b8e2a6d4f1c3` (applied to the test DB by the suite; not to
+production). Contracts regenerated. API ruff, mypy and 624 tests pass; admin
+lint/typecheck pass. Not done: rights re-check at delivery (only public status),
+visa-tracker follow re-check, Expo local-reminder tap handling (review medium),
+the security requirements pass, and any production run.

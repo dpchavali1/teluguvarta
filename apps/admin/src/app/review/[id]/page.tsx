@@ -812,7 +812,7 @@ export default function StoryReviewPage() {
             </>
           ) : null}
 
-          {story.status === "PUBLISHED" ? (
+          {story.status === "PUBLISHED" || story.status === "UPDATED" || story.status === "CORRECTION_PENDING" ? (
             <div className="card__foot">
               <button type="button" className="button-secondary" disabled={submitting} onClick={() => handleAction("retract")}>
                 Retract

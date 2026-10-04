@@ -2658,7 +2658,7 @@ export interface components {
             /** Story Id */
             story_id: string | null;
             /** Suppressed Reason */
-            suppressed_reason?: ("QUIET_HOURS" | "DAILY_CAP") | null;
+            suppressed_reason?: ("QUIET_HOURS" | "DAILY_CAP" | "STORY_UNAVAILABLE" | "NO_LONGER_ELIGIBLE") | null;
             /**
              * Type
              * @enum {string}

@@ -3810,7 +3810,9 @@
               {
                 "enum": [
                   "QUIET_HOURS",
-                  "DAILY_CAP"
+                  "DAILY_CAP",
+                  "STORY_UNAVAILABLE",
+                  "NO_LONGER_ELIGIBLE"
                 ],
                 "type": "string"
               },

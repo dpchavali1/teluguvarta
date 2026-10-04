@@ -1090,7 +1090,8 @@ def retract_story(
     story_id: UUID, body: AdminActionRequest, admin: AdminPrincipal = Depends(current_admin), db: Session = Depends(get_db)
 ) -> AdminActionResponse:
     story = _get_story_or_404(db, story_id)
-    _require_status(story, "PUBLISHED")
+    # A corrected story stays retractable (review 2026-10-04).
+    _require_status(story, "PUBLISHED", "UPDATED", "CORRECTION_PENDING")
 
     story.status = "RETRACTED"
     db.flush()

@@ -404,3 +404,97 @@ def test_story_alert_push_body_is_the_story_headline(db_session):
     assert _push_copy(db_session, alert)[1] == "Headline EN"
     no_story = Notification(user_id=user.id, story_id=None, type="TOPIC_ALERT", notification_key="k2")
     assert _push_copy(db_session, no_story)[1] == "Open to read the full story."
+
+
+# Review 2026-10-04: a queued alert is re-checked at delivery.
+
+def _queue(db: Session, user: User, story: Story | None, notif_type: str, key: str) -> Notification:
+    row = Notification(
+        user_id=user.id, story_id=story.id if story else None, type=notif_type,
+        notification_key=key, status="PENDING",
+    )
+    db.add(row)
+    db.commit()
+    return row
+
+
+def _dispatch_and_reload(db: Session, row: Notification) -> Notification:
+    run_notification_dispatch(db, _job())
+    db.refresh(row)
+    return row
+
+
+def test_queued_alert_is_suppressed_when_story_is_retracted_after_correction(db_session):
+    topic = _make_topic(db_session, "money")
+    story = _make_published_story(db_session, topics=[topic])
+    user = _make_user_with_topic(db_session, topic)
+    row = _queue(db_session, user, story, "TOPIC_ALERT", f"topic_alert:{story.id}")
+    for status in ("UPDATED", "RETRACTED"):
+        story.status = status
+        db_session.commit()
+
+    row = _dispatch_and_reload(db_session, row)
+
+    assert (row.status, row.suppressed_reason) == ("SUPPRESSED", "STORY_UNAVAILABLE")
+
+
+def test_queued_topic_alert_is_suppressed_after_unsubscribing(db_session):
+    topic = _make_topic(db_session, "money")
+    story = _make_published_story(db_session, topics=[topic])
+    user = _make_user_with_topic(db_session, topic)
+    row = _queue(db_session, user, story, "TOPIC_ALERT", f"topic_alert:{story.id}")
+    db_session.execute(UserTopic.__table__.delete().where(UserTopic.user_id == user.id))
+    db_session.commit()
+
+    row = _dispatch_and_reload(db_session, row)
+
+    assert (row.status, row.suppressed_reason) == ("SUPPRESSED", "NO_LONGER_ELIGIBLE")
+
+
+def test_queued_breaking_alert_is_suppressed_after_turning_breaking_alerts_off(db_session):
+    topic = _make_topic(db_session, "money")
+    story = _make_published_story(db_session, topics=[topic], sensitivity="BREAKING", breaking_approved=True)
+    user = _make_user_with_topic(db_session, topic)
+    row = _queue(db_session, user, story, "BREAKING_ALERT", f"breaking_alert:{story.id}")
+    db_session.get(Profile, user.id).breaking_alerts_enabled = False
+    db_session.commit()
+
+    row = _dispatch_and_reload(db_session, row)
+
+    assert (row.status, row.suppressed_reason) == ("SUPPRESSED", "NO_LONGER_ELIGIBLE")
+
+
+def test_queued_daily_briefing_is_suppressed_after_turning_it_off(db_session):
+    topic = _make_topic(db_session, "money")
+    user = _make_user_with_topic(db_session, topic)
+    row = _queue(db_session, user, None, "DAILY_BRIEFING", "daily_briefing:2020-01-01")
+    db_session.get(Profile, user.id).daily_briefing_enabled = False
+    db_session.commit()
+
+    row = _dispatch_and_reload(db_session, row)
+
+    assert (row.status, row.suppressed_reason) == ("SUPPRESSED", "NO_LONGER_ELIGIBLE")
+
+
+def test_queued_exam_reminder_is_suppressed_after_withdrawal(db_session):
+    from datetime import timedelta
+
+    from app.content.exam_deadline import notification_key
+    from app.models import ExamDeadline, UserExamFollow
+
+    topic = _make_topic(db_session, "money")
+    user = _make_user_with_topic(db_session, topic)
+    item = ExamDeadline(
+        exam="GRE", kind="EXAM_DATE", title="GRE test", deadline=datetime.now(UTC).date() + timedelta(days=30),
+        source_url="https://www.ets.org/gre", status="APPROVED", entered_by="a@example.org",
+    )
+    db_session.add(item)
+    db_session.add(UserExamFollow(user_id=user.id, exam="GRE", alerts=True))
+    db_session.commit()
+    row = _queue(db_session, user, None, "TRACKER_UPDATE", notification_key(item.id, "approved"))
+    item.status = "WITHDRAWN"
+    db_session.commit()
+
+    row = _dispatch_and_reload(db_session, row)
+
+    assert (row.status, row.suppressed_reason) == ("SUPPRESSED", "NO_LONGER_ELIGIBLE")

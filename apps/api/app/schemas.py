@@ -329,7 +329,7 @@ class NotificationOut(BaseModel):
     type: NotificationType
     story_id: UUID | None
     status: Literal["PENDING", "SENT", "FAILED", "SUPPRESSED"]
-    suppressed_reason: Literal["QUIET_HOURS", "DAILY_CAP"] | None = None
+    suppressed_reason: Literal["QUIET_HOURS", "DAILY_CAP", "STORY_UNAVAILABLE", "NO_LONGER_ELIGIBLE"] | None = None
     sent_at: datetime | None
     created_at: datetime
 

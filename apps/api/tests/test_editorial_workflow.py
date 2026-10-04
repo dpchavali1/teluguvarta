@@ -465,3 +465,21 @@ def test_kill_switch_immigration_flag_is_a_no_op(client, db_session, monkeypatch
     auto_publish_stories(db_session)
     db_session.refresh(story)
     assert story.status == "SCHEDULED"  # unaffected by the immigration flag
+
+
+def test_corrected_story_can_still_be_retracted(client, db_session):
+    token = _token(client, db_session)
+    story = _make_review_required_story(db_session)
+    _publish(db_session, story)
+    response = client.post(
+        f"/v1/admin/stories/{story.id}/correct", json={"headline": "Corrected headline", "reason": "typo"},
+        headers=_auth(token),
+    )
+    assert response.status_code == 200
+    db_session.refresh(story)
+    assert story.status == "UPDATED"
+
+    response = client.post(f"/v1/admin/stories/{story.id}/retract", json={"reason": "wrong"}, headers=_auth(token))
+
+    assert response.status_code == 200
+    assert response.json()["status"] == "RETRACTED"

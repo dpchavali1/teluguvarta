@@ -75,6 +75,7 @@ from app.models import (
     StoryTopic,
     StoryVariant,
     Topic,
+    UserExamFollow,
     UserKeyword,
     UserPlace,
     UserSavedStory,
@@ -353,7 +354,7 @@ def _push_copy(db: Session, notification: Notification) -> tuple[str, str]:
         parsed = parse_notification_key(notification.notification_key)
         if parsed is not None:
             item = db.get(ExamDeadline, UUID(parsed[0]))
-            if item is None or item.status != "APPROVED":
+            if item is None or item.status != "APPROVED":  # unreachable: _obsolete_reason suppresses first
                 return "Exam reminder", "An exam date you follow has an update."
             return exam_alert_copy(item.exam, item.kind, item.title, item.deadline, parsed[1])
         bulletin_id = notification.notification_key.removeprefix("visa_bulletin:")
@@ -373,8 +374,58 @@ def _push_copy(db: Session, notification: Notification) -> tuple[str, str]:
     return title, headline or "Open to read the full story."
 
 
+def _obsolete_reason(db: Session, notification: Notification, prefs: UserNotificationPrefs) -> str | None:
+    """Re-check a queued alert against the story's and the reader's state now
+    (review 2026-10-04): retraction, withdrawal and turned-off alerts must not
+    be overtaken by a row that was queued earlier."""
+
+    if notification.story_id is not None:
+        story = db.get(Story, notification.story_id)
+        if story is None or story.status not in ("PUBLISHED", "UPDATED"):
+            return "STORY_UNAVAILABLE"
+        notifiable = _to_notifiable(db, story)
+        if notification.type == "TOPIC_ALERT" and not (
+            topic_alert_eligible(notifiable, prefs)
+            or keyword_alert_eligible(notifiable, prefs)
+            or place_alert_eligible(notifiable, prefs)
+        ):
+            return "NO_LONGER_ELIGIBLE"
+        if notification.type == "BREAKING_ALERT" and not breaking_alert_eligible(notifiable, prefs):
+            return "NO_LONGER_ELIGIBLE"
+        if notification.type == "STORY_UPDATE" and db.get(
+            UserSavedStory, (notification.user_id, notification.story_id)
+        ) is None:
+            return "NO_LONGER_ELIGIBLE"
+    elif notification.type == "DAILY_BRIEFING":
+        if not prefs.daily_briefing_enabled:
+            return "NO_LONGER_ELIGIBLE"
+    elif notification.type == "DIGEST":
+        if not _digest_story_ids(db, notification.user_id, prefs, _now()):
+            return "NO_LONGER_ELIGIBLE"
+    elif notification.type == "TRACKER_UPDATE":
+        parsed = parse_notification_key(notification.notification_key)
+        if parsed is not None:
+            item = db.get(ExamDeadline, UUID(parsed[0]))
+            follow = db.scalar(
+                select(UserExamFollow.alerts).where(
+                    UserExamFollow.user_id == notification.user_id,
+                    UserExamFollow.exam == (item.exam if item else ""),
+                )
+            )
+            if item is None or item.status != "APPROVED" or not follow:
+                return "NO_LONGER_ELIGIBLE"
+    return None
+
+
 def _process_one(db: Session, notification: Notification, now: datetime) -> None:
     prefs = _load_prefs(db, notification.user_id)
+
+    obsolete = _obsolete_reason(db, notification, prefs)
+    if obsolete is not None:
+        notification.status = "SUPPRESSED"
+        notification.suppressed_reason = obsolete
+        db.commit()
+        return
 
     if in_quiet_hours_any_zone(now, prefs):
         notification.status = "SUPPRESSED"
