@@ -5,6 +5,7 @@ notice and approves it; a count mismatch is reported instead of guessed."""
 
 from __future__ import annotations
 
+import io
 import re
 from dataclasses import dataclass, field
 
@@ -32,6 +33,26 @@ class ParsedBulletin:
     month: str | None = None
     entries: list[dict[str, str]] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)
+
+
+MAX_PDF_BYTES = 5_000_000
+MAX_PDF_PAGES = 30
+
+
+def text_from_pdf(data: bytes) -> str:
+    """Extract text from an uploaded bulletin PDF; ValueError on anything unreadable."""
+    from pypdf import PdfReader
+    from pypdf.errors import PyPdfError
+
+    if len(data) > MAX_PDF_BYTES:
+        raise ValueError("PDF is too large")
+    try:
+        reader = PdfReader(io.BytesIO(data))
+        if reader.is_encrypted or len(reader.pages) > MAX_PDF_PAGES:
+            raise ValueError("PDF is encrypted or too long")
+        return "\n".join(page.extract_text() or "" for page in reader.pages)
+    except (PyPdfError, OSError, KeyError, TypeError, AttributeError) as exc:
+        raise ValueError("Could not read the PDF") from exc
 
 
 def _cutoff(token: str) -> str:

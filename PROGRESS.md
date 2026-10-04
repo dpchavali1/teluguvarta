@@ -481,3 +481,9 @@ admin approves. Parser tested on the real October 2026 bulletin (110 entries, no
 Certain Religious Workers and 5th set-aside rows are skipped (not tracked categories). API ruff,
 mypy and 642 tests pass; admin typecheck and eslint clean. Not tried in a browser against real
 PDF-copied text (only the pdftotext layout and a one-cell-per-line form are tested).
+
+**P07 visa bulletin PDF upload (2026-10-04, local, API + admin):** the parse endpoint now also takes
+`pdf_base64` (the official PDF as downloaded; `pypdf`, 5 MB / 30 pages, encrypted/garbled → 422
+`PDF_UNREADABLE`); paste stays as a fallback. The real October 2026 PDF yields 110 entries, no
+warnings (fixture `tests/fixtures/visabulletin_2026-10.pdf`). **Deploy note:** new dependency
+`pypdf` in `pyproject.toml`/`requirements.lock`, so the API image must be rebuilt.

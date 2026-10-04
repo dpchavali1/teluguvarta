@@ -19,7 +19,8 @@ dependencies = [
     "anthropic>=0.34.0",
     "pyotp>=2.9.0",
     "defusedxml>=0.7.1",
-    "cryptography>=43.0.0"
+    "cryptography>=43.0.0",
+    "pypdf>=5.0.0"
 ]
 
 [project.optional-dependencies]

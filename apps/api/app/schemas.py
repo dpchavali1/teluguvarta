@@ -196,9 +196,10 @@ class VisaBulletinIn(BaseModel):
 
 
 class VisaBulletinParseIn(BaseModel):
-    """Text copied from the official bulletin PDF (ADR-049)."""
+    """The official bulletin as pasted text or an uploaded PDF, base64 (ADR-049); exactly one."""
 
-    text: str = Field(min_length=1, max_length=200_000)
+    text: str | None = Field(default=None, min_length=1, max_length=200_000)
+    pdf_base64: str | None = Field(default=None, min_length=1, max_length=7_000_000)
 
 
 class VisaBulletinParseOut(BaseModel):

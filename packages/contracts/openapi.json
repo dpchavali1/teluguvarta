@@ -5737,18 +5737,35 @@
         "type": "object"
       },
       "VisaBulletinParseIn": {
-        "description": "Text copied from the official bulletin PDF (ADR-049).",
+        "description": "The official bulletin as pasted text or an uploaded PDF, base64 (ADR-049); exactly one.",
         "properties": {
+          "pdf_base64": {
+            "anyOf": [
+              {
+                "maxLength": 7000000,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pdf Base64"
+          },
           "text": {
-            "maxLength": 200000,
-            "minLength": 1,
-            "title": "Text",
-            "type": "string"
+            "anyOf": [
+              {
+                "maxLength": 200000,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Text"
           }
         },
-        "required": [
-          "text"
-        ],
         "title": "VisaBulletinParseIn",
         "type": "object"
       },

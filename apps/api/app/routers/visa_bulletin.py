@@ -6,6 +6,7 @@ alert-enabled follower whose final-action cutoff moved."""
 
 from __future__ import annotations
 
+import base64
 from datetime import UTC, date, datetime
 
 from fastapi import APIRouter, Depends, Query
@@ -21,7 +22,7 @@ from app.content.visa_bulletin_db import (
     latest_approved,
     previous_approved,
 )
-from app.content.visa_bulletin_parse import parse_bulletin_text
+from app.content.visa_bulletin_parse import parse_bulletin_text, text_from_pdf
 from app.db import get_db
 from app.errors import APIError
 from app.models import AuditEvent, Notification, VisaBulletin, VisaBulletinEntry
@@ -85,7 +86,13 @@ def list_bulletins(db: Session = Depends(get_db)) -> list[VisaBulletinOut]:
 @admin_router.post("/parse")
 def parse_bulletin(body: VisaBulletinParseIn) -> VisaBulletinParseOut:
     """Read-only helper (ADR-049): text pasted from the official PDF -> entries to review. Saves nothing."""
-    parsed = parse_bulletin_text(body.text)
+    if (body.text is None) == (body.pdf_base64 is None):
+        raise APIError(422, "PARSE_INPUT", "Send either text or pdf_base64")
+    try:
+        text = body.text if body.text is not None else text_from_pdf(base64.b64decode(body.pdf_base64 or "", validate=True))
+    except ValueError as exc:  # includes binascii.Error
+        raise APIError(422, "PDF_UNREADABLE", str(exc)) from exc
+    parsed = parse_bulletin_text(text)
     return VisaBulletinParseOut(
         month=parsed.month, entries=[VisaBulletinEntryIn(**e) for e in parsed.entries], warnings=parsed.warnings
     )

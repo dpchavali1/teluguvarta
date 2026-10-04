@@ -9,8 +9,9 @@ editors enter each month by hand. Third-party aggregators and scraper repos are
 rejected (rights gate, no scraping fallback, immigration data needs an official source).
 
 ## Decision
-No fetching. An editor opens the official bulletin in a browser, copies its text
-and pastes it into admin. `POST /v1/admin/visa-bulletins/parse` (read-only, saves
+No fetching. An editor downloads the official bulletin PDF in a browser and uploads it in
+admin (or pastes its text). The server reads the PDF with `pypdf`, sent as base64 JSON,
+max 5 MB / 30 pages, unencrypted only. `POST /v1/admin/visa-bulletins/parse` (read-only, saves
 nothing) turns the text into the same entries the existing form takes, plus warnings
 for any missing row. The editor checks them against the PDF, adds the source link,
 saves a DRAFT and approves as before (separation of duties unchanged).
@@ -20,6 +21,7 @@ EB5 Unreserved are read. Certain Religious Workers and the 5th set-aside rows ar
 not tracked categories and are skipped.
 
 ## Consequences
+- New dependency `pypdf` (BSD-3, pure Python); `requirements.lock` regenerated. Admin-only endpoint.
 - Parser is tested against the real October 2026 bulletin text; a layout change
   yields warnings, never guessed values.
 - Possible later: email-notification trigger, or a parser if the State Department

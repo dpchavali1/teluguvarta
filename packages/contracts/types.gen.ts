@@ -3303,11 +3303,13 @@ export interface components {
         };
         /**
          * VisaBulletinParseIn
-         * @description Text copied from the official bulletin PDF (ADR-049).
+         * @description The official bulletin as pasted text or an uploaded PDF, base64 (ADR-049); exactly one.
          */
         VisaBulletinParseIn: {
+            /** Pdf Base64 */
+            pdf_base64?: string | null;
             /** Text */
-            text: string;
+            text?: string | null;
         };
         /** VisaBulletinParseOut */
         VisaBulletinParseOut: {

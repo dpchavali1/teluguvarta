@@ -69,14 +69,14 @@ export default function VisaBulletinsPage() {
   }
 
   // ADR-049: text copied from the official PDF fills the form below; nothing is saved until "Save draft".
-  async function fill() {
+  async function fill(source: { text: string } | { pdf_base64: string }) {
     setError(null);
     setNotice(null);
     try {
       const parsed = await adminFetch<Parsed>(
         "/v1/admin/visa-bulletins/parse",
-        { method: "POST", body: JSON.stringify({ text: pasted }) },
-        "Could not read the bulletin text",
+        { method: "POST", body: JSON.stringify(source) },
+        "Could not read the bulletin",
       );
       if (parsed.month) setMonth(parsed.month);
       setEntries(parsed.entries.map((e) => `${e.chart} ${e.category} ${e.country} ${e.cutoff}`).join("\n"));
@@ -85,6 +85,14 @@ export default function VisaBulletinsPage() {
     } catch (err) {
       fail(err);
     }
+  }
+
+  async function upload(file: File | undefined) {
+    if (!file) return;
+    const bytes = new Uint8Array(await file.arrayBuffer());
+    let binary = "";
+    for (let i = 0; i < bytes.length; i += 0x8000) binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+    await fill({ pdf_base64: btoa(binary) });
   }
 
   async function approve(target: string) {
@@ -104,10 +112,13 @@ export default function VisaBulletinsPage() {
       <PageHeader title="Visa bulletins" subtitle="Enter each month from the official travel.state.gov notice. Only approved months are public." />
       {error ? <p role="alert">{error}</p> : null}
       {notice ? <p role="status">{notice}</p> : null}
-      <Field label="Paste text from the official PDF" htmlFor="vb-paste" hint="Open the bulletin on travel.state.gov, select all, copy, paste here. Fills the form below; saves nothing.">
+      <Field label="Upload the official PDF" htmlFor="vb-pdf" hint="Download the bulletin PDF from travel.state.gov, then choose it here. Fills the form below; saves nothing.">
+        <input id="vb-pdf" type="file" accept="application/pdf,.pdf" onChange={(e) => { void upload(e.target.files?.[0]); e.target.value = ""; }} />
+      </Field>
+      <Field label="Or paste the PDF text" htmlFor="vb-paste" hint="Select all in the PDF, copy, paste here.">
         <textarea id="vb-paste" rows={4} value={pasted} onChange={(e) => setPasted(e.target.value)} />
       </Field>
-      <button type="button" onClick={fill} disabled={!pasted.trim()}>Fill form from text</button>
+      <button type="button" onClick={() => void fill({ text: pasted })} disabled={!pasted.trim()}>Fill form from text</button>
       {warnings.length ? <ul role="alert">{warnings.map((w) => <li key={w}>{w}</li>)}</ul> : null}
       <form onSubmit={save}>
         <Field label="Month" htmlFor="vb-month" hint="YYYY-MM">
