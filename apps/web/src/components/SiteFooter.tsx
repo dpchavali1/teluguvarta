@@ -7,7 +7,7 @@ const COLUMNS = [
       { href: "/", label: "Today" },
       { href: "/latest", label: "Latest stories" },
       { href: "/topics", label: "All topics" },
-      { href: "/trackers", label: "Visa & exam dates" },
+      { href: "/trackers", label: "US visa bulletin & exam dates" },
       { href: "/search", label: "Search" },
       { href: "/saved", label: "Saved" },
     ],

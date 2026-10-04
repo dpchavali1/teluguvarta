@@ -14,7 +14,7 @@ const NAV_LINKS = [
   { href: "/latest", label: "Latest" },
   { href: "/topics", label: "Topics" },
   { href: "/saved", label: "Saved" },
-  { href: "/trackers", label: "Visa dates" },
+  { href: "/trackers", label: "US Visa Bulletin" },
   { href: "/about", label: "About" },
 ];
 
