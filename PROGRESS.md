@@ -395,8 +395,19 @@ tracked files or history (the Firebase client key is intended to ship; restrict
 it in GCP). `pip-audit` clean. API ruff, mypy and 628 tests pass.
 Open, awaiting owner decisions in [ADR-046](docs/adr/ADR-046-security-requirements-open-decisions.md):
 `package.json` `ignoreGhsas` contradicting
-ADR-038, Cloudflare/real-IP and security headers, TOTP replay and MFA recovery, per-exam domain allowlist. Production
+ADR-038, Cloudflare/real-IP and security headers, per-exam domain allowlist. Production
 evidence (MFA, rate limits, restore) still not gathered.
+
+**ADR-046 §5 MFA lifecycle (2026-10-04, local, API + ops script):** a TOTP code is
+now single-use: `users.mfa_last_step` (migration `a1c4e7b9d2f6`, on top of
+`b8e2a6d4f1c3`) records the last accepted 30 s step with a conditional UPDATE, so a
+replayed or older code is refused at login and at MFA disable, even concurrently.
+Enrolment does not consume a step. Lost authenticator: operator runs
+`infra/scripts/reset_admin_mfa.py EMAIL` (same invocation as
+`reset_admin_password.py`), which clears the secret, signs the account out
+everywhere and writes an `ADMIN_MFA_RESET` audit event; the next sign-in must
+re-enrol. **Deploy note:** the migration must run before the new API revision.
+Tests advance a fake MFA clock (`security._mfa_now`). Not run against the VPS.
 
 **ADR-046 §1 tracker separation of duties (2026-10-04, local, API):** visa-bulletin
 and exam-deadline approval returns 409 `SELF_APPROVAL_FORBIDDEN` when the approver

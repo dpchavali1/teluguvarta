@@ -12,10 +12,10 @@ from datetime import UTC, datetime, timedelta
 import bcrypt
 import pyotp
 from cryptography.fernet import Fernet, InvalidToken
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select, update
 from sqlalchemy.orm import Session
 
-from app.models import AdminLoginAttempt
+from app.models import AdminLoginAttempt, User
 
 # Rate limit: at most this many login attempts (success or failure) per email
 # within the window, before further attempts are rejected outright.
@@ -102,7 +102,31 @@ def mfa_provisioning_uri(secret: str, email: str) -> str:
 
 
 def verify_mfa_code(secret: str, code: str) -> bool:
-    return pyotp.TOTP(secret).verify(code, valid_window=1)
+    return pyotp.TOTP(secret).verify(code, for_time=_mfa_now(), valid_window=1)
+
+
+def _mfa_now() -> datetime:
+    return datetime.now(UTC)  # a seam for tests, which advance time between sign-ins
+
+
+def consume_mfa_code(db: Session, user: User, code: str) -> bool:
+    """ADR-046 §5: accept a TOTP code once. Verifies it, then records its time
+    step with a conditional UPDATE, so a code that was already used (or an
+    earlier one) is rejected even by a concurrent request. Commits on success."""
+    if user.mfa_secret is None:
+        return False
+    totp = pyotp.TOTP(decrypt_mfa_secret(user.mfa_secret))
+    now = _mfa_now()
+    step = next((s for s in (totp.timecode(now) + d for d in (0, -1, 1)) if totp.at(s * totp.interval) == code.strip()), None)
+    if step is None:
+        return False
+    claimed = db.execute(
+        update(User)
+        .where(User.id == user.id, or_(User.mfa_last_step.is_(None), User.mfa_last_step < step))
+        .values(mfa_last_step=step)
+    )
+    db.commit()
+    return getattr(claimed, "rowcount", 0) == 1
 
 
 def _mfa_encryption_key() -> bytes:

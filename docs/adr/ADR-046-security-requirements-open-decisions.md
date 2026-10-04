@@ -33,7 +33,8 @@ policy, so they are recorded rather than guessed.
    client + 300/min global, in-process, 60 s cache already present; admin login
    20 failed attempts per IP per 15 min. Client key depends on §3.)* Rate limit and cache `/story/*/card`;
    per-IP limit on admin login (today per email only).
-5. **MFA lifecycle.** Lost-authenticator recovery (operator reset), TOTP replay
+5. **MFA lifecycle.** *(Implemented 2026-10-04: `users.mfa_last_step` single-use
+   codes; `infra/scripts/reset_admin_mfa.py` operator reset.)* Lost-authenticator recovery (operator reset), TOTP replay
    protection (store last-used step).
 6. **Exam source links.** Per-exam official-domain allowlist (current rule:
    https, no userinfo/backslash, parsed host with a dot).

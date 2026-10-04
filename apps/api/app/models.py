@@ -9,6 +9,7 @@ import uuid
 from datetime import date, datetime
 
 from sqlalchemy import (
+    BigInteger,
     Boolean,
     Date,
     DateTime,
@@ -56,6 +57,8 @@ class User(Base):
     role: Mapped[str | None] = mapped_column(Text, nullable=True)
     password_hash: Mapped[str | None] = mapped_column(Text, nullable=True)
     mfa_secret: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # ADR-046 §5: time step of the last accepted TOTP code; a code is single-use.
+    mfa_last_step: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
     last_login_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     # ADR-006 device-scoped anonymous identity (T17): the opaque token the

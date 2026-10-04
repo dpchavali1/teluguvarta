@@ -55,6 +55,25 @@ def _seed_admin(db_session, *, email=ADMIN_EMAIL, password=ADMIN_PASSWORD, role=
     return user
 
 
+_CLOCK = {"t": 1_800_000_000.0}
+
+
+@pytest.fixture(autouse=True)
+def _fake_mfa_clock(monkeypatch):
+    # ADR-046 §5: a TOTP code is single-use, so each code the tests mint must
+    # belong to a later 30 s step than the last one the server accepted.
+    from app import security
+
+    monkeypatch.setattr(security, "_mfa_now", lambda: datetime.fromtimestamp(_CLOCK["t"], UTC))
+
+
+def _code(secret: str) -> str:
+    import pyotp
+
+    _CLOCK["t"] += 30
+    return pyotp.TOTP(secret).at(_CLOCK["t"])
+
+
 def _login(client, *, email=ADMIN_EMAIL, password=ADMIN_PASSWORD, mfa_code=None, headers=None):
     body = {"email": email, "password": password}
     if mfa_code is not None:
@@ -87,13 +106,12 @@ def _enrolled_admin(db_session):
 def test_login_sets_an_httponly_session_cookie_that_grants_admin_access(client, db_session):
     # ADR-012: an account with mfa_secret already set gets a full session
     # immediately — the no-MFA-yet case is covered separately below.
-    import pyotp
 
     from app.models import AdminSession
 
     user, secret = _enrolled_admin(db_session)
 
-    response = _login(client, mfa_code=pyotp.TOTP(secret).now())
+    response = _login(client, mfa_code=_code(secret))
     assert response.status_code == 200
     body = response.json()
     assert body == {"expires_in": 12 * 3600, "role": "ADMIN", "mfa_enrollment_required": False}
@@ -204,11 +222,10 @@ def test_logout_everywhere_revokes_every_session_of_the_account(client, db_sessi
 
 
 def test_signing_in_again_ends_the_previous_session(client, db_session):
-    import pyotp
 
     _, secret = _enrolled_admin(db_session)
-    first = _login_token(client, mfa_code=pyotp.TOTP(secret).now())
-    second = _login_token(client, mfa_code=pyotp.TOTP(secret).now(), headers={"Cookie": f"tte_admin={first}"})
+    first = _login_token(client, mfa_code=_code(secret))
+    second = _login_token(client, mfa_code=_code(secret), headers={"Cookie": f"tte_admin={first}"})
 
     assert client.get("/v1/admin/sources", headers=admin_auth(first)).status_code == 401
     assert client.get("/v1/admin/sources", headers=admin_auth(second)).status_code == 200
@@ -354,20 +371,19 @@ def test_login_without_mfa_secret_issues_enrollment_scoped_session(client, db_se
 
 
 def test_completed_enrollment_ends_that_session_and_next_login_is_full(client, db_session):
-    import pyotp
 
     _seed_admin(db_session)
     headers = admin_auth(_login_token(client))
 
     secret = client.post("/v1/admin/auth/mfa/setup", headers=headers).json()["secret"]
     enroll = client.post(
-        "/v1/admin/auth/mfa/enroll", json={"secret": secret, "code": pyotp.TOTP(secret).now()}, headers=headers
+        "/v1/admin/auth/mfa/enroll", json={"secret": secret, "code": _code(secret)}, headers=headers
     )
     assert enroll.status_code == 200
     assert "max-age=0" in _session_cookie(enroll)[1].lower()
     assert client.get("/v1/admin/auth/session", headers=headers).status_code == 401
 
-    login_response = _login(client, mfa_code=pyotp.TOTP(secret).now())
+    login_response = _login(client, mfa_code=_code(secret))
     assert login_response.status_code == 200
     assert login_response.json()["mfa_enrollment_required"] is False
 
@@ -376,7 +392,6 @@ def test_completed_enrollment_ends_that_session_and_next_login_is_full(client, d
 
 
 def test_mfa_enroll_requires_valid_code_then_login_requires_it(client, db_session):
-    import pyotp
 
     _seed_admin(db_session)
     headers = admin_auth(_login_token(client))
@@ -389,13 +404,13 @@ def test_mfa_enroll_requires_valid_code_then_login_requires_it(client, db_sessio
     assert bad_enroll.status_code == 401
     assert bad_enroll.json()["error"]["code"] == "INVALID_MFA_CODE"
 
-    good_code = pyotp.TOTP(secret).now()
+    good_code = _code(secret)
     enroll = client.post("/v1/admin/auth/mfa/enroll", json={"secret": secret, "code": good_code}, headers=headers)
     assert enroll.status_code == 200
     assert enroll.json()["enabled"] is True
 
     # A fresh, MFA-verified login is required for a full session (ADR-012).
-    full_headers = admin_auth(_login_token(client, mfa_code=pyotp.TOTP(secret).now()))
+    full_headers = admin_auth(_login_token(client, mfa_code=_code(secret)))
     status = client.get("/v1/admin/auth/mfa", headers=full_headers)
     assert status.json()["enabled"] is True
 
@@ -408,12 +423,11 @@ def test_mfa_enroll_requires_valid_code_then_login_requires_it(client, db_sessio
     assert wrong_code.status_code == 401
     assert wrong_code.json()["error"]["code"] == "INVALID_MFA_CODE"
 
-    right_code = _login(client, mfa_code=pyotp.TOTP(secret).now())
+    right_code = _login(client, mfa_code=_code(secret))
     assert right_code.status_code == 200
 
 
 def test_mfa_secret_is_encrypted_at_rest(client, db_session):
-    import pyotp
 
     from app.models import User
     from app.security import decrypt_mfa_secret
@@ -422,7 +436,7 @@ def test_mfa_secret_is_encrypted_at_rest(client, db_session):
     headers = admin_auth(_login_token(client))
 
     secret = client.post("/v1/admin/auth/mfa/setup", headers=headers).json()["secret"]
-    good_code = pyotp.TOTP(secret).now()
+    good_code = _code(secret)
     client.post("/v1/admin/auth/mfa/enroll", json={"secret": secret, "code": good_code}, headers=headers)
 
     db_session.expire_all()
@@ -432,15 +446,14 @@ def test_mfa_secret_is_encrypted_at_rest(client, db_session):
 
 
 def test_mfa_disable_requires_current_code(client, db_session):
-    import pyotp
 
     _, secret = _enrolled_admin(db_session)
-    headers = admin_auth(_login_token(client, mfa_code=pyotp.TOTP(secret).now()))
+    headers = admin_auth(_login_token(client, mfa_code=_code(secret)))
 
     wrong = client.request("DELETE", "/v1/admin/auth/mfa", json={"code": "000000"}, headers=headers)
     assert wrong.status_code == 401
 
-    right = client.request("DELETE", "/v1/admin/auth/mfa", json={"code": pyotp.TOTP(secret).now()}, headers=headers)
+    right = client.request("DELETE", "/v1/admin/auth/mfa", json={"code": _code(secret)}, headers=headers)
     assert right.status_code == 200
     assert right.json()["enabled"] is False
 
@@ -454,10 +467,62 @@ def test_enrolled_admin_cannot_replace_authenticator(client, db_session):
     _seed_admin(db_session)
     headers = admin_auth(_login_token(client))
     secret = client.post("/v1/admin/auth/mfa/setup", headers=headers).json()["secret"]
-    client.post("/v1/admin/auth/mfa/enroll", json={"secret": secret, "code": pyotp.TOTP(secret).now()}, headers=headers)
+    client.post("/v1/admin/auth/mfa/enroll", json={"secret": secret, "code": _code(secret)}, headers=headers)
 
-    full = admin_auth(_login_token(client, mfa_code=pyotp.TOTP(secret).now()))
+    full = admin_auth(_login_token(client, mfa_code=_code(secret)))
     other = pyotp.random_base32()
-    again = client.post("/v1/admin/auth/mfa/enroll", json={"secret": other, "code": pyotp.TOTP(other).now()}, headers=full)
+    again = client.post("/v1/admin/auth/mfa/enroll", json={"secret": other, "code": _code(other)}, headers=full)
     assert again.status_code == 409
     assert again.json()["error"]["code"] == "MFA_ALREADY_ENROLLED"
+
+
+def test_a_totp_code_cannot_be_used_twice(client, db_session):
+    _, secret = _enrolled_admin(db_session)
+    code = _code(secret)
+
+    assert _login(client, mfa_code=code).status_code == 200
+    replay = _login(client, mfa_code=code)
+    assert (replay.status_code, replay.json()["error"]["code"]) == (401, "INVALID_MFA_CODE")
+
+    # An earlier step than the last accepted one is also refused (no going back).
+    import pyotp
+
+    older = pyotp.TOTP(secret).at(_CLOCK["t"] - 30)
+    assert _login(client, mfa_code=older).status_code == 401
+    assert _login(client, mfa_code=_code(secret)).status_code == 200
+
+
+def test_disabling_mfa_clears_the_replay_marker(client, db_session):
+    from app.models import User
+
+    user, secret = _enrolled_admin(db_session)
+    headers = admin_auth(_login_token(client, mfa_code=_code(secret)))
+    assert client.request("DELETE", "/v1/admin/auth/mfa", json={"code": _code(secret)}, headers=headers).status_code == 200
+    db_session.expire_all()
+    assert db_session.get(User, user.id).mfa_last_step is None
+
+
+def test_operator_mfa_reset_script_clears_mfa_and_signs_out(client, db_session, migrated_database, monkeypatch):
+    import importlib.util
+    import sys
+    from pathlib import Path
+
+    from app.models import AuditEvent, User
+
+    user, secret = _enrolled_admin(db_session)
+    token = _login_token(client, mfa_code=_code(secret))
+
+    path = Path(__file__).resolve().parents[3] / "infra" / "scripts" / "reset_admin_mfa.py"
+    spec = importlib.util.spec_from_file_location("reset_admin_mfa", path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    monkeypatch.setenv("DATABASE_URL", migrated_database)
+    monkeypatch.setattr(sys, "argv", ["reset_admin_mfa.py", ADMIN_EMAIL.upper()])
+    assert module.main() == 0
+
+    db_session.expire_all()
+    assert db_session.get(User, user.id).mfa_secret is None
+    assert db_session.query(AuditEvent).filter_by(action="ADMIN_MFA_RESET", entity_id=user.id).count() == 1
+    assert client.get("/v1/admin/auth/mfa", headers=admin_auth(token)).status_code == 401
+    # Password still works, and with no authenticator the account lands in enrollment, not a full session.
+    assert _login(client).status_code == 200

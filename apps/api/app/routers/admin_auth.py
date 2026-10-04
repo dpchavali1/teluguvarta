@@ -40,7 +40,7 @@ from app.schemas import (
     MfaStatusResponse,
 )
 from app.security import (
-    decrypt_mfa_secret,
+    consume_mfa_code,
     encrypt_mfa_secret,
     generate_mfa_secret,
     is_login_ip_rate_limited,
@@ -78,7 +78,7 @@ def login(
         if not body.mfa_code:
             record_login_attempt(db, email, client_ip, success=False)
             raise APIError(401, "MFA_REQUIRED", "Enter your authenticator app code")
-        if user.mfa_secret is None or not verify_mfa_code(decrypt_mfa_secret(user.mfa_secret), body.mfa_code):
+        if not consume_mfa_code(db, user, body.mfa_code):
             record_login_attempt(db, email, client_ip, success=False)
             raise APIError(401, "INVALID_MFA_CODE", "Incorrect authenticator app code")
 
@@ -200,8 +200,9 @@ def mfa_disable(
     user = db.get(User, admin.user_id)
     if user is None or not user.mfa_secret:
         raise APIError(409, "MFA_NOT_ENABLED", "MFA is not enabled on this account")
-    if not verify_mfa_code(decrypt_mfa_secret(user.mfa_secret), body.code):
+    if not consume_mfa_code(db, user, body.code):
         raise APIError(401, "INVALID_MFA_CODE", "Incorrect authenticator app code")
     user.mfa_secret = None
+    user.mfa_last_step = None
     db.commit()
     return MfaStatusResponse(enabled=False)
