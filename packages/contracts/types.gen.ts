@@ -936,6 +936,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/admin/visa-bulletins/parse": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Parse Bulletin
+         * @description Read-only helper (ADR-049): text pasted from the official PDF -> entries to review. Saves nothing.
+         */
+        post: operations["parse_bulletin_v1_admin_visa_bulletins_parse_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/admin/visa-bulletins/{month}": {
         parameters: {
             query?: never;
@@ -3282,6 +3302,23 @@ export interface components {
             status: string;
         };
         /**
+         * VisaBulletinParseIn
+         * @description Text copied from the official bulletin PDF (ADR-049).
+         */
+        VisaBulletinParseIn: {
+            /** Text */
+            text: string;
+        };
+        /** VisaBulletinParseOut */
+        VisaBulletinParseOut: {
+            /** Entries */
+            entries: components["schemas"]["VisaBulletinEntryIn"][];
+            /** Month */
+            month: string | null;
+            /** Warnings */
+            warnings: string[];
+        };
+        /**
          * VisaFollow
          * @description P07 / ADR-041: a tracked visa bulletin category + country.
          */
@@ -4870,6 +4907,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["VisaBulletinOut"][];
+                };
+            };
+        };
+    };
+    parse_bulletin_v1_admin_visa_bulletins_parse_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["VisaBulletinParseIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VisaBulletinParseOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

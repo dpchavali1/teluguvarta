@@ -21,11 +21,19 @@ from app.content.visa_bulletin_db import (
     latest_approved,
     previous_approved,
 )
+from app.content.visa_bulletin_parse import parse_bulletin_text
 from app.db import get_db
 from app.errors import APIError
 from app.models import AuditEvent, Notification, VisaBulletin, VisaBulletinEntry
 from app.rate_limit import rate_limit_admin
-from app.schemas import VisaBulletinEntryOut, VisaBulletinIn, VisaBulletinOut
+from app.schemas import (
+    VisaBulletinEntryIn,
+    VisaBulletinEntryOut,
+    VisaBulletinIn,
+    VisaBulletinOut,
+    VisaBulletinParseIn,
+    VisaBulletinParseOut,
+)
 
 public_router = APIRouter(prefix="/v1/visa-bulletins", tags=["public"])
 admin_router = APIRouter(
@@ -72,6 +80,15 @@ def latest_bulletin(
 def list_bulletins(db: Session = Depends(get_db)) -> list[VisaBulletinOut]:
     rows = db.scalars(select(VisaBulletin).order_by(VisaBulletin.month.desc()).limit(24)).all()
     return [_out(db, row) for row in rows]
+
+
+@admin_router.post("/parse")
+def parse_bulletin(body: VisaBulletinParseIn) -> VisaBulletinParseOut:
+    """Read-only helper (ADR-049): text pasted from the official PDF -> entries to review. Saves nothing."""
+    parsed = parse_bulletin_text(body.text)
+    return VisaBulletinParseOut(
+        month=parsed.month, entries=[VisaBulletinEntryIn(**e) for e in parsed.entries], warnings=parsed.warnings
+    )
 
 
 @admin_router.put("/{month}")

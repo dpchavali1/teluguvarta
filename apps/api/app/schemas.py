@@ -195,6 +195,18 @@ class VisaBulletinIn(BaseModel):
     entries: list[VisaBulletinEntryIn] = Field(min_length=1, max_length=200)
 
 
+class VisaBulletinParseIn(BaseModel):
+    """Text copied from the official bulletin PDF (ADR-049)."""
+
+    text: str = Field(min_length=1, max_length=200_000)
+
+
+class VisaBulletinParseOut(BaseModel):
+    month: str | None
+    entries: list[VisaBulletinEntryIn]
+    warnings: list[str]
+
+
 class VisaBulletinEntryOut(BaseModel):
     chart: str
     category: str

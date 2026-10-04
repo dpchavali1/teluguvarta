@@ -8,6 +8,7 @@ import { Badge, EmptyState, Field, PageHeader } from "@/components/ui";
 import { adminFetch, SessionExpired } from "@/lib/reports";
 
 type Bulletin = components["schemas"]["VisaBulletinOut"];
+type Parsed = components["schemas"]["VisaBulletinParseOut"];
 type Entry = components["schemas"]["VisaBulletinIn"]["entries"][number];
 
 const SAMPLE = "FINAL_ACTION EB2 INDIA 2012-01-01";
@@ -34,6 +35,8 @@ export default function VisaBulletinsPage() {
   const [month, setMonth] = useState("");
   const [sourceUrl, setSourceUrl] = useState("");
   const [entries, setEntries] = useState("");
+  const [pasted, setPasted] = useState("");
+  const [warnings, setWarnings] = useState<string[]>([]);
 
   const fail = useCallback(
     (err: unknown) => {
@@ -65,6 +68,25 @@ export default function VisaBulletinsPage() {
     }
   }
 
+  // ADR-049: text copied from the official PDF fills the form below; nothing is saved until "Save draft".
+  async function fill() {
+    setError(null);
+    setNotice(null);
+    try {
+      const parsed = await adminFetch<Parsed>(
+        "/v1/admin/visa-bulletins/parse",
+        { method: "POST", body: JSON.stringify({ text: pasted }) },
+        "Could not read the bulletin text",
+      );
+      if (parsed.month) setMonth(parsed.month);
+      setEntries(parsed.entries.map((e) => `${e.chart} ${e.category} ${e.country} ${e.cutoff}`).join("\n"));
+      setWarnings(parsed.warnings);
+      setNotice(`Read ${parsed.entries.length} entries. Check every row against the official PDF, add the source link, then save.`);
+    } catch (err) {
+      fail(err);
+    }
+  }
+
   async function approve(target: string) {
     setError(null);
     setNotice(null);
@@ -82,6 +104,11 @@ export default function VisaBulletinsPage() {
       <PageHeader title="Visa bulletins" subtitle="Enter each month from the official travel.state.gov notice. Only approved months are public." />
       {error ? <p role="alert">{error}</p> : null}
       {notice ? <p role="status">{notice}</p> : null}
+      <Field label="Paste text from the official PDF" htmlFor="vb-paste" hint="Open the bulletin on travel.state.gov, select all, copy, paste here. Fills the form below; saves nothing.">
+        <textarea id="vb-paste" rows={4} value={pasted} onChange={(e) => setPasted(e.target.value)} />
+      </Field>
+      <button type="button" onClick={fill} disabled={!pasted.trim()}>Fill form from text</button>
+      {warnings.length ? <ul role="alert">{warnings.map((w) => <li key={w}>{w}</li>)}</ul> : null}
       <form onSubmit={save}>
         <Field label="Month" htmlFor="vb-month" hint="YYYY-MM">
           <input id="vb-month" value={month} onChange={(e) => setMonth(e.target.value)} pattern="\d{4}-\d{2}" required />

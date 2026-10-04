@@ -5736,6 +5736,58 @@
         "title": "VisaBulletinOut",
         "type": "object"
       },
+      "VisaBulletinParseIn": {
+        "description": "Text copied from the official bulletin PDF (ADR-049).",
+        "properties": {
+          "text": {
+            "maxLength": 200000,
+            "minLength": 1,
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "text"
+        ],
+        "title": "VisaBulletinParseIn",
+        "type": "object"
+      },
+      "VisaBulletinParseOut": {
+        "properties": {
+          "entries": {
+            "items": {
+              "$ref": "#/components/schemas/VisaBulletinEntryIn"
+            },
+            "title": "Entries",
+            "type": "array"
+          },
+          "month": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Month"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Warnings",
+            "type": "array"
+          }
+        },
+        "required": [
+          "month",
+          "entries",
+          "warnings"
+        ],
+        "title": "VisaBulletinParseOut",
+        "type": "object"
+      },
       "VisaFollow": {
         "description": "P07 / ADR-041: a tracked visa bulletin category + country.",
         "properties": {
@@ -8384,6 +8436,48 @@
           }
         },
         "summary": "List Bulletins",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/v1/admin/visa-bulletins/parse": {
+      "post": {
+        "description": "Read-only helper (ADR-049): text pasted from the official PDF -> entries to review. Saves nothing.",
+        "operationId": "parse_bulletin_v1_admin_visa_bulletins_parse_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VisaBulletinParseIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VisaBulletinParseOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Parse Bulletin",
         "tags": [
           "admin"
         ]

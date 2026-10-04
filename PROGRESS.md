@@ -471,3 +471,13 @@ fails the run when Postgres is unreachable and `CI` or `REQUIRE_POSTGRES` is set
 local run that skipped database tests, so a green local run without a database
 is no longer mistaken for evidence. Checked: reachable (31 pass), unreachable
 local (31 skipped + warning), unreachable with `CI=1` (usage error).
+
+**P07 visa bulletin paste-to-prefill (2026-10-04, local, API + admin):** [ADR-049](docs/adr/ADR-049-visa-bulletin-paste-to-prefill.md).
+travel.state.gov also 403s the bulletin PDF to a plain request, so entry stays manual. The editor
+copies the text of the official bulletin into admin; `POST /v1/admin/visa-bulletins/parse`
+(read-only) returns month + entries + warnings, filling the existing form. Nothing is saved or
+approved by it; the editor adds the source link, checks against the PDF, saves, and a second
+admin approves. Parser tested on the real October 2026 bulletin (110 entries, no warnings);
+Certain Religious Workers and 5th set-aside rows are skipped (not tracked categories). API ruff,
+mypy and 642 tests pass; admin typecheck and eslint clean. Not tried in a browser against real
+PDF-copied text (only the pdftotext layout and a one-cell-per-line form are tested).
