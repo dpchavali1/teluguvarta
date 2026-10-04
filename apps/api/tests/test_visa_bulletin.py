@@ -10,7 +10,7 @@ from app.content.visa_bulletin import (
     valid_cutoff,
 )
 from app.jobs.notify import run_notification_dispatch
-from app.models import UserVisaFollow
+from app.models import Notification, UserVisaFollow
 from tests.conftest import requires_postgres
 from tests.test_editorial_workflow import _auth, _token
 from tests.test_notifications import _job
@@ -119,3 +119,14 @@ def test_approval_alerts_only_changed_alert_followers_once(client, db_session):
     assert len(rows) == 1 and rows[0].story_id is None
     for user in (same, muted, other):
         assert _rows(db_session, user, "TRACKER_UPDATE") == []
+
+    # A queued bulletin alert is re-checked at delivery: a reader who has since
+    # muted the follow is suppressed, not sent.
+    stale = Notification(
+        user_id=muted.id, type="TRACKER_UPDATE", notification_key=rows[0].notification_key, status="PENDING"
+    )
+    db_session.add(stale)
+    db_session.commit()
+    run_notification_dispatch(db_session, _job())
+    db_session.refresh(stale)
+    assert (stale.status, stale.suppressed_reason) == ("SUPPRESSED", "NO_LONGER_ELIGIBLE")

@@ -58,6 +58,7 @@ from app.content.notifications import (
     topic_alert_eligible,
 )
 from app.content.places import event_places_many, expand_with_ancestors
+from app.content.rights import unpermitted_sources
 from app.content.visa_bulletin_db import followers_changes
 from app.content.visa_bulletin_db import push_copy as visa_push_copy
 from app.jobs.queue import backoff_seconds, enqueue_job
@@ -383,6 +384,10 @@ def _obsolete_reason(db: Session, notification: Notification, prefs: UserNotific
         story = db.get(Story, notification.story_id)
         if story is None or story.status not in ("PUBLISHED", "UPDATED"):
             return "STORY_UNAVAILABLE"
+        if unpermitted_sources(db, story.id):
+            # Rights revoked after queueing (NON_NEGOTIABLES #4): hold the push.
+            # Retracting the story itself is ADR-023's open question.
+            return "STORY_UNAVAILABLE"
         notifiable = _to_notifiable(db, story)
         if notification.type == "TOPIC_ALERT" and not (
             topic_alert_eligible(notifiable, prefs)
@@ -413,6 +418,12 @@ def _obsolete_reason(db: Session, notification: Notification, prefs: UserNotific
                 )
             )
             if item is None or item.status != "APPROVED" or not follow:
+                return "NO_LONGER_ELIGIBLE"
+        elif notification.notification_key.startswith("visa_bulletin:"):
+            bulletin = db.get(VisaBulletin, UUID(notification.notification_key.removeprefix("visa_bulletin:")))
+            if bulletin is None or bulletin.status != "APPROVED" or notification.user_id not in followers_changes(
+                db, bulletin, notification.user_id
+            ):
                 return "NO_LONGER_ELIGIBLE"
     return None
 

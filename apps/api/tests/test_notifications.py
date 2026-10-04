@@ -498,3 +498,27 @@ def test_queued_exam_reminder_is_suppressed_after_withdrawal(db_session):
     row = _dispatch_and_reload(db_session, row)
 
     assert (row.status, row.suppressed_reason) == ("SUPPRESSED", "NO_LONGER_ELIGIBLE")
+
+
+def test_queued_alert_is_suppressed_when_source_rights_are_revoked(db_session):
+    topic = _make_topic(db_session, "money")
+    story = _make_published_story(db_session, topics=[topic])
+    user = _make_user_with_topic(db_session, topic)
+    row = _queue(db_session, user, story, "TOPIC_ALERT", f"topic_alert:{story.id}")
+    for source in unpermitted_sources_all(db_session, story):
+        source.rights_status = "DISABLED"
+    db_session.commit()
+
+    row = _dispatch_and_reload(db_session, row)
+
+    assert (row.status, row.suppressed_reason) == ("SUPPRESSED", "STORY_UNAVAILABLE")
+
+
+def unpermitted_sources_all(db, story):
+    from sqlalchemy import select
+
+    return db.scalars(
+        select(Source).join(SourceItem, SourceItem.source_id == Source.id)
+        .join(StorySource, StorySource.source_item_id == SourceItem.id)
+        .where(StorySource.story_id == story.id)
+    ).all()

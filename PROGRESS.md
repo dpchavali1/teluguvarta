@@ -398,3 +398,10 @@ self-approval of tracker entries, `package.json` `ignoreGhsas` contradicting
 ADR-038, Cloudflare/real-IP and security headers, share-card and login per-IP
 rate limits, TOTP replay and MFA recovery, per-exam domain allowlist. Production
 evidence (MFA, rate limits, restore) still not gathered.
+
+**Review 2026-10-04 — delivery re-check gaps closed (local, API):** `_obsolete_reason`
+now also suppresses a queued story alert whose source rights are no longer
+`LINK_ONLY` (`STORY_UNAVAILABLE`; whether to retract such a story stays ADR-023's
+open question) and a queued visa-bulletin alert when the bulletin is not
+APPROVED or the reader no longer follows a changed category with alerts on
+(`NO_LONGER_ELIGIBLE`). No migration. API ruff, mypy and 629 tests pass.
