@@ -21,7 +21,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from app.content.places import expand_with_ancestors
@@ -34,6 +34,14 @@ DIGEST_WINDOW_HOURS = 12
 # P02: a digest still goes out if the worker was down for up to this many
 # local hours after the chosen hour, then the slot is skipped.
 DIGEST_GRACE_HOURS = 2
+# ADR-050: the daily briefing goes out at this local time (reader's zone).
+BRIEFING_LOCAL_HOUR = 7
+BRIEFING_LOCAL_MINUTE = 30
+BRIEFING_GRACE_HOURS = 6
+# ADR-050: a deferred alert older than this is stale and expires. Exam
+# reminders are bounded by their deadline instead (see jobs/notify.py).
+MAX_AGE_HOURS_DEFAULT = 24
+MAX_AGE_HOURS_BY_TYPE = {"BREAKING_ALERT": 6, "DAILY_BRIEFING": 12, "DIGEST": DIGEST_WINDOW_HOURS}
 
 
 @dataclass(frozen=True)
@@ -202,3 +210,51 @@ def in_quiet_hours_any_zone(now: datetime, prefs: UserNotificationPrefs) -> bool
 
 def daily_cap_reached(sent_today: int, max_alerts_per_day: int) -> bool:
     return sent_today >= max_alerts_per_day
+
+
+def reader_zone(prefs: UserNotificationPrefs) -> ZoneInfo:
+    """Where the reader's day happens: residence, then home, then UTC (same
+    order as the digest slots)."""
+
+    return _zone(prefs.residence_tz) or _zone(prefs.home_tz) or ZoneInfo("UTC")
+
+
+def max_age(notif_type: str) -> timedelta:
+    return timedelta(hours=MAX_AGE_HOURS_BY_TYPE.get(notif_type, MAX_AGE_HOURS_DEFAULT))
+
+
+def daily_briefing_local_date(now: datetime, home_tz: str | None, residence_tz: str | None) -> str | None:
+    """Local ISO date when the reader's briefing slot (07:30 local) is open
+    (within the grace window), else None."""
+
+    zone = _zone(residence_tz) or _zone(home_tz) or ZoneInfo("UTC")
+    local = now.astimezone(zone)
+    minutes = local.hour * 60 + local.minute - (BRIEFING_LOCAL_HOUR * 60 + BRIEFING_LOCAL_MINUTE)
+    if 0 <= minutes < BRIEFING_GRACE_HOURS * 60:
+        return local.date().isoformat()
+    return None
+
+
+def quiet_hours_end_at(now: datetime, prefs: UserNotificationPrefs) -> datetime | None:
+    """First instant (15-minute resolution, so half-hour zones work) after
+    `now` outside quiet hours in every configured zone; None when quiet hours
+    never end within 48h (a 24h window) — the caller's expiry then applies."""
+
+    step = timedelta(minutes=15)
+    probe = now.replace(second=0, microsecond=0) + step - timedelta(minutes=now.minute % 15)
+    for _ in range(48 * 4):
+        if not in_quiet_hours_any_zone(probe, prefs):
+            return probe
+        probe += step
+    return None
+
+
+def local_day_start(now: datetime, prefs: UserNotificationPrefs) -> datetime:
+    zone = reader_zone(prefs)
+    local = now.astimezone(zone)
+    return datetime(local.year, local.month, local.day, tzinfo=zone)
+
+
+def next_local_day_start(now: datetime, prefs: UserNotificationPrefs) -> datetime:
+    # Wall-clock arithmetic on an aware datetime: lands on local midnight even across DST.
+    return local_day_start(now, prefs) + timedelta(days=1)

@@ -49,12 +49,17 @@ from app.content.notifications import (
     NotifiableStory,
     UserNotificationPrefs,
     breaking_alert_eligible,
+    daily_briefing_local_date,
     daily_cap_reached,
     digest_slots_due,
     digest_story_eligible,
     in_quiet_hours_any_zone,
     keyword_alert_eligible,
+    local_day_start,
+    max_age,
+    next_local_day_start,
     place_alert_eligible,
+    quiet_hours_end_at,
     topic_alert_eligible,
 )
 from app.content.places import event_places_many, expand_with_ancestors
@@ -89,6 +94,9 @@ NOTIFICATION_LOOKBACK_MINUTES = 120
 MAX_NOTIFICATION_ATTEMPTS = 5
 PENDING_BATCH_LIMIT = 500
 SCHEDULE_INTERVAL_MINUTES = 1
+# send_push details that mean "can't deliver yet", not "this delivery failed" (ADR-050).
+WAITING_DETAILS = frozenset({"PUSH_DISABLED", "FCM_AUTH_ERROR", "NO_FCM_TOKENS"})
+WAITING_RETRY_SECONDS = 300
 
 
 def _now() -> datetime:
@@ -245,13 +253,19 @@ def _generate_topic_and_breaking_candidates(db: Session, now: datetime) -> None:
 
 
 def _generate_daily_briefing_candidates(db: Session, now: datetime) -> None:
-    utc_date = now.date().isoformat()
-    user_ids = db.scalars(select(Profile.user_id).where(Profile.daily_briefing_enabled.is_(True))).all()
-    for user_id in user_ids:
-        _insert_pending(
-            db, user_id=user_id, story_id=None,
-            notif_type="DAILY_BRIEFING", notification_key=f"daily_briefing:{utc_date}",
-        )
+    """One briefing per user per local date, created once the reader's local
+    07:30 slot opens (ADR-050); the date-keyed insert keeps it idempotent."""
+
+    rows = db.execute(
+        select(Profile.user_id, Profile.home_tz, Profile.residence_tz).where(Profile.daily_briefing_enabled.is_(True))
+    ).all()
+    for user_id, home_tz, residence_tz in rows:
+        local_date = daily_briefing_local_date(now, home_tz, residence_tz)
+        if local_date is not None:
+            _insert_pending(
+                db, user_id=user_id, story_id=None,
+                notif_type="DAILY_BRIEFING", notification_key=f"daily_briefing:{local_date}",
+            )
     db.commit()
 
 
@@ -325,8 +339,8 @@ def _generate_story_update_candidates(db: Session, now: datetime) -> None:
     db.commit()
 
 
-def _sent_today_count(db: Session, user_id, now: datetime) -> int:
-    day_start = datetime(now.year, now.month, now.day, tzinfo=UTC)
+def _sent_today_count(db: Session, user_id, now: datetime, prefs: UserNotificationPrefs) -> int:
+    day_start = local_day_start(now, prefs)  # the reader's own day, matching the deferral target
     return db.scalar(
         select(func.count())
         .select_from(Notification)
@@ -428,6 +442,29 @@ def _obsolete_reason(db: Session, notification: Notification, prefs: UserNotific
     return None
 
 
+def _defer(notification: Notification, until: datetime, reason: str, event: str) -> None:
+    """Keep the row PENDING until `until` without consuming an attempt. The
+    analytics event fires when the reason first appears, not on every sweep."""
+
+    first = notification.last_error != reason
+    notification.next_attempt_at = until
+    notification.last_error = reason
+    if first:
+        analytics.track(
+            event, user_id=str(notification.user_id), notification_type=notification.type,
+            deferred_until=until.isoformat(),
+        )
+
+
+def _expired(db: Session, notification: Notification, now: datetime) -> bool:
+    if notification.type == "TRACKER_UPDATE":
+        parsed = parse_notification_key(notification.notification_key)
+        if parsed is not None:  # exam reminder: useful until the deadline passes
+            item = db.get(ExamDeadline, UUID(parsed[0]))
+            return item is None or item.deadline <= now.date()
+    return notification.created_at + max_age(notification.type) <= now
+
+
 def _process_one(db: Session, notification: Notification, now: datetime) -> None:
     prefs = _load_prefs(db, notification.user_id)
 
@@ -438,24 +475,29 @@ def _process_one(db: Session, notification: Notification, now: datetime) -> None
         db.commit()
         return
 
-    if in_quiet_hours_any_zone(now, prefs):
+    if _expired(db, notification, now):
         notification.status = "SUPPRESSED"
-        notification.suppressed_reason = "QUIET_HOURS"
+        notification.suppressed_reason = "EXPIRED"
         db.commit()
         analytics.track(
-            "notification_skipped_due_to_quiet_hours",
+            "notification_expired",
             user_id=str(notification.user_id), notification_type=notification.type,
+            waiting_for=notification.last_error,
         )
         return
 
-    if daily_cap_reached(_sent_today_count(db, notification.user_id, now), prefs.max_alerts_per_day):
-        notification.status = "SUPPRESSED"
-        notification.suppressed_reason = "DAILY_CAP"
-        db.commit()
-        analytics.track(
-            "notification_suppressed_by_daily_cap",
-            user_id=str(notification.user_id), notification_type=notification.type,
+    if in_quiet_hours_any_zone(now, prefs):
+        # Defer, don't suppress: the same row (and dedupe key) is delivered once quiet hours end.
+        _defer(
+            notification, quiet_hours_end_at(now, prefs) or now + timedelta(hours=1), "QUIET_HOURS",
+            "notification_skipped_due_to_quiet_hours",
         )
+        db.commit()
+        return
+
+    if daily_cap_reached(_sent_today_count(db, notification.user_id, now, prefs), prefs.max_alerts_per_day):
+        _defer(notification, next_local_day_start(now, prefs), "DAILY_CAP", "notification_suppressed_by_daily_cap")
+        db.commit()
         return
 
     tokens = db.scalars(
@@ -479,10 +521,18 @@ def _process_one(db: Session, notification: Notification, now: datetime) -> None
             {PushToken.active: False}, synchronize_session=False
         )
 
+    if not result.ok and result.detail in WAITING_DETAILS:
+        # Push off / credential broken / no token yet: not a delivery attempt.
+        # Stay PENDING (bounded by expiry) so fixing it later delivers the row.
+        _defer(notification, now + timedelta(seconds=WAITING_RETRY_SECONDS), result.detail, "notification_waiting")
+        db.commit()
+        return
+
     notification.attempts += 1
     if result.ok:
         notification.status = "SENT"
         notification.sent_at = now
+        notification.last_error = None
     elif notification.attempts >= MAX_NOTIFICATION_ATTEMPTS:
         notification.status = "FAILED"
         analytics.track(
@@ -490,6 +540,7 @@ def _process_one(db: Session, notification: Notification, now: datetime) -> None
             user_id=str(notification.user_id), notification_type=notification.type, detail=result.detail,
         )
     else:
+        notification.last_error = result.detail
         notification.next_attempt_at = now + timedelta(seconds=backoff_seconds(notification.attempts))
     db.commit()
 

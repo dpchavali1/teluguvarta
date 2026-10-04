@@ -503,3 +503,16 @@ Family-sponsored cards, plain-English category names, "Jan 1, 2025" dates, Curre
 tests, web typecheck/lint/24 tests, web and admin builds pass. Installed on the phone (APK 17:07) but
 the layout is not yet visually checked on a device; the web redesign was not screenshotted (browser
 extension unavailable). Web needs a deploy.
+
+**Push delivery fixes (2026-10-04, local, API + mobile, ADR-050):** quiet hours and the daily cap now
+defer (row stays PENDING, `next_attempt_at` set; cap uses the reader's local day) and a PENDING row
+older than its max age (breaking 6h, briefing/digest 12h, others 24h, exam reminders until the
+deadline) becomes SUPPRESSED/`EXPIRED`. PUSH_DISABLED / FCM_AUTH_ERROR / NO_FCM_TOKENS no longer burn
+attempts (`notifications.last_error` says why). Daily briefing is created at 07:30 in the reader's
+zone (UTC if none), keyed by local date. FCM token retirement adds SENDER_ID_MISMATCH and
+INVALID_ARGUMENT-on-token; OAuth token cached. Mobile: `alerts` channel + FCM default channel
+(app.json `defaultChannel`), Android foreground handler (local notification, tap deep-links),
+DIGEST/STORY_UPDATE routes. **Deploy:** run migration `c3f9a1d7e5b2` before the new API/worker
+revision; recreate the worker with `up -d worker`; mobile needs a rebuild + reinstall (new manifest
+meta-data). Not verified on a device: foreground display, channel importance, tap routing. Expect one
+extra briefing on deploy day (old UTC-date key).

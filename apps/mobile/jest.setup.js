@@ -47,6 +47,7 @@ jest.mock("@react-native-firebase/analytics", () => {
 jest.mock("@react-native-firebase/messaging", () => ({
   getInitialNotification: jest.fn(async () => null),
   getMessaging: () => ({}),
+  onMessage: jest.fn(() => () => undefined),
   onNotificationOpenedApp: jest.fn(() => () => undefined),
   getToken: jest.fn(async () => "fcm-device-token"),
   onTokenRefresh: jest.fn(() => () => undefined),

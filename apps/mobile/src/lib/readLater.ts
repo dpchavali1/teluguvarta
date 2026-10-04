@@ -35,7 +35,9 @@ export function listenForReadLaterOpens(onOpen: (data: { story_slug?: string | n
     const request = response.notification.request;
     const trigger = request.trigger as { type?: string } | null;
     if (trigger?.type === "push" || handled.has(request.identifier)) return;
-    const slug = (request.content.data as { story_slug?: unknown } | undefined)?.story_slug;
+    const data = request.content.data as { story_slug?: unknown; tte_foreground?: unknown } | undefined;
+    if (data?.tte_foreground === "1") return; // a foreground push; push.ts routes it
+    const slug = data?.story_slug;
     if (typeof slug !== "string" || !slug) return;
     handled.add(request.identifier);
     onOpen({ story_slug: slug });

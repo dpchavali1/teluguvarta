@@ -1,12 +1,23 @@
 import * as Notifications from "expo-notifications";
-import { getInitialNotification, getToken, onNotificationOpenedApp, setAutoInitEnabled } from "@react-native-firebase/messaging";
+import { getInitialNotification, getToken, onMessage, onNotificationOpenedApp, setAutoInitEnabled } from "@react-native-firebase/messaging";
+import { Platform } from "react-native";
 import { registerPushToken } from "../lib/api";
-import { listenForNotificationOpens, registerForPushNotificationsAsync, resolveNotificationDeepLink } from "../lib/push";
+import {
+  ensureAndroidAlertChannel,
+  listenForForegroundMessages,
+  listenForNotificationOpens,
+  registerForPushNotificationsAsync,
+  resolveNotificationDeepLink,
+} from "../lib/push";
 
 jest.mock("expo-device", () => ({ isDevice: true }));
 jest.mock("expo-notifications", () => ({
   getPermissionsAsync: jest.fn(async () => ({ status: "granted" })),
   requestPermissionsAsync: jest.fn(async () => ({ status: "granted" })),
+  setNotificationChannelAsync: jest.fn(async () => null),
+  scheduleNotificationAsync: jest.fn(async () => "local-id"),
+  addNotificationResponseReceivedListener: jest.fn(() => ({ remove: jest.fn() })),
+  AndroidImportance: { HIGH: 4 },
 }));
 jest.mock("../lib/api", () => ({ registerPushToken: jest.fn(async () => undefined) }));
 
@@ -69,5 +80,69 @@ describe("listenForNotificationOpens", () => {
 describe("tracker deep link", () => {
   it("opens Trackers for TRACKER_UPDATE with no story", () => {
     expect(resolveNotificationDeepLink({ type: "TRACKER_UPDATE", story_slug: null })).toEqual({ screen: "Trackers" });
+  });
+});
+
+describe("deep link types", () => {
+  it("routes DIGEST to Home and STORY_UPDATE to its story", () => {
+    expect(resolveNotificationDeepLink({ type: "DIGEST", story_slug: null })).toEqual({ screen: "Home" });
+    expect(resolveNotificationDeepLink({ type: "STORY_UPDATE", story_slug: "fixed" })).toEqual({
+      screen: "StoryDetail",
+      slug: "fixed",
+    });
+  });
+});
+
+describe("android channel and foreground messages", () => {
+  const originalOS = Platform.OS;
+  afterEach(() => {
+    Platform.OS = originalOS;
+    jest.clearAllMocks();
+  });
+
+  it("creates a high-importance alerts channel on Android only", async () => {
+    await ensureAndroidAlertChannel();
+    expect(Notifications.setNotificationChannelAsync).not.toHaveBeenCalled();
+    Platform.OS = "android";
+    await ensureAndroidAlertChannel();
+    expect(Notifications.setNotificationChannelAsync).toHaveBeenCalledWith("alerts", { name: "Alerts", importance: 4 });
+  });
+
+  it("shows a foreground FCM message locally, routes its tap, and unsubscribes", async () => {
+    Platform.OS = "android";
+    const unsubscribeMessages = jest.fn();
+    const removeTap = jest.fn();
+    let messageHandler: (m: unknown) => Promise<void> = async () => undefined;
+    let tapHandler: (r: unknown) => void = () => undefined;
+    jest.mocked(onMessage).mockImplementationOnce(((_m: unknown, handler: typeof messageHandler) => {
+      messageHandler = handler;
+      return unsubscribeMessages;
+    }) as never);
+    jest.mocked(Notifications.addNotificationResponseReceivedListener).mockImplementationOnce(((handler: typeof tapHandler) => {
+      tapHandler = handler;
+      return { remove: removeTap };
+    }) as never);
+    const onTap = jest.fn();
+    const stop = listenForForegroundMessages(onTap);
+
+    await messageHandler({ notification: { title: "Breaking", body: "Body" }, data: { type: "BREAKING_ALERT", story_slug: "s" } });
+    expect(Notifications.scheduleNotificationAsync).toHaveBeenCalledWith({
+      content: { title: "Breaking", body: "Body", data: { type: "BREAKING_ALERT", story_slug: "s", tte_foreground: "1" } },
+      trigger: null,
+    });
+
+    tapHandler({ notification: { request: { content: { data: { story_slug: "other" } } } } }); // not ours
+    expect(onTap).not.toHaveBeenCalled();
+    tapHandler({ notification: { request: { content: { data: { type: "BREAKING_ALERT", story_slug: "s", tte_foreground: "1" } } } } });
+    expect(onTap).toHaveBeenCalledWith({ type: "BREAKING_ALERT", story_slug: "s" });
+
+    stop();
+    expect(unsubscribeMessages).toHaveBeenCalled();
+    expect(removeTap).toHaveBeenCalled();
+  });
+
+  it("does nothing on iOS", () => {
+    listenForForegroundMessages(jest.fn())();
+    expect(onMessage).not.toHaveBeenCalled();
   });
 });

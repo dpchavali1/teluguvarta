@@ -40,6 +40,8 @@ EVENT_NAMES = frozenset(
         "notification_skipped_due_to_quiet_hours",
         "notification_suppressed_by_daily_cap",
         "notification_failed",
+        "notification_expired",  # ADR-050
+        "notification_waiting",  # ADR-050: push off / credential broken / no token yet
     }
 )
 

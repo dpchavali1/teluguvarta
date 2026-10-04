@@ -426,10 +426,13 @@ class Notification(Base):
     # 'PENDING' | 'SENT' | 'FAILED' | 'SUPPRESSED' per `ck_notifications_status`.
     status: Mapped[str] = mapped_column(Text, nullable=False, server_default="PENDING")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
-    # 'QUIET_HOURS' | 'DAILY_CAP' | 'STORY_UNAVAILABLE' | 'NO_LONGER_ELIGIBLE' | NULL per `ck_notifications_suppressed_reason`.
+    # 'QUIET_HOURS' | 'DAILY_CAP' | 'STORY_UNAVAILABLE' | 'NO_LONGER_ELIGIBLE' | 'EXPIRED' | NULL per `ck_notifications_suppressed_reason`.
     suppressed_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
     attempts: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
+    # Also the deferral time: a PENDING row is not swept before this (ADR-050).
     next_attempt_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    # Why a PENDING row is waiting (QUIET_HOURS, DAILY_CAP, PUSH_DISABLED, ...); no attempt burned.
+    last_error: Mapped[str | None] = mapped_column(Text, nullable=True)
 
 
 class ReviewTask(Base):

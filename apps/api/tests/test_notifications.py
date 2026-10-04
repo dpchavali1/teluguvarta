@@ -304,7 +304,7 @@ def test_unsubscribing_student_topic_leaves_general_topic_subscription_untouched
     assert opt_alerts == []
 
 
-def test_quiet_hours_suppresses_and_emits_analytics_event(db_session, caplog):
+def test_quiet_hours_defers_and_emits_analytics_event(db_session, caplog):
     topic = _make_topic(db_session, "money")
     _make_published_story(db_session, topics=[topic], importance=0.9)
     now_hour = datetime.now(UTC).hour
@@ -318,12 +318,12 @@ def test_quiet_hours_suppresses_and_emits_analytics_event(db_session, caplog):
     notification = db_session.scalars(
         select(Notification).where(Notification.user_id == user.id, Notification.type == "TOPIC_ALERT")
     ).one()
-    assert notification.status == "SUPPRESSED"
-    assert notification.suppressed_reason == "QUIET_HOURS"
+    assert notification.status == "PENDING" and notification.suppressed_reason is None
+    assert notification.last_error == "QUIET_HOURS" and notification.attempts == 0
     assert any("notification_skipped_due_to_quiet_hours" in r.message for r in caplog.records)
 
 
-def test_daily_cap_suppresses_and_emits_analytics_event(db_session, caplog):
+def test_daily_cap_defers_to_next_local_day_and_emits_analytics_event(db_session, caplog):
     topic = _make_topic(db_session, "money")
     user = _make_user_with_topic(db_session, topic, max_alerts_per_day=1)
     # Pre-fill today's cap with an already-SENT notification.
@@ -341,8 +341,8 @@ def test_daily_cap_suppresses_and_emits_analytics_event(db_session, caplog):
     notification = db_session.scalars(
         select(Notification).where(Notification.user_id == user.id, Notification.story_id == story.id)
     ).one()
-    assert notification.status == "SUPPRESSED"
-    assert notification.suppressed_reason == "DAILY_CAP"
+    assert notification.status == "PENDING" and notification.last_error == "DAILY_CAP"
+    assert notification.next_attempt_at > datetime.now(UTC)
     assert any("notification_suppressed_by_daily_cap" in r.message for r in caplog.records)
 
 
@@ -408,11 +408,13 @@ def test_story_alert_push_body_is_the_story_headline(db_session):
 
 # Review 2026-10-04: a queued alert is re-checked at delivery.
 
-def _queue(db: Session, user: User, story: Story | None, notif_type: str, key: str) -> Notification:
+def _queue(db: Session, user: User, story: Story | None, notif_type: str, key: str, created_at=None) -> Notification:
     row = Notification(
         user_id=user.id, story_id=story.id if story else None, type=notif_type,
         notification_key=key, status="PENDING",
     )
+    if created_at is not None:
+        row.created_at = created_at
     db.add(row)
     db.commit()
     return row
@@ -563,3 +565,167 @@ def test_journey_alert_queued_then_story_retracted_through_the_admin_api_is_not_
 
     row = _dispatch_and_reload(db_session, row)
     assert (row.status, row.suppressed_reason) == ("SUPPRESSED", "STORY_UNAVAILABLE")
+
+
+# --- ADR-050: deferral, expiry, local briefing, waiting rows ---
+
+
+def _ok_send(monkeypatch):
+    from app import push
+    from app.jobs import notify
+
+    sent: list[str] = []
+
+    def fake(tokens, **kwargs):
+        sent.append(kwargs["data"]["type"])
+        return push.PushSendResult(True, "SENT")
+
+    monkeypatch.setattr(notify, "send_push", fake)
+    return sent
+
+
+def test_quiet_hours_deferral_delivers_after_window_without_duplicate(db_session, monkeypatch):
+    from datetime import timedelta
+
+    from app.jobs import notify
+
+    sent = _ok_send(monkeypatch)
+    topic = _make_topic(db_session, "money")
+    story = _make_published_story(db_session, topics=[topic])
+    user = _make_user_with_topic(db_session, topic, quiet_hours=(22, 7))
+    row = _queue(db_session, user, story, "TOPIC_ALERT", f"topic_alert:{story.id}", datetime(2026, 10, 4, 22, 0, tzinfo=UTC))
+
+    night = datetime(2026, 10, 4, 23, 0, tzinfo=UTC)
+    notify._process_pending(db_session, night)
+    db_session.refresh(row)
+    assert row.status == "PENDING" and row.attempts == 0 and sent == []
+    assert row.next_attempt_at == datetime(2026, 10, 5, 7, 0, tzinfo=UTC)
+
+    notify._process_pending(db_session, night + timedelta(hours=3))  # not due yet
+    assert sent == []
+    notify._process_pending(db_session, datetime(2026, 10, 5, 7, 1, tzinfo=UTC))
+    db_session.refresh(row)
+    assert row.status == "SENT" and sent == ["TOPIC_ALERT"] and row.last_error is None
+    assert db_session.scalars(select(Notification).where(Notification.user_id == user.id)).all() == [row]
+
+
+def test_quiet_hours_use_both_zones_when_computing_end(db_session):
+    from app.content.notifications import quiet_hours_end_at
+
+    prefs = _prefs(quiet_hours_start=22, quiet_hours_end=7, home_tz="Asia/Kolkata", residence_tz="America/Chicago")
+    now = datetime(2026, 10, 4, 18, 0, tzinfo=UTC)  # 23:30 IST, 13:00 CDT
+    end = quiet_hours_end_at(now, prefs)
+    # IST quiet until 07:00 IST = 01:30 UTC; CDT is awake then? 01:30 UTC = 20:30 CDT (awake).
+    assert end == datetime(2026, 10, 5, 1, 30, tzinfo=UTC)
+    assert quiet_hours_end_at(now, _prefs(quiet_hours_start=3, quiet_hours_end=3)) is None
+
+
+def test_stale_deferred_alert_expires_with_reason(db_session, monkeypatch):
+    from datetime import timedelta
+
+    from app.jobs import notify
+
+    sent = _ok_send(monkeypatch)
+    topic = _make_topic(db_session, "money")
+    story = _make_published_story(db_session, topics=[topic])
+    now_hour = datetime.now(UTC).hour
+    user = _make_user_with_topic(db_session, topic, quiet_hours=(now_hour, now_hour))  # never ends
+    row = _queue(db_session, user, story, "TOPIC_ALERT", f"topic_alert:{story.id}")
+    row.created_at = datetime.now(UTC) - timedelta(hours=25)
+    db_session.commit()
+
+    notify._process_pending(db_session, datetime.now(UTC))
+    db_session.refresh(row)
+    assert (row.status, row.suppressed_reason) == ("SUPPRESSED", "EXPIRED") and sent == []
+
+
+def test_daily_cap_defers_until_next_local_day_then_delivers(db_session, monkeypatch):
+    from app.jobs import notify
+
+    sent = _ok_send(monkeypatch)
+    topic = _make_topic(db_session, "money")
+    story = _make_published_story(db_session, topics=[topic])
+    user = _make_user_with_topic(db_session, topic, max_alerts_per_day=1)
+    db_session.get(Profile, user.id).residence_tz = "Asia/Kolkata"
+    db_session.add(Notification(
+        user_id=user.id, type="TOPIC_ALERT", notification_key="earlier", status="SENT",
+        sent_at=datetime(2026, 10, 4, 10, 0, tzinfo=UTC),
+    ))
+    row = _queue(db_session, user, story, "TOPIC_ALERT", f"topic_alert:{story.id}", datetime(2026, 10, 4, 11, 0, tzinfo=UTC))
+    db_session.commit()
+
+    notify._process_pending(db_session, datetime(2026, 10, 4, 12, 0, tzinfo=UTC))
+    db_session.refresh(row)
+    assert row.status == "PENDING" and row.last_error == "DAILY_CAP"
+    assert row.next_attempt_at == datetime(2026, 10, 4, 18, 30, tzinfo=UTC)  # 00:00 IST on Oct 5
+
+    notify._process_pending(db_session, datetime(2026, 10, 4, 18, 31, tzinfo=UTC))
+    db_session.refresh(row)
+    assert row.status == "SENT" and sent == ["TOPIC_ALERT"]
+
+
+def test_daily_briefing_waits_for_local_morning_and_is_idempotent(db_session):
+    from app.jobs.notify import _generate_daily_briefing_candidates
+
+    topic = _make_topic(db_session, "money")
+    ist = _make_user_with_topic(db_session, topic)
+    db_session.get(Profile, ist.id).residence_tz = "Asia/Kolkata"
+    utc_user = _make_user_with_topic(db_session, topic)  # no timezone: UTC
+    db_session.commit()
+
+    def keys(user):
+        return list(db_session.scalars(
+            select(Notification.notification_key).where(Notification.user_id == user.id, Notification.type == "DAILY_BRIEFING")
+        ))
+
+    _generate_daily_briefing_candidates(db_session, datetime(2026, 10, 4, 0, 5, tzinfo=UTC))  # 05:35 IST, 00:05 UTC
+    assert keys(ist) == [] and keys(utc_user) == []
+    at = datetime(2026, 10, 4, 2, 10, tzinfo=UTC)  # 07:40 IST
+    _generate_daily_briefing_candidates(db_session, at)
+    _generate_daily_briefing_candidates(db_session, at)
+    assert keys(ist) == ["daily_briefing:2026-10-04"] and keys(utc_user) == []
+    _generate_daily_briefing_candidates(db_session, datetime(2026, 10, 4, 7, 45, tzinfo=UTC))
+    assert keys(utc_user) == ["daily_briefing:2026-10-04"]
+
+
+def test_push_disabled_rows_stay_pending_then_deliver_when_enabled(db_session, monkeypatch):
+    from datetime import timedelta
+
+    from app import push
+    from app.jobs import notify
+
+    topic = _make_topic(db_session, "money")
+    story = _make_published_story(db_session, topics=[topic])
+    user = _make_user_with_topic(db_session, topic)
+    db_session.add(PushToken(user_id=user.id, platform="android", token="fcm-token"))
+    row = _queue(db_session, user, story, "TOPIC_ALERT", f"topic_alert:{story.id}")
+    db_session.commit()
+    monkeypatch.setenv("PUSH_NOTIFICATIONS_ENABLED", "false")
+
+    base = datetime.now(UTC)
+    for i in range(8):  # more sweeps than MAX_NOTIFICATION_ATTEMPTS
+        notify._process_pending(db_session, base + timedelta(minutes=6 * i))
+    db_session.refresh(row)
+    assert row.status == "PENDING" and row.attempts == 0 and row.last_error == "PUSH_DISABLED"
+
+    monkeypatch.setattr(notify, "send_push", lambda tokens, **kw: push.PushSendResult(True, "SENT"))
+    notify._process_pending(db_session, base + timedelta(minutes=60))
+    db_session.refresh(row)
+    assert row.status == "SENT" and row.attempts == 1
+
+
+def test_waiting_row_expires_when_push_never_comes_back(db_session, monkeypatch):
+    from datetime import timedelta
+
+    from app.jobs import notify
+
+    topic = _make_topic(db_session, "money")
+    story = _make_published_story(db_session, topics=[topic])
+    user = _make_user_with_topic(db_session, topic)
+    row = _queue(db_session, user, story, "TOPIC_ALERT", f"topic_alert:{story.id}")
+    monkeypatch.setenv("PUSH_NOTIFICATIONS_ENABLED", "false")
+    now = datetime.now(UTC)
+    notify._process_pending(db_session, now)
+    notify._process_pending(db_session, now + timedelta(hours=25))
+    db_session.refresh(row)
+    assert (row.status, row.suppressed_reason) == ("SUPPRESSED", "EXPIRED")

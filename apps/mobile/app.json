@@ -29,7 +29,7 @@
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
-      "expo-notifications",
+      ["expo-notifications", { "defaultChannel": "alerts" }],
       "expo-secure-store",
       "@react-native-firebase/app",
       "@react-native-firebase/messaging",

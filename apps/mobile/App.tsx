@@ -13,6 +13,8 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import { trackEvent } from "./src/lib/api";
 import { initializeMobileAnalytics } from "./src/lib/mobileAnalytics";
 import {
+  ensureAndroidAlertChannel,
+  listenForForegroundMessages,
   listenForNotificationOpens,
   listenForPushTokenRefresh,
   registerForPushNotificationsAsync,
@@ -97,7 +99,7 @@ function AppContent() {
     if (!registeredForPush.current) {
       registeredForPush.current = true;
       initializeMobileAnalytics().catch(() => undefined);
-      registerForPushNotificationsAsync();
+      ensureAndroidAlertChannel().finally(() => registerForPushNotificationsAsync());
     }
 
     const unsubscribeTokenRefresh = listenForPushTokenRefresh();
@@ -116,6 +118,13 @@ function AppContent() {
       flushPendingRoute();
     });
 
+    // Android shows no FCM notification while the app is open; show it and route its tap.
+    const stopForeground = listenForForegroundMessages((data) => {
+      trackEvent("notification_open", { data });
+      pendingRoute.current = resolveNotificationDeepLink(data);
+      flushPendingRoute();
+    });
+
     // Read-later reminders are local expo notifications, not FCM.
     const stopReminderOpens = listenForReadLaterOpens((data) => {
       trackEvent("notification_open", { data: { type: "READ_LATER", ...data } });
@@ -126,6 +135,7 @@ function AppContent() {
     return () => {
       receivedSub.remove();
       stopOpens();
+      stopForeground();
       stopReminderOpens();
       unsubscribeTokenRefresh();
     };
