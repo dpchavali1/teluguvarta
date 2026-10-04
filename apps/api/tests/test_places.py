@@ -1,15 +1,17 @@
-# ruff: noqa: F811
 """P03 / ADR-043: place catalog, story place tags, place follows, ranking,
 place alerts, the public place filter and the admin editor."""
 
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
-import pytest
 from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session
 
-from app.content.notifications import NotifiableStory, UserNotificationPrefs, place_alert_eligible
+from app.content.notifications import (
+    NotifiableStory,
+    UserNotificationPrefs,
+    place_alert_eligible,
+)
 from app.content.places import (
     CATALOG,
     MAX_FOLLOWED_PLACES,
@@ -32,7 +34,7 @@ from tests.test_generate import (
     _make_source,
     _use_fake_provider,
 )
-from tests.test_notifications import _job, _make_published_story, client, db_session
+from tests.test_notifications import _job, _make_published_story
 from tests.test_smart_alerts import AUTH, _rows, _user
 
 # --- catalog (pure) ---
@@ -107,15 +109,15 @@ def test_follow_alone_makes_preferences_non_empty():
 
 
 def _notifiable(**kw):
-    base = dict(id="s", topics=(), importance=0.9, classification_confidence=0.9, sensitivity="NONE",
-                breaking_alert_approved=False, avg_source_quality=0.8, places=("IN-TG-warangal",))
+    base = {"id": "s", "topics": (), "importance": 0.9, "classification_confidence": 0.9, "sensitivity": "NONE",
+                "breaking_alert_approved": False, "avg_source_quality": 0.8, "places": ("IN-TG-warangal",)}
     base.update(kw)
     return NotifiableStory(**base)
 
 
 def _prefs(**kw):
-    base = dict(subscribed_topics=(), breaking_alerts_enabled=True, daily_briefing_enabled=True,
-                quiet_hours_start=None, quiet_hours_end=None, max_alerts_per_day=5)
+    base = {"subscribed_topics": (), "breaking_alerts_enabled": True, "daily_briefing_enabled": True,
+                "quiet_hours_start": None, "quiet_hours_end": None, "max_alerts_per_day": 5}
     base.update(kw)
     return UserNotificationPrefs(**base)
 
@@ -180,7 +182,7 @@ def test_public_place_filter_matches_subtree_and_home_ranks_by_follow(client, db
     db_session.add(StoryPlace(story_id=tagged.id, place_id="IN-TG-warangal", role="EVENT"))
     db_session.commit()
 
-    ids = lambda r: {item["id"] for item in r.json()["items"]}  # noqa: E731
+    ids = lambda r: {item["id"] for item in r.json()["items"]}
     assert ids(client.get("/v1/stories", params={"place": "IN-TG"})) == {str(tagged.id)}
     assert ids(client.get("/v1/stories", params={"place": "IN-TG-warangal"})) == {str(tagged.id)}
     assert ids(client.get("/v1/stories", params={"place": "US-TX"})) == set()  # explicit empty, no fallback
