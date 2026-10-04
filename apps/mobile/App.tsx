@@ -65,6 +65,8 @@ function AppContent() {
     pendingRoute.current = null;
     if (route.screen === "StoryDetail") {
       navigationRef.navigate("StoryDetail", { slug: route.slug });
+    } else if (route.screen === "Trackers") {
+      navigationRef.navigate("Trackers");
     } else {
       navigationRef.navigate("Main", { screen: "Home" });
     }

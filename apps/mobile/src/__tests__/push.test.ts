@@ -65,3 +65,9 @@ describe("listenForNotificationOpens", () => {
     expect(unsubscribe).toHaveBeenCalled();
   });
 });
+
+describe("tracker deep link", () => {
+  it("opens Trackers for TRACKER_UPDATE with no story", () => {
+    expect(resolveNotificationDeepLink({ type: "TRACKER_UPDATE", story_slug: null })).toEqual({ screen: "Trackers" });
+  });
+});

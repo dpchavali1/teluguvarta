@@ -112,6 +112,7 @@ export function SettingsScreen() {
       <View style={styles.group}>
         <SettingsRow label="Your profile" onPress={() => navigation.navigate("Profile")} styles={styles} />
         <SettingsRow label="Your places" onPress={() => navigation.navigate("Places")} styles={styles} />
+        <SettingsRow label="Visa & exam trackers" onPress={() => navigation.navigate("Trackers")} styles={styles} />
         <SettingsRow label="Language" onPress={() => navigation.navigate("Language")} styles={styles} />
         <SettingsRow label="Hidden topics" onPress={() => navigation.navigate("HiddenTopics")} styles={styles} />
         <SettingsRow label="My Edit signals" onPress={() => navigation.navigate("MySignals")} styles={styles} />

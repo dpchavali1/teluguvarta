@@ -23,6 +23,7 @@ export type RootStackParamList = {
   Profile: undefined;
   HiddenTopics: undefined;
   Places: undefined;
+  Trackers: undefined;
   MySignals: undefined;
   PlaceStories: { placeId: string };
 };

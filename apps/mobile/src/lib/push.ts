@@ -74,11 +74,11 @@ export function listenForNotificationOpens(onOpen: (data: NotificationDeepLinkDa
 }
 
 export type NotificationDeepLinkData = {
-  type?: "DAILY_BRIEFING" | "TOPIC_ALERT" | "BREAKING_ALERT";
+  type?: "DAILY_BRIEFING" | "TOPIC_ALERT" | "BREAKING_ALERT" | "TRACKER_UPDATE";
   story_slug?: string | null;
 };
 
-export type DeepLinkRoute = { screen: "StoryDetail"; slug: string } | { screen: "Home" };
+export type DeepLinkRoute = { screen: "StoryDetail"; slug: string } | { screen: "Trackers" } | { screen: "Home" };
 
 // Pure — no navigation/fetch here — so it's unit-testable without a device.
 // A missing/null slug (DAILY_BRIEFING, or a story that's since become
@@ -87,5 +87,6 @@ export type DeepLinkRoute = { screen: "StoryDetail"; slug: string } | { screen: 
 // acceptance criterion.
 export function resolveNotificationDeepLink(data: NotificationDeepLinkData): DeepLinkRoute {
   if (data.story_slug) return { screen: "StoryDetail", slug: data.story_slug };
+  if (data.type === "TRACKER_UPDATE") return { screen: "Trackers" };
   return { screen: "Home" };
 }

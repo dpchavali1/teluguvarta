@@ -8,6 +8,8 @@ import { trackMobileEvent } from "./mobileAnalytics";
 export type StoryVariantOut = components["schemas"]["StoryVariantOut"];
 export type TopicOut = components["schemas"]["TopicOut"];
 export type ShareMetaResponse = components["schemas"]["ShareMetaResponse"];
+export type VisaBulletinOut = components["schemas"]["VisaBulletinOut"];
+export type ExamDeadlineOut = components["schemas"]["ExamDeadlineOut"];
 export type Language = "en" | "te";
 
 // Mirrors apps/web/src/lib/api.ts's normalization — the generated types mark
@@ -126,6 +128,14 @@ export async function getStory(slug: string): Promise<StoryOut> {
 
 export function getShareMeta(slug: string): Promise<ShareMetaResponse> {
   return apiGet<ShareMetaResponse>(`/v1/stories/${encodeURIComponent(slug)}/share-meta`);
+}
+
+export function getLatestVisaBulletin(category?: string, country?: string): Promise<VisaBulletinOut> {
+  return apiGet<VisaBulletinOut>("/v1/visa-bulletins/latest", { category, country });
+}
+
+export function listExamDeadlines(exam?: string): Promise<ExamDeadlineOut[]> {
+  return apiGet<ExamDeadlineOut[]>("/v1/exam-deadlines", { exam });
 }
 
 export async function getTopic(slug: string, cursor?: string): Promise<TopicDetailResponse> {

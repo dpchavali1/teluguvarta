@@ -3,6 +3,7 @@ import { getPlace, MAX_FOLLOWED_PLACES, type PersonaState } from "@teluguvarta/d
 import { DeviceEventEmitter } from "react-native";
 
 import { parseExtras, type SavedExtras } from "./savedExtras";
+import { isExamKey, isVisaCategory, isVisaCountry, MAX_EXAM_FOLLOWS, MAX_VISA_FOLLOWS, type FollowedExam, type FollowedVisa } from "./trackers";
 
 // §3.1/§16 (ADR-006 proposed, not accepted): V1 has no real account/auth
 // backend for end users — `/v1/me/*` is still T04 stub data (see T14's
@@ -18,6 +19,8 @@ const KEYS = {
   savedStories: "tg_saved_stories_v1",
   savedExtras: "tg_saved_extras_v1",
   followedPlaces: "tg_followed_places_v1",
+  followedVisa: "tg_followed_visa_v1",
+  followedExams: "tg_followed_exams_v1",
   themePreference: "tg_theme_pref_v1",
   textSize: "tg_text_size_v1",
   teluguFont: "tg_telugu_font_v1",
@@ -496,4 +499,58 @@ export async function savePersonaChange(state: PersonaState): Promise<Notificati
   await Promise.all([setProfile(next.profile), setNotificationPreferences(next.prefs), setPersonaApplied(state.applied)]);
   DeviceEventEmitter.emit(PROFILE_CHANGE_EVENT);
   return next.prefs;
+}
+
+// P07: tracker follows (visa category+country, exam keys). Same model as
+// places: on-device is the source of truth, synced only so alerts can be sent.
+export async function getFollowedVisa(): Promise<FollowedVisa[]> {
+  try {
+    const raw = await AsyncStorage.getItem(KEYS.followedVisa);
+    const parsed: unknown = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed) ? cleanVisa(parsed as Partial<FollowedVisa>[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+function cleanVisa(list: Partial<FollowedVisa>[]): FollowedVisa[] {
+  const out: FollowedVisa[] = [];
+  for (const v of list) {
+    if (typeof v?.category !== "string" || typeof v.country !== "string") continue;
+    if (!isVisaCategory(v.category) || !isVisaCountry(v.country)) continue;
+    if (out.some((o) => o.category === v.category && o.country === v.country)) continue;
+    out.push({ category: v.category, country: v.country, alerts: v.alerts === true });
+  }
+  return out.slice(0, MAX_VISA_FOLLOWS);
+}
+
+export async function saveFollowedVisa(list: FollowedVisa[]): Promise<FollowedVisa[]> {
+  const clean = cleanVisa(list);
+  await writeJson(KEYS.followedVisa, clean);
+  return clean;
+}
+
+export async function getFollowedExams(): Promise<FollowedExam[]> {
+  try {
+    const raw = await AsyncStorage.getItem(KEYS.followedExams);
+    const parsed: unknown = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed) ? cleanExams(parsed as Partial<FollowedExam>[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+function cleanExams(list: Partial<FollowedExam>[]): FollowedExam[] {
+  const out: FollowedExam[] = [];
+  for (const e of list) {
+    if (typeof e?.exam !== "string" || !isExamKey(e.exam) || out.some((o) => o.exam === e.exam)) continue;
+    out.push({ exam: e.exam, alerts: e.alerts === true });
+  }
+  return out.slice(0, MAX_EXAM_FOLLOWS);
+}
+
+export async function saveFollowedExams(list: FollowedExam[]): Promise<FollowedExam[]> {
+  const clean = cleanExams(list);
+  await writeJson(KEYS.followedExams, clean);
+  return clean;
 }

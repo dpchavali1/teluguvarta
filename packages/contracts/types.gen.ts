@@ -309,6 +309,75 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/admin/exam-deadlines": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List All */
+        get: operations["list_all_v1_admin_exam_deadlines_get"];
+        put?: never;
+        /** Create Item */
+        post: operations["create_item_v1_admin_exam_deadlines_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/admin/exam-deadlines/{item_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Edit Item */
+        put: operations["edit_item_v1_admin_exam_deadlines__item_id__put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/admin/exam-deadlines/{item_id}/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Approve Item */
+        post: operations["approve_item_v1_admin_exam_deadlines__item_id__approve_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/admin/exam-deadlines/{item_id}/withdraw": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Withdraw Item */
+        post: operations["withdraw_item_v1_admin_exam_deadlines__item_id__withdraw_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/admin/jobs": {
         parameters: {
             query?: never;
@@ -850,6 +919,57 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/admin/visa-bulletins": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Bulletins */
+        get: operations["list_bulletins_v1_admin_visa_bulletins_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/admin/visa-bulletins/{month}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Put Bulletin */
+        put: operations["put_bulletin_v1_admin_visa_bulletins__month__put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/admin/visa-bulletins/{month}/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Approve Bulletin */
+        post: operations["approve_bulletin_v1_admin_visa_bulletins__month__approve_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/admin/x-accounts": {
         parameters: {
             query?: never;
@@ -902,6 +1022,23 @@ export interface paths {
          *     no per-user data here beyond whatever the caller puts in `properties`.
          */
         post: operations["track_event_v1_events_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/exam-deadlines": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Upcoming */
+        get: operations["list_upcoming_v1_exam_deadlines_get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -1127,6 +1264,23 @@ export interface paths {
         };
         /** Get Topic */
         get: operations["get_topic_v1_topics__slug__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/visa-bulletins/latest": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Latest Bulletin */
+        get: operations["latest_bulletin_v1_visa_bulletins_latest_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2339,6 +2493,61 @@ export interface components {
             /** Deleted */
             deleted: boolean;
         };
+        /**
+         * ExamDeadlineIn
+         * @description Editor entry from an official page.
+         */
+        ExamDeadlineIn: {
+            /**
+             * Deadline
+             * Format: date
+             */
+            deadline: string;
+            /** Exam */
+            exam: string;
+            /** Kind */
+            kind: string;
+            /** Source Url */
+            source_url: string;
+            /** Title */
+            title: string;
+        };
+        /** ExamDeadlineOut */
+        ExamDeadlineOut: {
+            /**
+             * Deadline
+             * Format: date
+             */
+            deadline: string;
+            /** Exam */
+            exam: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Kind */
+            kind: string;
+            /** Source Url */
+            source_url: string;
+            /** Status */
+            status: string;
+            /** Title */
+            title: string;
+        };
+        /**
+         * ExamFollow
+         * @description P07 / ADR-041: a tracked exam key.
+         */
+        ExamFollow: {
+            /**
+             * Alerts
+             * @default false
+             */
+            alerts: boolean;
+            /** Exam */
+            exam: string;
+        };
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
@@ -2454,7 +2663,7 @@ export interface components {
              * Type
              * @enum {string}
              */
-            type: "DAILY_BRIEFING" | "TOPIC_ALERT" | "BREAKING_ALERT" | "DIGEST" | "STORY_UPDATE";
+            type: "DAILY_BRIEFING" | "TOPIC_ALERT" | "BREAKING_ALERT" | "DIGEST" | "STORY_UPDATE" | "TRACKER_UPDATE";
         };
         /** ObservabilityOut */
         ObservabilityOut: {
@@ -2573,8 +2782,12 @@ export interface components {
             digest_evening_hour?: number | null;
             /** Digest Morning Hour */
             digest_morning_hour?: number | null;
+            /** Follow Exams */
+            follow_exams?: components["schemas"]["ExamFollow"][] | null;
             /** Follow Places */
             follow_places?: components["schemas"]["PlaceFollow"][] | null;
+            /** Follow Visa */
+            follow_visa?: components["schemas"]["VisaFollow"][] | null;
             /** Home City */
             home_city?: string | null;
             /** Home State */
@@ -2624,8 +2837,12 @@ export interface components {
             digest_evening_hour?: number | null;
             /** Digest Morning Hour */
             digest_morning_hour?: number | null;
+            /** Follow Exams */
+            follow_exams?: components["schemas"]["ExamFollow"][];
             /** Follow Places */
             follow_places?: components["schemas"]["PlaceFollow"][];
+            /** Follow Visa */
+            follow_visa?: components["schemas"]["VisaFollow"][];
             /** Home City */
             home_city?: string | null;
             /** Home State */
@@ -3011,6 +3228,76 @@ export interface components {
             msg: string;
             /** Error Type */
             type: string;
+        };
+        /** VisaBulletinEntryIn */
+        VisaBulletinEntryIn: {
+            /** Category */
+            category: string;
+            /** Chart */
+            chart: string;
+            /** Country */
+            country: string;
+            /** Cutoff */
+            cutoff: string;
+        };
+        /** VisaBulletinEntryOut */
+        VisaBulletinEntryOut: {
+            /** Category */
+            category: string;
+            /** Chart */
+            chart: string;
+            /** Country */
+            country: string;
+            /** Cutoff */
+            cutoff: string;
+            /** Movement */
+            movement: string;
+            /** Previous */
+            previous?: string | null;
+        };
+        /**
+         * VisaBulletinIn
+         * @description Editor entry from the official bulletin; replaces a DRAFT's entries.
+         */
+        VisaBulletinIn: {
+            /** Entries */
+            entries: components["schemas"]["VisaBulletinEntryIn"][];
+            /** Source Url */
+            source_url: string;
+        };
+        /** VisaBulletinOut */
+        VisaBulletinOut: {
+            /** Entries */
+            entries: components["schemas"]["VisaBulletinEntryOut"][];
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Month */
+            month: string;
+            /** Source Url */
+            source_url: string;
+            /** Status */
+            status: string;
+        };
+        /**
+         * VisaFollow
+         * @description P07 / ADR-041: a tracked visa bulletin category + country.
+         */
+        VisaFollow: {
+            /**
+             * Alerts
+             * @default false
+             */
+            alerts: boolean;
+            /** Category */
+            category: string;
+            /**
+             * Country
+             * @default ALL
+             */
+            country: string;
         };
         /**
          * XCostSummaryOut
@@ -3447,6 +3734,156 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CoverageReportOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_all_v1_admin_exam_deadlines_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExamDeadlineOut"][];
+                };
+            };
+        };
+    };
+    create_item_v1_admin_exam_deadlines_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ExamDeadlineIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExamDeadlineOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    edit_item_v1_admin_exam_deadlines__item_id__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                item_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ExamDeadlineIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExamDeadlineOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    approve_item_v1_admin_exam_deadlines__item_id__approve_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                item_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExamDeadlineOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    withdraw_item_v1_admin_exam_deadlines__item_id__withdraw_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                item_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExamDeadlineOut"];
                 };
             };
             /** @description Validation Error */
@@ -4417,6 +4854,92 @@ export interface operations {
             };
         };
     };
+    list_bulletins_v1_admin_visa_bulletins_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VisaBulletinOut"][];
+                };
+            };
+        };
+    };
+    put_bulletin_v1_admin_visa_bulletins__month__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                month: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["VisaBulletinIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VisaBulletinOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    approve_bulletin_v1_admin_visa_bulletins__month__approve_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                month: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VisaBulletinOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_x_accounts_v1_admin_x_accounts_get: {
         parameters: {
             query?: never;
@@ -4477,6 +5000,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AnalyticsEventResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_upcoming_v1_exam_deadlines_get: {
+        parameters: {
+            query?: {
+                exam?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExamDeadlineOut"][];
                 };
             };
             /** @description Validation Error */
@@ -4943,6 +5497,38 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["TopicDetailResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    latest_bulletin_v1_visa_bulletins_latest_get: {
+        parameters: {
+            query?: {
+                category?: string | null;
+                country?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VisaBulletinOut"];
                 };
             };
             /** @description Validation Error */

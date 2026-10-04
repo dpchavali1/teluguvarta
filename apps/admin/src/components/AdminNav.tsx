@@ -18,6 +18,8 @@ const LINKS = [
   { href: "/reports", label: "Reader reports" },
   { href: "/briefs", label: "Auto briefs" },
   { href: "/sources", label: "Sources" },
+  { href: "/visa-bulletins", label: "Visa bulletins" },
+  { href: "/exam-deadlines", label: "Exam deadlines" },
   { href: "/coverage", label: "Coverage" },
   { href: "/costs", label: "AI costs" },
   { href: "/observability", label: "Observability" },

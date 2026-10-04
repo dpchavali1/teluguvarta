@@ -341,3 +341,16 @@ offline SQL only, not applied to a database). API ruff, mypy and 618 tests pass.
 Gaps: no mobile/web/admin UI; no exam list was named so keys are free-form; any
 https source link is accepted; a single admin can approve their own entry; alert
 deep-links to Home; not run against managed infra.
+
+**P07 tracker UI (2026-10-04, local):** contracts regenerated (they lacked the
+visa/exam endpoints). Admin: `/visa-bulletins` (month + official link + one
+entry per line, save draft, approve) and `/exam-deadlines` (create/edit draft,
+approve, withdraw), both in the nav. Mobile: Settings → "Visa & exam trackers"
+(`TrackersScreen`): follow category+country (max 5) and exam keys (max 10) with
+per-item alert switch, latest approved final-action cutoff with movement, exam
+dates linking to the official source; follows live on device and sync via
+`follow_visa`/`follow_exams`. A `TRACKER_UPDATE` tap now opens Trackers (not
+Home). Admin typecheck/lint/build, mobile tsc and 115 tests pass. Gaps: no web
+reader page; admin screens have no tests (the app has no runner) and were not
+exercised in a browser; mobile screen not seen on a device; exam keys are
+free-form (the screen lists only exams with an approved upcoming date).

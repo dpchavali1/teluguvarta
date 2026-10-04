@@ -10,6 +10,7 @@ import { HiddenTopicsScreen } from "../screens/HiddenTopicsScreen";
 import { MySignalsScreen } from "../screens/MySignalsScreen";
 import { PlaceStoriesScreen } from "../screens/PlaceStoriesScreen";
 import { PlacesScreen } from "../screens/PlacesScreen";
+import { TrackersScreen } from "../screens/TrackersScreen";
 import { PrivacyScreen } from "../screens/PrivacyScreen";
 import { ProfileScreen } from "../screens/ProfileScreen";
 import { StoryDetailScreen } from "../screens/StoryDetailScreen";
@@ -49,6 +50,7 @@ export function RootNavigator() {
       <Stack.Screen name="HiddenTopics" component={HiddenTopicsScreen} options={{ title: "Hidden topics" }} />
       <Stack.Screen name="MySignals" component={MySignalsScreen} options={{ title: "My Edit signals" }} />
       <Stack.Screen name="Places" component={PlacesScreen} options={{ title: "Your places" }} />
+      <Stack.Screen name="Trackers" component={TrackersScreen} options={{ title: "Trackers" }} />
       <Stack.Screen name="PlaceStories" component={PlaceStoriesScreen} options={{ title: "Place stories" }} />
     </Stack.Navigator>
   );

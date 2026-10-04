@@ -3463,6 +3463,108 @@
         "title": "DeleteAccountResponse",
         "type": "object"
       },
+      "ExamDeadlineIn": {
+        "description": "Editor entry from an official page.",
+        "properties": {
+          "deadline": {
+            "format": "date",
+            "title": "Deadline",
+            "type": "string"
+          },
+          "exam": {
+            "maxLength": 40,
+            "title": "Exam",
+            "type": "string"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "source_url": {
+            "maxLength": 500,
+            "title": "Source Url",
+            "type": "string"
+          },
+          "title": {
+            "maxLength": 160,
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "exam",
+          "kind",
+          "title",
+          "deadline",
+          "source_url"
+        ],
+        "title": "ExamDeadlineIn",
+        "type": "object"
+      },
+      "ExamDeadlineOut": {
+        "properties": {
+          "deadline": {
+            "format": "date",
+            "title": "Deadline",
+            "type": "string"
+          },
+          "exam": {
+            "title": "Exam",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "source_url": {
+            "title": "Source Url",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "exam",
+          "kind",
+          "title",
+          "deadline",
+          "source_url",
+          "status"
+        ],
+        "title": "ExamDeadlineOut",
+        "type": "object"
+      },
+      "ExamFollow": {
+        "description": "P07 / ADR-041: a tracked exam key.",
+        "properties": {
+          "alerts": {
+            "default": false,
+            "title": "Alerts",
+            "type": "boolean"
+          },
+          "exam": {
+            "title": "Exam",
+            "type": "string"
+          }
+        },
+        "required": [
+          "exam"
+        ],
+        "title": "ExamFollow",
+        "type": "object"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -3724,7 +3826,8 @@
               "TOPIC_ALERT",
               "BREAKING_ALERT",
               "DIGEST",
-              "STORY_UPDATE"
+              "STORY_UPDATE",
+              "TRACKER_UPDATE"
             ],
             "title": "Type",
             "type": "string"
@@ -4097,6 +4200,21 @@
             ],
             "title": "Digest Morning Hour"
           },
+          "follow_exams": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/ExamFollow"
+                },
+                "maxItems": 10,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Follow Exams"
+          },
           "follow_places": {
             "anyOf": [
               {
@@ -4111,6 +4229,21 @@
               }
             ],
             "title": "Follow Places"
+          },
+          "follow_visa": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/VisaFollow"
+                },
+                "maxItems": 5,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Follow Visa"
           },
           "home_city": {
             "anyOf": [
@@ -4339,11 +4472,25 @@
             ],
             "title": "Digest Morning Hour"
           },
+          "follow_exams": {
+            "items": {
+              "$ref": "#/components/schemas/ExamFollow"
+            },
+            "title": "Follow Exams",
+            "type": "array"
+          },
           "follow_places": {
             "items": {
               "$ref": "#/components/schemas/PlaceFollow"
             },
             "title": "Follow Places",
+            "type": "array"
+          },
+          "follow_visa": {
+            "items": {
+              "$ref": "#/components/schemas/VisaFollow"
+            },
+            "title": "Follow Visa",
             "type": "array"
           },
           "home_city": {
@@ -5454,6 +5601,163 @@
         "title": "ValidationError",
         "type": "object"
       },
+      "VisaBulletinEntryIn": {
+        "properties": {
+          "category": {
+            "title": "Category",
+            "type": "string"
+          },
+          "chart": {
+            "title": "Chart",
+            "type": "string"
+          },
+          "country": {
+            "title": "Country",
+            "type": "string"
+          },
+          "cutoff": {
+            "title": "Cutoff",
+            "type": "string"
+          }
+        },
+        "required": [
+          "chart",
+          "category",
+          "country",
+          "cutoff"
+        ],
+        "title": "VisaBulletinEntryIn",
+        "type": "object"
+      },
+      "VisaBulletinEntryOut": {
+        "properties": {
+          "category": {
+            "title": "Category",
+            "type": "string"
+          },
+          "chart": {
+            "title": "Chart",
+            "type": "string"
+          },
+          "country": {
+            "title": "Country",
+            "type": "string"
+          },
+          "cutoff": {
+            "title": "Cutoff",
+            "type": "string"
+          },
+          "movement": {
+            "title": "Movement",
+            "type": "string"
+          },
+          "previous": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Previous"
+          }
+        },
+        "required": [
+          "chart",
+          "category",
+          "country",
+          "cutoff",
+          "movement"
+        ],
+        "title": "VisaBulletinEntryOut",
+        "type": "object"
+      },
+      "VisaBulletinIn": {
+        "description": "Editor entry from the official bulletin; replaces a DRAFT's entries.",
+        "properties": {
+          "entries": {
+            "items": {
+              "$ref": "#/components/schemas/VisaBulletinEntryIn"
+            },
+            "maxItems": 200,
+            "minItems": 1,
+            "title": "Entries",
+            "type": "array"
+          },
+          "source_url": {
+            "title": "Source Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "source_url",
+          "entries"
+        ],
+        "title": "VisaBulletinIn",
+        "type": "object"
+      },
+      "VisaBulletinOut": {
+        "properties": {
+          "entries": {
+            "items": {
+              "$ref": "#/components/schemas/VisaBulletinEntryOut"
+            },
+            "title": "Entries",
+            "type": "array"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "month": {
+            "title": "Month",
+            "type": "string"
+          },
+          "source_url": {
+            "title": "Source Url",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "month",
+          "status",
+          "source_url",
+          "entries"
+        ],
+        "title": "VisaBulletinOut",
+        "type": "object"
+      },
+      "VisaFollow": {
+        "description": "P07 / ADR-041: a tracked visa bulletin category + country.",
+        "properties": {
+          "alerts": {
+            "default": false,
+            "title": "Alerts",
+            "type": "boolean"
+          },
+          "category": {
+            "title": "Category",
+            "type": "string"
+          },
+          "country": {
+            "default": "ALL",
+            "title": "Country",
+            "type": "string"
+          }
+        },
+        "required": [
+          "category"
+        ],
+        "title": "VisaFollow",
+        "type": "object"
+      },
       "XCostSummaryOut": {
         "description": "X4 \u00a719: same shape as `AiCostSummaryOut` but scoped to X API spend,\nplus how many low-priority accounts the budget guard is currently\npausing as a result.",
         "properties": {
@@ -6147,6 +6451,209 @@
           }
         },
         "summary": "Get Coverage",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/v1/admin/exam-deadlines": {
+      "get": {
+        "operationId": "list_all_v1_admin_exam_deadlines_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ExamDeadlineOut"
+                  },
+                  "title": "Response List All V1 Admin Exam Deadlines Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List All",
+        "tags": [
+          "admin"
+        ]
+      },
+      "post": {
+        "operationId": "create_item_v1_admin_exam_deadlines_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExamDeadlineIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExamDeadlineOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Item",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/v1/admin/exam-deadlines/{item_id}": {
+      "put": {
+        "operationId": "edit_item_v1_admin_exam_deadlines__item_id__put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "item_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Item Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExamDeadlineIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExamDeadlineOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Edit Item",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/v1/admin/exam-deadlines/{item_id}/approve": {
+      "post": {
+        "operationId": "approve_item_v1_admin_exam_deadlines__item_id__approve_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "item_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Item Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExamDeadlineOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Approve Item",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/v1/admin/exam-deadlines/{item_id}/withdraw": {
+      "post": {
+        "operationId": "withdraw_item_v1_admin_exam_deadlines__item_id__withdraw_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "item_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Item Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExamDeadlineOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Withdraw Item",
         "tags": [
           "admin"
         ]
@@ -7855,6 +8362,125 @@
         ]
       }
     },
+    "/v1/admin/visa-bulletins": {
+      "get": {
+        "operationId": "list_bulletins_v1_admin_visa_bulletins_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/VisaBulletinOut"
+                  },
+                  "title": "Response List Bulletins V1 Admin Visa Bulletins Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Bulletins",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/v1/admin/visa-bulletins/{month}": {
+      "put": {
+        "operationId": "put_bulletin_v1_admin_visa_bulletins__month__put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "month",
+            "required": true,
+            "schema": {
+              "title": "Month",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VisaBulletinIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VisaBulletinOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Put Bulletin",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/v1/admin/visa-bulletins/{month}/approve": {
+      "post": {
+        "operationId": "approve_bulletin_v1_admin_visa_bulletins__month__approve_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "month",
+            "required": true,
+            "schema": {
+              "title": "Month",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VisaBulletinOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Approve Bulletin",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
     "/v1/admin/x-accounts": {
       "get": {
         "operationId": "list_x_accounts_v1_admin_x_accounts_get",
@@ -7938,6 +8564,59 @@
           }
         },
         "summary": "Track Event",
+        "tags": [
+          "public"
+        ]
+      }
+    },
+    "/v1/exam-deadlines": {
+      "get": {
+        "operationId": "list_upcoming_v1_exam_deadlines_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "exam",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Exam"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ExamDeadlineOut"
+                  },
+                  "title": "Response List Upcoming V1 Exam Deadlines Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Upcoming",
         "tags": [
           "public"
         ]
@@ -8876,6 +9555,71 @@
           }
         },
         "summary": "Get Topic",
+        "tags": [
+          "public"
+        ]
+      }
+    },
+    "/v1/visa-bulletins/latest": {
+      "get": {
+        "operationId": "latest_bulletin_v1_visa_bulletins_latest_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "category",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Category"
+            }
+          },
+          {
+            "in": "query",
+            "name": "country",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Country"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VisaBulletinOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Latest Bulletin",
         "tags": [
           "public"
         ]
