@@ -52,3 +52,13 @@ test("follows a visa category and an exam, showing the approved cutoff", async (
   await fireEvent.press(await screen.findByRole("button", { name: "Follow GRE" }));
   await waitFor(async () => expect(await getFollowedExams()).toEqual([{ exam: "GRE", alerts: false }]));
 });
+
+test("shows the bulletin board with readable dates and switches country", async () => {
+  await renderScreen();
+  expect(await screen.findByText("October 2026 Visa Bulletin")).toBeTruthy();
+  expect(await screen.findByText(/Jan 1, 2012/)).toBeTruthy(); // India is the default view
+  await fireEvent.press(await screen.findByRole("button", { name: "Show China" }));
+  expect(screen.queryByText(/Jan 1, 2012/)).toBeNull();
+  await fireEvent.press(await screen.findByRole("button", { name: "Dates for filing" }));
+  expect(await screen.findByText(/A green card can be issued|may start filing/)).toBeTruthy();
+});

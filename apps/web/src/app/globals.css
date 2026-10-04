@@ -1832,3 +1832,24 @@ html[data-reading="short"] .story-card:not(.story-card--detail) .story-card__why
   background: var(--action-primary-soft);
   color: var(--action-text);
 }
+
+/* Visa bulletin board (P07) */
+.vb { display: grid; gap: var(--space-md); }
+.vb-top { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: var(--space-sm); }
+.vb-month { font-size: var(--text-card); }
+.vb-source { font-size: var(--text-small); font-weight: 600; }
+.vb-help { color: var(--text-secondary); font-size: var(--text-small); max-width: var(--measure); }
+.vb-card { border: 1px solid var(--border-subtle); border-radius: var(--radius-lg, 16px); background: var(--surface); overflow: hidden; }
+.vb-card h4 { padding: var(--space-sm) var(--space-md); background: var(--surface-subtle); font-size: var(--text-small); letter-spacing: 0.04em; text-transform: uppercase; color: var(--text-secondary); }
+.vb-scroll { overflow-x: auto; }
+.vb-table { width: 100%; border-collapse: collapse; }
+.vb-table th, .vb-table td { padding: 12px var(--space-md); text-align: left; white-space: nowrap; border-top: 1px solid var(--border-subtle); vertical-align: middle; }
+.vb-table thead th { border-top: 0; font-size: var(--text-meta); font-weight: 700; color: var(--text-secondary); }
+.vb-table tbody th { position: sticky; left: 0; background: var(--surface); white-space: normal; min-width: 11rem; font-weight: 400; }
+.vb-code { display: block; font-weight: 800; }
+.vb-name { display: block; font-size: var(--text-meta); color: var(--text-secondary); line-height: 1.35; max-width: 16rem; }
+.vb-date { font-variant-numeric: tabular-nums; font-weight: 600; }
+.vb-none { color: var(--text-secondary); }
+.vb-move { margin-left: 6px; font-size: var(--text-meta); }
+.vb-move--up { color: var(--success); }
+.vb-move--down { color: var(--danger); }

@@ -494,3 +494,12 @@ warnings (fixture `tests/fixtures/visabulletin_2026-10.pdf`). **Deploy note:** n
 final-action table (all categories × All/China/India/Mexico/Phil.) above the follow controls, so a
 reader who follows nothing still sees the bulletin. Mobile typecheck + 119 tests, web typecheck,
 lint, 24 tests and production build pass. Release APK built but not yet installed or viewed on a device.
+
+**P07 visa bulletin redesign (2026-10-04, local, web + mobile):** web `/trackers` and the mobile Trackers
+screen now share one layout: Final action / Dates for filing toggle with a one-line meaning each,
+country filter (India first; mobile defaults to India, web to all columns), Employment-based and
+Family-sponsored cards, plain-English category names, "Jan 1, 2025" dates, Current/Unavailable pills,
+▲/▼ only on movement. Web: `components/VisaBulletinBoard.tsx` + `.vb-*` styles. Mobile typecheck, 120
+tests, web typecheck/lint/24 tests, web and admin builds pass. Installed on the phone (APK 17:07) but
+the layout is not yet visually checked on a device; the web redesign was not screenshotted (browser
+extension unavailable). Web needs a deploy.

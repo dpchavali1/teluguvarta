@@ -58,10 +58,16 @@ export function TrackersScreen() {
   const entryFor = (v: FollowedVisa): Entry | undefined =>
     bulletin?.entries.find((e) => e.category === v.category && e.country === v.country && e.chart === "FINAL_ACTION");
 
-  const tableCategories = useMemo(
-    () => [...new Set((bulletin?.entries ?? []).filter((e) => e.chart === "FINAL_ACTION").map((e) => e.category))],
-    [bulletin],
-  );
+  const [chart, setChart] = useState<string>("FINAL_ACTION");
+  const [boardCountry, setBoardCountry] = useState("INDIA");
+  const renderCutoff = (e: Entry | undefined) => {
+    if (!e) return <Text style={styles.rowMeta}>—</Text>;
+    const arrow =
+      e.movement === "FORWARD" ? <Text style={styles.up}> ▲</Text> : e.movement === "BACKWARD" ? <Text style={styles.down}> ▼</Text> : null;
+    if (e.cutoff === "C") return <Text style={[styles.pill, styles.pillOk]}>Current{arrow}</Text>;
+    if (e.cutoff === "U") return <Text style={[styles.pill, styles.pillBad]}>Unavailable{arrow}</Text>;
+    return <Text style={styles.dateText}>{cutoffLong(e.cutoff)}{arrow}</Text>;
+  };
   const visaFull = visa.length >= MAX_VISA_FOLLOWS;
   const alreadyVisa = visa.some((v) => v.category === category && v.country === country);
   const examKeys = useMemo(() => [...new Set(deadlines.map((d) => d.exam))].sort(), [deadlines]);
@@ -79,12 +85,12 @@ export function TrackersScreen() {
     persistExams(on ? exams.filter((e) => e.exam !== exam) : [...exams, { exam, alerts: false }]);
   }
 
-  const chip = (label: string, selected: boolean, onPress: () => void) => (
+  const chip = (label: string, selected: boolean, onPress: () => void, a11y?: string) => (
     <Pressable
       key={label}
       onPress={onPress}
       accessibilityRole="button"
-      accessibilityLabel={label}
+      accessibilityLabel={a11y ?? label}
       accessibilityState={{ selected }}
       style={[styles.chip, selected && styles.chipOn]}
     >
@@ -100,23 +106,49 @@ export function TrackersScreen() {
 
       <Text style={styles.groupLabel} accessibilityRole="header">{`VISA BULLETIN${bulletin ? ` · ${bulletin.month}` : ""}`}</Text>
       {bulletin ? (
-        <View style={styles.group} accessibilityLabel={`Final action dates, ${bulletin.month}`}>
-          <View style={styles.tableRow}>
-            <Text style={[styles.tableHead, styles.tableCat]}>Final action</Text>
-            {TABLE_COUNTRIES.map(([key, short]) => (
-              <Text key={key} style={[styles.tableHead, styles.tableCell]}>{short}</Text>
-            ))}
+        <>
+          <Text style={styles.rowLabel}>{`${monthName(bulletin.month)} Visa Bulletin`}</Text>
+          <View style={styles.chipRow}>
+            {CHARTS.map((c) => chip(c.label, chart === c.key, () => setChart(c.key)))}
           </View>
-          {tableCategories.map((cat) => (
-            <View key={cat} style={[styles.tableRow, styles.divider]}>
-              <Text style={[styles.tableText, styles.tableCat]}>{cat}</Text>
-              {TABLE_COUNTRIES.map(([key]) => {
-                const e = bulletin.entries.find((x) => x.chart === "FINAL_ACTION" && x.category === cat && x.country === key);
-                return <Text key={key} style={[styles.tableText, styles.tableCell]}>{e ? cutoffShort(e.cutoff) : "—"}</Text>;
-              })}
+          <Text style={styles.hint}>{CHARTS.find((c) => c.key === chart)?.help}</Text>
+          <View style={styles.chipRow}>
+            {[["ALL_COLUMNS", "All countries"], ...BOARD_COUNTRIES].map(([key, name]) =>
+              chip(name as string, boardCountry === key, () => setBoardCountry(key as string), `Show ${name}`),
+            )}
+          </View>
+          {BOARD_GROUPS.map((group) => (
+            <View key={group.title} style={styles.group} accessibilityRole="summary" accessibilityLabel={group.title}>
+              <Text style={styles.groupHead}>{group.title.toUpperCase()}</Text>
+              <ScrollView horizontal={boardCountry === "ALL_COLUMNS"} showsHorizontalScrollIndicator={false}>
+                <View style={boardCountry === "ALL_COLUMNS" ? styles.wideTable : styles.fullWidth}>
+                  {boardCountry === "ALL_COLUMNS" ? (
+                    <View style={styles.boardRow}>
+                      <View style={styles.boardLabel} />
+                      {BOARD_COUNTRIES.map(([key, name]) => (
+                        <Text key={key} style={[styles.tableHead, styles.boardCol]}>{name}</Text>
+                      ))}
+                    </View>
+                  ) : null}
+                  {group.rows.map(([code, name]) => (
+                    <View key={code} style={[styles.boardRow, styles.divider]}>
+                      <View style={styles.boardLabel}>
+                        <Text style={styles.rowLabel}>{code}</Text>
+                        <Text style={styles.rowMeta}>{name}</Text>
+                      </View>
+                      {(boardCountry === "ALL_COLUMNS" ? BOARD_COUNTRIES : BOARD_COUNTRIES.filter(([k]) => k === boardCountry)).map(([key]) => (
+                        <View key={key} style={boardCountry === "ALL_COLUMNS" ? styles.boardCol : styles.boardSingle}>
+                          {renderCutoff(bulletin.entries.find((e) => e.chart === chart && e.category === code && e.country === key))}
+                        </View>
+                      ))}
+                    </View>
+                  ))}
+                </View>
+              </ScrollView>
             </View>
           ))}
-        </View>
+          <Text style={styles.rowMeta}>▲ moved forward · ▼ moved back since last month.</Text>
+        </>
       ) : null}
       {visa.length === 0 ? (
         <Text style={styles.hint}>Follow a category below to track it and get alerts.</Text>
@@ -219,13 +251,32 @@ export function TrackersScreen() {
   );
 }
 
-const TABLE_COUNTRIES: [string, string][] = [["ALL", "All"], ["CHINA", "China"], ["INDIA", "India"], ["MEXICO", "Mexico"], ["PHILIPPINES", "Phil."]];
-const SHORT_MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const CHARTS = [
+  { key: "FINAL_ACTION", label: "Final action dates", help: "A green card can be issued only if your priority date is earlier than the date shown." },
+  { key: "DATES_FOR_FILING", label: "Dates for filing", help: "You may start filing once your priority date is earlier than the date shown. USCIS says each month which chart applies." },
+];
+const BOARD_COUNTRIES: [string, string][] = [["INDIA", "India"], ["CHINA", "China"], ["MEXICO", "Mexico"], ["PHILIPPINES", "Philippines"], ["ALL", "Rest of world"]];
+const BOARD_GROUPS: { title: string; rows: [string, string][] }[] = [
+  {
+    title: "Employment-based",
+    rows: [["EB1", "Priority workers"], ["EB2", "Advanced degree or exceptional ability"], ["EB3", "Skilled workers and professionals"], ["EB3-OW", "Other workers"], ["EB4", "Special immigrants"], ["EB5", "Investors (unreserved)"]],
+  },
+  {
+    title: "Family-sponsored",
+    rows: [["F1", "Unmarried sons and daughters of U.S. citizens"], ["F2A", "Spouses and children of permanent residents"], ["F2B", "Unmarried adult children of permanent residents"], ["F3", "Married sons and daughters of U.S. citizens"], ["F4", "Siblings of U.S. citizens"]],
+  },
+];
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const MONTHS_LONG = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 
-// "2023-07-01" -> "1 Jul 23"; C/U stay as the official letters.
-function cutoffShort(value: string): string {
+// "2023-07-01" -> "Jul 1, 2023"; "2026-10" -> "October 2026".
+function cutoffLong(value: string): string {
   const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
-  return m ? `${Number(m[3])} ${SHORT_MONTHS[Number(m[2]) - 1] ?? m[2]} ${m[1].slice(2)}` : value;
+  return m ? `${MONTHS[Number(m[2]) - 1] ?? m[2]} ${Number(m[3])}, ${m[1]}` : value;
+}
+function monthName(value: string): string {
+  const m = /^(\d{4})-(\d{2})$/.exec(value);
+  return m ? `${MONTHS_LONG[Number(m[2]) - 1] ?? m[2]} ${m[1]}` : value;
 }
 
 function createStyles(colors: AppTheme["colors"], ui: AppTheme["ui"]) {
@@ -247,11 +298,21 @@ function createStyles(colors: AppTheme["colors"], ui: AppTheme["ui"]) {
     divider: { borderBottomWidth: StyleSheet.hairlineWidth, borderColor: ui.borderSubtle },
     grow: { flex: 1 },
     rowLabel: { ...typography.body, color: colors.text, flexShrink: 1 },
-    tableRow: { flexDirection: "row", alignItems: "center", paddingVertical: 6, paddingHorizontal: 8 },
-    tableCat: { width: 62 },
-    tableCell: { flex: 1, textAlign: "center" },
+    chipRow: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+    groupHead: { ...typography.meta, color: ui.textSecondary, fontWeight: "700", letterSpacing: 0.5, paddingHorizontal: 12, paddingTop: 10, paddingBottom: 4 },
+    wideTable: { minWidth: 640 },
+    fullWidth: { alignSelf: "stretch" },
+    boardRow: { flexDirection: "row", alignItems: "center", paddingVertical: 10, paddingHorizontal: 12, gap: 8 },
+    boardLabel: { width: 150, flexShrink: 1, flexGrow: 1 },
+    boardCol: { width: 92, alignItems: "flex-start" },
+    boardSingle: { alignItems: "flex-end" },
     tableHead: { ...typography.meta, color: ui.textSecondary, fontWeight: "600" },
-    tableText: { ...typography.meta, color: colors.text },
+    dateText: { ...typography.body, color: colors.text, fontWeight: "600" },
+    pill: { ...typography.meta, fontWeight: "700", paddingHorizontal: 8, paddingVertical: 2, borderRadius: 999, overflow: "hidden" },
+    pillOk: { backgroundColor: ui.successSoft, color: ui.success },
+    pillBad: { backgroundColor: ui.dangerSoft, color: ui.danger },
+    up: { color: ui.success, fontWeight: "700" },
+    down: { color: ui.danger, fontWeight: "700" },
     rowMeta: { ...typography.meta, color: ui.textSecondary },
     alertGroup: { alignItems: "center" },
     chips: { flexDirection: "row", flexWrap: "wrap", gap: spacing.xs },
