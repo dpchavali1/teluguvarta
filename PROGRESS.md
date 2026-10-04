@@ -525,3 +525,10 @@ in Firebase DebugView (`adb shell setprop debug.firebase.analytics.app org.telug
 Note: `android/` is gitignored; the local manifest got `tools:replace="android:value"` on the
 `default_notification_channel_id` meta-data to fix a merge conflict with react-native-firebase —
 that edit is lost on `expo prebuild --clean` and should move into the `defaultChannel` config.
+
+**ADR-052 (proposed) — breaking review holds don't expire + alert (2026-10-04).** A famous
+personality's death story aged out of review (ADR-032, 24h) unseen. `expire_stale_holds` now skips
+BREAKING/OBITUARY_ACCUSATION and HIGH_IMPORTANCE holds; `alerts.check_priority_review_alerts` sends
+one alert on entering review plus one reminder after 60 min, deduped per task via `audit_events`,
+max 3 attempts. Existing channel only (log + `ALERT_WEBHOOK_URL`); no migration. Death-word stories
+with sensitivity NONE are not covered. Set `ALERT_WEBHOOK_URL` in prod or alerts only reach logs.

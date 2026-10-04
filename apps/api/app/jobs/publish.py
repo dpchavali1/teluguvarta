@@ -113,6 +113,18 @@ def _expire_stale(db: Session, story: Story, task: ReviewTask) -> None:
     _audit(db, story, "STORY_EXPIRED_STALE", {"stale_after_hours": int(_stale_after().total_seconds() // 3600)})
 
 
+NO_EXPIRY_SENSITIVITIES = frozenset({"BREAKING", "OBITUARY_ACCUSATION"})
+NO_EXPIRY_REASON = "HIGH_IMPORTANCE"
+
+
+def never_expires(story: Story, tasks: list[ReviewTask]) -> bool:
+    """ADR-052: breaking/obituary stories and high-importance holds wait for a
+    human however long it takes; only the other classes expire (ADR-032)."""
+    if story.sensitivity in NO_EXPIRY_SENSITIVITIES:
+        return True
+    return any(NO_EXPIRY_REASON in t.reason.split(",") for t in tasks)
+
+
 def _is_switch_off_reason(reason: str) -> bool:
     # The brief lane may have appended its outcome: "AUTO_PUBLISH_DISABLED,DAILY_CAP".
     return reason == SWITCH_OFF_REASON or reason.startswith(SWITCH_OFF_REASON + ",")
@@ -146,7 +158,7 @@ def expire_stale_holds(db: Session) -> int:
         if born >= cutoff:
             continue
         story = db.get(Story, story_id)
-        if story is None:
+        if story is None or (story.status == "REVIEW_REQUIRED" and never_expires(story, story_tasks)):
             continue
         for task in story_tasks:
             task.status = "REJECTED"

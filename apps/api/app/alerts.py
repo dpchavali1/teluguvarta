@@ -22,8 +22,9 @@ from app.ai.budget import (
     month_to_date_cost_usd,
     today_cost_usd,
 )
+from app.jobs.publish import never_expires
 from app.jobs.source_fetch import CIRCUIT_BREAKER_THRESHOLD
-from app.models import AiCallLog, Job, Source
+from app.models import AiCallLog, AuditEvent, Job, ReviewTask, Source, Story
 from app.observability.logging import get_logger
 
 logger = get_logger("alerts")
@@ -152,10 +153,82 @@ def check_ai_model_refusal_alerts(db: Session, *, now: datetime | None = None, c
     return fired
 
 
+REVIEW_REMINDER_AFTER = timedelta(minutes=60)
+REVIEW_ALERT_MAX_ATTEMPTS = 3  # NON_NEGOTIABLES #10: bounded retries per (task, kind)
+_REVIEW_ACTOR = "system:alerts"
+
+
+def _alert_state(db: Session, task_id, kind: str) -> tuple[bool, int]:
+    """(already sent, failed attempts) for one task+kind, from the audit log."""
+    rows = db.execute(
+        select(AuditEvent.action, func.count())
+        .where(
+            AuditEvent.entity_type == "review_task",
+            AuditEvent.entity_id == task_id,
+            AuditEvent.action.in_(["REVIEW_ALERT_SENT", "REVIEW_ALERT_FAILED"]),
+            AuditEvent.metadata_["kind"].astext == kind,
+        )
+        .group_by(AuditEvent.action)
+    ).all()
+    counts = dict(rows)
+    return counts.get("REVIEW_ALERT_SENT", 0) > 0, counts.get("REVIEW_ALERT_FAILED", 0)
+
+
+def _send_once(db: Session, task: ReviewTask, kind: str, message: str, channel) -> str | None:
+    sent, failures = _alert_state(db, task.id, kind)
+    if sent or failures >= REVIEW_ALERT_MAX_ATTEMPTS:
+        return None
+    try:
+        send_alert(message, severity="CRITICAL" if kind == "REMINDER" else "ERROR", channel=channel)
+        action = "REVIEW_ALERT_SENT"
+    except Exception as exc:  # noqa: BLE001 - a broken channel must not stop the sweep
+        logger.warning("review alert delivery failed: %s", exc)
+        action = "REVIEW_ALERT_FAILED"
+    db.add(
+        AuditEvent(
+            actor=_REVIEW_ACTOR, action=action, entity_type="review_task", entity_id=task.id,
+            metadata_={"kind": kind, "story_id": str(task.story_id)},
+        )
+    )
+    db.flush()
+    return f"REVIEW_{kind}:{task.id}" if action == "REVIEW_ALERT_SENT" else None
+
+
+def check_priority_review_alerts(db: Session, *, now: datetime | None = None, channel=None) -> list[str]:
+    """ADR-052: one alert when a BREAKING/OBITUARY_ACCUSATION or HIGH_IMPORTANCE
+    story enters review, and one reminder if its task is still PENDING after
+    REVIEW_REMINDER_AFTER. Both are deduped per review task via the audit log."""
+    now = now or datetime.now(UTC)
+    rows = db.execute(
+        select(ReviewTask, Story)
+        .join(Story, Story.id == ReviewTask.story_id)
+        .where(ReviewTask.status == "PENDING", Story.status == "REVIEW_REQUIRED")
+    ).all()
+    fired: list[str] = []
+    for task, story in rows:
+        if not never_expires(story, [task]):
+            continue
+        label = f"story {story.id} ({story.sensitivity}; {task.reason})"
+        result = _send_once(db, task, "NEW", f"Priority story awaiting human review: {label}", channel)
+        if result:
+            fired.append(result)
+        if now - task.created_at >= REVIEW_REMINDER_AFTER:
+            result = _send_once(
+                db, task, "REMINDER",
+                f"Priority story STILL unreviewed after {int(REVIEW_REMINDER_AFTER.total_seconds() // 60)} min: {label}",
+                channel,
+            )
+            if result:
+                fired.append(result)
+    return fired
+
+
 def check_all(db: Session, *, now: datetime | None = None, channel=None) -> list[str]:
     fired: list[str] = []
     fired += check_budget_alerts(db, now=now, channel=channel)
     fired += check_circuit_breaker_alerts(db, channel=channel)
     fired += check_job_error_rate_alert(db, now=now, channel=channel)
     fired += check_ai_model_refusal_alerts(db, now=now, channel=channel)
+    fired += check_priority_review_alerts(db, now=now, channel=channel)
+    db.commit()
     return fired

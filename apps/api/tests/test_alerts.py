@@ -167,3 +167,57 @@ def test_no_ai_model_refusal_alert_outside_window(migrated_database):
         db.commit()
         later = datetime.now(UTC) + alerts.AI_REFUSAL_WINDOW + timedelta(minutes=1)
         assert alerts.check_ai_model_refusal_alerts(db, now=later, channel=_FakeChannel()) == []
+
+
+# --- ADR-052: priority review alerts -----------------------------------------
+
+
+def _review_story(db, *, sensitivity="NONE", reason="SENSITIVE_CATEGORY", age_minutes=0):
+    from app.models import ReviewTask, Story
+
+    story = Story(canonical_slug=f"s-{uuid.uuid4()}", status="AI_READY", sensitivity=sensitivity)
+    db.add(story)
+    db.flush()
+    story.status = "REVIEW_REQUIRED"
+    db.flush()
+    db.add(ReviewTask(
+        story_id=story.id, reason=reason, status="PENDING",
+        created_at=datetime.now(UTC) - timedelta(minutes=age_minutes),
+    ))
+    db.commit()
+    return story
+
+
+def test_priority_review_alert_fires_once_then_one_reminder(migrated_database):
+    engine = create_engine(migrated_database)
+    with Session(engine) as db:
+        _review_story(db, sensitivity="BREAKING")
+        _review_story(db, sensitivity="LEGAL")  # not priority: no alert
+        _review_story(db, reason="HIGH_IMPORTANCE", age_minutes=90)
+        channel = _FakeChannel()
+        fired = alerts.check_priority_review_alerts(db, channel=channel)
+        assert sorted(f.split(":")[0] for f in fired) == ["REVIEW_NEW", "REVIEW_NEW", "REVIEW_REMINDER"]
+        assert len(channel.calls) == 3
+        # Deduped: a second sweep sends nothing.
+        assert alerts.check_priority_review_alerts(db, channel=channel) == []
+        assert len(channel.calls) == 3
+        # Reminder fires later for the fresh one, once.
+        later = datetime.now(UTC) + timedelta(minutes=61)
+        fired = alerts.check_priority_review_alerts(db, now=later, channel=channel)
+        assert [f.split(":")[0] for f in fired] == ["REVIEW_REMINDER"]
+        assert alerts.check_priority_review_alerts(db, now=later, channel=channel) == []
+
+
+def test_priority_review_alert_retries_are_bounded(migrated_database):
+    engine = create_engine(migrated_database)
+    calls = []
+
+    def broken(severity, message):
+        calls.append(message)
+        raise RuntimeError("down")
+
+    with Session(engine) as db:
+        _review_story(db, sensitivity="OBITUARY_ACCUSATION")
+        for _ in range(alerts.REVIEW_ALERT_MAX_ATTEMPTS + 3):
+            alerts.check_priority_review_alerts(db, channel=broken)
+        assert len(calls) == alerts.REVIEW_ALERT_MAX_ATTEMPTS

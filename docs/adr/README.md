@@ -123,3 +123,5 @@ accepted. Add ad-hoc ADRs below this table as they're written.
   [ADR-047](ADR-047-dated-audit-exceptions.md)
 - ADR-051 | Mobile usage analytics default-on vs. ADR-039 / SPEC separate consent | — | **accepted** (owner 2026-10-04, option A) — see
   [ADR-051](ADR-051-mobile-analytics-default-on.md)
+- ADR-052 | Breaking/high-importance review holds never expire + alert (amends ADR-032) | — | **proposed** (owner request 2026-10-04) — see
+  [ADR-052](ADR-052-breaking-review-no-expiry-and-alert.md)

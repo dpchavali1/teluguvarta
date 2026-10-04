@@ -276,3 +276,22 @@ def test_editor_cannot_flip_a_switch(client, db_session):
     headers = _admin(client, db_session, role="EDITOR")
     res = client.put("/v1/admin/switches/auto_publish", json={"enabled": False}, headers=headers)
     assert res.status_code == 403
+
+
+# --- ADR-052: breaking / high-importance holds never expire -------------------
+
+
+def test_breaking_and_high_importance_holds_survive_the_stale_sweep(db_session):
+    breaking = _story(db_session, age_hours=72, sensitivity="BREAKING")
+    obit = _story(db_session, age_hours=72, sensitivity="OBITUARY_ACCUSATION")
+    important = _story(db_session, age_hours=72)
+    ordinary = _story(db_session, age_hours=72, sensitivity="LEGAL")
+    _hold(db_session, breaking, "SENSITIVE_CATEGORY")
+    _hold(db_session, obit, "SENSITIVE_CATEGORY")
+    _hold(db_session, important, "LOW_CONFIDENCE_CLASSIFICATION,HIGH_IMPORTANCE")
+    _hold(db_session, ordinary, "SENSITIVE_CATEGORY")
+    assert expire_stale_holds(db_session) == 1
+    for s in (breaking, obit, important):
+        assert s.status == "REVIEW_REQUIRED"
+        assert _task(db_session, s).status == "PENDING"
+    assert ordinary.status == "ARCHIVED"
