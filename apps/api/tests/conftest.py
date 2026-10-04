@@ -45,10 +45,30 @@ def _server_reachable() -> bool:
         return False
 
 
+_POSTGRES_REACHABLE = _server_reachable()
+
 requires_postgres = pytest.mark.skipif(
-    not _server_reachable(),
+    not _POSTGRES_REACHABLE,
     reason="No reachable Postgres server (set DATABASE_URL / run docker compose up -d)",
 )
+
+
+def pytest_configure(config):
+    # A green run with most database tests skipped is not evidence (review
+    # 2026-10-04): CI must fail, and a local run must say so loudly.
+    if _POSTGRES_REACHABLE:
+        return
+    if os.environ.get("CI") or os.environ.get("REQUIRE_POSTGRES"):
+        raise pytest.UsageError("No reachable Postgres server: database tests would be skipped, not run")
+
+
+def pytest_terminal_summary(terminalreporter, config):
+    if not _POSTGRES_REACHABLE:
+        terminalreporter.write_line(
+            "WARNING: no reachable Postgres - database tests were skipped or errored; "
+            "this run does not verify database behaviour.",
+            red=True,
+        )
 
 
 def _admin_connect():

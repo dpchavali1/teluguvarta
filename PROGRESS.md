@@ -405,3 +405,10 @@ now also suppresses a queued story alert whose source rights are no longer
 open question) and a queued visa-bulletin alert when the bulletin is not
 APPROVED or the reader no longer follows a changed category with alerts on
 (`NO_LONGER_ELIGIBLE`). No migration. API ruff, mypy and 629 tests pass.
+
+**Review 2026-10-04 — test reliability (local, API):** `tests/conftest.py` now
+fails the run when Postgres is unreachable and `CI` or `REQUIRE_POSTGRES` is set
+(CI already has a Postgres service), and prints a red warning at the end of a
+local run that skipped database tests, so a green local run without a database
+is no longer mistaken for evidence. Checked: reachable (31 pass), unreachable
+local (31 skipped + warning), unreachable with `CI=1` (usage error).
