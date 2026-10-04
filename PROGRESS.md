@@ -239,6 +239,17 @@ typecheck and jest (99) pass. Gaps: no web/API change (no server-side mutes or
 sources mute; "mute source" not built); signals page resets hidden topics only
 (follows/saves edited on their own screens); not device-verified.
 
+**P06 saved stories 2.0 (2026-10-04, local, mobile only):** ADR-044 accepted: a
+save stays a bookmark (ID only, no story text on the device, no offline
+reading). Added on-device collections (max 20), per-story notes (500 chars) and
+local read-later reminders (`expo-notifications`, deep-links to the story),
+all in `tg_saved_extras_v1` (cleared by "clear data"; unsaving drops a story's
+note/lists/reminder and cancels the reminder). Saved screen: list filter, an
+Organize sheet per story, and "Remove unavailable" for withdrawn stories.
+Mobile typecheck and jest (110) pass. Gaps: no web parity; reminders and the
+Organize sheet not device-verified (permission prompt, delivery, restart); no
+bundle/APK rebuild yet.
+
 **P03 location follows (2026-10-04, local):** ADR-043 accepted (diaspora catalog,
 explicit residence + origin, up to 10 follows, model-proposed tags with editor
 override, new stories only). Backend: catalog `apps/api/app/content/places.py`

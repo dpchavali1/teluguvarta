@@ -2,7 +2,9 @@ import React, { createContext, useCallback, useContext, useEffect, useMemo, useR
 
 import type { StoryOut } from "./api";
 import { syncSavedStories } from "./notificationSync";
-import { getReadIds, getSavedIds, READ_HISTORY_LIMIT, setReadIds, toggleSaved as toggleSavedStorage } from "./storage";
+import { cancelReadLater } from "./readLater";
+import { dropStory, EMPTY_EXTRAS, type SavedExtras } from "./savedExtras";
+import { getReadIds, getSavedExtras, getSavedIds, setSavedExtras, READ_HISTORY_LIMIT, setReadIds, toggleSaved as toggleSavedStorage } from "./storage";
 
 // Cached content accelerates reading; Saved always resolves current data from the API.
 // Memory only: nothing here survives an app restart. Persisted offline reading
@@ -34,6 +36,9 @@ type StoryCacheContextValue = {
   clearReadHistory: () => void;
   /** Forget saved and read ids in memory after "clear data" removed them from storage. */
   resetLocalData: () => void;
+  // P06: collections, notes and reminders for bookmarks (ids only, ADR-044).
+  extras: SavedExtras;
+  updateExtras: (change: (current: SavedExtras) => SavedExtras) => void;
 };
 
 const StoryCacheContext = createContext<StoryCacheContextValue | null>(null);
@@ -48,6 +53,8 @@ export function StoryCacheProvider({ children }: { children: React.ReactNode }) 
   const [version, setVersion] = useState(0);
   const [readIds, setReadState] = useState<string[]>([]);
   const [readReady, setReadReady] = useState(false);
+  const [extras, setExtras] = useState<SavedExtras>(EMPTY_EXTRAS);
+  const extrasRef = useRef<SavedExtras>(EMPTY_EXTRAS);
 
   useEffect(() => {
     let active = true;
@@ -57,6 +64,11 @@ export function StoryCacheProvider({ children }: { children: React.ReactNode }) 
       savedIdsRef.current = new Set(ids);
       setSavedIds(ids);
       setSavedReady(true);
+    });
+    getSavedExtras().then((loaded) => {
+      if (!active || localGeneration.current !== generation) return;
+      extrasRef.current = loaded;
+      setExtras(loaded);
     });
     getReadIds().then((ids) => {
       if (!active || localGeneration.current !== generation) return;
@@ -94,14 +106,25 @@ export function StoryCacheProvider({ children }: { children: React.ReactNode }) 
   }, []);
   const all = useCallback(() => Array.from(mapRef.current.values()), []);
   const isSaved = useCallback((id: string) => savedIdsRef.current.has(id), []);
+  const updateExtras = useCallback((change: (current: SavedExtras) => SavedExtras) => {
+    const next = change(extrasRef.current);
+    extrasRef.current = next;
+    setExtras(next);
+    setSavedExtras(next);
+  }, []);
   const toggleSaved = useCallback(async (id: string) => {
     const next = await toggleSavedStorage(id);
+    if (!next) {
+      const reminder = extrasRef.current.reminders[id];
+      if (reminder) cancelReadLater(reminder.notificationId);
+      updateExtras((current) => dropStory(current, id));
+    }
     syncSavedStories();
     if (next) savedIdsRef.current.add(id);
     else savedIdsRef.current.delete(id);
     setSavedIds([...savedIdsRef.current]);
     return next;
-  }, []);
+  }, [updateExtras]);
 
   const readSet = useMemo(() => new Set(readIds), [readIds]);
   const isRead = useCallback((id: string) => readSet.has(id), [readSet]);
@@ -127,6 +150,9 @@ export function StoryCacheProvider({ children }: { children: React.ReactNode }) 
     savedIdsRef.current = new Set();
     setSavedIds([]);
     setReadState([]);
+    for (const reminder of Object.values(extrasRef.current.reminders)) cancelReadLater(reminder.notificationId);
+    extrasRef.current = EMPTY_EXTRAS;
+    setExtras(EMPTY_EXTRAS);
   }, []);
 
   // `version` is otherwise unused here, but it must be a memo dependency:
@@ -137,11 +163,11 @@ export function StoryCacheProvider({ children }: { children: React.ReactNode }) 
   const value = useMemo(
     () => ({
       get, getBySlug, remove, put, all, isSaved, toggleSaved, savedIds, savedReady,
-      readIds, readReady, isRead, markRead, clearReadHistory, resetLocalData,
+      readIds, readReady, isRead, markRead, clearReadHistory, resetLocalData, extras, updateExtras,
     }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [get, getBySlug, remove, put, all, isSaved, toggleSaved, version, savedIds, savedReady,
-      readIds, readReady, isRead, markRead, clearReadHistory, resetLocalData]
+      readIds, readReady, isRead, markRead, clearReadHistory, resetLocalData, extras, updateExtras]
   );
 
   return <StoryCacheContext.Provider value={value}>{children}</StoryCacheContext.Provider>;

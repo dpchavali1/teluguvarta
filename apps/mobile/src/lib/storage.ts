@@ -2,6 +2,8 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { getPlace, MAX_FOLLOWED_PLACES, type PersonaState } from "@teluguvarta/domain";
 import { DeviceEventEmitter } from "react-native";
 
+import { parseExtras, type SavedExtras } from "./savedExtras";
+
 // §3.1/§16 (ADR-006 proposed, not accepted): V1 has no real account/auth
 // backend for end users — `/v1/me/*` is still T04 stub data (see T14's
 // PROGRESS.md note). Same judgment call as apps/web/src/lib/saved.ts:
@@ -14,6 +16,7 @@ const KEYS = {
   profile: "tg_profile_v1",
   notificationPrefs: "tg_notification_prefs_v1",
   savedStories: "tg_saved_stories_v1",
+  savedExtras: "tg_saved_extras_v1",
   followedPlaces: "tg_followed_places_v1",
   themePreference: "tg_theme_pref_v1",
   textSize: "tg_text_size_v1",
@@ -416,6 +419,19 @@ export function toggleSaved(storyId: string): Promise<boolean> {
   const next = savedWrite.then(() => updateSaved(storyId));
   savedWrite = next.catch(() => undefined);
   return next;
+}
+
+// P06 / ADR-044: collections, notes and reminders for bookmarks (ids only).
+export async function getSavedExtras(): Promise<SavedExtras> {
+  try {
+    return parseExtras(JSON.parse((await AsyncStorage.getItem(KEYS.savedExtras)) ?? "null"));
+  } catch {
+    return parseExtras(null);
+  }
+}
+
+export function setSavedExtras(extras: SavedExtras): Promise<void> {
+  return writeJson(KEYS.savedExtras, extras);
 }
 
 // P01: which persona presets are applied and what each one added, so

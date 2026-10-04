@@ -17,6 +17,7 @@ export function StoryList({
   footer,
   allowHideTopic,
   showRead,
+  renderItemFooter,
 }: {
   stories: StoryOut[];
   emptyLabel?: string;
@@ -25,6 +26,7 @@ export function StoryList({
   footer?: React.ReactElement;
   allowHideTopic?: boolean;
   showRead?: boolean;
+  renderItemFooter?: (story: StoryOut) => React.ReactNode;
 }) {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { colors } = useAppTheme();
@@ -36,6 +38,7 @@ export function StoryList({
       data={stories}
       keyExtractor={(story) => story.id}
       renderItem={({ item }) => (
+        <>
         <StoryCard
           story={item}
           layout="compact"
@@ -44,6 +47,8 @@ export function StoryList({
           onOpen={() => navigation.navigate("StoryDetail", { slug: item.canonical_slug })}
           onOpenSource={(url) => Linking.openURL(url)}
         />
+        {renderItemFooter?.(item)}
+        </>
       )}
       onRefresh={onRefresh}
       refreshing={refreshing ?? false}

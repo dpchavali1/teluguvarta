@@ -1,20 +1,26 @@
 import { useFocusEffect } from "@react-navigation/native";
 import React, { useCallback, useState } from "react";
 import { ActivityIndicator, Pressable, Text, View } from "react-native";
+import { SavedOrganizer } from "../components/SavedOrganizer";
 import { StoryList } from "../components/StoryList";
 import { getSavedStories, type StoryOut } from "../lib/api";
 import { useStoryCache } from "../lib/StoryCacheContext";
+import { deleteCollection, idsInCollection } from "../lib/savedExtras";
 import { radius, spacing } from "../theme/tokens";
 import { useAppTheme } from "../theme/useAppTheme";
 
 type SavedView = "saved" | "read";
 
 export function SavedScreen() {
-  const { put, savedIds, savedReady, readIds, readReady, clearReadHistory } = useStoryCache();
+  const { put, extras, updateExtras, toggleSaved, savedIds, savedReady, readIds, readReady, clearReadHistory } = useStoryCache();
   const { colors, ui } = useAppTheme();
   // Plan M6: "Recently read" sits next to bookmarks; both resolve current data from the API.
   const [view, setView] = useState<SavedView>("saved");
-  const ids = view === "saved" ? savedIds : readIds;
+  const [collection, setCollection] = useState<string | null>(null);
+  const activeCollection = extras.collections.some((c) => c.id === collection) ? collection : null;
+  const ids = view === "saved"
+    ? (activeCollection ? idsInCollection(extras, savedIds, activeCollection) : savedIds)
+    : readIds;
   const ready = view === "saved" ? savedReady : readReady;
   const [stories, setStories] = useState<StoryOut[]>([]);
   const [loading, setLoading] = useState(true);
@@ -76,8 +82,38 @@ export function SavedScreen() {
   </View>;
   else if (view === "saved") {
     body = <>
-      {missing > 0 && <Text style={{ padding: 16, color: colors.muted }}>{missing} saved stories are currently unavailable. Your bookmarks have been kept.</Text>}
-      <StoryList stories={stories} emptyLabel="No saved stories to show. Save a story from the feed to find it here." onRefresh={() => setRevision((value) => value + 1)} refreshing={loading} />
+      {extras.collections.length > 0 && (
+        <View accessibilityRole="radiogroup" accessibilityLabel="Lists" style={{ flexDirection: "row", flexWrap: "wrap", gap: spacing.xs, padding: spacing.md, paddingBottom: 0 }}>
+          {([[null, "All saved"], ...extras.collections.map((c) => [c.id, c.name] as const)] as const).map(([id, label]) => {
+            const selected = activeCollection === id;
+            return (
+              <Pressable key={id ?? "all"} onPress={() => setCollection(id)} accessibilityRole="radio" accessibilityState={{ checked: selected }} accessibilityLabel={label}
+                style={{ minHeight: 44, justifyContent: "center", paddingHorizontal: spacing.md, borderRadius: radius.pill, borderWidth: 1,
+                  borderColor: ui.borderControl, backgroundColor: selected ? ui.actionPrimary : "transparent" }}>
+                <Text style={{ fontWeight: "600", color: selected ? ui.actionPrimaryText : colors.text }}>{label}</Text>
+              </Pressable>
+            );
+          })}
+          {activeCollection && (
+            <Pressable onPress={() => { updateExtras((cur) => deleteCollection(cur, activeCollection)); setCollection(null); }} accessibilityRole="button" accessibilityLabel="Delete this list"
+              style={{ minHeight: 44, justifyContent: "center", paddingHorizontal: spacing.md }}>
+              <Text style={{ color: colors.muted }}>Delete list</Text>
+            </Pressable>
+          )}
+        </View>
+      )}
+      {missing > 0 && (
+        <View style={{ padding: spacing.md, gap: spacing.xs }}>
+          <Text style={{ color: colors.muted }}>{missing} saved {missing === 1 ? "story is" : "stories are"} no longer available (withdrawn or unpublished).</Text>
+          <Pressable onPress={() => { const live = new Set(stories.map((s) => s.id)); ids.filter((id) => !live.has(id)).forEach((id) => { toggleSaved(id); }); }}
+            accessibilityRole="button" accessibilityLabel="Remove unavailable stories"
+            style={{ alignSelf: "flex-start", minHeight: 44, justifyContent: "center" }}>
+            <Text style={{ fontWeight: "600", color: colors.text }}>Remove unavailable</Text>
+          </Pressable>
+        </View>
+      )}
+      <StoryList stories={stories}
+        renderItemFooter={(story) => <SavedOrganizer story={story} extras={extras} />} emptyLabel="No saved stories to show. Save a story from the feed to find it here." onRefresh={() => setRevision((value) => value + 1)} refreshing={loading} />
     </>;
   } else {
     // Unpublished or retracted stories drop out of the list silently; their ids age out of the cap.
