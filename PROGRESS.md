@@ -279,6 +279,11 @@ place stories screen with explicit empty state, Home sends follows. Gaps: AP/TG
 district and US state lists are partial (more by demand, Telugu names need
 native review); no admin place-editor UI yet (API only); web parity and
 native-device check open; `home_state`/`home_city` remain free text.
+**P03 admin place editor (2026-10-04, local, admin only):** the review page has a
+"Places" editor (`apps/admin/src/components/PlaceEditor.tsx`): search the catalog by
+English/Telugu name, add up to 8, remove, save via `PUT /admin/stories/{id}/places`
+(audited, uses the shared reason field). Admin typecheck, lint and build pass; no
+component test and not exercised in a browser against a running API.
 No existing stories are backfilled, so many places start empty.
 
 P01 persona presets done locally (2026-10-03): `packages/domain/personas.ts`

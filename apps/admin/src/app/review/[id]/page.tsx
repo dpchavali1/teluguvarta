@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 
 import { Badge, EmptyState, Field, PageHeader, useToast } from "@/components/ui";
+import { PlaceEditor } from "@/components/PlaceEditor";
 import { TeluguRepair } from "@/components/TeluguRepair";
 import type { components } from "@teluguvarta/contracts";
 import { apiFetch, apiUrl, clearSession, getRole, isSignedIn } from "@/lib/auth";
@@ -69,6 +70,7 @@ interface StoryDetail {
   telugu_repair?: components["schemas"]["AdminTeluguRepairOut"] | null;
   topics?: string[];
   countries?: string[];
+  places?: string[];
   sources: StorySource[];
   review_task: { reason: string; status: string } | null;
   corrections: Correction[];
@@ -707,6 +709,7 @@ export default function StoryReviewPage() {
           <section>
             <h2>Geography and importance</h2>
             <CountryEditor key={(story.countries ?? []).join(",")} storyId={story.id} current={story.countries ?? []} reason={reason} onSaved={load} />
+            <PlaceEditor key={(story.places ?? []).join(",")} storyId={story.id} current={story.places ?? []} reason={reason} onSaved={load} />
             <ImportanceEditor key={story.importance_override ?? "computed"} storyId={story.id} current={story.importance_override ?? null} reason={reason} onSaved={load} />
           </section>
 
