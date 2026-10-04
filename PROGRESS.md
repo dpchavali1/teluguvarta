@@ -320,3 +320,12 @@ WhatsApp/device share sheets, Linux VPS (resvg native package), live API story.
 The [historical tracker](docs/history/PROGRESS-through-T14-search-2026-10-01.md)
 contains detailed earlier statuses and validation. Temporary synthetic screenshots
 and logs are under `/tmp`; they are not production or device evidence.
+
+**P04 web parity (2026-10-04, local):** Reading section on the onboarding/profile
+page: text size (root font-size 90–130%, so the browser's own setting still
+applies), Telugu font (Standard / Noto Serif Telugu / Mandali via next/font,
+loaded on demand), and Short story length (feed cards only: 2-line summary, no
+"why this matters"; the story page is unchanged). Stored in localStorage
+`tg-reading-v1`, applied pre-paint as `<html>` attributes. No new AI. Web tests
+(20) / typecheck / lint / build pass. NOT verified in a browser (Telugu glyph
+rendering, font loading, line clamp); no dedicated Settings page on web.

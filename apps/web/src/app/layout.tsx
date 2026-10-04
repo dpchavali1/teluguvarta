@@ -1,6 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
-import { Inter_Tight, Noto_Sans_Telugu, Peddana } from "next/font/google";
+import { Inter_Tight, Mandali, Noto_Sans_Telugu, Noto_Serif_Telugu, Peddana } from "next/font/google";
 
 import { BottomNav } from "@/components/BottomNav";
 import { SiteFooter } from "@/components/SiteFooter";
@@ -8,6 +8,7 @@ import { SiteHeader } from "@/components/SiteHeader";
 import { TrackEvent } from "@/components/TrackEvent";
 import { ErrorTrackingBoot } from "@/components/ErrorTrackingBoot";
 import { getConfig, siteUrl, type TopicOut } from "@/lib/api";
+import { READING_INIT_SCRIPT } from "@/lib/readingPrefs";
 import { STORY_LANGUAGE_INIT_SCRIPT } from "@/lib/storyLanguage";
 
 import "./globals.css";
@@ -32,6 +33,21 @@ const fontTelugu = Noto_Sans_Telugu({
 const fontTeluguDisplay = Peddana({
   subsets: ["telugu"],
   variable: "--font-telugu-display",
+  weight: ["400"],
+  display: "swap",
+  preload: false,
+});
+
+const fontTeluguSerif = Noto_Serif_Telugu({
+  subsets: ["telugu"],
+  variable: "--font-telugu-serif",
+  display: "swap",
+  preload: false,
+});
+
+const fontTeluguMandali = Mandali({
+  subsets: ["telugu"],
+  variable: "--font-telugu-mandali",
   weight: ["400"],
   display: "swap",
   preload: false,
@@ -75,13 +91,14 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
   return (
     <html
       lang="en"
-      className={`${fontSans.variable} ${fontTelugu.variable} ${fontTeluguDisplay.variable}`}
+      className={`${fontSans.variable} ${fontTelugu.variable} ${fontTeluguDisplay.variable} ${fontTeluguSerif.variable} ${fontTeluguMandali.variable}`}
       // Preference scripts set root attributes before hydration.
       suppressHydrationWarning
     >
       <head>
         <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
         <script dangerouslySetInnerHTML={{ __html: STORY_LANGUAGE_INIT_SCRIPT }} />
+        <script dangerouslySetInnerHTML={{ __html: READING_INIT_SCRIPT }} />
       </head>
       <body>
         <ErrorTrackingBoot />

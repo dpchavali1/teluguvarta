@@ -1786,3 +1786,24 @@ input[type="checkbox"] {
 .story-card--lead .story-card__headline .story-copy--te,
 .story-card--detail .story-card__headline .story-copy--te { line-height: 1.35; }
 .story-card__summary .story-copy--te { line-height: 1.75; }
+
+/* P04 reading controls — set by READING_INIT_SCRIPT / ReadingControls. Scaling
+   the root percentage keeps every rem token (and the browser's own font setting)
+   in play. */
+html[data-text-size="small"] { font-size: 90%; }
+html[data-text-size="large"] { font-size: 115%; }
+html[data-text-size="xlarge"] { font-size: 130%; }
+
+html[data-telugu-font="serif"] { --font-te: var(--font-telugu-serif), var(--font-telugu), var(--font-body); --font-te-heading: var(--font-telugu-serif), var(--font-heading); }
+html[data-telugu-font="mandali"] { --font-te: var(--font-telugu-mandali), var(--font-telugu), var(--font-body); --font-te-heading: var(--font-telugu-mandali), var(--font-heading); }
+
+/* Short: feed cards only; the story page (--detail) always shows everything. */
+html[data-reading="short"] .story-card:not(.story-card--detail) .story-card__summary {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+html[data-reading="short"] .story-card:not(.story-card--detail) .story-card__why { display: none; }
+
+.reading-controls__preview { margin-block: 0.5rem; }

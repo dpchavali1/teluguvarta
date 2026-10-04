@@ -1,5 +1,6 @@
 "use client";
 
+import { ReadingControls } from "@/components/ReadingControls";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
@@ -91,6 +92,8 @@ export default function OnboardingPage() {
         This personalizes your feed and, for students, adds a Student Briefing section. Every
         question here is optional — TTE works fully without answering any of them.
       </p>
+
+      <ReadingControls />
 
       <fieldset className="onboarding__fieldset">
         <legend>Quick setup (optional)</legend>
