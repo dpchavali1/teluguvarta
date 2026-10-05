@@ -544,3 +544,21 @@ headlines <3h old against 48h of variants/source-item titles (token overlap + di
 once per miss (5/run, 20/day) via `send_alert`. Records in `audit_events` (`COVERAGE_MONITOR_SEEN`, 7-day
 prune), no migration. Admin `GET /v1/admin/coverage/misses` (no UI yet). To enable in prod set
 `COVERAGE_MONITOR_INTERVAL_MINUTES=15` + `ALERT_WEBHOOK_URL`; optional `COVERAGE_MONITOR_FEEDS`.
+
+**Session handoff — 2026-10-04 (open items, in priority order).**
+1. **Deploy API + worker** (HEAD `c208db1`, unpushed until the owner pushes; no migration). Set
+   `ALERT_WEBHOOK_URL` (else alerts only reach logs) and, to enable the coverage monitor,
+   `COVERAGE_MONITOR_INTERVAL_MINUTES=15`. Deploy the web too (privacy copy + "US Visa Bulletin" nav).
+2. **Owner decisions:** accept ADR-052 and ADR-053 (both `proposed`; ADR-053 needs Google News terms
+   and rate limits confirmed); ADR-046 open security decisions; ADR-030 nav/regional tagging.
+3. **Singeetham Srinivasa Rao obituary (2026-10-04)** was published as sensitivity NONE with a summary
+   that omits the death ("cinematic journey…"); the Telugu classifier/prompt fix only helps new
+   stories — correct that story in admin. Which source supplied it is unconfirmed (needs DB access).
+4. **Sources:** no new feeds added. Probed 2026-10-04: BBC Telugu, ABP Desam, Sakshi, Asianet Telugu,
+   OneIndia Telugu, The Hindu AP/Telangana have terms restricting reuse (owner permission needed);
+   Vaartha and Telangana Today terms are silent (email them). Optional: poll ntnews/NTV every 10 min.
+5. **Mobile:** installed build is current (18:01, includes analytics-on and US-visa label). Still to
+   verify on device: Firebase DebugView events, push foreground display/channel/tap routing. Move the
+   `tools:replace` manifest fix into the `defaultChannel` config (android/ is gitignored).
+6. **Known flake:** `test_corrected_story_can_still_be_retracted` returned 429 once in a full run
+   (passes alone and on rerun); likely rate-limiter timing, not investigated.
