@@ -571,3 +571,13 @@ source in `BREAKING_TRUSTED_SOURCES`, empty by default) back it; cap `AUTO_PUBLI
 alert via `send_alert`; undo = admin Retract. `source_text` variants are skipped by `ai_translate`. NON_NEGOTIABLES
 #5/#15 amended. Not yet: admin UI toggle for the `breaking` switch label (generic switches list may show it),
 and no prod enablement — owner sets env + trusted list. 30-day review due ~2026-11-03.
+
+**Source circuit breaker reset + alert dedupe (2026-10-05, `9466d60`).** Telugu360 sat tripped ~2.5 days after a
+transient read timeout (5 failures) because the breaker is manual-reset by design (`source_fetch.py`). Added
+`POST /v1/admin/sources/{id}/reset-failures` (audit `SOURCE_FAILURES_RESET`) with a "Reset failures" button on the
+Sources page; re-enabling a source or changing its feed URL also clears `fail_count`. The breaker alert now fires once
+per trip (audit `CIRCUIT_BREAKER_ALERTED`, compared with `last_error_at`) instead of every worker poll. No migration.
+Not done: optional auto-retry after a cool-down. Prod notes: ADR-054 code + migration `d4a8c2e6f1b3` are live but
+`AUTO_PUBLISH_BREAKING` is unset (lane off) and `ALERT_WEBHOOK_URL` is empty in `.env.prod`; set a webhook before
+enabling. Prod compose: `docker compose -f infra/deploy/docker-compose.prod.yml --env-file .env.prod`; deploy via
+`infra/deploy/deploy.sh`.
