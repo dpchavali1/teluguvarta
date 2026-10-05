@@ -127,3 +127,5 @@ accepted. Add ad-hoc ADRs below this table as they're written.
   [ADR-052](ADR-052-breaking-review-no-expiry-and-alert.md)
 - ADR-053 | Coverage monitor with monitor-only reference headline feeds | — | **proposed** (owner request 2026-10-04) — see
   [ADR-053](ADR-053-coverage-monitor-reference-feeds.md)
+- ADR-054 | Auto-publish breaking/death stories as source-text briefs (amends NON_NEGOTIABLES #5 for those only) | — | **proposed** (owner request 2026-10-04) — see
+  [ADR-054](ADR-054-breaking-auto-publish-brief.md)
