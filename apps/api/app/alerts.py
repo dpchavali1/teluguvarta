@@ -88,18 +88,44 @@ def check_budget_alerts(db: Session, *, now: datetime | None = None, channel=Non
     return fired
 
 
+CIRCUIT_ALERT_ACTION = "CIRCUIT_BREAKER_ALERTED"
+
+
+def _already_alerted(db: Session, source: Source) -> bool:
+    """One alert per trip: an alert recorded at or after the source's last
+    failure covers it. The breaker stops fetching, so `last_error_at` stays
+    put until the source is reset and trips again."""
+    query = select(func.count(AuditEvent.id)).where(
+        AuditEvent.entity_type == "source",
+        AuditEvent.entity_id == source.id,
+        AuditEvent.action == CIRCUIT_ALERT_ACTION,
+    )
+    if source.last_error_at is not None:
+        query = query.where(AuditEvent.created_at >= source.last_error_at)
+    return (db.scalar(query) or 0) > 0
+
+
 def check_circuit_breaker_alerts(db: Session, *, channel=None) -> list[str]:
-    """Fires once per currently-tripped source (fail_count over T08's
-    circuit-breaker threshold — reusing that constant rather than defining
-    a second one)."""
+    """Fires once per trip of each tripped source (fail_count at or over T08's
+    circuit-breaker threshold, reusing that constant), deduped via the audit
+    log so a source that stays tripped does not alert on every worker poll."""
     tripped = db.scalars(select(Source).where(Source.fail_count >= CIRCUIT_BREAKER_THRESHOLD)).all()
     fired = []
     for source in tripped:
+        if _already_alerted(db, source):
+            continue
         send_alert(
             f"Source '{source.name}' ({source.id}) has tripped its circuit breaker "
-            f"({source.fail_count} consecutive failures)",
+            f"({source.fail_count} consecutive failures). Reset it in admin once the feed is healthy.",
             channel=channel,
         )
+        db.add(
+            AuditEvent(
+                actor=_REVIEW_ACTOR, action=CIRCUIT_ALERT_ACTION, entity_type="source", entity_id=source.id,
+                metadata_={"fail_count": source.fail_count},
+            )
+        )
+        db.flush()
         fired.append(f"CIRCUIT_BREAKER:{source.id}")
     return fired
 

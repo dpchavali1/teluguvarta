@@ -7461,6 +7461,50 @@
         ]
       }
     },
+    "/v1/admin/sources/{source_id}/reset-failures": {
+      "post": {
+        "description": "Clears the circuit breaker (`fail_count`) after the feed is healthy again.\nThe next scheduler pass fetches the source; a still-broken feed trips it again.",
+        "operationId": "reset_source_failures_v1_admin_sources__source_id__reset_failures_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "source_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Source Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminSourceOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Reset Source Failures",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
     "/v1/admin/sources/{source_id}/x-account": {
       "patch": {
         "operationId": "update_x_account_v1_admin_sources__source_id__x_account_patch",

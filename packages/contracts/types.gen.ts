@@ -609,6 +609,27 @@ export interface paths {
         patch: operations["update_source_v1_admin_sources__source_id__patch"];
         trace?: never;
     };
+    "/v1/admin/sources/{source_id}/reset-failures": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Reset Source Failures
+         * @description Clears the circuit breaker (`fail_count`) after the feed is healthy again.
+         *     The next scheduler pass fetches the source; a still-broken feed trips it again.
+         */
+        post: operations["reset_source_failures_v1_admin_sources__source_id__reset_failures_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/admin/sources/{source_id}/x-account": {
         parameters: {
             query?: never;
@@ -4328,6 +4349,37 @@ export interface operations {
                 "application/json": components["schemas"]["AdminSourceUpdate"];
             };
         };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminSourceOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    reset_source_failures_v1_admin_sources__source_id__reset_failures_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                source_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
         responses: {
             /** @description Successful Response */
             200: {

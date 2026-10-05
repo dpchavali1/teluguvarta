@@ -333,3 +333,65 @@ def test_death_signal_holds_survive_the_stale_sweep(db_session):
     assert expire_stale_holds(db_session) == 2
     assert by_variant.status == "REVIEW_REQUIRED" and by_item.status == "REVIEW_REQUIRED"
     assert plain.status == "ARCHIVED" and drafted.status == "ARCHIVED"
+
+
+# --- circuit breaker reset --------------------------------------------------------
+
+
+def _tripped_source(db, **overrides):
+    from app.jobs.source_fetch import CIRCUIT_BREAKER_THRESHOLD
+    from app.models import Source
+
+    source = Source(
+        name="Flaky", feed_url=f"https://example.org/{uuid.uuid4()}.xml", rights_status="LINK_ONLY", active=True,
+        fail_count=CIRCUIT_BREAKER_THRESHOLD, last_error_at=datetime.now(UTC) - timedelta(minutes=5), **overrides,
+    )
+    db.add(source)
+    db.commit()
+    return source
+
+
+def test_breaker_alert_fires_once_per_trip(db_session):
+    from app import alerts
+
+    source = _tripped_source(db_session)
+    calls: list[str] = []
+    channel = lambda severity, message: calls.append(message)
+    assert alerts.check_circuit_breaker_alerts(db_session, channel=channel) == [f"CIRCUIT_BREAKER:{source.id}"]
+    assert alerts.check_circuit_breaker_alerts(db_session, channel=channel) == []  # next poll: silent
+    assert len(calls) == 1 and "Reset it in admin" in calls[0]
+
+    # Recovers, then trips again later: a new failure time means a new alert.
+    source.fail_count = 0
+    db_session.commit()
+    source.fail_count = 5
+    source.last_error_at = datetime.now(UTC) + timedelta(minutes=1)
+    db_session.commit()
+    assert alerts.check_circuit_breaker_alerts(db_session, channel=channel) == [f"CIRCUIT_BREAKER:{source.id}"]
+
+
+def test_admin_reset_failures_clears_breaker_with_audit(client, db_session):
+    headers = _admin(client, db_session)
+    source = _tripped_source(db_session)
+    response = client.post(f"/v1/admin/sources/{source.id}/reset-failures", headers=headers)
+    assert response.status_code == 200 and response.json()["fail_count"] == 0
+    event = db_session.scalars(
+        select(AuditEvent).where(AuditEvent.entity_id == source.id, AuditEvent.action == "SOURCE_FAILURES_RESET")
+    ).one()
+    assert event.metadata_["previous_fail_count"] == 5
+    assert client.post(f"/v1/admin/sources/{uuid.uuid4()}/reset-failures", headers=headers).status_code == 404
+
+
+def test_reenabling_or_changing_feed_clears_breaker(client, db_session):
+    headers = _admin(client, db_session)
+    inactive = _tripped_source(db_session)
+    inactive.active = False
+    db_session.commit()
+    assert client.patch(f"/v1/admin/sources/{inactive.id}", json={"active": True}, headers=headers).json()["fail_count"] == 0
+
+    moved = _tripped_source(db_session)
+    body = {"feed_url": "https://example.org/new.xml"}
+    assert client.patch(f"/v1/admin/sources/{moved.id}", json=body, headers=headers).json()["fail_count"] == 0
+
+    untouched = _tripped_source(db_session)
+    assert client.patch(f"/v1/admin/sources/{untouched.id}", json={"category": "news"}, headers=headers).json()["fail_count"] == 5

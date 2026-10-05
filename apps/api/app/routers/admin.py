@@ -327,8 +327,13 @@ def update_source(
         _enforce_enable_gate(admin, new_rights_status, merged)
 
     was_describing = source.description_evidence
+    was_active = source.active
     for field, value in updates.items():
         setattr(source, field, value)
+    # Re-enabling a source or pointing it at a new feed is a fresh start for
+    # the circuit breaker, which never clears on its own.
+    if updates.get("active") is True and not was_active or "feed_url" in updates:
+        source.fail_count = 0
     if rights_evidence is not None:
         source.rights_evidence = rights_evidence
     _enforce_description_evidence_gate(
@@ -340,6 +345,23 @@ def update_source(
 
     audit_metadata = body.model_dump(exclude_unset=True, mode="json")
     _write_audit_event(db, admin.email, "SOURCE_UPDATED", "source", source.id, audit_metadata)
+    db.commit()
+    db.refresh(source)
+    return _source_out(source)
+
+
+@router.post("/sources/{source_id}/reset-failures")
+def reset_source_failures(
+    source_id: UUID, admin: AdminPrincipal = Depends(current_admin), db: Session = Depends(get_db)
+) -> AdminSourceOut:
+    """Clears the circuit breaker (`fail_count`) after the feed is healthy again.
+    The next scheduler pass fetches the source; a still-broken feed trips it again."""
+    source = db.get(Source, source_id)
+    if source is None:
+        raise APIError(404, "SOURCE_NOT_FOUND", f"No source with id '{source_id}'")
+    previous = source.fail_count
+    source.fail_count = 0
+    _write_audit_event(db, admin.email, "SOURCE_FAILURES_RESET", "source", source.id, {"previous_fail_count": previous})
     db.commit()
     db.refresh(source)
     return _source_out(source)

@@ -415,6 +415,7 @@ function SourceCard({ source, xAccount, xAccountsLoaded, onChanged }: { source: 
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [resetting, setResetting] = useState(false);
 
   const current = (draft ?? source.category ?? "").trim();
   const dirty = draft !== null && current !== (source.category ?? "");
@@ -433,6 +434,19 @@ function SourceCard({ source, xAccount, xAccountsLoaded, onChanged }: { source: 
       toast("danger", err instanceof Error ? err.message : "Failed to save category");
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function resetFailures() {
+    setResetting(true);
+    try {
+      await api(`/sources/${source.id}/reset-failures`, "POST");
+      toast("ok", `Failures cleared for ${source.name}. It will be fetched on the next pass.`);
+      onChanged();
+    } catch (err) {
+      toast("danger", err instanceof Error ? err.message : "Failed to reset failures");
+    } finally {
+      setResetting(false);
     }
   }
 
@@ -469,6 +483,11 @@ function SourceCard({ source, xAccount, xAccountsLoaded, onChanged }: { source: 
         <button type="button" disabled={!dirty || saving} onClick={saveCategory}>
           {saving ? "Saving…" : "Save category"}
         </button>
+        {source.fail_count > 0 ? (
+          <button type="button" className="button-secondary" disabled={resetting} onClick={resetFailures}>
+            {resetting ? "Resetting…" : "Reset failures"}
+          </button>
+        ) : null}
         <button type="button" className={enabled ? "button-secondary" : undefined} aria-expanded={open} onClick={() => setOpen((v) => !v)}>
           {open ? "Close" : enabled ? "Edit rights" : "Review rights"}
         </button>
