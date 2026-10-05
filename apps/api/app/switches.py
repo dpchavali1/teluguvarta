@@ -8,6 +8,9 @@ a flip takes effect within one poll, no restart:
 - `auto_publish`: off -> nothing publishes automatically; stories wait in
   AI_READY. Hand-approved stories still publish.
 
+- `breaking` (ADR-054): off -> breaking/death stories stay in review. The env
+  flag `AUTO_PUBLISH_BREAKING` defaults off.
+
 A missing row means on. Env flags stay a hard ceiling: the effective state is
 "env allows it AND the switch is on", so `AUTO_PUBLISH_GLOBAL=false` keeps
 auto-publish off whatever the dashboard says.
@@ -22,16 +25,19 @@ from sqlalchemy.orm import Session
 
 from app.models import RuntimeSwitch
 
-SwitchKey = Literal["ai", "auto_publish"]
-SWITCH_KEYS: tuple[SwitchKey, ...] = ("ai", "auto_publish")
+SwitchKey = Literal["ai", "auto_publish", "breaking"]
+SWITCH_KEYS: tuple[SwitchKey, ...] = ("ai", "auto_publish", "breaking")
 
 AUTO_PUBLISH_GLOBAL_ENV = "AUTO_PUBLISH_GLOBAL"
+AUTO_PUBLISH_BREAKING_ENV = "AUTO_PUBLISH_BREAKING"
 
 
 def env_allows(key: SwitchKey) -> bool:
     """The server-side ceiling. AI has none beyond ADR-024's budget caps."""
     if key == "auto_publish":
         return os.environ.get(AUTO_PUBLISH_GLOBAL_ENV, "false").lower() == "true"
+    if key == "breaking":
+        return os.environ.get(AUTO_PUBLISH_BREAKING_ENV, "false").lower() == "true"
     return True
 
 

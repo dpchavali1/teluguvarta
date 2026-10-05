@@ -309,6 +309,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/admin/coverage/misses": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Coverage Misses
+         * @description ADR-053: reference headlines we had no match for (monitor-only data).
+         */
+        get: operations["get_coverage_misses_v1_admin_coverage_misses_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/admin/exam-deadlines": {
         parameters: {
             query?: never;
@@ -2406,6 +2426,38 @@ export interface components {
             /** Unknown */
             unknown: number;
         };
+        /** CoverageMissOut */
+        CoverageMissOut: {
+            /** Alerted */
+            alerted: boolean;
+            /**
+             * Seen At
+             * Format: date-time
+             */
+            seen_at: string;
+            /** Source */
+            source: string;
+            /** Title */
+            title: string;
+            /** Url */
+            url: string;
+        };
+        /**
+         * CoverageMissesOut
+         * @description ADR-053: `app.coverage_monitor.miss_report`.
+         */
+        CoverageMissesOut: {
+            /** Enabled */
+            enabled: boolean;
+            /** Matched 24H */
+            matched_24h: number;
+            /** Miss Rate 24H */
+            miss_rate_24h: number;
+            /** Missed 24H */
+            missed_24h: number;
+            /** Misses */
+            misses: components["schemas"]["CoverageMissOut"][];
+        };
         /** CoveragePublisherOut */
         CoveragePublisherOut: {
             /** Feeds */
@@ -3042,7 +3094,7 @@ export interface components {
              * Key
              * @enum {string}
              */
-            key: "ai" | "auto_publish";
+            key: "ai" | "auto_publish" | "breaking";
             /** Note */
             note?: string | null;
             /** Updated At */
@@ -3782,6 +3834,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_coverage_misses_v1_admin_coverage_misses_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CoverageMissesOut"];
                 };
             };
         };
@@ -4863,7 +4935,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                key: "ai" | "auto_publish";
+                key: "ai" | "auto_publish" | "breaking";
             };
             cookie?: never;
         };

@@ -13,7 +13,11 @@ plus the one relevant `docs/tickets/Txx.md` should be enough.
    LICENSED_REPURPOSE`. Unknown/unset defaults to `DISABLED`. Never bypass
    the rights gate for any source, including official X accounts.
 5. Immigration, legal, financial, and breaking stories require human
-   approval in V1 — no exceptions, no auto-publish overrides.
+   approval in V1 — no exceptions, no auto-publish overrides. **Sole
+   exception (ADR-054):** BREAKING and death stories may auto-publish as
+   source-text briefs when 2+ independent approved sources (or one
+   owner-trusted source) report them, behind a default-off kill switch.
+   Immigration, legal, financial and accusation stories stay human-reviewed.
 6. No UGC, comments, or social-graph features in V1.
 7. English is canonical. Telugu is a derived, versioned variant with
    explicit QA status; an approved English correction invalidates the

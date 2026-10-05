@@ -258,7 +258,7 @@ def test_admin_can_pause_and_resume_with_audit(client, db_session):
     _story(db_session)
 
     rows = client.get("/v1/admin/switches", headers=headers).json()
-    assert {r["key"]: r["enabled"] for r in rows} == {"ai": True, "auto_publish": True}
+    assert {r["key"]: r["enabled"] for r in rows} == {"ai": True, "auto_publish": True, "breaking": True}
 
     res = client.put("/v1/admin/switches/ai", json={"enabled": False, "note": "spend check"}, headers=headers)
     assert res.status_code == 200

@@ -37,16 +37,19 @@ with no independent retry value" precedent as T08/T09/T11:
 from __future__ import annotations
 
 import os
-import re
 from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.ai.budget import is_over_monthly_budget
-from app.ai.privacy import TELUGU_DEATH_TERMS
 from app.content.publication import validate_for_publication
 from app.content.rights import RIGHTS_REVOKED_REASON, unpermitted_sources
+from app.jobs.breaking_lane import (
+    DEATH_SIGNAL_PATTERN,
+    death_hold_candidate,
+    publish_breaking_briefs,
+)
 from app.jobs.brief_lane import LaneOutcome, daily_cap, published_today, try_brief_lane
 from app.jobs.queue import enqueue_job
 from app.models import (
@@ -125,29 +128,11 @@ def _expire_stale(db: Session, story: Story, task: ReviewTask) -> None:
 
 NO_EXPIRY_SENSITIVITIES = frozenset({"BREAKING", "OBITUARY_ACCUSATION"})
 NO_EXPIRY_REASON = "HIGH_IMPORTANCE"
-# ADR-052: a RESTRICTED or AI-unclassifiable hold that mentions a death is
-# treated like BREAKING. Deliberately narrow: other RESTRICTED topics
-# (immigration, tax, court, ...) keep the 24h expiry.
-DEATH_SIGNAL_PATTERN = re.compile(
-    rf"{TELUGU_DEATH_TERMS}|"
-    r"\b(died|dies|death|dead|killed|obituar\w*|pass(?:es|ed)\s+away|demise|funeral)\b",
-    re.IGNORECASE,
-)
-DEATH_HOLD_REASONS = ("NO_PAID_PROVIDER", "AI_RETRIES_EXHAUSTED")
-
-
-def _death_hold_candidate(story: Story, tasks: list[ReviewTask]) -> bool:
-    return story.status == "REVIEW_REQUIRED" and (
-        story.privacy_decision == "RESTRICTED"
-        or any(r in t.reason for t in tasks for r in DEATH_HOLD_REASONS)
-    )
-
-
 def death_signal_story_ids(db: Session, pairs: list[tuple[Story, list[ReviewTask]]]) -> frozenset:
     """Story ids (among `pairs`) held as RESTRICTED / AI-unclassifiable whose English
     headline+summary mention a death, or, with no English variant yet, whose linked
     source-item titles do. Two batched queries regardless of queue size."""
-    candidates = [s.id for s, tasks in pairs if _death_hold_candidate(s, tasks)]
+    candidates = [s.id for s, tasks in pairs if death_hold_candidate(s, tasks)]
     if not candidates:
         return frozenset()
     variants = {
@@ -287,6 +272,10 @@ def auto_publish_stories(db: Session) -> int:
     if auto_publish_paused(db):
         db.commit()
         return count
+
+    # ADR-054: breaking/death stories with source-text briefs need no AI, so
+    # this runs ahead of (and independent of) the budget and AI switches.
+    count += publish_breaking_briefs(db)
 
     budget_breached = _budget_breach_disables_auto_publish(db)
     enabled = _auto_publish_enabled() and not budget_breached

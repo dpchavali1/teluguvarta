@@ -670,7 +670,7 @@ class AdminSession(Base):
 
 
 class RuntimeSwitch(Base):
-    """ADR-031: an admin-flippable pause switch ('ai' | 'auto_publish').
+    """ADR-031: an admin-flippable pause switch ('ai' | 'auto_publish' | 'breaking').
     A missing row means on; env flags stay a hard ceiling (`app/switches.py`)."""
 
     __tablename__ = "runtime_switches"

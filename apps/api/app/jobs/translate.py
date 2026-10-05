@@ -38,6 +38,7 @@ from app.content.glossary import apply_glossary
 from app.content.qa import find_variant_qa_issues
 from app.content.variants import dispatch_privacy
 from app.jobs import ai_retry
+from app.jobs.breaking_lane import SOURCE_TEXT_MODEL_VERSION
 from app.jobs.generate import _env_flag
 from app.jobs.queue import enqueue_job, renew_lease
 from app.models import AiWorkState, Job, ReviewTask, Story, StoryVariant
@@ -221,7 +222,12 @@ def translate_stories(db: Session, job: Job | None = None) -> int:
         select(Story.id, en_variants.id)
         .join(en_variants, (en_variants.story_id == Story.id) & (en_variants.language == "en"))
         .outerjoin(te_variants, (te_variants.story_id == Story.id) & (te_variants.language == "te"))
-        .where(te_variants.id.is_(None), Story.status.in_(TRANSLATABLE_STATUSES))
+        .where(
+            te_variants.id.is_(None),
+            Story.status.in_(TRANSLATABLE_STATUSES),
+            # ADR-054: a source-text brief is never machine-translated.
+            en_variants.model_version.is_distinct_from(SOURCE_TEXT_MODEL_VERSION),
+        )
         .order_by(Story.published_at.desc().nulls_last(), en_variants.generated_at.desc(), Story.id)
     ).all()
 

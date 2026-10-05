@@ -3183,6 +3183,77 @@
         "title": "CoverageLagOut",
         "type": "object"
       },
+      "CoverageMissOut": {
+        "properties": {
+          "alerted": {
+            "title": "Alerted",
+            "type": "boolean"
+          },
+          "seen_at": {
+            "format": "date-time",
+            "title": "Seen At",
+            "type": "string"
+          },
+          "source": {
+            "title": "Source",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "url": {
+            "title": "Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "title",
+          "url",
+          "source",
+          "seen_at",
+          "alerted"
+        ],
+        "title": "CoverageMissOut",
+        "type": "object"
+      },
+      "CoverageMissesOut": {
+        "description": "ADR-053: `app.coverage_monitor.miss_report`.",
+        "properties": {
+          "enabled": {
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "matched_24h": {
+            "title": "Matched 24H",
+            "type": "integer"
+          },
+          "miss_rate_24h": {
+            "title": "Miss Rate 24H",
+            "type": "number"
+          },
+          "missed_24h": {
+            "title": "Missed 24H",
+            "type": "integer"
+          },
+          "misses": {
+            "items": {
+              "$ref": "#/components/schemas/CoverageMissOut"
+            },
+            "title": "Misses",
+            "type": "array"
+          }
+        },
+        "required": [
+          "enabled",
+          "matched_24h",
+          "missed_24h",
+          "miss_rate_24h",
+          "misses"
+        ],
+        "title": "CoverageMissesOut",
+        "type": "object"
+      },
       "CoveragePublisherOut": {
         "properties": {
           "feeds": {
@@ -5029,7 +5100,8 @@
           "key": {
             "enum": [
               "ai",
-              "auto_publish"
+              "auto_publish",
+              "breaking"
             ],
             "title": "Key",
             "type": "string"
@@ -6522,6 +6594,28 @@
           }
         },
         "summary": "Get Coverage",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/v1/admin/coverage/misses": {
+      "get": {
+        "description": "ADR-053: reference headlines we had no match for (monitor-only data).",
+        "operationId": "get_coverage_misses_v1_admin_coverage_misses_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CoverageMissesOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Coverage Misses",
         "tags": [
           "admin"
         ]
@@ -8388,7 +8482,8 @@
             "schema": {
               "enum": [
                 "ai",
-                "auto_publish"
+                "auto_publish",
+                "breaking"
               ],
               "title": "Key",
               "type": "string"

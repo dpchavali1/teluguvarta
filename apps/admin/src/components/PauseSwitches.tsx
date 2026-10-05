@@ -24,6 +24,13 @@ const COPY: Record<Switch["key"], { title: string; on: string; off: string; wait
     off: "Nothing goes live on its own. Finished stories wait; stories you approve by hand still publish.",
     waiting: "waiting to publish",
     pause: "Pause auto-publish"
+  },
+  breaking: {
+    title: "Breaking & death briefs",
+    on: "Breaking and death stories confirmed by 2+ approved sources (or one trusted source) go live as source-text briefs. Retract one from its story page.",
+    off: "Breaking and death stories wait for a person.",
+    waiting: "waiting in review",
+    pause: "Pause breaking briefs"
   }
 };
 

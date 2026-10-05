@@ -821,7 +821,7 @@ class KillSwitchesOut(BaseModel):
 class RuntimeSwitchOut(BaseModel):
     """ADR-031: one dashboard pause switch and its effective state."""
 
-    key: Literal["ai", "auto_publish"]
+    key: Literal["ai", "auto_publish", "breaking"]
     # What the dashboard switch says (no row = on).
     enabled: bool
     # False when a server env flag holds it off whatever the dashboard says.

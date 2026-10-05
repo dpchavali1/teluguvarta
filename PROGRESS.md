@@ -562,3 +562,12 @@ prune), no migration. Admin `GET /v1/admin/coverage/misses` (no UI yet). To enab
    `tools:replace` manifest fix into the `defaultChannel` config (android/ is gitignored).
 6. **Known flake:** `test_corrected_story_can_still_be_retracted` returned 429 once in a full run
    (passes alone and on rerun); likely rate-limiter timing, not investigated.
+
+**ADR-054 (accepted 2026-10-04) — auto-publish breaking/death source-text briefs.** `app/jobs/breaking_lane.py`,
+called first in `auto_publish_stories`; no AI. Off unless `AUTO_PUBLISH_BREAKING=true` AND the dashboard `breaking`
+switch is on (migration `d4a8c2e6f1b3` widens `ck_runtime_switches_key` — **run migrations before deploy**).
+Publishes the source's own headline + "Reported by X" line as `BRIEF` when ≥2 distinct publisher domains (or one
+source in `BREAKING_TRUSTED_SOURCES`, empty by default) back it; cap `AUTO_PUBLISH_BREAKING_DAILY_CAP` (10);
+alert via `send_alert`; undo = admin Retract. `source_text` variants are skipped by `ai_translate`. NON_NEGOTIABLES
+#5/#15 amended. Not yet: admin UI toggle for the `breaking` switch label (generic switches list may show it),
+and no prod enablement — owner sets env + trusted list. 30-day review due ~2026-11-03.

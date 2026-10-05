@@ -458,7 +458,7 @@ def get_kill_switches(db: Session = Depends(get_db)) -> KillSwitchesOut:
 
 # ADR-031: dashboard pause switches. Stories waiting on each: new stories sit
 # in DRAFT while AI is paused, finished ones in AI_READY while auto-publish is.
-_SWITCH_WAITING_STATUS = {"ai": "DRAFT", "auto_publish": "AI_READY"}
+_SWITCH_WAITING_STATUS = {"ai": "DRAFT", "auto_publish": "AI_READY", "breaking": "REVIEW_REQUIRED"}
 
 
 def _switch_out(db: Session, key: SwitchKey) -> RuntimeSwitchOut:
