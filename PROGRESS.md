@@ -535,3 +535,12 @@ with sensitivity NONE are covered only when held as RESTRICTED or AI-unclassifia
 (NO_PAID_PROVIDER / AI_RETRIES_EXHAUSTED) AND a narrow death regex matches the English variant (or
 source-item titles if undrafted): `publish.death_signal_story_ids`; other RESTRICTED topics still
 expire at 24h. Set `ALERT_WEBHOOK_URL` in prod or alerts only reach logs.
+- Telugu death/breaking terms added to privacy RESTRICTED + ADR-052 death signal (shared `TELUGU_DEATH_TERMS`); AI prompts require plain death statement (ADR-052 addendum).
+
+**ADR-053 (proposed) — coverage monitor (2026-10-04).** `app/coverage_monitor.py`: every
+`COVERAGE_MONITOR_INTERVAL_MINUTES` (off by default; worker loop hook) fetches Google News RSS
+reference feeds (monitor-only, never stored as stories; SSRF-safe via `fetch_public`), matches
+headlines <3h old against 48h of variants/source-item titles (token overlap + difflib, no AI), alerts
+once per miss (5/run, 20/day) via `send_alert`. Records in `audit_events` (`COVERAGE_MONITOR_SEEN`, 7-day
+prune), no migration. Admin `GET /v1/admin/coverage/misses` (no UI yet). To enable in prod set
+`COVERAGE_MONITOR_INTERVAL_MINUTES=15` + `ALERT_WEBHOOK_URL`; optional `COVERAGE_MONITOR_FEEDS`.

@@ -38,3 +38,12 @@ The story aged out unseen.
   not pile up. Human review stays mandatory.
 - Alert latency is bounded by the worker's alert cadence (every 60 loops); webhook delivery is
   fire-and-forget, so a failed POST is logged but not retried.
+
+## Addendum: Telugu death terms
+The death signal and the ADR-015 privacy classifier were English-only, so a Telugu obituary
+(ఇకలేరు, తుదిశ్వాస విడిచారు) went out as sensitivity NONE with a summary that omitted the death.
+Both now share `privacy.TELUGU_DEATH_TERMS` (plain substring/prefix match; `\b` fails on Telugu
+combining marks). Classify/generate prompts now require a reported death to be stated plainly and
+to be classified OBITUARY_ACCUSATION (BREAKING for public figures). Known false positives: మృతి,
+నివాళి (non-obituary tributes) only route to RESTRICTED/human review. Suggested, not added:
+ప్రమాదం (accident).

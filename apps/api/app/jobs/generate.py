@@ -175,7 +175,9 @@ def _classify_prompt(items: list[SourceItem]) -> str:
         + RELEVANCE_CRITERIA
         + "Also determine categories, countries, places, entities, sensitivity "
         "(one of NONE/IMMIGRATION/LEGAL/FINANCIAL/BREAKING/OBITUARY_ACCUSATION), "
-        "and urgency (one of NORMAL/HIGH). `places` lists only where the story "
+        "and urgency (one of NORMAL/HIGH). If the evidence reports that a person "
+        "has died (including Telugu words like ఇకలేరు, కన్నుమూశారు, తుదిశ్వాస విడిచారు), "
+        "sensitivity is OBITUARY_ACCUSATION, or BREAKING for a public figure's death. `places` lists only where the story "
         "itself happens, using only ids from this list (empty if none fits): "
         + catalog_prompt_ids() + ". Evidence items:\n" + _untrusted_data_block(_evidence_block(items))
     )
@@ -185,7 +187,10 @@ def _generate_prompt(items: list[SourceItem]) -> str:
     return (
         "Write an original headline, summary, and 'why this matters' for this "
         "news story cluster — never copy the source's own headline or article "
-        "text (ADR-002). " + GENERATION_STYLE + "Extract each important factual claim with the "
+        "text (ADR-002). If the evidence reports a death, the headline and the first "
+        "summary sentence must state plainly who died and that they died (age/cause "
+        "only if reported); never describe an obituary as a career or life feature. "
+        + GENERATION_STYLE + "Extract each important factual claim with the "
         "source_ref(s) (from the evidence list below) that support it; never "
         "include a claim with no source_ref. Evidence items:\n" + _untrusted_data_block(_evidence_block(items))
     )

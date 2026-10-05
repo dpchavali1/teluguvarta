@@ -15,6 +15,7 @@ from sqlalchemy.orm import Session, sessionmaker
 
 from app.ai.budget import require_budget_config
 from app.alerts import check_all
+from app.coverage_monitor import maybe_run as run_coverage_monitor_if_due
 from app.jobs.cleanup import run_cleanup, schedule_cleanup
 from app.jobs.cluster import run_dedup_cluster, schedule_dedup_cluster
 from app.jobs.generate import run_ai_classify, schedule_ai_classify
@@ -117,6 +118,7 @@ def run_forever() -> None:
                     check_all(db)
                 except Exception as exc:  # noqa: BLE001 - alerting must never take the worker down
                     logger.warning("alert check failed: %s", exc)
+            run_coverage_monitor_if_due(db)  # ADR-053; no-op unless env-enabled
             if not processed:
                 time.sleep(POLL_INTERVAL_SECONDS)
     finally:

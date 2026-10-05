@@ -125,3 +125,5 @@ accepted. Add ad-hoc ADRs below this table as they're written.
   [ADR-051](ADR-051-mobile-analytics-default-on.md)
 - ADR-052 | Breaking/high-importance review holds never expire + alert (amends ADR-032) | — | **proposed** (owner request 2026-10-04) — see
   [ADR-052](ADR-052-breaking-review-no-expiry-and-alert.md)
+- ADR-053 | Coverage monitor with monitor-only reference headline feeds | — | **proposed** (owner request 2026-10-04) — see
+  [ADR-053](ADR-053-coverage-monitor-reference-feeds.md)

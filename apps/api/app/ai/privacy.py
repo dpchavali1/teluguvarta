@@ -22,7 +22,16 @@ ALLOWLIST_V1: frozenset[str] = frozenset({"entertainment", "sports", "community_
 # Restricted signals: NON_NEGOTIABLES #5 topics (immigration, legal, financial,
 # breaking) plus obituary/accusation. A miss here is safe: it only leaves the
 # story on the category-allowlist path, which is itself narrow.
+# Telugu death/breaking terms, shared with publish.DEATH_SIGNAL_PATTERN. Plain
+# substring alternation: \b is unreliable next to Telugu combining marks, and
+# prefixes (కన్నుమూ, మరణించ, అస్తమించ) deliberately cover every inflection.
+# నివాళి (tribute) can false-positive on non-obituary tributes; that only costs
+# a RESTRICTED (paid-tier) route, never a loosening.
+TELUGU_DEATH_TERMS = "ఇకలేరు|కన్నుమూ|మరణించ|మరణం|మృతి|తుదిశ్వాస|అస్తమించ|కాలం చెందా|నివాళి|హత్య"
+TELUGU_BREAKING_TERMS = "బ్రేకింగ్"
+
 _RESTRICTED_PATTERN = re.compile(
+    rf"{TELUGU_DEATH_TERMS}|{TELUGU_BREAKING_TERMS}|"
     r"\b(immigra\w*|visa|h-?1b|green\s*card|uscis|deport\w*|asylum|opt|stem\s*opt|"
     r"court|lawsuit|sued|indict\w*|arrest\w*|verdict|attorney|lawyer|legal|"
     r"tax|irs|loan|mortgage|stock|market|inflation|bank\w*|fraud|scam|"

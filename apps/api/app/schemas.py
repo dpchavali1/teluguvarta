@@ -1107,6 +1107,24 @@ class CoverageLagOut(BaseModel):
     unknown: int
 
 
+class CoverageMissOut(BaseModel):
+    title: str
+    url: str
+    source: str
+    seen_at: datetime
+    alerted: bool
+
+
+class CoverageMissesOut(BaseModel):
+    """ADR-053: `app.coverage_monitor.miss_report`."""
+
+    enabled: bool
+    matched_24h: int
+    missed_24h: int
+    miss_rate_24h: float
+    misses: list[CoverageMissOut]
+
+
 class CoverageReportOut(BaseModel):
     """Review 2026-09-30 R8: `app.coverage_report.coverage_report`. Inclusive UTC days."""
 

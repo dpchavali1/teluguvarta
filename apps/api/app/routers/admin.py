@@ -57,6 +57,7 @@ from app.content.publication import (
 from app.content.qa import find_variant_qa_issues
 from app.content.rights import unpermitted_sources
 from app.content.variants import EDITOR_MODEL_VERSION
+from app.coverage_monitor import miss_report
 from app.coverage_report import coverage_report
 from app.db import get_db
 from app.errors import APIError
@@ -121,6 +122,7 @@ from app.schemas import (
     AiCostReportOut,
     AiCostRowOut,
     AiCostSummaryOut,
+    CoverageMissesOut,
     CoverageReportOut,
     JobQueueHealthOut,
     KillSwitchesOut,
@@ -1322,6 +1324,12 @@ def get_coverage(start: date | None = None, end: date | None = None, db: Session
     if (end - start).days + 1 > MAX_RANGE_DAYS:
         raise APIError(422, "RANGE_TOO_LONG", f"A range covers at most {MAX_RANGE_DAYS} days")
     return CoverageReportOut(**coverage_report(db, start, end))
+
+
+@router.get("/coverage/misses")
+def get_coverage_misses(db: Session = Depends(get_db)) -> CoverageMissesOut:
+    """ADR-053: reference headlines we had no match for (monitor-only data)."""
+    return CoverageMissesOut(**miss_report(db))
 
 
 @router.get("/pipeline")

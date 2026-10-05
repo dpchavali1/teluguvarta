@@ -243,3 +243,16 @@ def test_priority_review_alert_fires_for_death_held_story(migrated_database):
         channel = _FakeChannel()
         fired = alerts.check_priority_review_alerts(db, channel=channel)
         assert len(fired) == 1 and len(channel.calls) == 1 and str(death.id) in channel.calls[0][1]
+
+
+def test_telugu_death_terms_match_privacy_and_death_signal() -> None:
+    from app.ai.privacy import has_restricted_signal
+    from app.jobs.publish import DEATH_SIGNAL_PATTERN
+
+    for title in ("సెల్యులాయిడ్ సైంటిస్ట్ సింగీతం ఇకలేరు", "సింగీతం శ్రీనివాసరావు తుదిశ్వాస విడిచారు", "ప్రముఖ నటుడు కన్నుమూశారు"):
+        assert has_restricted_signal(title)
+        assert DEATH_SIGNAL_PATTERN.search(title)
+    assert has_restricted_signal("బ్రేకింగ్: తుపాను హెచ్చరిక")
+    clean = "హైదరాబాద్‌లో కొత్త సినిమా విడుదల తేదీ ప్రకటన"
+    assert not has_restricted_signal(clean)
+    assert not DEATH_SIGNAL_PATTERN.search(clean)

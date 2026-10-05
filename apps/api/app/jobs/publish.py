@@ -44,6 +44,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.ai.budget import is_over_monthly_budget
+from app.ai.privacy import TELUGU_DEATH_TERMS
 from app.content.publication import validate_for_publication
 from app.content.rights import RIGHTS_REVOKED_REASON, unpermitted_sources
 from app.jobs.brief_lane import LaneOutcome, daily_cap, published_today, try_brief_lane
@@ -128,7 +129,9 @@ NO_EXPIRY_REASON = "HIGH_IMPORTANCE"
 # treated like BREAKING. Deliberately narrow: other RESTRICTED topics
 # (immigration, tax, court, ...) keep the 24h expiry.
 DEATH_SIGNAL_PATTERN = re.compile(
-    r"\b(died|dies|death|dead|killed|obituar\w*|pass(?:es|ed)\s+away|demise|funeral)\b", re.IGNORECASE
+    rf"{TELUGU_DEATH_TERMS}|"
+    r"\b(died|dies|death|dead|killed|obituar\w*|pass(?:es|ed)\s+away|demise|funeral)\b",
+    re.IGNORECASE,
 )
 DEATH_HOLD_REASONS = ("NO_PAID_PROVIDER", "AI_RETRIES_EXHAUSTED")
 
