@@ -30,7 +30,8 @@ const REASON_HELP: Record<string, string> = {
   AUTO_PUBLISH_DISABLED: "Auto-publish is off, so every clean draft waits for a person.",
   BRIEF_DAILY_CAP: "Eligible for the brief lane, but today's cap was already used (resets at midnight New York time).",
   BRIEF_TITLE_MISMATCH: "The AI's brief added a name, number or cause the source title doesn't state. The full draft below is unchanged.",
-  BRIEF_REJECTED: "The brief lane tried and failed a check (confidence, length, headline too close to the source, or missing citations). The full draft below is unchanged."
+  BRIEF_REJECTED: "The brief lane tried and failed a check (confidence, length, headline too close to the source, or missing citations). The full draft below is unchanged.",
+  RESTORED: "An admin restored this archived or retracted story; it needs a fresh review before it can go live again."
 };
 
 export const REASON_CODES = Object.keys(REASON_HELP);

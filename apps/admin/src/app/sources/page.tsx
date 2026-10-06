@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 import { Badge, EmptyState, Field, PageHeader, useToast } from "@/components/ui";
@@ -416,6 +417,11 @@ function SourceCard({ source, xAccount, xAccountsLoaded, onChanged }: { source: 
   const [draft, setDraft] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [resetting, setResetting] = useState(false);
+  const [toggling, setToggling] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteReason, setDeleteReason] = useState("");
+  const [deleteTyped, setDeleteTyped] = useState("");
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   const current = (draft ?? source.category ?? "").trim();
   const dirty = draft !== null && current !== (source.category ?? "");
@@ -447,6 +453,32 @@ function SourceCard({ source, xAccount, xAccountsLoaded, onChanged }: { source: 
       toast("danger", err instanceof Error ? err.message : "Failed to reset failures");
     } finally {
       setResetting(false);
+    }
+  }
+
+  // ADR-055: one click; the PATCH keeps the ADR-002 gate (a DISABLED source
+  // can't be activated).
+  async function toggleActive() {
+    setToggling(true);
+    try {
+      await api(`/sources/${source.id}`, "PATCH", { active: !source.active });
+      toast("ok", source.active ? `${source.name} deactivated — no more fetching.` : `${source.name} activated.`);
+      onChanged();
+    } catch (err) {
+      toast("danger", err instanceof Error ? err.message : "Failed to update source");
+    } finally {
+      setToggling(false);
+    }
+  }
+
+  async function deleteSource() {
+    setDeleteError(null);
+    try {
+      await api(`/sources/${source.id}/delete`, "POST", { reason: deleteReason.trim() });
+      toast("ok", `${source.name} deleted.`);
+      onChanged();
+    } catch (err) {
+      setDeleteError(err instanceof Error ? err.message : "Failed to delete source");
     }
   }
 
@@ -491,7 +523,41 @@ function SourceCard({ source, xAccount, xAccountsLoaded, onChanged }: { source: 
         <button type="button" className={enabled ? "button-secondary" : undefined} aria-expanded={open} onClick={() => setOpen((v) => !v)}>
           {open ? "Close" : enabled ? "Edit rights" : "Review rights"}
         </button>
+        {enabled || source.active ? (
+          <button type="button" className={source.active ? "button-danger" : "button-secondary"} disabled={toggling} onClick={toggleActive}>
+            {toggling ? "Saving…" : source.active ? "Deactivate" : "Activate"}
+          </button>
+        ) : null}
+        <Link href={`/stories?source_id=${source.id}`}>Its stories</Link>
+        {getRole() === "ADMIN" && !deleting ? (
+          <button type="button" className="button-secondary" onClick={() => setDeleting(true)}>
+            Delete…
+          </button>
+        ) : null}
       </div>
+      {deleting ? (
+        <form className="danger-zone" onSubmit={(event) => { event.preventDefault(); deleteSource(); }}>
+          <p className="field__hint">
+            Deletes the source and its unused items. Refused while any story cites it — delete or keep those stories first
+            (<Link href={`/stories?source_id=${source.id}`}>its stories</Link>), or deactivate instead.
+          </p>
+          <label>
+            Reason (required)
+            <input type="text" required maxLength={500} value={deleteReason} onChange={(event) => setDeleteReason(event.target.value)} />
+          </label>
+          <label>
+            Type DELETE to confirm
+            <input type="text" autoComplete="off" value={deleteTyped} onChange={(event) => setDeleteTyped(event.target.value)} />
+          </label>
+          <button type="submit" className="button-danger" disabled={!deleteReason.trim() || deleteTyped !== "DELETE"}>
+            Delete {source.name}
+          </button>
+          <button type="button" className="button-secondary" onClick={() => { setDeleting(false); setDeleteError(null); setDeleteTyped(""); }}>
+            Cancel
+          </button>
+          {deleteError ? <p role="alert">{deleteError}</p> : null}
+        </form>
+      ) : null}
       {isX && xAccountsLoaded && !xAccount ? <XAccountForm source={source} onChanged={onChanged} /> : null}
       {open ? <RightsForm source={source} onSaved={onChanged} /> : null}
     </article>
@@ -504,6 +570,8 @@ export default function SourcesPage() {
   const [sources, setSources] = useState<Source[] | null>(null);
   const [xAccounts, setXAccounts] = useState<XAccount[] | null>(null);
   const [adding, setAdding] = useState(false);
+  const [search, setSearch] = useState("");
+  const [show, setShow] = useState<"" | "active" | "inactive" | "review" | "failing">("");
 
   function load() {
     const signedIn = isSignedIn();
@@ -529,6 +597,16 @@ export default function SourcesPage() {
   useEffect(load, [router]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const needsReview = sources?.filter((s) => s.rights_status === "DISABLED").length ?? 0;
+  const term = search.trim().toLowerCase();
+  const visible = (sources ?? []).filter(
+    (s) =>
+      (!term || [s.name, s.feed_url, s.base_url, s.category].some((v) => v?.toLowerCase().includes(term))) &&
+      (show === "" ||
+        (show === "active" && s.active) ||
+        (show === "inactive" && !s.active) ||
+        (show === "review" && s.rights_status === "DISABLED") ||
+        (show === "failing" && s.fail_count > 0))
+  );
 
   return (
     <main>
@@ -554,11 +632,30 @@ export default function SourcesPage() {
       ) : sources.length === 0 ? (
         <EmptyState title="No sources yet" hint="Add a feed to start ingesting stories." />
       ) : (
+        <>
+        <form className="filter-bar" role="search" aria-label="Filter sources" onSubmit={(event) => event.preventDefault()}>
+          <label>
+            Search name, URL or category
+            <input type="search" value={search} onChange={(event) => setSearch(event.target.value)} />
+          </label>
+          <label>
+            Show
+            <select value={show} onChange={(event) => setShow(event.target.value as typeof show)}>
+              <option value="">All</option>
+              <option value="active">Active</option>
+              <option value="inactive">Inactive</option>
+              <option value="review">Needs rights review</option>
+              <option value="failing">Failing</option>
+            </select>
+          </label>
+          <span className="state-note">{visible.length} shown</span>
+        </form>
         <div className="card-list">
-          {sources.map((source) => (
+          {visible.map((source) => (
             <SourceCard key={source.id} source={source} xAccount={xAccounts?.find((account) => account.source_id === source.id)} xAccountsLoaded={xAccounts !== null} onChanged={load} />
           ))}
         </div>
+        </>
       )}
     </main>
   );

@@ -6,7 +6,9 @@ import type { components } from "@teluguvarta/contracts";
 import { useRouter } from "next/navigation";
 
 import { humanize, REASON_CODES, reasonHelp, reasonTone } from "@/lib/reviewReasons";
-import { Badge, EmptyState, Freshness, PageHeader } from "@/components/ui";
+import { Badge, EmptyState, Freshness, PageHeader, useToast } from "@/components/ui";
+import { BulkActions } from "@/components/BulkActions";
+import { getRole } from "@/lib/auth";
 import { TranslationHolds } from "@/components/TranslationHolds";
 import { adminFetch, SessionExpired } from "@/lib/reports";
 import { query, TELUGU_OPTIONS, teluguTone, useFilterOptions } from "@/lib/lists";
@@ -51,6 +53,7 @@ export default function ReviewQueuePage() {
   const [revision, setRevision] = useState(0);
   const [active, setActive] = useState(0);
   const [showMoreFilters, setShowMoreFilters] = useState(false);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
 
   // Design-review fix: a reviewer who filtered yesterday should see the same
   // always-human-reviewed view today.
@@ -89,6 +92,7 @@ export default function ReviewQueuePage() {
       .then((body) => {
         setPage(body);
         setItems(body.items);
+        setSelected(new Set());
         setActive(0);
         setLoadedAt(new Date());
       })
@@ -220,9 +224,23 @@ export default function ReviewQueuePage() {
       ) : page ? (
         <>
           {filtered ? <p className="state-note">{page.total} match these filters.</p> : null}
+          <BulkActions
+            selected={[...selected]}
+            actions={["archive", "reject", "delete"]}
+            onDone={() => setRevision((v) => v + 1)}
+            onClearSelection={() => setSelected(new Set())}
+          />
           <div className="table-scroll review-queue"><table>
             <thead>
               <tr>
+                <th className="col-select">
+                  <input
+                    type="checkbox"
+                    aria-label="Select all loaded stories"
+                    checked={items.length > 0 && items.every((item) => selected.has(item.story_id))}
+                    onChange={(event) => setSelected(event.target.checked ? new Set(items.map((item) => item.story_id)) : new Set())}
+                  />
+                </th>
                 <th>Story</th>
                 <th className="col-wide-only">Sources</th>
                 <th>Reason</th>
@@ -239,6 +257,14 @@ export default function ReviewQueuePage() {
                   className={index === active ? "row-active" : undefined}
                   onClick={() => setActive(index)}
                 >
+                  <td className="col-select">
+                    <input
+                      type="checkbox"
+                      aria-label={`Select ${item.headline ?? item.source_title ?? "story"}`}
+                      checked={selected.has(item.story_id)}
+                      onChange={() => setSelected((prev) => toggle(prev, item.story_id))}
+                    />
+                  </td>
                   <td>
                     <Link href={`/review/${item.story_id}`}>{item.headline ?? item.source_title ?? "Untitled story"}</Link>
                     <span className="review-queue__mobile-source">{item.source_names?.join(", ") || "No source linked"}</span>
@@ -282,7 +308,107 @@ export default function ReviewQueuePage() {
           </nav>
         </>
       ) : null}
+      {page && page.total > 0 ? (
+        <ClearQueue
+          total={page.total}
+          filtered={filtered}
+          body={{ ...filters, danger_only: dangerOnly }}
+          onDone={() => setRevision((v) => v + 1)}
+        />
+      ) : null}
       <TranslationHolds />
     </main>
+  );
+}
+
+function toggle(set: Set<string>, id: string): Set<string> {
+  const next = new Set(set);
+  if (next.has(id)) next.delete(id);
+  else next.add(id);
+  return next;
+}
+
+// ADR-055: ADMIN-only. Clears exactly what the current filters show. Archive
+// is the default because a story rejected to draft is regenerated and comes
+// straight back to the queue.
+function ClearQueue({
+  total,
+  filtered,
+  body,
+  onDone
+}: {
+  total: number;
+  filtered: boolean;
+  body: Filters & { danger_only: boolean };
+  onDone: () => void;
+}) {
+  const toast = useToast();
+  const [reason, setReason] = useState("");
+  const [archive, setArchive] = useState(true);
+  const [typed, setTyped] = useState("");
+  const [busy, setBusy] = useState(false);
+  if (getRole() !== "ADMIN") return null;
+
+  const scope = filtered ? `${total} matching stor${total === 1 ? "y" : "ies"}` : `all ${total} pending stor${total === 1 ? "y" : "ies"}`;
+
+  async function clear() {
+    setBusy(true);
+    try {
+      const result = await adminFetch<{ cleared: number; remaining: number }>(
+        "/v1/admin/review-queue/clear",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            q: body.q || null,
+            topic: body.topic || null,
+            source_id: body.source_id || null,
+            telugu: body.telugu || null,
+            review_reason: body.reason || null,
+            danger_only: body.danger_only,
+            older_than_hours: body.older_than_hours ? Number(body.older_than_hours) : null,
+            reason: reason.trim(),
+            archive
+          })
+        },
+        "Clearing the queue failed"
+      );
+      toast("ok", `Cleared ${result.cleared}${result.remaining ? ` · ${result.remaining} still match — run it again` : ""}.`);
+      setReason("");
+      setTyped("");
+      onDone();
+    } catch (err) {
+      toast("danger", err instanceof Error ? err.message : "Clearing the queue failed");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <details className="danger-zone">
+      <summary>Clear queue ({scope})</summary>
+      <form onSubmit={(event) => { event.preventDefault(); clear(); }}>
+        <label>
+          Reason (required)
+          <input type="text" required maxLength={500} value={reason} onChange={(event) => setReason(event.target.value)} />
+        </label>
+        <label className="inline">
+          <input type="radio" name="clear-outcome" checked={archive} onChange={() => setArchive(true)} />
+          Archive (won&apos;t come back)
+        </label>
+        <label className="inline">
+          <input type="radio" name="clear-outcome" checked={!archive} onChange={() => setArchive(false)} />
+          Send back to draft (AI regenerates them)
+        </label>
+        <label>
+          Type CLEAR to confirm
+          <input type="text" autoComplete="off" value={typed} onChange={(event) => setTyped(event.target.value)} />
+        </label>
+        <button type="submit" className="button-danger" disabled={busy || !reason.trim() || typed !== "CLEAR"}>
+          {busy ? "Clearing…" : `Clear ${scope}`}
+        </button>
+      </form>
+      <p className="field__hint">Archived stories can be restored from Stories → Archived.</p>
+    </details>
   );
 }

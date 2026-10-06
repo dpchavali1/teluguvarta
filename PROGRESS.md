@@ -7,6 +7,26 @@ through T14-search. See the [improvement plan](docs/reviews/2026-10-01-improveme
 for the ordered follow-ups and the [ADR registry](docs/adr/README.md) for decisions.
 Local implementation is distinct from deployment and device acceptance.
 
+**Admin removal controls (2026-10-05, [ADR-055](docs/adr/ADR-055-admin-bulk-removal-and-restore.md)):**
+Owner request: admins can now empty the review queue, take down or delete
+stories, and delete sources. API: `POST /v1/admin/stories/bulk` (reject,
+archive, retract, restore, delete; ≤200 ids, per-story rules and audit,
+ineligible ones skipped), `POST /v1/admin/review-queue/clear` (ADMIN, reason
+required, archives by default, honours the queue filters, ≤2000 per call),
+`POST /stories/{id}/restore` (ARCHIVED/RETRACTED → REVIEW_REQUIRED with a
+`RESTORED` task, never straight to live), `POST /stories/{id}/delete` and
+`POST /sources/{id}/delete` (ADMIN, reason required; source delete refused
+with `SOURCE_HAS_STORIES` while any story cites it). Migration
+`e5b9d3f7a2c4` adds the two restore transitions. Admin UI: checkbox
+selection + bulk bar on Review and Stories, an ADMIN "Clear queue" danger
+zone (typed CLEAR), Restore and Delete on the story page, and on Sources a
+one-click Activate/Deactivate, "Its stories" link, Delete (typed DELETE) and
+search/status filters. Full API suite (701, incl. 9 new) passes against
+local Postgres after a new autouse conftest fixture clears the process-global
+rate-limit windows per test (they leaked between tests and caused 429s);
+ruff, mypy, admin lint/typecheck/build pass. Not deployed; the migration must
+run on deploy. UI not yet exercised in a browser.
+
 **T17-firebase (2026-10-02):** The owner selected Firebase for both mobile
 push delivery and analytics. [ADR-039](docs/adr/ADR-039-firebase-mobile-push-and-analytics.md)
 records native FCM delivery and separate, default-off analytics consent;

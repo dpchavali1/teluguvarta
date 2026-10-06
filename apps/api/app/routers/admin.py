@@ -27,7 +27,12 @@ from sqlalchemy import delete, func, select, update
 from sqlalchemy.orm import Session
 
 from app.adapters.feed_probe import probe_feed
-from app.admin_lists import audit_history, review_queue, story_library
+from app.admin_lists import (
+    audit_history,
+    review_queue,
+    review_queue_filters,
+    story_library,
+)
 from app.ai.budget import (
     budget_mode,
     cost_by_task_and_day,
@@ -93,21 +98,28 @@ from app.schemas import (
     AdminAiHoldOut,
     AdminAuditPageOut,
     AdminAutoBriefOut,
+    AdminBulkSkipOut,
+    AdminBulkStoryOut,
+    AdminBulkStoryRequest,
     AdminCorrectionOut,
     AdminCorrectionRequest,
     AdminCountriesRequest,
+    AdminDeleteRequest,
     AdminDraftRequest,
     AdminFeedTestOut,
     AdminFeedTestRequest,
     AdminImportanceRequest,
     AdminJobOut,
     AdminPlacesRequest,
+    AdminQueueClearOut,
+    AdminQueueClearRequest,
     AdminReaderReportListOut,
     AdminReaderReportOut,
     AdminReaderReportResolveRequest,
     AdminRejectRequest,
     AdminRetryAiRequest,
     AdminSourceCreate,
+    AdminSourceDeleteOut,
     AdminSourceOut,
     AdminSourceUpdate,
     AdminStoryDetailOut,
@@ -365,6 +377,45 @@ def reset_source_failures(
     db.commit()
     db.refresh(source)
     return _source_out(source)
+
+
+@router.post("/sources/{source_id}/delete")
+def delete_source(
+    source_id: UUID, body: AdminDeleteRequest, admin: AdminPrincipal = Depends(current_admin), db: Session = Depends(get_db)
+) -> AdminSourceDeleteOut:
+    """ADR-055: refused while any story still cites one of the source's items,
+    so published attribution never dangles. Deactivating is the soft option."""
+    _require_admin_role(admin, "delete a source")
+    source = db.get(Source, source_id)
+    if source is None:
+        raise APIError(404, "SOURCE_NOT_FOUND", f"No source with id '{source_id}'")
+    linked = db.scalar(
+        select(func.count(func.distinct(StorySource.story_id)))
+        .join(SourceItem, SourceItem.id == StorySource.source_item_id)
+        .where(SourceItem.source_id == source.id)
+    ) or 0
+    if linked:
+        raise APIError(
+            409,
+            "SOURCE_HAS_STORIES",
+            f"{linked} stor{'y cites' if linked == 1 else 'ies cite'} this source. Delete those stories first, "
+            "or deactivate the source instead.",
+        )
+    result = db.execute(delete(SourceItem).where(SourceItem.source_id == source.id))
+    deleted_items = getattr(result, "rowcount", 0) or 0
+    # A queued fetch for a missing source would only fail and retry.
+    db.execute(
+        delete(Job).where(
+            Job.type == "source_fetch", Job.status == "PENDING", Job.payload["source_id"].astext == str(source.id)
+        )
+    )
+    _write_audit_event(
+        db, admin.email, "SOURCE_DELETED", "source", source.id,
+        {"reason": body.reason, "name": source.name, "feed_url": source.feed_url, "deleted_items": deleted_items},
+    )
+    db.delete(source)
+    db.commit()
+    return AdminSourceDeleteOut(source_id=source_id, deleted_items=deleted_items)
 
 
 def _x_account_out(db: Session, account: XAccount, source: Source) -> AdminXAccountOut:
@@ -942,18 +993,20 @@ def reject_story(
     story_id: UUID, body: AdminRejectRequest, admin: AdminPrincipal = Depends(current_admin), db: Session = Depends(get_db)
 ) -> AdminActionResponse:
     story = _get_story_or_404(db, story_id)
-    _require_status(story, "REVIEW_REQUIRED")
-
-    story.status = "ARCHIVED" if body.archive else "DRAFT"
-    db.flush()
-
-    _resolve_review_task(db, story.id, "REJECTED")
-    _write_audit_event(
-        db, admin.email, "STORY_REJECTED", "story", story.id, {"reason": body.reason, "outcome": story.status}
-    )
+    _reject(db, admin, story, body.reason, archive=body.archive)
     db.commit()
     db.refresh(story)
     return AdminActionResponse(story_id=story.id, status=cast(StoryStatus, story.status))
+
+
+def _reject(db: Session, admin: AdminPrincipal, story: Story, reason: str | None, *, archive: bool, **extra: Any) -> None:
+    _require_status(story, "REVIEW_REQUIRED")
+    story.status = "ARCHIVED" if archive else "DRAFT"
+    db.flush()
+    _resolve_review_task(db, story.id, "REJECTED")
+    _write_audit_event(
+        db, admin.email, "STORY_REJECTED", "story", story.id, {"reason": reason, "outcome": story.status, **extra}
+    )
 
 
 # ADR-025: an ADMIN can send a held story back through the AI a bounded
@@ -1114,16 +1167,144 @@ def retract_story(
     story_id: UUID, body: AdminActionRequest, admin: AdminPrincipal = Depends(current_admin), db: Session = Depends(get_db)
 ) -> AdminActionResponse:
     story = _get_story_or_404(db, story_id)
-    # A corrected story stays retractable (review 2026-10-04).
-    _require_status(story, "PUBLISHED", "UPDATED", "CORRECTION_PENDING")
-
-    story.status = "RETRACTED"
-    db.flush()
-
-    _write_audit_event(db, admin.email, "STORY_RETRACTED", "story", story.id, {"reason": body.reason})
+    _retract(db, admin, story, body.reason)
     db.commit()
     db.refresh(story)
     return AdminActionResponse(story_id=story.id, status=cast(StoryStatus, story.status))
+
+
+def _retract(db: Session, admin: AdminPrincipal, story: Story, reason: str | None) -> None:
+    # A corrected story stays retractable (review 2026-10-04).
+    _require_status(story, "PUBLISHED", "UPDATED", "CORRECTION_PENDING")
+    story.status = "RETRACTED"
+    db.flush()
+    _write_audit_event(db, admin.email, "STORY_RETRACTED", "story", story.id, {"reason": reason})
+
+
+# ADR-055: restore never republishes directly — the story goes back through
+# human review with a fresh PENDING task.
+RESTORE_REVIEW_REASON = "RESTORED"
+
+
+def _restore(db: Session, admin: AdminPrincipal, story: Story, reason: str | None) -> None:
+    _require_status(story, "ARCHIVED", "RETRACTED")
+    previous = story.status
+    story.status = "REVIEW_REQUIRED"
+    db.flush()
+    # Exactly one PENDING task afterwards, even if an old one was left open.
+    db.execute(
+        update(ReviewTask).where(ReviewTask.story_id == story.id, ReviewTask.status == "PENDING")
+        .values(status="REJECTED", decision="REJECTED")
+    )
+    db.add(ReviewTask(story_id=story.id, reason=RESTORE_REVIEW_REASON, status="PENDING"))
+    _write_audit_event(db, admin.email, "STORY_RESTORED", "story", story.id, {"reason": reason, "from": previous})
+
+
+def _require_admin_role(admin: AdminPrincipal, what: str) -> None:
+    if admin.role != "ADMIN":
+        raise APIError(403, "FORBIDDEN", f"Only an ADMIN can {what}")
+
+
+def _delete_story(db: Session, admin: AdminPrincipal, story: Story, reason: str | None) -> None:
+    """ADR-055: hard delete; dependent rows go with the FK cascades. The audit
+    event keeps enough to identify what was removed."""
+    _require_admin_role(admin, "delete a story")
+    if not (reason or "").strip():
+        raise APIError(422, "REASON_REQUIRED", "Deleting a story needs a reason")
+    en = _get_variant(db, story.id, "en")
+    _write_audit_event(
+        db, admin.email, "STORY_DELETED", "story", story.id,
+        {
+            "reason": reason, "status": story.status, "slug": story.canonical_slug,
+            "headline": en.headline if en else None, "sensitivity": story.sensitivity,
+        },
+    )
+    db.execute(delete(Story).where(Story.id == story.id))
+
+
+@router.post("/stories/{story_id}/restore")
+def restore_story(
+    story_id: UUID, body: AdminActionRequest, admin: AdminPrincipal = Depends(current_admin), db: Session = Depends(get_db)
+) -> AdminActionResponse:
+    story = _get_story_or_404(db, story_id)
+    _restore(db, admin, story, body.reason)
+    db.commit()
+    db.refresh(story)
+    return AdminActionResponse(story_id=story.id, status=cast(StoryStatus, story.status))
+
+
+@router.post("/stories/{story_id}/delete", status_code=204)
+def delete_story(
+    story_id: UUID, body: AdminDeleteRequest, admin: AdminPrincipal = Depends(current_admin), db: Session = Depends(get_db)
+) -> None:
+    story = _get_story_or_404(db, story_id)
+    _delete_story(db, admin, story, body.reason)
+    db.commit()
+
+
+@router.post("/stories/bulk")
+def bulk_story_action(
+    body: AdminBulkStoryRequest, admin: AdminPrincipal = Depends(current_admin), db: Session = Depends(get_db)
+) -> AdminBulkStoryOut:
+    """ADR-055: each story gets the single-story rules and its own audit
+    event; an ineligible story is skipped (and reported), never forced."""
+    if body.action == "delete":
+        _require_admin_role(admin, "delete stories")
+        if not (body.reason or "").strip():
+            raise APIError(422, "REASON_REQUIRED", "Deleting stories needs a reason")
+    done: list[UUID] = []
+    skipped: list[AdminBulkSkipOut] = []
+    for story_id in dict.fromkeys(body.story_ids):
+        story = db.get(Story, story_id)
+        if story is None:
+            skipped.append(AdminBulkSkipOut(story_id=story_id, code="STORY_NOT_FOUND", message="No such story"))
+            continue
+        try:
+            with db.begin_nested():
+                if body.action in ("reject", "archive"):
+                    _reject(db, admin, story, body.reason, archive=body.action == "archive", bulk=True)
+                elif body.action == "retract":
+                    _retract(db, admin, story, body.reason)
+                elif body.action == "restore":
+                    _restore(db, admin, story, body.reason)
+                else:
+                    _delete_story(db, admin, story, body.reason)
+        except APIError as error:
+            skipped.append(AdminBulkSkipOut(story_id=story_id, code=error.code, message=error.message))
+            continue
+        done.append(story_id)
+    db.commit()
+    return AdminBulkStoryOut(action=body.action, done=done, skipped=skipped)
+
+
+# ADR-055: bounded per call so one request can't run unbounded; the response
+# says how many matching tasks remain.
+QUEUE_CLEAR_MAX = 2000
+
+
+@router.post("/review-queue/clear")
+def clear_review_queue(
+    body: AdminQueueClearRequest, admin: AdminPrincipal = Depends(current_admin), db: Session = Depends(get_db)
+) -> AdminQueueClearOut:
+    _require_admin_role(admin, "clear the review queue")
+    filters = review_queue_filters(
+        now=datetime.now(UTC), danger_only=body.danger_only, reason=body.review_reason, q=body.q,
+        topic=body.topic, source_id=body.source_id, telugu=body.telugu, older_than_hours=body.older_than_hours,
+    )
+    story_ids = db.scalars(
+        select(ReviewTask.story_id).where(*filters).order_by(ReviewTask.created_at).limit(QUEUE_CLEAR_MAX)
+    ).all()
+    cleared = 0
+    for story in db.scalars(select(Story).where(Story.id.in_(story_ids))).all():
+        if story.status != "REVIEW_REQUIRED":
+            # A stale PENDING task (story moved on without resolving it).
+            _resolve_review_task(db, story.id, "REJECTED")
+            continue
+        _reject(db, admin, story, body.reason, archive=body.archive, queue_clear=True)
+        cleared += 1
+    db.commit()
+    remaining = db.scalar(select(func.count()).select_from(ReviewTask).where(*filters)) or 0
+    return AdminQueueClearOut(cleared=cleared, remaining=remaining, outcome="ARCHIVED" if body.archive else "DRAFT")
 
 
 @router.post("/stories/{story_id}/approve-breaking-alert")

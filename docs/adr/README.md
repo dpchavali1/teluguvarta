@@ -129,3 +129,5 @@ accepted. Add ad-hoc ADRs below this table as they're written.
   [ADR-053](ADR-053-coverage-monitor-reference-feeds.md)
 - ADR-054 | Auto-publish breaking/death stories as source-text briefs (amends NON_NEGOTIABLES #5 for those only) | — | **proposed** (owner request 2026-10-04) — see
   [ADR-054](ADR-054-breaking-auto-publish-brief.md)
+- ADR-055 | Admin bulk queue clearing, story delete/restore, source delete | — | **accepted** (owner request 2026-10-05) — see
+  [ADR-055](ADR-055-admin-bulk-removal-and-restore.md)

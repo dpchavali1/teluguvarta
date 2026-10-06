@@ -481,6 +481,39 @@ export default function StoryReviewPage() {
       (correctedHeadline !== (story.variants.en?.headline ?? "") || correctedSummary !== (story.variants.en?.summary ?? ""))
   );
 
+  // ADR-055: restore sends an archived/retracted story back to review;
+  // delete (ADMIN) removes it for good after a typed confirmation.
+  const [confirmDelete, setConfirmDelete] = useState("");
+  const [deleting, setDeleting] = useState(false);
+
+  async function restoreStory() {
+    setSubmitting(true);
+    setError(null);
+    try {
+      await postAction(storyId, "restore", { reason: reason || null });
+      setReason("");
+      toast("ok", "Restored — back in the review queue.");
+      load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Restore failed");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  async function deleteStory() {
+    setSubmitting(true);
+    setError(null);
+    try {
+      await postAction(storyId, "delete", { reason });
+      toast("ok", "Story deleted.");
+      router.push("/stories");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Delete failed");
+      setSubmitting(false);
+    }
+  }
+
   async function handleAction(action: "approve" | "reject" | "retract") {
     setSubmitting(true);
     setError(null);
@@ -768,7 +801,8 @@ export default function StoryReviewPage() {
 
         <aside className="decision-panel" id="review-decision" aria-label="Decision">
           <h2>Decision</h2>
-          {story.status === "REVIEW_REQUIRED" || story.status === "PUBLISHED" || story.status === "UPDATED" ? (
+          {story.status === "REVIEW_REQUIRED" || story.status === "PUBLISHED" || story.status === "UPDATED" ||
+          story.status === "CORRECTION_PENDING" || story.status === "ARCHIVED" || story.status === "RETRACTED" || getRole() === "ADMIN" ? (
             <Field label={`Reason${isAlwaysReviewed ? " (required for this category)" : ""}`} htmlFor="reason">
               <input id="reason" value={reason} onChange={(event) => setReason(event.target.value)} />
             </Field>
@@ -817,10 +851,45 @@ export default function StoryReviewPage() {
 
           {story.status === "PUBLISHED" || story.status === "UPDATED" || story.status === "CORRECTION_PENDING" ? (
             <div className="card__foot">
-              <button type="button" className="button-secondary" disabled={submitting} onClick={() => handleAction("retract")}>
-                Retract
+              <button type="button" className="button-danger" disabled={submitting} onClick={() => handleAction("retract")}>
+                Retract (take down)
               </button>
             </div>
+          ) : null}
+
+          {story.status === "ARCHIVED" || story.status === "RETRACTED" ? (
+            <div className="card__foot">
+              <button type="button" className="button-secondary" disabled={submitting} onClick={restoreStory}>
+                Restore to review
+              </button>
+            </div>
+          ) : null}
+
+          {getRole() === "ADMIN" ? (
+            <details className="danger-zone">
+              <summary>Delete permanently</summary>
+              {deleting ? (
+                <>
+                  <p className="field__hint">Removes the story everywhere; the audit log keeps a record. Retract instead if it may come back.</p>
+                  <Field label="Type DELETE to confirm" htmlFor="confirm-delete">
+                    <input id="confirm-delete" autoComplete="off" value={confirmDelete} onChange={(event) => setConfirmDelete(event.target.value)} />
+                  </Field>
+                  <div className="card__foot">
+                    <button type="button" className="button-danger" disabled={submitting || !reason.trim() || confirmDelete !== "DELETE"} onClick={deleteStory}>
+                      Delete story
+                    </button>
+                    <button type="button" className="button-secondary" onClick={() => { setDeleting(false); setConfirmDelete(""); }}>
+                      Cancel
+                    </button>
+                  </div>
+                  {!reason.trim() ? <p className="field__hint">Enter a reason above first.</p> : null}
+                </>
+              ) : (
+                <button type="button" className="button-danger" onClick={() => setDeleting(true)}>
+                  Delete this story…
+                </button>
+              )}
+            </details>
           ) : null}
         </aside>
       </div>

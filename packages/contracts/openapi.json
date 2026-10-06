@@ -266,6 +266,111 @@
         "title": "AdminAutoBriefOut",
         "type": "object"
       },
+      "AdminBulkSkipOut": {
+        "properties": {
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "message": {
+            "title": "Message",
+            "type": "string"
+          },
+          "story_id": {
+            "format": "uuid",
+            "title": "Story Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "story_id",
+          "code",
+          "message"
+        ],
+        "title": "AdminBulkSkipOut",
+        "type": "object"
+      },
+      "AdminBulkStoryOut": {
+        "properties": {
+          "action": {
+            "enum": [
+              "reject",
+              "archive",
+              "retract",
+              "restore",
+              "delete"
+            ],
+            "title": "Action",
+            "type": "string"
+          },
+          "done": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "title": "Done",
+            "type": "array"
+          },
+          "skipped": {
+            "items": {
+              "$ref": "#/components/schemas/AdminBulkSkipOut"
+            },
+            "title": "Skipped",
+            "type": "array"
+          }
+        },
+        "required": [
+          "action",
+          "done",
+          "skipped"
+        ],
+        "title": "AdminBulkStoryOut",
+        "type": "object"
+      },
+      "AdminBulkStoryRequest": {
+        "description": "ADR-055: one action over many stories; each is checked and audited alone.",
+        "properties": {
+          "action": {
+            "enum": [
+              "reject",
+              "archive",
+              "retract",
+              "restore",
+              "delete"
+            ],
+            "title": "Action",
+            "type": "string"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          },
+          "story_ids": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "maxItems": 200,
+            "minItems": 1,
+            "title": "Story Ids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "action",
+          "story_ids"
+        ],
+        "title": "AdminBulkStoryRequest",
+        "type": "object"
+      },
       "AdminCorrectionOut": {
         "properties": {
           "created_at": {
@@ -413,6 +518,22 @@
           "idle_expires_at"
         ],
         "title": "AdminCurrentSessionOut",
+        "type": "object"
+      },
+      "AdminDeleteRequest": {
+        "description": "ADR-055: a hard delete always records why.",
+        "properties": {
+          "reason": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "reason"
+        ],
+        "title": "AdminDeleteRequest",
         "type": "object"
       },
       "AdminDraftRequest": {
@@ -693,6 +814,132 @@
           "places"
         ],
         "title": "AdminPlacesRequest",
+        "type": "object"
+      },
+      "AdminQueueClearOut": {
+        "properties": {
+          "cleared": {
+            "title": "Cleared",
+            "type": "integer"
+          },
+          "outcome": {
+            "enum": [
+              "ARCHIVED",
+              "DRAFT"
+            ],
+            "title": "Outcome",
+            "type": "string"
+          },
+          "remaining": {
+            "title": "Remaining",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "cleared",
+          "remaining",
+          "outcome"
+        ],
+        "title": "AdminQueueClearOut",
+        "type": "object"
+      },
+      "AdminQueueClearRequest": {
+        "description": "ADR-055: clears every PENDING task matching the queue's filters.\n`archive` (default) keeps cleared stories from being regenerated.",
+        "properties": {
+          "archive": {
+            "default": true,
+            "title": "Archive",
+            "type": "boolean"
+          },
+          "danger_only": {
+            "default": false,
+            "title": "Danger Only",
+            "type": "boolean"
+          },
+          "older_than_hours": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Older Than Hours"
+          },
+          "q": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Q"
+          },
+          "reason": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Reason",
+            "type": "string"
+          },
+          "review_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Review Reason"
+          },
+          "source_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Id"
+          },
+          "telugu": {
+            "anyOf": [
+              {
+                "enum": [
+                  "MISSING",
+                  "PENDING",
+                  "PASSED",
+                  "FAILED"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Telugu"
+          },
+          "topic": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Topic"
+          }
+        },
+        "required": [
+          "reason"
+        ],
+        "title": "AdminQueueClearRequest",
         "type": "object"
       },
       "AdminReaderReportListOut": {
@@ -1259,6 +1506,25 @@
           "name"
         ],
         "title": "AdminSourceCreate",
+        "type": "object"
+      },
+      "AdminSourceDeleteOut": {
+        "properties": {
+          "deleted_items": {
+            "title": "Deleted Items",
+            "type": "integer"
+          },
+          "source_id": {
+            "format": "uuid",
+            "title": "Source Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "source_id",
+          "deleted_items"
+        ],
+        "title": "AdminSourceDeleteOut",
         "type": "object"
       },
       "AdminSourceOut": {
@@ -7301,6 +7567,47 @@
         ]
       }
     },
+    "/v1/admin/review-queue/clear": {
+      "post": {
+        "operationId": "clear_review_queue_v1_admin_review_queue_clear_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdminQueueClearRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminQueueClearOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Clear Review Queue",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
     "/v1/admin/sources": {
       "get": {
         "operationId": "list_sources_v1_admin_sources_get",
@@ -7456,6 +7763,60 @@
           }
         },
         "summary": "Update Source",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/v1/admin/sources/{source_id}/delete": {
+      "post": {
+        "description": "ADR-055: refused while any story still cites one of the source's items,\nso published attribution never dangles. Deactivating is the soft option.",
+        "operationId": "delete_source_v1_admin_sources__source_id__delete_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "source_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Source Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdminDeleteRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminSourceDeleteOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Source",
         "tags": [
           "admin"
         ]
@@ -7792,6 +8153,48 @@
         ]
       }
     },
+    "/v1/admin/stories/bulk": {
+      "post": {
+        "description": "ADR-055: each story gets the single-story rules and its own audit\nevent; an ineligible story is skipped (and reported), never forced.",
+        "operationId": "bulk_story_action_v1_admin_stories_bulk_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdminBulkStoryRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminBulkStoryOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Bulk Story Action",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
     "/v1/admin/stories/{story_id}": {
       "get": {
         "operationId": "get_story_detail_v1_admin_stories__story_id__get",
@@ -8049,6 +8452,52 @@
         ]
       }
     },
+    "/v1/admin/stories/{story_id}/delete": {
+      "post": {
+        "operationId": "delete_story_v1_admin_stories__story_id__delete_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "story_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Story Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdminDeleteRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Story",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
     "/v1/admin/stories/{story_id}/importance": {
       "put": {
         "description": "ADR-027: an editor's Low/Normal/High takes precedence over the\ncomputed score; null clears it and recomputes.",
@@ -8258,6 +8707,59 @@
           }
         },
         "summary": "Repair Telugu",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/v1/admin/stories/{story_id}/restore": {
+      "post": {
+        "operationId": "restore_story_v1_admin_stories__story_id__restore_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "story_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Story Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdminActionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminActionResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Restore Story",
         "tags": [
           "admin"
         ]

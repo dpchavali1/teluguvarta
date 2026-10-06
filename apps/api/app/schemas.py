@@ -736,6 +736,61 @@ class AdminActionResponse(BaseModel):
     status: StoryStatus
 
 
+class AdminDeleteRequest(BaseModel):
+    """ADR-055: a hard delete always records why."""
+
+    reason: str = Field(min_length=1, max_length=500)
+
+
+BulkStoryAction = Literal["reject", "archive", "retract", "restore", "delete"]
+
+
+class AdminBulkStoryRequest(BaseModel):
+    """ADR-055: one action over many stories; each is checked and audited alone."""
+
+    action: BulkStoryAction
+    story_ids: list[UUID] = Field(min_length=1, max_length=200)
+    reason: str | None = Field(default=None, max_length=500)
+
+
+class AdminBulkSkipOut(BaseModel):
+    story_id: UUID
+    code: str
+    message: str
+
+
+class AdminBulkStoryOut(BaseModel):
+    action: BulkStoryAction
+    done: list[UUID]
+    skipped: list[AdminBulkSkipOut]
+
+
+class AdminQueueClearRequest(BaseModel):
+    """ADR-055: clears every PENDING task matching the queue's filters.
+    `archive` (default) keeps cleared stories from being regenerated."""
+
+    reason: str = Field(min_length=1, max_length=500)
+    archive: bool = True
+    danger_only: bool = False
+    review_reason: str | None = None
+    q: str | None = None
+    topic: str | None = None
+    source_id: UUID | None = None
+    telugu: TeluguFilter | None = None
+    older_than_hours: int | None = None
+
+
+class AdminQueueClearOut(BaseModel):
+    cleared: int
+    remaining: int
+    outcome: Literal["ARCHIVED", "DRAFT"]
+
+
+class AdminSourceDeleteOut(BaseModel):
+    source_id: UUID
+    deleted_items: int
+
+
 class AdminTeluguRepairRequest(BaseModel):
     action: Literal["withhold", "regenerate"]
     reason: str = Field(min_length=1, max_length=500)

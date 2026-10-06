@@ -6,16 +6,26 @@ import { useCallback, useEffect, useState } from "react";
 import type { components } from "@teluguvarta/contracts";
 
 import { Badge, EmptyState, Freshness, PageHeader } from "@/components/ui";
+import { BulkActions, type BulkAction } from "@/components/BulkActions";
 import { query, STORY_STATUSES, statusInfo, TELUGU_OPTIONS, teluguTone, useFilterOptions } from "@/lib/lists";
 import { adminFetch, SessionExpired } from "@/lib/reports";
 import { ago } from "@/lib/time";
 
 // Review 2026-09-30 R7: every story in any status — drafts, scheduled,
-// live, corrected, retracted — in one searchable library. Changes still
-// happen one story at a time on its review page.
+// live, corrected, retracted — in one searchable library. ADR-055: select
+// rows to retract, archive, restore or (ADMIN) delete them in bulk.
 type StoryList = components["schemas"]["AdminStoryListOut"];
 
 const PAGE_SIZE = 50;
+
+// The API skips stories an action doesn't apply to, but offering only the
+// ones that fit the current view keeps the bar short.
+function actionsFor(view: string): BulkAction[] {
+  if (view === "REVIEW_REQUIRED") return ["archive", "reject", "delete"];
+  if (["PUBLISHED", "UPDATED", "CORRECTION_PENDING", "CORRECTED"].includes(view)) return ["retract", "delete"];
+  if (view === "ARCHIVED" || view === "RETRACTED") return ["restore", "delete"];
+  return ["retract", "archive", "restore", "delete"];
+}
 
 export default function StoriesPage() {
   const router = useRouter();
@@ -35,6 +45,7 @@ export default function StoriesPage() {
   const [revision, setRevision] = useState(0);
   // Links from other pages (e.g. coverage) preselect filters via the URL.
   const [ready, setReady] = useState(false);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -55,6 +66,7 @@ export default function StoriesPage() {
     adminFetch<StoryList>(`/v1/admin/stories?${params}`, {}, "Failed to load stories")
       .then((body) => {
         setList(body);
+        setSelected(new Set());
         setLoadedAt(new Date());
       })
       .catch((err) => {
@@ -89,7 +101,7 @@ export default function StoriesPage() {
     <main>
       <PageHeader
         title="Stories"
-        subtitle="Every story by latest activity. Open one to review, correct or retract it."
+        subtitle="Every story by latest activity. Select rows to retract, archive, restore or delete them, or open one to review or correct it."
         actions={<Freshness loadedAt={loadedAt} loading={loading} onRefresh={() => setRevision((v) => v + 1)} />}
       />
       <section aria-label="Status" className="preset-row">
@@ -147,9 +159,23 @@ export default function StoriesPage() {
         <EmptyState title="No stories match" hint="Try another status or clear the search." />
       ) : (
         <>
+          <BulkActions
+            selected={[...selected]}
+            actions={actionsFor(view)}
+            onDone={() => setRevision((v) => v + 1)}
+            onClearSelection={() => setSelected(new Set())}
+          />
           <div className="table-scroll"><table>
             <thead>
               <tr>
+                <th className="col-select">
+                  <input
+                    type="checkbox"
+                    aria-label="Select all stories on this page"
+                    checked={list.items.every((story) => selected.has(story.id))}
+                    onChange={(event) => setSelected(event.target.checked ? new Set(list.items.map((story) => story.id)) : new Set())}
+                  />
+                </th>
                 <th>Story</th>
                 <th>Status</th>
                 <th className="col-wide-only">Telugu</th>
@@ -162,6 +188,21 @@ export default function StoriesPage() {
                 const status = statusInfo(story.status);
                 return (
                   <tr key={story.id}>
+                    <td className="col-select">
+                      <input
+                        type="checkbox"
+                        aria-label={`Select ${story.headline ?? story.source_title ?? story.canonical_slug}`}
+                        checked={selected.has(story.id)}
+                        onChange={() =>
+                          setSelected((prev) => {
+                            const next = new Set(prev);
+                            if (next.has(story.id)) next.delete(story.id);
+                            else next.add(story.id);
+                            return next;
+                          })
+                        }
+                      />
+                    </td>
                     <td>
                       <Link href={`/review/${story.id}`}>{story.headline ?? story.source_title ?? story.canonical_slug}</Link>
                       {story.headline ? null : <span className="card__meta"> · no draft yet</span>}

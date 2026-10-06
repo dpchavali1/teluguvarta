@@ -140,6 +140,32 @@ def _variant(loaded: Any, story_id: UUID, language: str) -> StoryVariant | None:
 # --- Review queue -----------------------------------------------------------
 
 
+def review_queue_filters(
+    *,
+    now: datetime,
+    danger_only: bool = False,
+    reason: str | None = None,
+    q: str | None = None,
+    topic: str | None = None,
+    source_id: UUID | None = None,
+    telugu: str | None = None,
+    older_than_hours: int | None = None,
+) -> list[ColumnElement]:
+    """PENDING-task filters shared by the queue page and "clear queue" (ADR-055),
+    so clearing removes exactly what the admin is looking at."""
+    filters = [
+        ReviewTask.status == "PENDING",
+        *story_filters(ReviewTask.story_id, q=q, topic=topic, source_id=source_id, telugu=telugu),
+    ]
+    if danger_only:
+        filters.append(_has_reason(*DANGER_REASONS))
+    if reason:
+        filters.append(_has_reason(reason.strip()))
+    if older_than_hours is not None:
+        filters.append(ReviewTask.created_at <= now - timedelta(hours=max(0, older_than_hours)))
+    return filters
+
+
 def review_queue(
     db: Session,
     *,
@@ -157,14 +183,10 @@ def review_queue(
     """PENDING tasks, always-human-reviewed reasons first, then oldest first."""
     limit = max(1, min(limit, QUEUE_MAX_LIMIT))
     rank = case((_has_reason(*DANGER_REASONS), 0), else_=1)
-    pending = ReviewTask.status == "PENDING"
-    filters = [pending, *story_filters(ReviewTask.story_id, q=q, topic=topic, source_id=source_id, telugu=telugu)]
-    if danger_only:
-        filters.append(_has_reason(*DANGER_REASONS))
-    if reason:
-        filters.append(_has_reason(reason.strip()))
-    if older_than_hours is not None:
-        filters.append(ReviewTask.created_at <= now - timedelta(hours=max(0, older_than_hours)))
+    filters = review_queue_filters(
+        now=now, danger_only=danger_only, reason=reason, q=q, topic=topic, source_id=source_id,
+        telugu=telugu, older_than_hours=older_than_hours,
+    )
 
     page_filters = list(filters)
     if cursor:
@@ -198,7 +220,7 @@ def review_queue(
         func.count().filter(_has_reason(*DANGER_REASONS)),
         func.count().filter(_has_reason(UNCLASSIFIED_REASON)),
         func.min(ReviewTask.created_at),
-    ).where(pending)).one()
+    ).where(ReviewTask.status == "PENDING")).one()
     return {
         "items": items,
         "total": db.scalar(select(func.count()).select_from(ReviewTask).where(*filters)) or 0,

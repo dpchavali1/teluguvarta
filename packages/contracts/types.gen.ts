@@ -548,6 +548,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/admin/review-queue/clear": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Clear Review Queue */
+        post: operations["clear_review_queue_v1_admin_review_queue_clear_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/admin/sources": {
         parameters: {
             query?: never;
@@ -609,6 +626,27 @@ export interface paths {
         patch: operations["update_source_v1_admin_sources__source_id__patch"];
         trace?: never;
     };
+    "/v1/admin/sources/{source_id}/delete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Delete Source
+         * @description ADR-055: refused while any story still cites one of the source's items,
+         *     so published attribution never dangles. Deactivating is the soft option.
+         */
+        post: operations["delete_source_v1_admin_sources__source_id__delete_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/admin/sources/{source_id}/reset-failures": {
         parameters: {
             query?: never;
@@ -662,6 +700,27 @@ export interface paths {
         get: operations["list_stories_v1_admin_stories_get"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/admin/stories/bulk": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Bulk Story Action
+         * @description ADR-055: each story gets the single-story rules and its own audit
+         *     event; an ineligible story is skipped (and reported), never forced.
+         */
+        post: operations["bulk_story_action_v1_admin_stories_bulk_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -766,6 +825,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/admin/stories/{story_id}/delete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Delete Story */
+        post: operations["delete_story_v1_admin_stories__story_id__delete_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/admin/stories/{story_id}/importance": {
         parameters: {
             query?: never;
@@ -837,6 +913,23 @@ export interface paths {
         put?: never;
         /** Repair Telugu */
         post: operations["repair_telugu_v1_admin_stories__story_id__repair_telugu_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/admin/stories/{story_id}/restore": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Restore Story */
+        post: operations["restore_story_v1_admin_stories__story_id__restore_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1462,6 +1555,45 @@ export interface components {
             /** Summary */
             summary?: string | null;
         };
+        /** AdminBulkSkipOut */
+        AdminBulkSkipOut: {
+            /** Code */
+            code: string;
+            /** Message */
+            message: string;
+            /**
+             * Story Id
+             * Format: uuid
+             */
+            story_id: string;
+        };
+        /** AdminBulkStoryOut */
+        AdminBulkStoryOut: {
+            /**
+             * Action
+             * @enum {string}
+             */
+            action: "reject" | "archive" | "retract" | "restore" | "delete";
+            /** Done */
+            done: string[];
+            /** Skipped */
+            skipped: components["schemas"]["AdminBulkSkipOut"][];
+        };
+        /**
+         * AdminBulkStoryRequest
+         * @description ADR-055: one action over many stories; each is checked and audited alone.
+         */
+        AdminBulkStoryRequest: {
+            /**
+             * Action
+             * @enum {string}
+             */
+            action: "reject" | "archive" | "retract" | "restore" | "delete";
+            /** Reason */
+            reason?: string | null;
+            /** Story Ids */
+            story_ids: string[];
+        };
         /** AdminCorrectionOut */
         AdminCorrectionOut: {
             /**
@@ -1523,6 +1655,14 @@ export interface components {
              * @enum {string}
              */
             role: "EDITOR" | "ADMIN";
+        };
+        /**
+         * AdminDeleteRequest
+         * @description ADR-055: a hard delete always records why.
+         */
+        AdminDeleteRequest: {
+            /** Reason */
+            reason: string;
         };
         /**
          * AdminDraftRequest
@@ -1624,6 +1764,49 @@ export interface components {
             places: string[];
             /** Reason */
             reason?: string | null;
+        };
+        /** AdminQueueClearOut */
+        AdminQueueClearOut: {
+            /** Cleared */
+            cleared: number;
+            /**
+             * Outcome
+             * @enum {string}
+             */
+            outcome: "ARCHIVED" | "DRAFT";
+            /** Remaining */
+            remaining: number;
+        };
+        /**
+         * AdminQueueClearRequest
+         * @description ADR-055: clears every PENDING task matching the queue's filters.
+         *     `archive` (default) keeps cleared stories from being regenerated.
+         */
+        AdminQueueClearRequest: {
+            /**
+             * Archive
+             * @default true
+             */
+            archive: boolean;
+            /**
+             * Danger Only
+             * @default false
+             */
+            danger_only: boolean;
+            /** Older Than Hours */
+            older_than_hours?: number | null;
+            /** Q */
+            q?: string | null;
+            /** Reason */
+            reason: string;
+            /** Review Reason */
+            review_reason?: string | null;
+            /** Source Id */
+            source_id?: string | null;
+            /** Telugu */
+            telugu?: ("MISSING" | "PENDING" | "PASSED" | "FAILED") | null;
+            /** Topic */
+            topic?: string | null;
         };
         /** AdminReaderReportListOut */
         AdminReaderReportListOut: {
@@ -1795,6 +1978,16 @@ export interface components {
             rights_status?: ("DISABLED" | "LINK_ONLY" | "LICENSED_METADATA" | "LICENSED_REPURPOSE") | null;
             /** Source Type */
             source_type?: string | null;
+        };
+        /** AdminSourceDeleteOut */
+        AdminSourceDeleteOut: {
+            /** Deleted Items */
+            deleted_items: number;
+            /**
+             * Source Id
+             * Format: uuid
+             */
+            source_id: string;
         };
         /** AdminSourceOut */
         AdminSourceOut: {
@@ -4249,6 +4442,39 @@ export interface operations {
             };
         };
     };
+    clear_review_queue_v1_admin_review_queue_clear_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminQueueClearRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminQueueClearOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_sources_v1_admin_sources_get: {
         parameters: {
             query?: never;
@@ -4357,6 +4583,41 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AdminSourceOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_source_v1_admin_sources__source_id__delete_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                source_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminDeleteRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminSourceDeleteOut"];
                 };
             };
             /** @description Validation Error */
@@ -4497,6 +4758,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AdminStoryListOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    bulk_story_action_v1_admin_stories_bulk_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminBulkStoryRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminBulkStoryOut"];
                 };
             };
             /** @description Validation Error */
@@ -4681,6 +4975,39 @@ export interface operations {
             };
         };
     };
+    delete_story_v1_admin_stories__story_id__delete_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                story_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminDeleteRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     set_story_importance_v1_admin_stories__story_id__importance_put: {
         parameters: {
             query?: never;
@@ -4798,6 +5125,41 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["AdminTeluguRepairRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminActionResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    restore_story_v1_admin_stories__story_id__restore_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                story_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminActionRequest"];
             };
         };
         responses: {

@@ -178,3 +178,14 @@ def _no_real_dns(monkeypatch):
     (app/adapters/safe_fetch.py). Tests use mock transports, so answer that
     check without real DNS; SSRF tests override it."""
     monkeypatch.setattr("app.adapters.safe_fetch._resolve", lambda host: ["93.184.216.34"])
+
+
+@pytest.fixture(autouse=True)
+def _fresh_rate_limits():
+    """The rate limiter's windows are process-global; without this, requests
+    from earlier tests count against later ones and they fail with 429."""
+    from app.rate_limit import _WINDOWS
+
+    _WINDOWS.clear()
+    yield
+    _WINDOWS.clear()

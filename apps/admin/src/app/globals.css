@@ -897,3 +897,40 @@ fieldset.enable-now legend { font-family: var(--font-mono-stack); font-size: 0.7
   .decision-panel .card__foot button { min-height: 44px; }
   .variant-grid { grid-template-columns: minmax(0, 1fr); }
 }
+
+/* ---------- Bulk actions (ADR-055) ---------- */
+
+.bulk-bar {
+  position: sticky;
+  bottom: 0.75rem;
+  z-index: 5;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.6rem 1rem;
+  margin: 0 0 1rem;
+  padding: 0.75rem 1rem;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+.bulk-bar label { display: flex; flex-direction: column; gap: 0.2rem; font-size: 0.82rem; }
+.bulk-bar strong { align-self: center; }
+.bulk-bar [role="alert"] { align-self: center; }
+.button-danger,
+button.button-danger {
+  background: var(--danger-soft);
+  color: var(--danger);
+  border: 1px solid var(--danger);
+}
+.col-select { width: 2.25rem; }
+.danger-zone {
+  margin: 1.5rem 0;
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--danger);
+  border-radius: var(--radius-md);
+}
+.danger-zone summary { cursor: pointer; font-weight: 600; color: var(--danger); }
+.danger-zone form { display: flex; flex-wrap: wrap; gap: 0.6rem 1rem; align-items: flex-end; margin-top: 0.75rem; }
+.danger-zone label { display: flex; flex-direction: column; gap: 0.2rem; font-size: 0.82rem; }
+.danger-zone label.inline { flex-direction: row; align-items: center; gap: 0.4rem; }
