@@ -10,7 +10,7 @@ import { age } from "@/lib/time";
 type Switch = components["schemas"]["RuntimeSwitchOut"];
 
 // ADR-031: what each switch does, in the admin's words.
-const COPY: Record<Switch["key"], { title: string; on: string; off: string; waiting: string; pause: string }> = {
+const COPY: Record<Switch["key"], { title: string; on: string; off: string; waiting: string; pause: string; locked?: string }> = {
   ai: {
     title: "AI",
     on: "Writing and translating new stories.",
@@ -23,14 +23,16 @@ const COPY: Record<Switch["key"], { title: string; on: string; off: string; wait
     on: "Finished stories go live automatically. Sensitive stories still wait for a person.",
     off: "Nothing goes live on its own. Finished stories wait; stories you approve by hand still publish.",
     waiting: "waiting to publish",
-    pause: "Pause auto-publish"
+    pause: "Pause auto-publish",
+    locked: "Turned off on the server (AUTO_PUBLISH_GLOBAL), so every story goes to the review queue. Change it in .env.prod."
   },
   breaking: {
     title: "Breaking & death briefs",
     on: "Breaking and death stories confirmed by 2+ approved sources (or one trusted source) go live as source-text briefs. Retract one from its story page.",
     off: "Breaking and death stories wait for a person.",
     waiting: "waiting in review",
-    pause: "Pause breaking briefs"
+    pause: "Pause breaking briefs",
+    locked: "Turned off on the server (AUTO_PUBLISH_BREAKING), so breaking and death stories wait in the review queue like before. Other stories are unaffected. Change it in .env.prod."
   }
 };
 
@@ -91,7 +93,7 @@ export function PauseSwitches({ canEdit }: { canEdit: boolean }) {
                 </p>
                 <p className="switch-row__note">
                   {locked
-                    ? "Turned off on the server (AUTO_PUBLISH_GLOBAL), so every story goes to the review queue. Change it in .env.prod."
+                    ? copy.locked ?? "Turned off on the server. Change it in .env.prod."
                     : sw.enabled
                       ? copy.on
                       : copy.off}
