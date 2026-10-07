@@ -15,6 +15,13 @@ confirmed here. No code change. Sensitive, low-confidence, similarity,
 content-rule, rights and budget holds all remain. `deploy.sh` first-run
 defaults stay conservative. This supersedes ADR-019's rejection and accepts
 the open ADR-011 evidence gap for non-sensitive stories.
+Follow-up ([ADR-058](docs/adr/ADR-058-sensitivity-definitions.md)): the
+classifier prompt only named the sensitive categories, so most diaspora news
+could be tagged and held. `SENSITIVITY_CRITERIA` in `app/jobs/generate.py`
+now defines each one by what a reader might act on, and "if unsure, prefer
+sensitive" stays. Routing is unchanged. Only new classifications are affected;
+stories already held keep their tags. API: 714 pass, ruff and mypy clean.
+**Not yet deployed.**
 
 **Canonical topics and topic alerts (2026-10-06, [ADR-056](docs/adr/ADR-056-canonical-topic-taxonomy.md)):**
 Owner report: many duplicate topics, and only one or two alerts with 74

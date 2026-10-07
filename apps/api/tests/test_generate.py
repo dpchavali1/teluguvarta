@@ -382,3 +382,14 @@ def test_summary_sharing_twelve_words_with_description_is_flagged():
     original = "The State Department told Americans to stay away from the area because fighting continues there."
     assert _summary_too_similar_to_source(copied, [item])
     assert not _summary_too_similar_to_source(original, [item])
+
+
+def test_classify_prompt_defines_every_sensitive_bucket():
+    # ADR-058: undefined buckets made most diaspora news read as sensitive.
+    from app.jobs.generate import ALLOWED_SENSITIVITIES, _classify_prompt
+    from app.models import SourceItem
+
+    prompt = _classify_prompt([SourceItem(id=uuid.uuid4(), url="https://x.gov/a", title="T")])
+    for bucket in ALLOWED_SENSITIVITIES - {"NONE"}:
+        assert f"{bucket} = " in prompt
+    assert "prefer the sensitive value" in prompt

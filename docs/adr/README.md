@@ -135,3 +135,5 @@ accepted. Add ad-hoc ADRs below this table as they're written.
   [ADR-056](ADR-056-canonical-topic-taxonomy.md)
 - ADR-057 | Full auto-publish on for non-sensitive stories, P1 review off (supersedes ADR-019's rejection; accepts ADR-011 gap) | — | **accepted** (owner request 2026-10-06) — see
   [ADR-057](ADR-057-auto-publish-global-on.md)
+- ADR-058 | Define the sensitive categories in the classifier prompt (clarifies NON_NEGOTIABLES #5 scope) | — | **accepted** (owner request 2026-10-06) — see
+  [ADR-058](ADR-058-sensitivity-definitions.md)

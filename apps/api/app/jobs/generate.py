@@ -164,6 +164,30 @@ RELEVANCE_CRITERIA = (
 )
 
 
+# ADR-058: any value other than NONE forces human review (NON_NEGOTIABLES #5),
+# so each bucket is defined by what a reader might act on, not by topic. Left
+# undefined, most diaspora news (visas, money, courts) read as sensitive.
+SENSITIVITY_CRITERIA = (
+    "Sensitivity definitions: "
+    "IMMIGRATION = new or changed visa, green-card, status, consular or enforcement "
+    "rules, deadlines, fees or guidance (USCIS, DOS, DHS, visa bulletin), or "
+    "deportation/detention of people; not a story that merely features immigrants "
+    "or an NRI community event. "
+    "LEGAL = court rulings, lawsuits, or new laws/regulations a reader might act on; "
+    "not routine politics or government announcements. "
+    "FINANCIAL = tax, investment, banking, remittance or exchange-rate information a "
+    "reader might act on with their money; not company, market or business news "
+    "without such guidance. "
+    "BREAKING = a major unfolding event whose facts may still change (disaster, attack, "
+    "major accident with casualties); not merely recent or important news — use "
+    "urgency for that. "
+    "OBITUARY_ACCUSATION = a death, or an allegation of crime or misconduct against a "
+    "named person. "
+    "Everything else is NONE. If a story clearly meets one of these definitions, use "
+    "it; if you are unsure whether it does, prefer the sensitive value. "
+)
+
+
 def _classify_prompt(items: list[SourceItem]) -> str:
     return (
         "Classify this news story cluster for a Telugu-diaspora news product. "
@@ -173,7 +197,8 @@ def _classify_prompt(items: list[SourceItem]) -> str:
         "(one of NONE/IMMIGRATION/LEGAL/FINANCIAL/BREAKING/OBITUARY_ACCUSATION), "
         "and urgency (one of NORMAL/HIGH). If the evidence reports that a person "
         "has died (including Telugu words like ఇకలేరు, కన్నుమూశారు, తుదిశ్వాస విడిచారు), "
-        "sensitivity is OBITUARY_ACCUSATION, or BREAKING for a public figure's death. `places` lists only where the story "
+        "sensitivity is OBITUARY_ACCUSATION, or BREAKING for a public figure's death. "
+        + SENSITIVITY_CRITERIA + "`places` lists only where the story "
         "itself happens, using only ids from this list (empty if none fits): "
         + catalog_prompt_ids() + ". Evidence items:\n" + _untrusted_data_block(_evidence_block(items))
     )
