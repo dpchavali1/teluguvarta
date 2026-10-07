@@ -26,6 +26,12 @@ mypy clean. Mobile: tsc, 127 tests pass. **Not yet deployed:** the
 migration runs on the next VPS deploy, and a new APK is needed for the Alerts
 screen remap. Server-side alert matching works without a new APK.
 Expect a reader with many topics to hit the daily cap (default 5).
+Follow-up (same day): CI's node job was red. Two mobile tests' `setImmediate`
+flush promises failed typecheck under newer `@types/node`; they now pass a
+no-argument callback. New audit advisories (shell-quote critical; source-map-js,
+compression and sharp high) are fixed with root `pnpm.overrides` limited to the
+vulnerable ranges; the audit gate itself is unchanged. CI is fully green on
+`ea5c723`.
 
 **Admin removal controls (2026-10-05, [ADR-055](docs/adr/ADR-055-admin-bulk-removal-and-restore.md)):**
 Owner request: admins can now empty the review queue, take down or delete
