@@ -68,7 +68,7 @@ describe("listenForNotificationOpens", () => {
     }) as never);
     const onOpen = jest.fn();
     const stop = listenForNotificationOpens(onOpen);
-    await new Promise((resolve) => setImmediate(resolve));
+    await new Promise<void>((resolve) => setImmediate(() => resolve()));
     expect(onOpen).toHaveBeenCalledWith({ story_slug: "cold" });
     backgroundHandler({ data: { story_slug: "warm" } });
     expect(onOpen).toHaveBeenCalledWith({ story_slug: "warm" });

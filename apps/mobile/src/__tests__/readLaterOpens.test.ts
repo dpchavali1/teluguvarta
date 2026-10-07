@@ -41,7 +41,7 @@ describe("listenForReadLaterOpens", () => {
     );
     const onOpen = jest.fn();
     listenForReadLaterOpens(onOpen);
-    await new Promise((resolve) => setImmediate(resolve));
+    await new Promise<void>((resolve) => setImmediate(() => resolve()));
     expect(onOpen).toHaveBeenCalledWith({ story_slug: "cold-story" });
   });
 
