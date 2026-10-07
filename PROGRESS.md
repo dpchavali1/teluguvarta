@@ -7,6 +7,26 @@ through T14-search. See the [improvement plan](docs/reviews/2026-10-01-improveme
 for the ordered follow-ups and the [ADR registry](docs/adr/README.md) for decisions.
 Local implementation is distinct from deployment and device acceptance.
 
+**Canonical topics and topic alerts (2026-10-06, [ADR-056](docs/adr/ADR-056-canonical-topic-taxonomy.md)):**
+Owner report: many duplicate topics, and only one or two alerts with 74
+topics selected. Causes: production had 243 AI-invented topics (the
+classifier's free-form categories each became a topic), and topic alerts
+needed importance 0.5 while stories start at 0.4. Only 6 of the latest 100
+live stories cleared that. Fix: `app/content/topics.py` defines 40
+canonical topics (27 general + 13 student). The classifier prompt lists
+them, and off-list output is mapped or dropped, never created. Migration
+`f6a2c8e4b1d7` merges stories and subscriptions into the canonical topics
+and deactivates the rest. `PATCH /v1/me/preferences` maps retired slugs from
+older app builds, and `/v1/config` exposes `topic_aliases`; the mobile Alerts
+screen remaps stored selections. The topic-alert floor is now 0.4.
+All 243 production slugs are covered by the map. Against sample duplicates
+in a scratch DB, the migration merged links, kept the most immediate
+urgency, and downgraded and re-upgraded cleanly. API: full suite 713 pass, ruff and
+mypy clean. Mobile: tsc, 127 tests pass. **Not yet deployed:** the
+migration runs on the next VPS deploy, and a new APK is needed for the Alerts
+screen remap. Server-side alert matching works without a new APK.
+Expect a reader with many topics to hit the daily cap (default 5).
+
 **Admin removal controls (2026-10-05, [ADR-055](docs/adr/ADR-055-admin-bulk-removal-and-restore.md)):**
 Owner request: admins can now empty the review queue, take down or delete
 stories, and delete sources. API: `POST /v1/admin/stories/bulk` (reject,

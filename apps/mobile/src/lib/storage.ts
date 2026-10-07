@@ -348,6 +348,48 @@ export async function setHiddenTopics(slugs: string[]): Promise<void> {
   return writeJson(KEYS.hiddenTopics, slugs);
 }
 
+const URGENCY_RANK: Record<TopicUrgency, number> = { INSTANT: 0, BREAKING_ONLY: 1, DIGEST: 2 };
+
+function canonicalSlug(slug: string, aliases: Record<string, string>): string {
+  return Object.hasOwn(aliases, slug) ? aliases[slug] : slug;
+}
+
+export function remapTopicSlugs(slugs: string[], aliases: Record<string, string>): string[] {
+  return [...new Set(slugs.map((slug) => canonicalSlug(slug, aliases)))];
+}
+
+// ADR-056: the server merged duplicate topics into one taxonomy. Move stored
+// selections from retired slugs onto their canonical slug (a topic stays on
+// if any merged one was on; the most immediate urgency wins).
+export function remapNotificationTopics(prefs: NotificationPreferences, aliases: Record<string, string>): NotificationPreferences {
+  const topics: Record<string, boolean> = {};
+  for (const [slug, enabled] of Object.entries(prefs.topics)) {
+    const target = canonicalSlug(slug, aliases);
+    topics[target] = topics[target] === true || enabled;
+  }
+  const topicUrgency: Record<string, TopicUrgency> = {};
+  for (const [slug, urgency] of Object.entries(prefs.topicUrgency)) {
+    const target = canonicalSlug(slug, aliases);
+    const current = topicUrgency[target];
+    if (current === undefined || URGENCY_RANK[urgency] < URGENCY_RANK[current]) topicUrgency[target] = urgency;
+  }
+  return { ...prefs, topics, topicUrgency };
+}
+
+export async function remapRetiredTopics(aliases: Record<string, string>): Promise<void> {
+  const retired = (slugs: string[]) => slugs.some((slug) => Object.hasOwn(aliases, slug));
+  const [prefs, profile, hidden] = await Promise.all([getNotificationPreferences(), getProfile(), getHiddenTopics()]);
+  const writes: Promise<void>[] = [];
+  if (retired(Object.keys(prefs.topics)) || retired(Object.keys(prefs.topicUrgency))) {
+    writes.push(setNotificationPreferences(remapNotificationTopics(prefs, aliases)));
+  }
+  if (retired(profile.interestTopicSlugs)) {
+    writes.push(setProfile({ ...profile, interestTopicSlugs: remapTopicSlugs(profile.interestTopicSlugs, aliases) }));
+  }
+  if (retired(hidden)) writes.push(setHiddenTopics(remapTopicSlugs(hidden, aliases)));
+  await Promise.all(writes);
+}
+
 // P05 "Mute source": domains (no "www.") whose stories Home and Latest leave out.
 export async function getHiddenSources(): Promise<string[]> {
   try {

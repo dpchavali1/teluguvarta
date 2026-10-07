@@ -18,6 +18,7 @@ there is no separate per-table purge to keep in sync. This only reaches
 admin's own account is out of scope for this self-service endpoint.
 """
 
+from collections.abc import Mapping
 from datetime import UTC, datetime
 from typing import Literal, cast
 from uuid import UUID
@@ -30,6 +31,7 @@ from sqlalchemy.orm import Session
 from app.auth import Principal, current_user
 from app.content.exam_deadline import normalize_exam
 from app.content.places import normalize_place_ids
+from app.content.topics import canonical_topic_slug, canonical_topic_slugs
 from app.content.visa_bulletin import CATEGORIES, COUNTRIES
 from app.db import get_db
 from app.models import (
@@ -74,6 +76,24 @@ def _topic_urgency(db: Session, user_id: UUID) -> dict[str, str]:
         select(Topic.slug, UserTopic.urgency).join(UserTopic, UserTopic.topic_id == Topic.id).where(UserTopic.user_id == user_id)
     ).all()
     return {slug: urgency for slug, urgency in rows}
+
+
+_URGENCY_RANK = {"INSTANT": 0, "BREAKING_ONLY": 1, "DIGEST": 2}
+
+
+def _canonical_urgency(urgency_by_slug: Mapping[str, str]) -> dict[str, str]:
+    """Several retired slugs can map to one canonical topic; the most
+    immediate urgency among them wins."""
+
+    merged: dict[str, str] = {}
+    for slug, urgency in urgency_by_slug.items():
+        canonical = canonical_topic_slug(slug)
+        if canonical is None:
+            continue
+        current = merged.get(canonical)
+        if current is None or _URGENCY_RANK.get(urgency, 0) < _URGENCY_RANK.get(current, 0):
+            merged[canonical] = urgency
+    return merged
 
 
 def _subscribed_topics(db: Session, user_id: UUID) -> list[TopicOut]:
@@ -158,16 +178,21 @@ def update_preferences(
             setattr(profile, field, getattr(body, field))
     db.flush()
 
+    # ADR-056: older app builds still send retired slugs; map them onto the canonical taxonomy.
+    requested_urgency = _canonical_urgency(body.topic_urgency or {})
     if body.topic_slugs is not None:
         previous = _topic_urgency(db, principal.user_id)
         db.query(UserTopic).filter(UserTopic.user_id == principal.user_id).delete()
-        if body.topic_slugs:
-            topics = db.execute(select(Topic.id, Topic.slug).where(Topic.slug.in_(body.topic_slugs))).all()
+        slugs = canonical_topic_slugs(body.topic_slugs)
+        if slugs:
+            topics = db.execute(
+                select(Topic.id, Topic.slug).where(Topic.slug.in_(slugs), Topic.active.is_(True))
+            ).all()
             for topic_id, slug in topics:
-                urgency = (body.topic_urgency or {}).get(slug) or previous.get(slug, "INSTANT")
+                urgency = requested_urgency.get(slug) or previous.get(slug, "INSTANT")
                 db.add(UserTopic(user_id=principal.user_id, topic_id=topic_id, urgency=urgency))
-    elif body.topic_urgency:
-        for slug, urgency in body.topic_urgency.items():
+    elif requested_urgency:
+        for slug, urgency in requested_urgency.items():
             topic_uuid = db.scalar(select(Topic.id).where(Topic.slug == slug))
             row = db.get(UserTopic, (principal.user_id, topic_uuid)) if topic_uuid else None
             if row is not None:

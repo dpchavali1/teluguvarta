@@ -3,11 +3,12 @@ import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from
 
 import { SmartAlertsForm } from "../components/SmartAlertsForm";
 import { NotificationPreferencesForm } from "../components/NotificationPreferencesForm";
-import { trackEvent } from "../lib/api";
+import { getConfig, trackEvent } from "../lib/api";
 import { syncToServer } from "../lib/notificationSync";
 import {
   DEFAULT_NOTIFICATION_PREFERENCES,
   getNotificationPreferences,
+  remapRetiredTopics,
   setNotificationPreferences,
   type NotificationPreferences,
 } from "../lib/storage";
@@ -35,11 +36,16 @@ export function NotificationsScreen() {
 
   useEffect(() => {
     let active = true;
-    getNotificationPreferences().then((saved) => {
-      if (!active) return;
-      setPrefs(saved);
-      sync(saved); // Reconcile changes made while offline on the next visit.
-    });
+    // ADR-056: move selections off merged topics before showing them; offline keeps them as stored.
+    getConfig()
+      .then((config) => remapRetiredTopics(config.topic_aliases ?? {}))
+      .catch(() => {})
+      .then(getNotificationPreferences)
+      .then((saved) => {
+        if (!active) return;
+        setPrefs(saved);
+        sync(saved); // Reconcile changes made while offline on the next visit.
+      });
     return () => { active = false; };
     // `sync` only uses component refs/state setters; run once on mount.
     // eslint-disable-next-line react-hooks/exhaustive-deps

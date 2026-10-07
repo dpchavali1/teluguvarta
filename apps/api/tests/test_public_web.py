@@ -6,6 +6,7 @@ retracted/corrected indicator via `status`.
 
 import uuid
 
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models import (
@@ -41,9 +42,11 @@ def _seed_published_story(
     db.add(story)
     db.flush()
     db.add(StorySource(story_id=story.id, source_item_id=item.id, role="PRIMARY", evidence_rank=0))
-    topic = Topic(slug=topic_slug, name=topic_slug.title())
-    db.add(topic)
-    db.flush()
+    topic = db.scalars(select(Topic).where(Topic.slug == topic_slug)).first()
+    if topic is None:
+        topic = Topic(slug=topic_slug, name=topic_slug.title())
+        db.add(topic)
+        db.flush()
     db.add(StoryTopic(story_id=story.id, topic_id=topic.id, weight=1))
     if country is not None:
         db.add(StoryCountry(story_id=story.id, country_code=country, role="EVENT"))  # ADR-027

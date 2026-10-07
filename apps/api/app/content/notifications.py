@@ -26,7 +26,10 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from app.content.places import expand_with_ancestors
 
-TOPIC_ALERT_MIN_IMPORTANCE = 0.5
+# ADR-056: equal to the importance base (0.4), so any story matching a topic
+# the reader selected can alert; an editor's LOW override (0.2) still blocks it.
+# The reader's daily cap and quiet hours bound the volume.
+TOPIC_ALERT_MIN_IMPORTANCE = 0.4
 BREAKING_ALERT_MIN_CONFIDENCE = 0.7
 BREAKING_ALERT_MIN_SOURCE_QUALITY = 0.5
 # P02: a digest covers stories published in this many hours before its slot.

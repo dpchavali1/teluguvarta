@@ -3331,6 +3331,13 @@
             "title": "Languages",
             "type": "array"
           },
+          "topic_aliases": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Topic Aliases",
+            "type": "object"
+          },
           "topics": {
             "items": {
               "$ref": "#/components/schemas/TopicOut"

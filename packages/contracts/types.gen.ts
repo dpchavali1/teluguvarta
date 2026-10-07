@@ -2586,6 +2586,10 @@ export interface components {
             };
             /** Languages */
             languages?: ("en" | "te")[];
+            /** Topic Aliases */
+            topic_aliases?: {
+                [key: string]: string;
+            };
             /** Topics */
             topics?: components["schemas"]["TopicOut"][];
         };

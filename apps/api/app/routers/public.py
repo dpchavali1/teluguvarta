@@ -32,6 +32,7 @@ from app.content.serialize import (
     story_to_rankable,
     topic_out,
 )
+from app.content.topics import TOPIC_ALIASES
 from app.content.variants import resolve_display_variant
 from app.content.why_matters import generation_segment, get_cached_many
 from app.db import get_db
@@ -78,7 +79,7 @@ HOME_CANDIDATE_POOL = 50
 
 # S1: "Student Briefing" is a composed/filtered view over the same `/v1/home`
 # feed and ranking (docs/tickets/S1.md) — not a separate content pipeline.
-# Slugs must exist in SEED_TOPICS (infra/scripts/seed.py); "community" stands
+# Slugs must be canonical (app/content/topics.py, ADR-056); "community" stands
 # in for "campus/community" since there's no separate campus topic.
 STUDENT_BRIEFING_TOPIC_SLUGS = (
     "immigration",
@@ -320,6 +321,7 @@ def get_config(db: Session = Depends(get_db)) -> ConfigResponse:
             "push_notifications_enabled": _env_flag("PUSH_NOTIFICATIONS_ENABLED", default=False),
         },
         topics=active_topics_out(db),
+        topic_aliases={retired: slug for retired, slug in TOPIC_ALIASES.items() if slug is not None},
     )
 
 

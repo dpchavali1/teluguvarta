@@ -128,6 +128,8 @@ class ConfigResponse(BaseModel):
     languages: list[Language] = Field(default_factory=_default_languages)
     features: dict[str, bool] = Field(default_factory=dict)
     topics: list[TopicOut] = Field(default_factory=list)
+    # ADR-056: retired topic slug -> canonical slug, so clients can remap stored selections.
+    topic_aliases: dict[str, str] = Field(default_factory=dict)
 
 
 class ShareMetaResponse(BaseModel):

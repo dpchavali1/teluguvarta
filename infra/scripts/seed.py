@@ -17,45 +17,14 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "apps" / "api"))
 
-# §3.3 interest taxonomy.
-SEED_TOPICS = [
-    ("immigration", "Immigration"),
-    ("money", "Money"),
-    ("andhra-pradesh", "Andhra Pradesh"),
-    ("telangana", "Telangana"),
-    ("hyderabad", "Hyderabad"),
-    ("jobs", "Jobs"),
-    ("property", "Property"),
-    ("education", "Education"),
-    ("parents", "Parents"),
-    ("travel", "Travel"),
-    ("community", "Community"),
-    ("entertainment", "Entertainment"),
-    ("sports", "Sports"),
-]
+# ADR-056: the fixed taxonomy lives in app/content/topics.py (general §3.3
+# interests plus the S2/§3.1 student topics, which `packages/domain`'s
+# STUDENT_TOPIC_SLUGS groups separately in the UI). Migration f6a2c8e4b1d7
+# also seeds it; re-seeding here only restores names and active flags.
+from app.content.topics import GENERAL_TOPICS, STUDENT_TOPICS
 
-# S2 (docs/tickets/S2.md) / §3.1's student topic taxonomy — plain `Topic`
-# rows, same table as SEED_TOPICS above (no separate topic model), so they
-# flow through the existing ranking/notification/onboarding code unchanged.
-# `packages/domain`'s `STUDENT_TOPIC_SLUGS` is the client-side grouping list
-# used to label these separately in onboarding/settings UI; keep the two in
-# sync. §3.1 also lists "travel" as a student topic, but that's the same
-# concept as the general "Travel" topic above, not a duplicate row.
-STUDENT_SEED_TOPICS = [
-    ("f1", "F-1"),
-    ("cpt", "CPT"),
-    ("opt", "OPT"),
-    ("stem-opt", "STEM OPT"),
-    ("h1b-transition", "H-1B Transition"),
-    ("internships", "Internships"),
-    ("university-policy", "University Policy"),
-    ("campus-safety", "Campus Safety"),
-    ("taxes", "Taxes"),
-    ("housing", "Housing"),
-    ("scholarships", "Scholarships"),
-    ("student-community", "Student Community"),
-    ("international-student-jobs", "International Student Jobs"),
-]
+SEED_TOPICS = list(GENERAL_TOPICS)
+STUDENT_SEED_TOPICS = list(STUDENT_TOPICS)
 
 DEMO_STORY_SLUG = "demo-h1b-visa-fee-update"
 

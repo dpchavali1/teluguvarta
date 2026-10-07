@@ -131,3 +131,5 @@ accepted. Add ad-hoc ADRs below this table as they're written.
   [ADR-054](ADR-054-breaking-auto-publish-brief.md)
 - ADR-055 | Admin bulk queue clearing, story delete/restore, source delete | — | **accepted** (owner request 2026-10-05) — see
   [ADR-055](ADR-055-admin-bulk-removal-and-restore.md)
+- ADR-056 | Fixed topic taxonomy (merge AI-invented duplicates) and topic-alert floor at the importance base | — | **accepted** (owner request 2026-10-06) — see
+  [ADR-056](ADR-056-canonical-topic-taxonomy.md)

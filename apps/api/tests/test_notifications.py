@@ -176,6 +176,10 @@ def _job() -> Job:
 
 
 def _make_topic(db: Session, slug: str) -> Topic:
+    # Canonical topics are seeded by migration (ADR-056).
+    existing = db.scalars(select(Topic).where(Topic.slug == slug)).first()
+    if existing is not None:
+        return existing
     topic = Topic(slug=slug, name=slug.title())
     db.add(topic)
     db.flush()

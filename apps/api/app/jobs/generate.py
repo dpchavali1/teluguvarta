@@ -41,6 +41,7 @@ from app.content.editorial import GENERATION_STYLE
 from app.content.geography import normalize_countries, set_event_countries
 from app.content.importance import recompute_importance
 from app.content.places import catalog_prompt_ids, normalize_place_ids, set_event_places
+from app.content.topics import canonical_topic_slugs, classifier_topic_ids
 from app.jobs import ai_retry
 from app.jobs.cluster import normalized_title_key
 from app.jobs.queue import enqueue_job, renew_lease
@@ -83,15 +84,9 @@ P1_REVIEW_ENV_VAR = "AI_REVIEW_P1_STORIES"
 # reuse, not a substitute for editorial review.
 SUMMARY_SIMILARITY_FLAG_THRESHOLD = 0.6
 
-_SLUG_RE = re.compile(r"[^a-z0-9]+")
-
 
 def _now() -> datetime:
     return datetime.now(UTC)
-
-
-def _slugify(text: str) -> str:
-    return _SLUG_RE.sub("-", text.lower()).strip("-") or "topic"
 
 
 def _story_items(db: Session, story: Story) -> list[SourceItem]:
@@ -173,7 +168,8 @@ def _classify_prompt(items: list[SourceItem]) -> str:
     return (
         "Classify this news story cluster for a Telugu-diaspora news product. "
         + RELEVANCE_CRITERIA
-        + "Also determine categories, countries, places, entities, sensitivity "
+        + "Also determine categories (one to three ids from this list, most specific first: "
+        + classifier_topic_ids() + "), countries, places, entities, sensitivity "
         "(one of NONE/IMMIGRATION/LEGAL/FINANCIAL/BREAKING/OBITUARY_ACCUSATION), "
         "and urgency (one of NORMAL/HIGH). If the evidence reports that a person "
         "has died (including Telugu words like ఇకలేరు, కన్నుమూశారు, తుదిశ్వాస విడిచారు), "
@@ -249,13 +245,11 @@ def _link_entities(db: Session, story: Story, names: list[str]) -> None:
 
 
 def _link_topics(db: Session, story: Story, categories: list[str]) -> None:
-    for category in dict.fromkeys(c.strip() for c in categories if c and c.strip()):
-        slug = _slugify(category)
-        topic = db.scalars(select(Topic).where(Topic.slug == slug)).first()
-        if topic is None:
-            topic = Topic(slug=slug, name=category)
-            db.add(topic)
-            db.flush()
+    # ADR-056: only canonical topics; an off-list category is mapped or dropped, never created.
+    slugs = canonical_topic_slugs([c for c in categories if c and c.strip()])
+    if not slugs:
+        return
+    for topic in db.scalars(select(Topic).where(Topic.slug.in_(slugs), Topic.active.is_(True))).all():
         db.add(StoryTopic(story_id=story.id, topic_id=topic.id, weight=1))
 
 

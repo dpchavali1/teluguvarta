@@ -22,6 +22,7 @@ from app.models import (
     StorySource,
     StoryTopic,
     StoryVariant,
+    Topic,
 )
 
 from .conftest import requires_postgres
@@ -50,7 +51,7 @@ def _classification(**overrides):
     base = {
         "relevant": True,
         "confidence": 0.9,
-        "categories": ["Immigration Policy"],
+        "categories": ["politics", "Politics & Government", "Immigration Policy"],
         "countries": ["US"],
         "entities": ["USCIS"],
         "sensitivity": "NONE",
@@ -139,8 +140,13 @@ def test_low_risk_story_generates_and_becomes_ai_ready(migrated_database, monkey
         assert variant.headline == "New rule changes visa processing times"
         assert variant.language == "en"
 
-        topics = db.scalars(select(StoryTopic).where(StoryTopic.story_id == story.id)).all()
-        assert len(topics) == 1
+        # ADR-056: a retired alias ("Politics & Government") merges into its canonical topic and an
+        # off-list category ("Immigration Policy") is dropped, never created.
+        slugs = db.scalars(
+            select(Topic.slug).join(StoryTopic, StoryTopic.topic_id == Topic.id).where(StoryTopic.story_id == story.id)
+        ).all()
+        assert slugs == ["politics"]
+        assert db.scalars(select(Topic).where(Topic.slug == "immigration-policy")).first() is None
 
 
 @requires_postgres
