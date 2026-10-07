@@ -148,6 +148,8 @@ corroboration (ADR-011's option 1b) is not needed for this shape.
 
 - **Turn on `AUTO_PUBLISH_GLOBAL`.** Rejected: it publishes full summaries plus
   "why this matters" on ref-membership only, which is the open ADR-011 gap.
+  *Superseded 2026-10-06 by [ADR-057](ADR-057-auto-publish-global-on.md): the
+  owner turned it on and accepted that gap for non-sensitive stories.*
 - **Publish the source title verbatim with a link.** Rejected: ADR-002 / #15
   forbid reproducing headline text.
 - **Bulk approve in admin.** Rejected earlier (2026-09-29 triage): it breaks the

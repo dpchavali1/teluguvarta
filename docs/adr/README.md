@@ -133,3 +133,5 @@ accepted. Add ad-hoc ADRs below this table as they're written.
   [ADR-055](ADR-055-admin-bulk-removal-and-restore.md)
 - ADR-056 | Fixed topic taxonomy (merge AI-invented duplicates) and topic-alert floor at the importance base | — | **accepted** (owner request 2026-10-06) — see
   [ADR-056](ADR-056-canonical-topic-taxonomy.md)
+- ADR-057 | Full auto-publish on for non-sensitive stories, P1 review off (supersedes ADR-019's rejection; accepts ADR-011 gap) | — | **accepted** (owner request 2026-10-06) — see
+  [ADR-057](ADR-057-auto-publish-global-on.md)

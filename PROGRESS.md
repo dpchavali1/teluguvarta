@@ -7,6 +7,15 @@ through T14-search. See the [improvement plan](docs/reviews/2026-10-01-improveme
 for the ordered follow-ups and the [ADR registry](docs/adr/README.md) for decisions.
 Local implementation is distinct from deployment and device acceptance.
 
+**Full auto-publish on (2026-10-06, [ADR-057](docs/adr/ADR-057-auto-publish-global-on.md)):**
+Owner request to cut the review queue. Prod already had `AUTO_PUBLISH_GLOBAL=true` (checked on the worker); `.env.prod` needs
+`AUTO_PUBLISH_GLOBAL=true` and `AI_REVIEW_P1_STORIES=false`, then `up -d
+--force-recreate api worker`. The owner applies this on the VPS; it is not
+confirmed here. No code change. Sensitive, low-confidence, similarity,
+content-rule, rights and budget holds all remain. `deploy.sh` first-run
+defaults stay conservative. This supersedes ADR-019's rejection and accepts
+the open ADR-011 evidence gap for non-sensitive stories.
+
 **Canonical topics and topic alerts (2026-10-06, [ADR-056](docs/adr/ADR-056-canonical-topic-taxonomy.md)):**
 Owner report: many duplicate topics, and only one or two alerts with 74
 topics selected. Causes: production had 243 AI-invented topics (the
