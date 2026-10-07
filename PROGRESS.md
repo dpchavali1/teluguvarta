@@ -32,6 +32,11 @@ no-argument callback. New audit advisories (shell-quote critical; source-map-js,
 compression and sharp high) are fixed with root `pnpm.overrides` limited to the
 vulnerable ranges; the audit gate itself is unchanged. CI is fully green on
 `ea5c723`.
+Follow-up (admin fonts): the VPS Docker build of apps/admin failed inside
+`next/font/google` (Google served a font URL with no file extension). Admin
+fonts are now self-hosted via `next/font/local`: variable woff2 files from
+`@fontsource-variable/*` 5.3.0, with OFL texts, in `apps/admin/src/app/fonts/`.
+apps/web still uses `next/font/google` and could hit the same failure.
 
 **Admin removal controls (2026-10-05, [ADR-055](docs/adr/ADR-055-admin-bulk-removal-and-restore.md)):**
 Owner request: admins can now empty the review queue, take down or delete

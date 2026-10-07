@@ -1,6 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
-import { Bricolage_Grotesque, Inter_Tight, JetBrains_Mono, Noto_Sans_Telugu } from "next/font/google";
+import localFont from "next/font/local";
 import { headers } from "next/headers";
 
 import AdminNav from "@/components/AdminNav";
@@ -12,31 +12,38 @@ import "./globals.css";
 // Same pairing as apps/web/src/app/layout.tsx — see that file for the
 // rationale. Telugu is loaded here too: the review-queue story detail page
 // renders the Telugu variant text for editorial QA.
-const fontDisplay = Bricolage_Grotesque({
-  subsets: ["latin"],
+//
+// Self-hosted via next/font/local (variable woff2 from @fontsource-variable,
+// OFL texts alongside in ./fonts) rather than next/font/google: the VPS
+// Docker build failed inside next/font's Google loader when Google served a
+// font URL without a file extension. Local files keep builds offline-safe.
+// Each file is the variable font's full wght axis (latin subset; telugu subset
+// for Noto Sans Telugu), covering the weights the Google config requested.
+const fontDisplay = localFont({
+  src: "./fonts/bricolage-grotesque-latin-wght-normal.woff2",
   variable: "--font-display",
-  weight: ["500", "600", "700", "800"],
+  weight: "200 800",
   display: "swap",
 });
 
-const fontSans = Inter_Tight({
-  subsets: ["latin"],
+const fontSans = localFont({
+  src: "./fonts/inter-tight-latin-wght-normal.woff2",
   variable: "--font-sans",
-  weight: ["400", "500", "600", "700"],
+  weight: "100 900",
   display: "swap",
 });
 
-const fontMono = JetBrains_Mono({
-  subsets: ["latin"],
+const fontMono = localFont({
+  src: "./fonts/jetbrains-mono-latin-wght-normal.woff2",
   variable: "--font-mono",
-  weight: ["400", "500", "700"],
+  weight: "100 800",
   display: "swap",
 });
 
-const fontTelugu = Noto_Sans_Telugu({
-  subsets: ["telugu"],
+const fontTelugu = localFont({
+  src: "./fonts/noto-sans-telugu-telugu-wght-normal.woff2",
   variable: "--font-telugu",
-  weight: ["400", "500", "700"],
+  weight: "100 900",
   display: "swap",
 });
 
