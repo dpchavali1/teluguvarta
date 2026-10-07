@@ -1,6 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
-import { Inter_Tight, Mandali, Noto_Sans_Telugu, Noto_Serif_Telugu, Peddana } from "next/font/google";
+import localFont from "next/font/local";
 
 import { BottomNav } from "@/components/BottomNav";
 import { SiteFooter } from "@/components/SiteFooter";
@@ -17,40 +17,66 @@ import "./globals.css";
 // preloaded. The Telugu faces are large and only needed once Telugu text is
 // on screen, so they are not preloaded — the browser fetches them on demand
 // via unicode-range when a lang="te" glyph first renders.
-const fontSans = Inter_Tight({
-  subsets: ["latin"],
+//
+// Self-hosted via next/font/local (woff2 from @fontsource / @fontsource-variable
+// 5.3.0, OFL texts alongside in ./fonts) rather than next/font/google, same as
+// apps/admin: the VPS Docker build failed inside next/font's Google loader when
+// Google served a font URL without a file extension. Local files keep builds
+// offline-safe. Telugu files are the telugu subset only; Latin glyphs in Telugu
+// text fall through to --font-body via the stacks in tokens.css/globals.css.
+const fontSans = localFont({
+  src: "./fonts/inter-tight-latin-wght-normal.woff2",
   variable: "--font-sans",
+  weight: "100 900",
   display: "swap",
 });
 
-const fontTelugu = Noto_Sans_Telugu({
-  subsets: ["telugu"],
+const fontTelugu = localFont({
+  src: "./fonts/noto-sans-telugu-telugu-wght-normal.woff2",
   variable: "--font-telugu",
+  weight: "100 900",
   display: "swap",
   preload: false,
+  // Repeated per face: next/font only accepts literal options.
+  declarations: [
+    { prop: "unicode-range", value: "U+0951-0952,U+0964-0965,U+0C00-0C7F,U+1CDA,U+1CF2,U+200C-200D,U+25CC" },
+  ],
 });
 
-const fontTeluguDisplay = Peddana({
-  subsets: ["telugu"],
+const fontTeluguDisplay = localFont({
+  src: "./fonts/peddana-telugu-400-normal.woff2",
   variable: "--font-telugu-display",
-  weight: ["400"],
+  weight: "400",
   display: "swap",
   preload: false,
+  // Repeated per face: next/font only accepts literal options.
+  declarations: [
+    { prop: "unicode-range", value: "U+0951-0952,U+0964-0965,U+0C00-0C7F,U+1CDA,U+1CF2,U+200C-200D,U+25CC" },
+  ],
 });
 
-const fontTeluguSerif = Noto_Serif_Telugu({
-  subsets: ["telugu"],
+const fontTeluguSerif = localFont({
+  src: "./fonts/noto-serif-telugu-telugu-wght-normal.woff2",
   variable: "--font-telugu-serif",
+  weight: "100 900",
   display: "swap",
   preload: false,
+  // Repeated per face: next/font only accepts literal options.
+  declarations: [
+    { prop: "unicode-range", value: "U+0951-0952,U+0964-0965,U+0C00-0C7F,U+1CDA,U+1CF2,U+200C-200D,U+25CC" },
+  ],
 });
 
-const fontTeluguMandali = Mandali({
-  subsets: ["telugu"],
+const fontTeluguMandali = localFont({
+  src: "./fonts/mandali-telugu-400-normal.woff2",
   variable: "--font-telugu-mandali",
-  weight: ["400"],
+  weight: "400",
   display: "swap",
   preload: false,
+  // Repeated per face: next/font only accepts literal options.
+  declarations: [
+    { prop: "unicode-range", value: "U+0951-0952,U+0964-0965,U+0C00-0C7F,U+1CDA,U+1CF2,U+200C-200D,U+25CC" },
+  ],
 });
 
 // Runs before hydration so the correct theme paints on first frame — avoids

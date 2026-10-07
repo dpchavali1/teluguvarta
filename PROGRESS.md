@@ -36,7 +36,11 @@ Follow-up (admin fonts): the VPS Docker build of apps/admin failed inside
 `next/font/google` (Google served a font URL with no file extension). Admin
 fonts are now self-hosted via `next/font/local`: variable woff2 files from
 `@fontsource-variable/*` 5.3.0, with OFL texts, in `apps/admin/src/app/fonts/`.
-apps/web still uses `next/font/google` and could hit the same failure.
+apps/web now does the same (`apps/web/src/app/fonts/`): Inter Tight and Noto
+Sans/Serif Telugu (variable), Peddana and Mandali (`@fontsource/*` 5.3.0, 400).
+Telugu files are the telugu subset only and keep `preload: false` plus an
+explicit `unicode-range`, so they still load on demand; Latin glyphs in Telugu
+text fall through to the body font. No `next/font/google` remains.
 
 **Admin removal controls (2026-10-05, [ADR-055](docs/adr/ADR-055-admin-bulk-removal-and-restore.md)):**
 Owner request: admins can now empty the review queue, take down or delete
